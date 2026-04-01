@@ -339,7 +339,7 @@ function loadFrontState() {
     contentVersion: parsed?.contentVersion || "default",
     contentLang: parsed?.contentLang || "zh",
     primaryScriptureVersionId:
-      parsed?.primaryScriptureVersionId || legacyScriptureIds[0] || "cuv_zh_tw",
+      parsed?.primaryScriptureVersionId || legacyScriptureIds[0] || "cuvs_zh",
     secondaryScriptureVersionIds: Array.isArray(
       parsed?.secondaryScriptureVersionIds
     )
@@ -354,11 +354,11 @@ function loadFrontState() {
     showQuestions:
       typeof parsed?.showQuestions === "boolean"
         ? parsed.showQuestions
-        : parsed?.qaMode !== "a",
+        : true,
     showScripture:
       typeof parsed?.showScripture === "boolean"
         ? parsed.showScripture
-        : parsed?.qaMode === "a",
+        : true,
     fontScale: loadFontScale(),
   };
 }
@@ -724,6 +724,9 @@ function isDivineSpeechVerseText(rawText) {
     /耶和华说/u,
     /主说/u,
     /神说/u,
+    /耶和华\s*说/u,
+    /主\s*说/u,
+    /神\s*说/u,
     /耶稣说/u,
     /圣灵说/u,
     /耶和华如此说/u,
@@ -3108,6 +3111,46 @@ function ensureDeployTabExists() {
       <button id="deployRefreshBtn" class="secondary-btn" type="button">刷新状态</button>
     </div>
     <div id="deployStatusBox" class="result-box">尚未读取部署状态。</div>
+    <div class="section-title">数据备份与恢复</div>
+    <div class="modal-actions">
+      <button id="createDataBackupBtn" class="primary-btn" type="button">创建数据备份</button>
+      <button id="refreshDataBackupBtn" class="secondary-btn" type="button">刷新备份列表</button>
+      <button id="downloadDataBackupBtn" class="secondary-btn" type="button">下载选中备份(zip)</button>
+      <button id="restoreDataBackupBtn" class="secondary-btn" type="button">恢复选中备份</button>
+      <button id="pruneDataBackupBtn" class="secondary-btn" type="button">清理旧备份</button>
+      <button id="saveDataBackupConfigBtn" class="secondary-btn" type="button">保存保留设置</button>
+      <button id="runAutoBackupNowBtn" class="primary-btn" type="button">立即执行自动备份(测试)</button>
+    </div>
+    <div class="admin-grid">
+      <div>
+        <div class="label">保留最近 N 份</div>
+        <input id="dataBackupKeepCountInput" type="number" min="1" max="200" class="custom-textarea single-input" value="20" />
+      </div>
+      <div>
+        <div class="label">自动备份</div>
+        <label style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <input id="autoBackupEnabledInput" type="checkbox" />
+          <span>开启每天定时自动备份</span>
+        </label>
+      </div>
+      <div>
+        <div class="label">自动备份时间（24小时）</div>
+        <div style="display:flex; gap:8px;">
+          <input id="autoBackupHourInput" type="number" min="0" max="23" class="custom-textarea single-input" value="3" />
+          <input id="autoBackupMinuteInput" type="number" min="0" max="59" class="custom-textarea single-input" value="0" />
+        </div>
+      </div>
+      <div>
+        <div class="label">可恢复备份</div>
+        <select id="dataBackupSelect"></select>
+      </div>
+    </div>
+    <div id="dataBackupStatusBox" class="result-box">尚未读取数据备份。</div>
+    <div class="section-title">管理操作审计日志</div>
+    <div class="modal-actions">
+      <button id="refreshAuditLogBtn" class="secondary-btn" type="button">刷新审计日志</button>
+    </div>
+    <div id="auditLogBox" class="result-box">尚未读取审计日志。</div>
   `;
   const modalCard = document.querySelector(".modal-card-admin");
   const existingPanels = modalCard?.querySelectorAll(".admin-tab-panel");
@@ -4968,6 +5011,21 @@ async function initDeployManagerTab() {
   const rollbackBtn = document.getElementById("deployRollbackBtn");
   const refreshBtn = document.getElementById("deployRefreshBtn");
   const statusBox = document.getElementById("deployStatusBox");
+  const createDataBackupBtn = document.getElementById("createDataBackupBtn");
+  const refreshDataBackupBtn = document.getElementById("refreshDataBackupBtn");
+  const downloadDataBackupBtn = document.getElementById("downloadDataBackupBtn");
+  const restoreDataBackupBtn = document.getElementById("restoreDataBackupBtn");
+  const pruneDataBackupBtn = document.getElementById("pruneDataBackupBtn");
+  const saveDataBackupConfigBtn = document.getElementById("saveDataBackupConfigBtn");
+  const runAutoBackupNowBtn = document.getElementById("runAutoBackupNowBtn");
+  const dataBackupKeepCountInput = document.getElementById("dataBackupKeepCountInput");
+  const autoBackupEnabledInput = document.getElementById("autoBackupEnabledInput");
+  const autoBackupHourInput = document.getElementById("autoBackupHourInput");
+  const autoBackupMinuteInput = document.getElementById("autoBackupMinuteInput");
+  const dataBackupSelect = document.getElementById("dataBackupSelect");
+  const dataBackupStatusBox = document.getElementById("dataBackupStatusBox");
+  const refreshAuditLogBtn = document.getElementById("refreshAuditLogBtn");
+  const auditLogBox = document.getElementById("auditLogBox");
   if (!uploadSelect || !statusBox) return;
 
   function getPackageVersion() {
@@ -5049,6 +5107,65 @@ async function initDeployManagerTab() {
         ? `\n最近操作：${latestHistory.action} ${latestHistory.version || ""} ${latestHistory.at || ""}`
         : ""
     }`;
+  }
+
+  async function loadDataBackups() {
+    if (!dataBackupSelect || !dataBackupStatusBox) return;
+    const res = await fetch("/api/admin/data-backups", { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "读取数据备份失败");
+    const keepCount = Math.max(
+      1,
+      Math.min(200, Number(data.keepCount || data.defaultKeepCount || 20) || 20)
+    );
+    if (dataBackupKeepCountInput) {
+      dataBackupKeepCountInput.value = String(keepCount);
+    }
+    if (autoBackupEnabledInput) autoBackupEnabledInput.checked = Boolean(data.autoBackupEnabled);
+    if (autoBackupHourInput) {
+      autoBackupHourInput.value = String(
+        Math.max(0, Math.min(23, Number(data.autoBackupHour ?? 3) || 3))
+      );
+    }
+    if (autoBackupMinuteInput) {
+      autoBackupMinuteInput.value = String(
+        Math.max(0, Math.min(59, Number(data.autoBackupMinute ?? 0) || 0))
+      );
+    }
+    const items = Array.isArray(data.items) ? data.items : [];
+    dataBackupSelect.innerHTML = items.length
+      ? items
+          .map(
+            (x) =>
+              `<option value="${escapeHtml(String(x.id || ""))}">${escapeHtml(
+                `${x.id || ""} (${x.createdAt || ""})`
+              )}</option>`
+          )
+          .join("")
+      : `<option value="">暂无备份</option>`;
+    dataBackupStatusBox.textContent = `共 ${items.length} 份备份。${
+      data.lastAutoBackupDate ? ` 最近一次自动备份日期：${data.lastAutoBackupDate}` : ""
+    }`;
+  }
+
+  async function loadAuditLog() {
+    if (!auditLogBox) return;
+    const res = await fetch("/api/admin/audit-log?limit=80", { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "读取审计日志失败");
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      auditLogBox.textContent = "暂无审计记录。";
+      return;
+    }
+    auditLogBox.textContent = items
+      .map(
+        (x) =>
+          `${x.at || ""} | ${x.action || ""} | ${x.actorName || x.actorEmail || "未知"}${
+            x.actorRole ? `(${x.actorRole})` : ""
+          } | ${JSON.stringify(x.detail || {})}`
+      )
+      .join("\n");
   }
 
   uploadBtn?.addEventListener("click", async () => {
@@ -5138,8 +5255,170 @@ async function initDeployManagerTab() {
     await loadStatus();
   });
 
+  createDataBackupBtn?.addEventListener("click", async () => {
+    if (!dataBackupStatusBox) return;
+    dataBackupStatusBox.textContent = "正在创建备份...";
+    const keepCount = Math.max(
+      1,
+      Math.min(200, Number(dataBackupKeepCountInput?.value || 20) || 20)
+    );
+    const res = await fetch("/api/admin/data-backups/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keepCount }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      dataBackupStatusBox.textContent = data.error || "创建备份失败";
+      return;
+    }
+    dataBackupStatusBox.textContent = `备份已创建：${data.backup?.id || ""}；已保留最近 ${
+      data.keepCount || keepCount
+    } 份，清理 ${data.prune?.removedCount || 0} 份。`;
+    await loadDataBackups();
+    await loadAuditLog();
+  });
+
+  refreshDataBackupBtn?.addEventListener("click", async () => {
+    try {
+      await loadDataBackups();
+    } catch (error) {
+      if (dataBackupStatusBox) dataBackupStatusBox.textContent = error?.message || "读取失败";
+    }
+  });
+
+  downloadDataBackupBtn?.addEventListener("click", () => {
+    const backupId = String(dataBackupSelect?.value || "");
+    if (!backupId) {
+      if (dataBackupStatusBox) dataBackupStatusBox.textContent = "请先选择备份。";
+      return;
+    }
+    const params = new URLSearchParams({ backupId });
+    window.open(`/api/admin/data-backups/download?${params.toString()}`, "_blank");
+    if (dataBackupStatusBox) dataBackupStatusBox.textContent = `开始下载：${backupId}`;
+  });
+
+  restoreDataBackupBtn?.addEventListener("click", async () => {
+    const backupId = String(dataBackupSelect?.value || "");
+    if (!backupId) {
+      if (dataBackupStatusBox) dataBackupStatusBox.textContent = "请先选择备份。";
+      return;
+    }
+    if (!confirm(`确认恢复该备份？恢复后将覆盖当前数据：${backupId}`)) return;
+    if (dataBackupStatusBox) dataBackupStatusBox.textContent = "恢复中...";
+    const res = await fetch("/api/admin/data-backups/restore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ backupId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (dataBackupStatusBox) dataBackupStatusBox.textContent = data.error || "恢复失败";
+      return;
+    }
+    if (dataBackupStatusBox)
+      dataBackupStatusBox.textContent = `恢复完成：${data.backupId || backupId}`;
+    await loadStatus();
+    await loadAuditLog();
+  });
+
+  pruneDataBackupBtn?.addEventListener("click", async () => {
+    const keepCount = Math.max(
+      1,
+      Math.min(200, Number(dataBackupKeepCountInput?.value || 20) || 20)
+    );
+    if (!confirm(`确认清理旧备份？仅保留最近 ${keepCount} 份。`)) return;
+    if (dataBackupStatusBox) dataBackupStatusBox.textContent = "正在清理旧备份...";
+    const res = await fetch("/api/admin/data-backups/prune", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keepCount }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (dataBackupStatusBox) dataBackupStatusBox.textContent = data.error || "清理失败";
+      return;
+    }
+    if (dataBackupStatusBox)
+      dataBackupStatusBox.textContent = `清理完成：保留 ${data.keepCount} 份，删除 ${data.removedCount} 份。`;
+    await loadDataBackups();
+    await loadAuditLog();
+  });
+
+  saveDataBackupConfigBtn?.addEventListener("click", async () => {
+    const keepCount = Math.max(
+      1,
+      Math.min(200, Number(dataBackupKeepCountInput?.value || 20) || 20)
+    );
+    const autoBackupEnabled = Boolean(autoBackupEnabledInput?.checked);
+    const autoBackupHour = Math.max(0, Math.min(23, Number(autoBackupHourInput?.value || 3) || 3));
+    const autoBackupMinute = Math.max(
+      0,
+      Math.min(59, Number(autoBackupMinuteInput?.value || 0) || 0)
+    );
+    if (dataBackupStatusBox) dataBackupStatusBox.textContent = "正在保存保留设置...";
+    const res = await fetch("/api/admin/data-backups/config/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        keepCount,
+        autoBackupEnabled,
+        autoBackupHour,
+        autoBackupMinute,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (dataBackupStatusBox) dataBackupStatusBox.textContent = data.error || "保存失败";
+      return;
+    }
+    if (dataBackupKeepCountInput) dataBackupKeepCountInput.value = String(data.keepCount || keepCount);
+    if (dataBackupStatusBox)
+      dataBackupStatusBox.textContent = `设置已保存：默认保留最近 ${data.keepCount || keepCount} 份；自动备份${
+        data.autoBackupEnabled ? "已开启" : "已关闭"
+      }（${String(data.autoBackupHour ?? 3).padStart(2, "0")}:${String(
+        data.autoBackupMinute ?? 0
+      ).padStart(2, "0")}）。`;
+    await loadAuditLog();
+  });
+
+  runAutoBackupNowBtn?.addEventListener("click", async () => {
+    if (dataBackupStatusBox) dataBackupStatusBox.textContent = "正在执行自动备份测试...";
+    const res = await fetch("/api/admin/data-backups/auto-run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (dataBackupStatusBox) dataBackupStatusBox.textContent = data.error || "执行失败";
+      return;
+    }
+    if (dataBackupStatusBox) {
+      dataBackupStatusBox.textContent = `测试执行完成：新备份 ${data.backup?.id || ""}；保留 ${
+        data.keepCount || 0
+      } 份，清理 ${data.prune?.removedCount || 0} 份。`;
+    }
+    await loadDataBackups();
+    await loadAuditLog();
+  });
+
+  refreshAuditLogBtn?.addEventListener("click", async () => {
+    try {
+      await loadAuditLog();
+    } catch (error) {
+      if (auditLogBox) auditLogBox.textContent = error?.message || "读取失败";
+    }
+  });
+
   refreshBtn?.addEventListener("click", loadStatus);
   await loadStatus();
+  await loadDataBackups().catch((error) => {
+    if (dataBackupStatusBox) dataBackupStatusBox.textContent = error?.message || "读取失败";
+  });
+  await loadAuditLog().catch((error) => {
+    if (auditLogBox) auditLogBox.textContent = error?.message || "读取失败";
+  });
 }
 
 async function refreshScriptureVersionsList() {
