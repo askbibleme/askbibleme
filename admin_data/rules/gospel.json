@@ -1,0 +1,37 @@
+{
+  "id": "gospel",
+  "label": "福音版",
+  "scene": "福音查经",
+  "template": "福音版",
+  "styleTags": [
+    "简洁",
+    "生活化",
+    "更深入"
+  ],
+  "baseRules": {
+    "leaderHint": true,
+    "avoidRepeat": true,
+    "allowLightApplication": true,
+    "allowGospelEmphasis": true,
+    "allowChildrenTone": false,
+    "allowYouthTone": false,
+    "allowCoupleTone": false,
+    "allowWorkplaceTone": false,
+    "minQuestionsPerSegment": 2,
+    "maxQuestionsPerSegment": 4,
+    "chapterQuestionMin": 12,
+    "chapterQuestionMax": 18
+  },
+  "languageProfiles": {
+    "zh": {
+      "customPrompt": "可适度帮助读者看见人的光景、神的恩典与救赎线索，但不要脱离原文。"
+    },
+    "en": {
+      "customPrompt": "Gently surface themes of grace, human need, and redemptive movement without forcing the text."
+    },
+    "es": {
+      "customPrompt": "Muestra con naturalidad la gracia, la necesidad humana y la línea redentora sin forzar el texto."
+    }
+  },
+  "systemPromptOverride": ""
+}

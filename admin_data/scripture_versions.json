@@ -1,0 +1,89 @@
+{
+  "scriptureVersions": [
+    {
+      "id": "cuvs_zh",
+      "label": "和合本简体",
+      "lang": "zh",
+      "enabled": true,
+      "uiEnabled": true,
+      "contentEnabled": true,
+      "scriptureEnabled": true,
+      "contentMode": "native",
+      "sourceType": "usfx",
+      "sourceFile": "data/chi-cuv-simp.usfx.xml",
+      "description": "中文简体主版本",
+      "sortOrder": 1
+    },
+    {
+      "id": "cuv_zh_tw",
+      "label": "和合本繁體",
+      "lang": "zh",
+      "enabled": true,
+      "uiEnabled": true,
+      "contentEnabled": true,
+      "scriptureEnabled": true,
+      "contentMode": "native",
+      "sourceType": "usfx",
+      "sourceFile": "data/chi-cuv.usfx.xml",
+      "description": "中文繁體版本",
+      "sortOrder": 2
+    },
+    {
+      "id": "bbe_en",
+      "label": "BBE English EASY",
+      "lang": "en",
+      "enabled": true,
+      "uiEnabled": true,
+      "contentEnabled": true,
+      "scriptureEnabled": true,
+      "contentMode": "native",
+      "sourceType": "usfx",
+      "sourceFile": "data/eng-bbe.usfx.xml",
+      "description": "English BBE",
+      "sortOrder": 10,
+      "updatedAt": "2026-04-01T05:45:07.804Z"
+    },
+    {
+      "id": "web_en",
+      "label": "WEB English",
+      "lang": "en",
+      "enabled": true,
+      "uiEnabled": true,
+      "contentEnabled": true,
+      "scriptureEnabled": true,
+      "contentMode": "native",
+      "sourceType": "usfx",
+      "sourceFile": "data/eng-web.usfx.xml",
+      "description": "English WEB",
+      "sortOrder": 11
+    },
+    {
+      "id": "rv1909_es",
+      "label": "Reina-Valera 1909",
+      "lang": "es",
+      "enabled": true,
+      "uiEnabled": true,
+      "contentEnabled": true,
+      "scriptureEnabled": true,
+      "contentMode": "native",
+      "sourceType": "usfx",
+      "sourceFile": "data/spa-rv1909.usfx.xml",
+      "description": "Español RV1909",
+      "sortOrder": 20
+    },
+    {
+      "id": "hebrew_wlc",
+      "label": "Hebrew Leningrad",
+      "lang": "he",
+      "enabled": true,
+      "uiEnabled": true,
+      "contentEnabled": false,
+      "scriptureEnabled": true,
+      "contentMode": "native",
+      "sourceType": "usfx",
+      "sourceFile": "data/heb-leningrad.usfx.xml",
+      "description": "Hebrew text",
+      "sortOrder": 30
+    }
+  ]
+}

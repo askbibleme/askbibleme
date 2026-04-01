@@ -1,0 +1,78 @@
+{
+  "version": "children",
+  "versionLabel": "儿童版",
+  "contentLang": "zh",
+  "bookId": "GEN",
+  "bookLabel": "创世记",
+  "chapter": 23,
+  "theme": "亚伯拉罕失去撒拉后，诚实又郑重地买下一块地，把她安葬。",
+  "repeatedWords": [
+    {
+      "word": "埋葬",
+      "count": 8
+    },
+    {
+      "word": "赫人",
+      "count": 8
+    },
+    {
+      "word": "死人",
+      "count": 8
+    },
+    {
+      "word": "田",
+      "count": 8
+    },
+    {
+      "word": "洞",
+      "count": 6
+    }
+  ],
+  "segments": [
+    {
+      "title": "撒拉去世，亚伯拉罕很难过",
+      "rangeStart": 1,
+      "rangeEnd": 6,
+      "questions": [
+        "撒拉活了多少岁？",
+        "撒拉死后，亚伯拉罕有什么反应？",
+        "赫人怎样看亚伯拉罕？"
+      ]
+    },
+    {
+      "title": "亚伯拉罕提出想买麦比拉洞",
+      "rangeStart": 7,
+      "rangeEnd": 9,
+      "questions": [
+        "亚伯拉罕先向赫人做了什么动作？",
+        "他想要买哪一个地方？",
+        "他为什么要这块地？"
+      ]
+    },
+    {
+      "title": "以弗仑说要送地，亚伯拉罕坚持付钱",
+      "rangeStart": 10,
+      "rangeEnd": 16,
+      "questions": [
+        "以弗仑一开始怎么说？",
+        "亚伯拉罕为什么还是要给田价？",
+        "最后他付了多少银子？"
+      ]
+    },
+    {
+      "title": "这块地正式归亚伯拉罕，撒拉被安葬",
+      "rangeStart": 17,
+      "rangeEnd": 20,
+      "questions": [
+        "买下来的不只是洞，还有什么？",
+        "亚伯拉罕把撒拉葬在什么地方？",
+        "这块地后来成了作什么用的地方？"
+      ]
+    }
+  ],
+  "chapterLeaderHint": [],
+  "closing": "这一章让我们看到，亚伯拉罕虽然很伤心，但他还是认真、诚实地处理事情。我们难过的时候，也可以像他一样，安静地做该做的事。",
+  "title": "亚伯拉罕为撒拉买坟地",
+  "generatedAt": "2026-03-31T15:32:13.642Z",
+  "savedAt": "2026-03-31T15:38:27.662Z"
+}

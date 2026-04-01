@@ -1,0 +1,324 @@
+{
+  "id": "job_1774904368476",
+  "type": "bulk_generate",
+  "scope": "book",
+  "versionMode": "single",
+  "version": "default",
+  "langMode": "single",
+  "lang": "zh",
+  "bookId": "GEN",
+  "chapter": null,
+  "autoPublish": true,
+  "buildId": "build_1774904368476_book_default_zh",
+  "status": "completed",
+  "done": 50,
+  "total": 50,
+  "targets": [
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 1
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 2
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 3
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 4
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 5
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 6
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 7
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 8
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 9
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 10
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 11
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 12
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 13
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 14
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 15
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 16
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 17
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 18
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 19
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 20
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 21
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 22
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 23
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 24
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 25
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 26
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 27
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 28
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 29
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 30
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 31
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 32
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 33
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 34
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 35
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 36
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 37
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 38
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 39
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 40
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 41
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 42
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 43
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 44
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 45
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 46
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 47
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 48
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 49
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 50
+    }
+  ],
+  "errors": [],
+  "startedAt": "2026-03-30T20:59:28.478Z",
+  "finishedAt": "2026-03-30T21:27:06.918Z",
+  "createdAt": "2026-03-30T20:59:28.476Z",
+  "updatedAt": "2026-03-30T21:27:06.918Z",
+  "progressText": "任务完成：50 / 50，并已自动发布"
+}

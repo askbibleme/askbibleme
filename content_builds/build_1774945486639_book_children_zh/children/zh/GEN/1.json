@@ -1,0 +1,103 @@
+{
+  "version": "children",
+  "versionLabel": "儿童版",
+  "contentLang": "zh",
+  "bookId": "GEN",
+  "bookLabel": "创世记",
+  "chapter": 1,
+  "theme": "神一步一步创造万物，也按自己的形像造人。",
+  "repeatedWords": [
+    {
+      "word": "神说",
+      "count": 10
+    },
+    {
+      "word": "事就这样成了",
+      "count": 6
+    },
+    {
+      "word": "神看着是好的",
+      "count": 6
+    },
+    {
+      "word": "各从其类",
+      "count": 10
+    },
+    {
+      "word": "有晚上，有早晨",
+      "count": 6
+    }
+  ],
+  "segments": [
+    {
+      "title": "第一日：神造光",
+      "rangeStart": 1,
+      "rangeEnd": 5,
+      "questions": [
+        "一开始，是谁创造了天地？",
+        "地起初是什么样子？",
+        "神说了什么？后来发生了什么？"
+      ]
+    },
+    {
+      "title": "第二日：神造天空",
+      "rangeStart": 6,
+      "rangeEnd": 8,
+      "questions": [
+        "神怎样把水分开？",
+        "神把空气称为什么？"
+      ]
+    },
+    {
+      "title": "第三日：地、海和植物",
+      "rangeStart": 9,
+      "rangeEnd": 13,
+      "questions": [
+        "神让水和旱地怎样分开？",
+        "神给旱地和水的聚处起了什么名字？",
+        "地上长出了哪些东西？"
+      ]
+    },
+    {
+      "title": "第四日：太阳、月亮和星星",
+      "rangeStart": 14,
+      "rangeEnd": 19,
+      "questions": [
+        "神在天上造光体，是为了做什么？",
+        "两个大光分别管理什么？"
+      ]
+    },
+    {
+      "title": "第五日：鱼和飞鸟",
+      "rangeStart": 20,
+      "rangeEnd": 23,
+      "questions": [
+        "第五日，神造了哪两大类活物？",
+        "神给鱼和飞鸟什么祝福？"
+      ]
+    },
+    {
+      "title": "第六日上：地上的动物",
+      "rangeStart": 24,
+      "rangeEnd": 25,
+      "questions": [
+        "神造了哪些地上的活物？"
+      ]
+    },
+    {
+      "title": "第六日下：神造人",
+      "rangeStart": 26,
+      "rangeEnd": 31,
+      "questions": [
+        "神是按着谁的形像造人？",
+        "神要人管理哪些活物？",
+        "神给人和动物预备了什么食物？"
+      ]
+    }
+  ],
+  "chapterLeaderHint": [],
+  "closing": "这章让我们看见，世界不是乱来的，是神有次序地创造的。神看所造的都是好的，人也是神特别造的。我们可以学习感谢神，爱惜祂所造的世界。",
+  "title": "神创造世界",
+  "generatedAt": "2026-03-31T15:27:44.668Z",
+  "savedAt": "2026-03-31T15:27:44.668Z"
+}

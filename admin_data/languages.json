@@ -1,0 +1,40 @@
+{
+    "languages": [
+      {
+        "id": "zh",
+        "label": "中文",
+        "enabled": true,
+        "uiEnabled": true,
+        "contentEnabled": true,
+        "scriptureEnabled": true,
+        "contentMode": "native"
+      },
+      {
+        "id": "en",
+        "label": "English",
+        "enabled": true,
+        "uiEnabled": true,
+        "contentEnabled": true,
+        "scriptureEnabled": true,
+        "contentMode": "native"
+      },
+      {
+        "id": "es",
+        "label": "Español",
+        "enabled": true,
+        "uiEnabled": true,
+        "contentEnabled": true,
+        "scriptureEnabled": true,
+        "contentMode": "native"
+      },
+      {
+        "id": "he",
+        "label": "Hebrew",
+        "enabled": true,
+        "uiEnabled": true,
+        "contentEnabled": true,
+        "scriptureEnabled": true,
+        "contentMode": "native"
+      }
+    ]
+  }

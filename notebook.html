@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AskBible.me - 笔记本</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-topbar">
+        <div class="site-topbar-title">
+          <h1 id="brandTitle">
+            <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>
+          </h1>
+        </div>
+      </header>
+
+      <main class="book-layout notebook-layout notebook-app">
+        <div class="notebook-shell">
+          <aside class="notebook-col notebook-col-books">
+            <a class="notebook-col-head notebook-back-link" href="/">← 返回</a>
+            <div id="notebookBooks" class="notebook-list"></div>
+          </aside>
+
+          <aside class="notebook-col notebook-col-notes">
+            <div class="notebook-col-head notebook-notes-head">
+              <span>条目</span>
+              <div class="notebook-actions">
+                <button type="button" id="openNotebookSettingsBtn" class="notebook-action-btn">用户配置</button>
+                <button type="button" id="exportDataBtn" class="notebook-action-btn">导出数据</button>
+                <button type="button" id="importDataBtn" class="notebook-action-btn">导入数据</button>
+                <input id="importDataInput" type="file" accept="application/json" hidden />
+              </div>
+            </div>
+            <div id="notebookNotes" class="notebook-list"></div>
+          </aside>
+        </div>
+      </main>
+      <footer class="site-footer">
+        <span class="site-footer-version">v13.0.0</span>
+        <span class="site-footer-copy">© 2026 AskBible.me. All rights reserved.</span>
+      </footer>
+    </div>
+    <div id="notebookUserSettingsModal" class="modal-mask" style="display: none">
+      <div class="modal-card modal-card-sm notebook-settings-modal">
+        <div class="modal-head">
+          <h2>用户配置</h2>
+          <button id="closeNotebookSettingsBtn" class="top-action-btn modal-dark-btn" type="button">关闭</button>
+        </div>
+        <div class="notebook-settings-group">
+          <div class="section-title">资料设置</div>
+          <div class="label">昵称</div>
+          <input id="notebookSettingsNameInput" class="custom-textarea single-input" type="text" />
+          <div class="label">邮箱</div>
+          <input id="notebookSettingsEmailInput" class="custom-textarea single-input" type="email" />
+          <div class="modal-actions notebook-settings-actions">
+            <button id="saveNotebookProfileBtn" class="primary-btn" type="button">保存资料</button>
+          </div>
+        </div>
+        <div class="notebook-settings-group">
+          <div class="section-title">安全设置</div>
+          <div class="label">当前密码</div>
+          <input id="notebookSettingsCurrentPasswordInput" class="custom-textarea single-input" type="password" placeholder="输入当前密码" />
+          <div class="label">新密码</div>
+          <input id="notebookSettingsNewPasswordInput" class="custom-textarea single-input" type="password" placeholder="至少 6 位" />
+          <div class="modal-actions notebook-settings-actions">
+            <button id="saveNotebookPasswordBtn" class="secondary-btn" type="button">修改密码</button>
+            <button id="logoutNotebookBtn" class="top-action-btn modal-dark-btn" type="button">退出登录</button>
+          </div>
+        </div>
+        <div id="notebookUserSettingsStatus" class="error-text"></div>
+      </div>
+    </div>
+    <script>
+      const KEY = "askbible_notebook_v1";
+      const FAVORITES_KEY = "bible_verse_favorites_v1";
+      const QUESTION_FAVORITES_KEY = "bible_question_favorites_v1";
+      const FRONT_STATE_KEY = "bible_front_state_v4";
+      const FONT_SCALE_KEY = "bible_font_scale_v1";
+      const VIEWPORT_SCROLL_KEY = "bible_viewport_scroll_v1";
+      const PENDING_FAVORITE_FOCUS_KEY = "bible_pending_favorite_focus_v1";
+      const PENDING_QUESTION_FOCUS_KEY = "bible_pending_question_focus_v1";
+      const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+      const BOOK_NAME_ZH = {
+        GEN: "创世记", EXO: "出埃及记", LEV: "利未记", NUM: "民数记", DEU: "申命记",
+        JOS: "约书亚记", JDG: "士师记", RUT: "路得记", "1SA": "撒母耳记上", "2SA": "撒母耳记下",
+        "1KI": "列王纪上", "2KI": "列王纪下", "1CH": "历代志上", "2CH": "历代志下", EZR: "以斯拉记",
+        NEH: "尼希米记", EST: "以斯帖记", JOB: "约伯记", PSA: "诗篇", PRO: "箴言",
+        ECC: "传道书", SNG: "雅歌", ISA: "以赛亚书", JER: "耶利米书", LAM: "耶利米哀歌",
+        EZK: "以西结书", DAN: "但以理书", HOS: "何西阿书", JOL: "约珥书", AMO: "阿摩司书",
+        OBA: "俄巴底亚书", JON: "约拿书", MIC: "弥迦书", NAM: "那鸿书", HAB: "哈巴谷书",
+        ZEP: "西番雅书", HAG: "哈该书", ZEC: "撒迦利亚书", MAL: "玛拉基书", MAT: "马太福音",
+        MRK: "马可福音", LUK: "路加福音", JHN: "约翰福音", ACT: "使徒行传", ROM: "罗马书",
+        "1CO": "哥林多前书", "2CO": "哥林多后书", GAL: "加拉太书", EPH: "以弗所书", PHP: "腓立比书",
+        COL: "歌罗西书", "1TH": "帖撒罗尼迦前书", "2TH": "帖撒罗尼迦后书", "1TI": "提摩太前书", "2TI": "提摩太后书",
+        TIT: "提多书", PHM: "腓利门书", HEB: "希伯来书", JAS: "雅各书", "1PE": "彼得前书",
+        "2PE": "彼得后书", "1JN": "约翰一书", "2JN": "约翰二书", "3JN": "约翰三书", JUD: "犹大书",
+        REV: "启示录"
+      };
+      const DEFAULT_DATA = {
+        books: [
+          { id: "divineSpeech", title: "主说的话", color: "teal" },
+          { id: "hotVerses", title: "热门经文", color: "olive" },
+          { id: "globalFavorites", title: "热门收藏", color: "olive" },
+          { id: "favorites", title: "我的经文", color: "rose" },
+          { id: "questionFavorites", title: "我的问题", color: "amber" },
+        ],
+        notes: {
+          hotVerses: [],
+          favorites: [],
+          questionFavorites: [],
+          globalFavorites: [],
+          divineSpeech: [],
+        },
+      };
+
+      function loadData() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(KEY) || "null");
+          if (parsed && parsed.books && parsed.notes) return parsed;
+        } catch {}
+        return DEFAULT_DATA;
+      }
+      function saveData(data) {
+        localStorage.setItem(KEY, JSON.stringify(data));
+      }
+
+      const state = {
+        data: loadData(),
+        activeBookId: "divineSpeech",
+      };
+
+      const booksEl = document.getElementById("notebookBooks");
+      const notesEl = document.getElementById("notebookNotes");
+      const exportDataBtn = document.getElementById("exportDataBtn");
+      const importDataBtn = document.getElementById("importDataBtn");
+      const importDataInput = document.getElementById("importDataInput");
+      const openNotebookSettingsBtn = document.getElementById("openNotebookSettingsBtn");
+      const GLOBAL_SYNC_VERSE_KEYS = "bible_global_sync_verse_keys_v1";
+      const GLOBAL_SYNC_QUESTION_KEYS = "bible_global_sync_question_keys_v1";
+
+      async function fetchGlobalFavoriteItems(type) {
+        try {
+          const res = await fetch(
+            `/api/global-favorites?type=${encodeURIComponent(type)}&limit=100`,
+            { cache: "no-store" }
+          );
+          const data = await res.json();
+          if (!res.ok) return [];
+          return Array.isArray(data?.items) ? data.items : [];
+        } catch {
+          return [];
+        }
+      }
+
+      async function fetchDivineSpeechItems(versionId) {
+        try {
+          const res = await fetch(
+            `/api/divine-speech-verses?versionId=${encodeURIComponent(versionId || "")}&limit=500`,
+            { cache: "no-store" }
+          );
+          const data = await res.json();
+          if (!res.ok) return [];
+          return Array.isArray(data?.items) ? data.items : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function getAuthToken() {
+        return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+      }
+
+      async function fetchCurrentUser() {
+        const token = getAuthToken();
+        if (!token) return null;
+        try {
+          const res = await fetch("/api/auth/me", {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+          });
+          const data = await res.json();
+          if (!res.ok) return null;
+          return data.user || null;
+        } catch {
+          return null;
+        }
+      }
+
+      function initNotebookUserSettings() {
+        const modal = document.getElementById("notebookUserSettingsModal");
+        const closeBtn = document.getElementById("closeNotebookSettingsBtn");
+        const saveProfileBtn = document.getElementById("saveNotebookProfileBtn");
+        const savePasswordBtn = document.getElementById("saveNotebookPasswordBtn");
+        const logoutBtn = document.getElementById("logoutNotebookBtn");
+        const nameInput = document.getElementById("notebookSettingsNameInput");
+        const emailInput = document.getElementById("notebookSettingsEmailInput");
+        const currentPasswordInput = document.getElementById(
+          "notebookSettingsCurrentPasswordInput"
+        );
+        const newPasswordInput = document.getElementById("notebookSettingsNewPasswordInput");
+        const statusEl = document.getElementById("notebookUserSettingsStatus");
+
+        openNotebookSettingsBtn?.addEventListener("click", async () => {
+          const user = await fetchCurrentUser();
+          if (!user) {
+            alert("请先在首页登录");
+            return;
+          }
+          if (nameInput) nameInput.value = String(user.name || "");
+          if (emailInput) emailInput.value = String(user.email || "");
+          if (statusEl) statusEl.textContent = "";
+          if (modal) modal.style.display = "block";
+        });
+
+        closeBtn?.addEventListener("click", () => {
+          if (modal) modal.style.display = "none";
+        });
+
+        saveProfileBtn?.addEventListener("click", async () => {
+          const token = getAuthToken();
+          const name = String(nameInput?.value || "").trim();
+          const email = String(emailInput?.value || "").trim();
+          if (!token) return;
+          if (statusEl) statusEl.textContent = "保存中...";
+          try {
+            const res = await fetch("/api/auth/profile/update", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ name, email }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "保存失败");
+            if (statusEl) statusEl.textContent = "资料已保存";
+          } catch (error) {
+            if (statusEl) statusEl.textContent = error?.message || "保存失败";
+          }
+        });
+
+        savePasswordBtn?.addEventListener("click", async () => {
+          const token = getAuthToken();
+          const currentPassword = String(currentPasswordInput?.value || "").trim();
+          const newPassword = String(newPasswordInput?.value || "").trim();
+          if (!token) return;
+          if (statusEl) statusEl.textContent = "保存中...";
+          try {
+            const res = await fetch("/api/auth/password/update", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ currentPassword, newPassword }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "修改失败");
+            if (currentPasswordInput) currentPasswordInput.value = "";
+            if (newPasswordInput) newPasswordInput.value = "";
+            if (statusEl) statusEl.textContent = "密码已更新";
+          } catch (error) {
+            if (statusEl) statusEl.textContent = error?.message || "修改失败";
+          }
+        });
+
+        logoutBtn?.addEventListener("click", async () => {
+          const token = getAuthToken();
+          try {
+            await fetch("/api/auth/logout", {
+              method: "POST",
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+          } catch {}
+          localStorage.removeItem(USER_AUTH_TOKEN_KEY);
+          if (modal) modal.style.display = "none";
+          alert("已退出登录");
+        });
+      }
+
+      function loadSyncedKeySet(storageKey) {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]");
+          if (!Array.isArray(parsed)) return new Set();
+          return new Set(parsed.map((x) => String(x || "")).filter(Boolean));
+        } catch {
+          return new Set();
+        }
+      }
+
+      function saveSyncedKeySet(storageKey, setObj) {
+        localStorage.setItem(storageKey, JSON.stringify(Array.from(setObj)));
+      }
+
+      async function reportGlobalFavoriteToggle(payload) {
+        try {
+          await fetch("/api/global-favorites/toggle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        } catch {}
+      }
+
+      function loadFavoriteVerses() {
+        try {
+          const verseParsed = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+          const verses = Array.isArray(verseParsed) ? verseParsed : [];
+          return verses
+            .slice()
+            .map((x) => ({
+              id: String(x.key || ""),
+              key: String(x.key || ""),
+              bookId: String(x.bookId || "").toUpperCase(),
+              chapter: Number(x.chapter || 0),
+              verse: Number(x.verse || 0),
+              versionId: String(x.versionId || ""),
+              createdAt: Number(x.createdAt || 0),
+              title: `${BOOK_NAME_ZH[String(x.bookId || "").toUpperCase()] || String(x.bookId || "").toUpperCase()} ${Number(
+                x.chapter || 0
+              )}:${Number(x.verse || 0)}`,
+              content: `${String(x.text || "")}`.trim(),
+            }))
+            .filter((x) => x.id && x.content);
+        } catch {
+          return [];
+        }
+      }
+
+      function loadFavoriteQuestions() {
+        try {
+          const qParsed = JSON.parse(localStorage.getItem(QUESTION_FAVORITES_KEY) || "[]");
+          const questions = Array.isArray(qParsed) ? qParsed : [];
+          return questions
+            .slice()
+            .map((x) => ({
+              id: String(x.key || ""),
+              key: String(x.key || ""),
+              bookId: String(x.bookId || "").toUpperCase(),
+              chapter: Number(x.chapter || 0),
+              createdAt: Number(x.createdAt || 0),
+              title: `问题 · ${
+                BOOK_NAME_ZH[String(x.bookId || "").toUpperCase()] ||
+                String(x.bookId || "").toUpperCase()
+              } ${Number(x.chapter || 0)}`,
+              content: String(x.question || ""),
+            }))
+            .filter((x) => x.id && x.content);
+        } catch {
+          return [];
+        }
+      }
+
+      function isDivineSpeechText(rawText) {
+        const text = String(rawText || "").trim();
+        if (!text) return false;
+        const patterns = [
+          /耶和华说/u, /主说/u, /神说/u, /耶稣说/u, /圣灵说/u,
+          /耶和华如此说/u, /主如此说/u, /神如此说/u,
+          /耶和华晓谕/u, /主晓谕/u, /神晓谕/u,
+          /耶和华对.*说/u, /主对.*说/u, /神对.*说/u, /耶稣对.*说/u,
+          /\bthe\s+lord\s+said\b/i, /\bgod\s+said\b/i, /\bjesus\s+said\b/i,
+          /\bthus\s+says?\s+the\s+lord\b/i, /\bel\s+senor\s+dijo\b/i, /\bdios\s+dijo\b/i
+        ];
+        return patterns.some((re) => re.test(text));
+      }
+
+      function syncFavoritesIntoNotebook() {
+        state.data.books = [
+          { id: "divineSpeech", title: "主说的话", color: "teal" },
+          { id: "hotVerses", title: "热门经文", color: "olive" },
+          { id: "globalFavorites", title: "热门收藏", color: "olive" },
+          { id: "favorites", title: "我的经文", color: "rose" },
+          { id: "questionFavorites", title: "我的问题", color: "amber" },
+        ];
+        state.data.notes.favorites = loadFavoriteVerses();
+        state.data.notes.questionFavorites = loadFavoriteQuestions();
+        if (!state.data.books.some((b) => b.id === state.activeBookId)) {
+          state.activeBookId = "divineSpeech";
+        }
+      }
+
+      async function syncDivineSpeechIntoNotebook() {
+        const currentState = JSON.parse(localStorage.getItem(FRONT_STATE_KEY) || "{}");
+        const versionId = String(currentState?.primaryScriptureVersionId || "");
+        const rows = await fetchDivineSpeechItems(versionId);
+        state.data.notes.divineSpeech = rows.map((x) => ({
+          id: String(x.key || ""),
+          key: String(x.key || ""),
+          type: "verse",
+          bookId: String(x.bookId || "").toUpperCase(),
+          chapter: Number(x.chapter || 0),
+          verse: Number(x.verse || 0),
+          versionId: String(x.versionId || versionId || ""),
+          title: String(x.title || ""),
+          content: String(x.content || ""),
+        }));
+      }
+
+      async function syncGlobalFavoritesIntoNotebook() {
+        const localVerses = loadFavoriteVerses();
+        const localQuestions = loadFavoriteQuestions();
+        let [verseHot, questionHot] = await Promise.all([
+          fetchGlobalFavoriteItems("verse"),
+          fetchGlobalFavoriteItems("question"),
+        ]);
+
+        if (!verseHot.length && !questionHot.length) {
+          const syncedVerseKeys = loadSyncedKeySet(GLOBAL_SYNC_VERSE_KEYS);
+          const syncedQuestionKeys = loadSyncedKeySet(GLOBAL_SYNC_QUESTION_KEYS);
+          let verseChanged = false;
+          let questionChanged = false;
+
+          for (const item of localVerses) {
+            const key = String(item.key || "");
+            if (!key || syncedVerseKeys.has(key)) continue;
+            syncedVerseKeys.add(key);
+            verseChanged = true;
+            await reportGlobalFavoriteToggle({
+              action: "add",
+              type: "verse",
+              key,
+              bookId: item.bookId,
+              chapter: Number(item.chapter || 0),
+              verse: Number(item.verse || 0),
+              title: String(item.title || ""),
+              content: String(item.content || ""),
+            });
+          }
+
+          for (const item of localQuestions) {
+            const key = String(item.key || "");
+            if (!key || syncedQuestionKeys.has(key)) continue;
+            syncedQuestionKeys.add(key);
+            questionChanged = true;
+            await reportGlobalFavoriteToggle({
+              action: "add",
+              type: "question",
+              key,
+              bookId: item.bookId,
+              chapter: Number(item.chapter || 0),
+              title: String(item.title || ""),
+              content: String(item.content || ""),
+            });
+          }
+
+          if (verseChanged) saveSyncedKeySet(GLOBAL_SYNC_VERSE_KEYS, syncedVerseKeys);
+          if (questionChanged) saveSyncedKeySet(GLOBAL_SYNC_QUESTION_KEYS, syncedQuestionKeys);
+
+          [verseHot, questionHot] = await Promise.all([
+            fetchGlobalFavoriteItems("verse"),
+            fetchGlobalFavoriteItems("question"),
+          ]);
+        }
+
+        if (!verseHot.length && !questionHot.length) {
+          verseHot = localVerses.map((x) => ({
+            key: x.key,
+            type: "verse",
+            bookId: x.bookId,
+            chapter: x.chapter,
+            verse: x.verse,
+            title: x.title,
+            content: x.content,
+            count: 1,
+            updatedAt: new Date().toISOString(),
+          }));
+          questionHot = localQuestions.map((x) => ({
+            key: x.key,
+            type: "question",
+            bookId: x.bookId,
+            chapter: x.chapter,
+            title: x.title,
+            content: x.content,
+            count: 1,
+            updatedAt: new Date().toISOString(),
+          }));
+        }
+
+        const verseItems = verseHot.map((x) => ({
+          id: String(x.key || ""),
+          key: String(x.key || ""),
+          type: "verse",
+          bookId: String(x.bookId || "").toUpperCase(),
+          chapter: Number(x.chapter || 0),
+          verse: Number(x.verse || 0),
+          versionId: "",
+          createdAt: Number(new Date(String(x.updatedAt || Date.now())).getTime()),
+          title:
+            String(x.title || "") ||
+            `${BOOK_NAME_ZH[String(x.bookId || "").toUpperCase()] || String(x.bookId || "")} ${Number(
+              x.chapter || 0
+            )}:${Number(x.verse || 0)}`,
+          content: String(x.content || ""),
+          count: Number(x.count || 0),
+        }));
+
+        const questionItems = questionHot.map((x) => ({
+          id: String(x.key || ""),
+          key: String(x.key || ""),
+          type: "question",
+          bookId: String(x.bookId || "").toUpperCase(),
+          chapter: Number(x.chapter || 0),
+          createdAt: Number(new Date(String(x.updatedAt || Date.now())).getTime()),
+          title:
+            String(x.title || "") ||
+            `问题 · ${BOOK_NAME_ZH[String(x.bookId || "").toUpperCase()] || String(x.bookId || "")} ${Number(
+              x.chapter || 0
+            )}`,
+          content: String(x.content || ""),
+          count: Number(x.count || 0),
+        }));
+
+        state.data.notes.globalFavorites = [...verseItems, ...questionItems].sort(
+          (a, b) => Number(b.count || 0) - Number(a.count || 0)
+        );
+        state.data.notes.hotVerses = verseItems.sort(
+          (a, b) => Number(b.count || 0) - Number(a.count || 0)
+        );
+      }
+
+      function exportAllData() {
+        const payload = {
+          meta: {
+            app: "askbible",
+            exportedAt: new Date().toISOString(),
+            version: 1,
+          },
+          data: {
+            [FAVORITES_KEY]: JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]"),
+            [QUESTION_FAVORITES_KEY]: JSON.parse(
+              localStorage.getItem(QUESTION_FAVORITES_KEY) || "[]"
+            ),
+            [KEY]: JSON.parse(localStorage.getItem(KEY) || "null"),
+            [FRONT_STATE_KEY]: JSON.parse(localStorage.getItem(FRONT_STATE_KEY) || "null"),
+            [FONT_SCALE_KEY]: localStorage.getItem(FONT_SCALE_KEY),
+            [VIEWPORT_SCROLL_KEY]: localStorage.getItem(VIEWPORT_SCROLL_KEY),
+          },
+        };
+
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const ts = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+        a.href = url;
+        a.download = `askbible-userdata-${ts}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function importAllDataFromFile(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result || "{}"));
+            const data = parsed?.data;
+            if (!data || typeof data !== "object") throw new Error("格式错误");
+
+            if (FAVORITES_KEY in data) {
+              localStorage.setItem(FAVORITES_KEY, JSON.stringify(data[FAVORITES_KEY] || []));
+            }
+            if (QUESTION_FAVORITES_KEY in data) {
+              localStorage.setItem(
+                QUESTION_FAVORITES_KEY,
+                JSON.stringify(data[QUESTION_FAVORITES_KEY] || [])
+              );
+            }
+            if (KEY in data) {
+              localStorage.setItem(KEY, JSON.stringify(data[KEY] || DEFAULT_DATA));
+              state.data = loadData();
+            }
+            if (FRONT_STATE_KEY in data) {
+              localStorage.setItem(FRONT_STATE_KEY, JSON.stringify(data[FRONT_STATE_KEY]));
+            }
+            if (FONT_SCALE_KEY in data && data[FONT_SCALE_KEY] != null) {
+              localStorage.setItem(FONT_SCALE_KEY, String(data[FONT_SCALE_KEY]));
+            }
+            if (VIEWPORT_SCROLL_KEY in data && data[VIEWPORT_SCROLL_KEY] != null) {
+              localStorage.setItem(VIEWPORT_SCROLL_KEY, String(data[VIEWPORT_SCROLL_KEY]));
+            }
+            renderAll();
+          } catch {
+            alert("导入失败：文件不是有效的个人数据 JSON");
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function getActiveBook() {
+        return state.data.books.find((b) => b.id === state.activeBookId) || state.data.books[0];
+      }
+      function getActiveNotes() {
+        return state.data.notes[state.activeBookId] || [];
+      }
+
+      function renderBooks() {
+        booksEl.innerHTML = state.data.books
+          .map((b) => {
+            const active = b.id === state.activeBookId ? "active" : "";
+            return `<button class="notebook-item ${active}" data-book-id="${b.id}">
+              <span class="notebook-color-dot ${b.color}"></span>${b.title}
+            </button>`;
+          })
+          .join("");
+        booksEl.querySelectorAll("[data-book-id]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const nextBookId = btn.getAttribute("data-book-id");
+            state.activeBookId = nextBookId;
+            renderAll();
+          });
+        });
+      }
+
+      function renderNotes() {
+        const list = getActiveNotes();
+        if (!list.length) {
+          notesEl.innerHTML = `<div class="empty-state">${
+            state.activeBookId === "questionFavorites"
+              ? "暂无收藏问题"
+              : state.activeBookId === "hotVerses"
+              ? "暂无热门经文"
+              : state.activeBookId === "divineSpeech"
+              ? "暂无主说的话"
+              : state.activeBookId === "globalFavorites"
+              ? "暂无热门收藏"
+              : "暂无收藏经文"
+          }</div>`;
+          return;
+        }
+        notesEl.innerHTML = list
+          .map((n, idx) => {
+            const isVerseItem =
+              state.activeBookId === "divineSpeech" ||
+              state.activeBookId === "hotVerses" ||
+              state.activeBookId === "favorites" ||
+              (state.activeBookId === "globalFavorites" && n.type === "verse");
+            const divineClass =
+              isVerseItem && isDivineSpeechText(n.content || "") ? " is-divine-speech-note" : "";
+            return `<article class="notebook-note-card">
+              <div class="notebook-note-content${divineClass}"><span class="notebook-note-rank">${idx + 1}.</span>${(n.content || "")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")} <span class="notebook-note-source">${n.title}</span></div>
+            </article>`;
+          })
+          .join("");
+
+        notesEl.querySelectorAll(".notebook-note-card").forEach((card, idx) => {
+          card.addEventListener("click", () => {
+            const item = list[idx];
+            if (!item) return;
+            const currentState = JSON.parse(localStorage.getItem(FRONT_STATE_KEY) || "{}");
+            const nextState = {
+              ...currentState,
+              bookId: item.bookId,
+              chapter: item.chapter,
+            };
+            if (item.versionId) {
+              nextState.primaryScriptureVersionId = item.versionId;
+              nextState.secondaryScriptureVersionIds = (
+                nextState.secondaryScriptureVersionIds || []
+              ).filter((id) => id !== item.versionId);
+            }
+            localStorage.setItem(FRONT_STATE_KEY, JSON.stringify(nextState));
+            if (
+              state.activeBookId === "questionFavorites" ||
+              (state.activeBookId === "globalFavorites" && item.type === "question")
+            ) {
+              localStorage.setItem(PENDING_QUESTION_FOCUS_KEY, item.key || "");
+            } else {
+              localStorage.setItem(PENDING_FAVORITE_FOCUS_KEY, item.key || "");
+            }
+            localStorage.setItem(VIEWPORT_SCROLL_KEY, "0");
+            window.location.href = "/";
+          });
+        });
+      }
+
+      async function renderAll() {
+        syncFavoritesIntoNotebook();
+        await syncGlobalFavoritesIntoNotebook();
+        await syncDivineSpeechIntoNotebook();
+        renderBooks();
+        renderNotes();
+      }
+
+      exportDataBtn?.addEventListener("click", exportAllData);
+      importDataBtn?.addEventListener("click", () => importDataInput?.click());
+      importDataInput?.addEventListener("change", (e) => {
+        const file = e.target?.files?.[0];
+        if (!file) return;
+        importAllDataFromFile(file);
+        importDataInput.value = "";
+      });
+
+      initNotebookUserSettings();
+      renderAll();
+    </script>
+  </body>
+</html>

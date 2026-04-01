@@ -1,0 +1,29 @@
+{
+  "naming": {
+    "pointName": "成长值",
+    "levelName": "学习等级",
+    "recordName": "成长记录",
+    "leaderboardName": "本周学习榜",
+    "note": "成长值用于记录学习投入，不代表生命成熟度。"
+  },
+  "eventLabels": {
+    "readChapter": "完成阅读",
+    "favorite": "标记重点",
+    "interactionClick": "学习互动",
+    "reply": "参与讨论",
+    "submitQuestion": "提出问题",
+    "approvedQuestion": "问题被采纳"
+  },
+  "levels": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10"
+  ]
+}

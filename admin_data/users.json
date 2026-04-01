@@ -1,0 +1,18 @@
+{
+  "users": [
+    {
+      "id": "u_1775061719604_gay9pm",
+      "name": "joshua",
+      "email": "502299900@qq.com",
+      "passwordHash": "4cc55a65eb0a2c02ecbe8dadb910548a8ac2ae0612e924b8bb7c7ec95ea0c448",
+      "createdAt": "2026-04-01T16:41:59.604Z"
+    },
+    {
+      "id": "u_1775061448281_x8p8xr",
+      "name": "demo",
+      "email": "demo_auth_test@example.com",
+      "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+      "createdAt": "2026-04-01T16:37:28.296Z"
+    }
+  ]
+}

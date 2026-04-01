@@ -1,0 +1,121 @@
+{
+  "id": "job_1774907380967",
+  "type": "bulk_generate",
+  "scope": "book",
+  "versionMode": "single",
+  "version": "default",
+  "langMode": "single",
+  "lang": "zh",
+  "bookId": "ROM",
+  "chapter": null,
+  "autoPublish": true,
+  "buildId": "build_1774907380967_book_default_zh",
+  "status": "completed",
+  "done": 16,
+  "total": 16,
+  "targets": [
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 1
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 2
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 3
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 4
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 5
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 6
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 7
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 8
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 9
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 10
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 11
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 12
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 13
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 14
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 15
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "ROM",
+      "chapter": 16
+    }
+  ],
+  "errors": [],
+  "startedAt": "2026-03-30T21:49:40.967Z",
+  "finishedAt": "2026-03-30T21:56:54.085Z",
+  "createdAt": "2026-03-30T21:49:40.967Z",
+  "updatedAt": "2026-03-30T21:56:54.085Z",
+  "progressText": "任务完成：16 / 16，并已自动发布",
+  "completionSummary": "完成：成功 16，失败 0，已自动发布"
+}

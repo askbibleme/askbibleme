@@ -1,0 +1,60 @@
+{
+  "items": {
+    "cuvs_zh|GEN|1|20": {
+      "key": "cuvs_zh|GEN|1|20",
+      "type": "verse",
+      "count": 1,
+      "createdAt": "2026-04-01T14:49:01.828Z",
+      "updatedAt": "2026-04-01T14:49:01.828Z",
+      "bookId": "GEN",
+      "chapter": 1,
+      "verse": 20,
+      "title": "GEN 1章:20",
+      "content": "神说：「水要多多滋生有生命的物；要有雀鸟飞在地面以上，天空之中。」",
+      "contentVersion": "",
+      "contentLang": ""
+    },
+    "cuvs_zh|GEN|1|21": {
+      "key": "cuvs_zh|GEN|1|21",
+      "type": "verse",
+      "count": 1,
+      "createdAt": "2026-04-01T14:49:01.834Z",
+      "updatedAt": "2026-04-01T14:49:01.834Z",
+      "bookId": "GEN",
+      "chapter": 1,
+      "verse": 21,
+      "title": "GEN 1章:21",
+      "content": "神就造出大鱼和水中所滋生各样有生命的动物，各从其类；又造出各样飞鸟，各从其类。神看着是好的。",
+      "contentVersion": "",
+      "contentLang": ""
+    },
+    "cuvs_zh|GEN|1|26": {
+      "key": "cuvs_zh|GEN|1|26",
+      "type": "verse",
+      "count": 2,
+      "createdAt": "2026-04-01T15:45:54.718Z",
+      "updatedAt": "2026-04-01T15:46:21.719Z",
+      "bookId": "GEN",
+      "chapter": 1,
+      "verse": 26,
+      "title": "GEN 1章:26",
+      "content": "神说：「我们要照着我们的形像、按着我们的样式造人，使他们管理海里的鱼、空中的鸟、地上的牲畜和全地，并地上所爬的一切昆虫。」",
+      "contentVersion": "",
+      "contentLang": ""
+    },
+    "cuvs_zh|GEN|1|2": {
+      "key": "cuvs_zh|GEN|1|2",
+      "type": "verse",
+      "count": 2,
+      "createdAt": "2026-04-01T15:46:04.724Z",
+      "updatedAt": "2026-04-01T15:46:21.715Z",
+      "bookId": "GEN",
+      "chapter": 1,
+      "verse": 2,
+      "title": "GEN 1章:2",
+      "content": "地是空虚混沌，渊面黑暗；神的灵运行在水面上。",
+      "contentVersion": "",
+      "contentLang": ""
+    }
+  }
+}

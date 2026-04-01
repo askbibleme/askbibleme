@@ -1,0 +1,31 @@
+{
+  "id": "job_1774910203473",
+  "type": "bulk_generate",
+  "scope": "book",
+  "versionMode": "single",
+  "version": "default",
+  "langMode": "single",
+  "lang": "zh",
+  "bookId": "JUD",
+  "chapter": null,
+  "autoPublish": true,
+  "buildId": "build_1774910203473_book_default_zh",
+  "status": "completed",
+  "done": 1,
+  "total": 1,
+  "targets": [
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "JUD",
+      "chapter": 1
+    }
+  ],
+  "errors": [],
+  "startedAt": "2026-03-30T22:36:43.474Z",
+  "finishedAt": "2026-03-30T22:37:12.373Z",
+  "createdAt": "2026-03-30T22:36:43.473Z",
+  "updatedAt": "2026-03-30T22:37:12.373Z",
+  "progressText": "任务完成：1 / 1，并已自动合并发布",
+  "completionSummary": "完成：成功 1，失败 0，已自动发布"
+}

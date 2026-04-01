@@ -1,0 +1,1 @@
+最终版：单一模式，只保留观察、解释、应用。运行：cd ~/Desktop/bible-guide-final && npm install && npm start

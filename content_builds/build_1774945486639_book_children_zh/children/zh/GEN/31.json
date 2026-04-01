@@ -1,0 +1,95 @@
+{
+  "version": "children",
+  "versionLabel": "儿童版",
+  "contentLang": "zh",
+  "bookId": "GEN",
+  "bookLabel": "创世记",
+  "chapter": 31,
+  "theme": "雅各离开拉班的时候，神看见他的难处，也一路保护他。",
+  "repeatedWords": [
+    {
+      "word": "神",
+      "count": 18
+    },
+    {
+      "word": "拉班",
+      "count": 28
+    },
+    {
+      "word": "雅各",
+      "count": 24
+    },
+    {
+      "word": "女儿",
+      "count": 7
+    },
+    {
+      "word": "石堆",
+      "count": 7
+    }
+  ],
+  "segments": [
+    {
+      "title": "神叫雅各回家",
+      "rangeStart": 1,
+      "rangeEnd": 13,
+      "questions": [
+        "雅各先听见了什么话，又看见了什么变化？",
+        "耶和华叫雅各去哪里？又应许了他什么？",
+        "雅各告诉妻子，神怎么看见了拉班对他做的事？"
+      ]
+    },
+    {
+      "title": "拉结和利亚同意离开",
+      "rangeStart": 14,
+      "rangeEnd": 18,
+      "questions": [
+        "拉结和利亚为什么愿意跟雅各走？",
+        "她们最后怎样回答雅各？"
+      ]
+    },
+    {
+      "title": "雅各逃走，拉班追来",
+      "rangeStart": 19,
+      "rangeEnd": 25,
+      "questions": [
+        "雅各是怎样离开的？拉结又做了一件什么事？",
+        "拉班追上来以前，神在梦里怎样提醒他？"
+      ]
+    },
+    {
+      "title": "拉班责问雅各",
+      "rangeStart": 26,
+      "rangeEnd": 35,
+      "questions": [
+        "拉班责怪雅各做了哪两件事？",
+        "雅各为什么说自己要偷偷离开？",
+        "拉班最后找到神像了吗？"
+      ]
+    },
+    {
+      "title": "雅各讲出自己的辛苦",
+      "rangeStart": 36,
+      "rangeEnd": 42,
+      "questions": [
+        "雅各说自己这二十年怎样服事拉班？",
+        "如果没有神帮助，雅各觉得自己会变成什么样？"
+      ]
+    },
+    {
+      "title": "两边立约，不再彼此伤害",
+      "rangeStart": 43,
+      "rangeEnd": 55,
+      "questions": [
+        "拉班提议用什么东西作他们中间的证据？",
+        "这个约最重要的一点是什么？",
+        "最后拉班怎样离开家人？"
+      ]
+    }
+  ],
+  "chapterLeaderHint": [],
+  "closing": "这章让我们看见，神知道人受的委屈，也会在合适的时候带领人前面的路。",
+  "title": "神带雅各平安离开",
+  "generatedAt": "2026-03-31T15:34:04.390Z",
+  "savedAt": "2026-03-31T15:34:04.390Z"
+}

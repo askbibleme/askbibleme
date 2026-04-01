@@ -1,0 +1,94 @@
+{
+  "version": "children",
+  "versionLabel": "儿童版",
+  "contentLang": "zh",
+  "bookId": "GEN",
+  "bookLabel": "创世记",
+  "chapter": 39,
+  "theme": "约瑟在顺利和困难里都敬畏神，神也一直与他同在。",
+  "repeatedWords": [
+    {
+      "word": "约瑟",
+      "count": 19
+    },
+    {
+      "word": "耶和华与他同在",
+      "count": 4
+    },
+    {
+      "word": "顺利",
+      "count": 4
+    },
+    {
+      "word": "衣裳",
+      "count": 4
+    },
+    {
+      "word": "交在他手里",
+      "count": 4
+    }
+  ],
+  "segments": [
+    {
+      "title": "约瑟在主人家蒙恩",
+      "rangeStart": 1,
+      "rangeEnd": 6,
+      "questions": [
+        "约瑟被带到哪里？谁把他买去？",
+        "为什么约瑟在主人家中百事顺利？",
+        "主人后来把什么交给约瑟管理？"
+      ]
+    },
+    {
+      "title": "约瑟拒绝做恶",
+      "rangeStart": 7,
+      "rangeEnd": 10,
+      "questions": [
+        "主人的妻子要约瑟做什么事？",
+        "约瑟为什么不肯？他说这样做会得罪谁？",
+        "她天天这样说时，约瑟怎样保护自己？"
+      ]
+    },
+    {
+      "title": "约瑟逃开试探",
+      "rangeStart": 11,
+      "rangeEnd": 12,
+      "questions": [
+        "那天屋里有没有别人？",
+        "当妇人拉住约瑟的衣裳时，约瑟马上怎么做？"
+      ]
+    },
+    {
+      "title": "妇人说谎诬告约瑟",
+      "rangeStart": 13,
+      "rangeEnd": 18,
+      "questions": [
+        "妇人拿着约瑟的衣裳，对家里的人怎么说？",
+        "她后来又怎样对主人说这件事？"
+      ]
+    },
+    {
+      "title": "约瑟被下在监里",
+      "rangeStart": 19,
+      "rangeEnd": 20,
+      "questions": [
+        "主人听了妻子的话以后，有什么反应？",
+        "约瑟虽然没有做错，结果却到了哪里？"
+      ]
+    },
+    {
+      "title": "神在监里也与约瑟同在",
+      "rangeStart": 21,
+      "rangeEnd": 23,
+      "questions": [
+        "约瑟进了监牢以后，谁还是与他同在？",
+        "司狱为什么放心把事情交给约瑟？"
+      ]
+    }
+  ],
+  "chapterLeaderHint": [],
+  "closing": "约瑟没有因为没人看见就去做错事。他敬畏神，也远离试探。后来虽然受了委屈，神还是与他同在。我们也可以学习约瑟，在顺利时忠心，在困难时继续相信神。",
+  "title": "神与约瑟同在",
+  "generatedAt": "2026-03-31T15:35:50.485Z",
+  "savedAt": "2026-03-31T15:35:50.485Z"
+}

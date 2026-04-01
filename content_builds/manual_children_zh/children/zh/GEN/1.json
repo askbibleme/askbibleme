@@ -1,0 +1,104 @@
+{
+  "version": "children",
+  "versionLabel": "儿童版",
+  "contentLang": "zh",
+  "bookId": "GEN",
+  "bookLabel": "创世记",
+  "chapter": 1,
+  "theme": "神有能力、有次序地创造万物，也创造了人。",
+  "repeatedWords": [
+    {
+      "word": "神说",
+      "count": 10
+    },
+    {
+      "word": "神看着是好的",
+      "count": 6
+    },
+    {
+      "word": "各从其类",
+      "count": 10
+    },
+    {
+      "word": "有晚上，有早晨",
+      "count": 6
+    },
+    {
+      "word": "事就这样成了",
+      "count": 6
+    }
+  ],
+  "segments": [
+    {
+      "title": "第一日：神造光",
+      "rangeStart": 1,
+      "rangeEnd": 5,
+      "questions": [
+        "一开始，只有谁在？",
+        "神说了什么？后来发生了什么？",
+        "神把光和暗分别叫什么名字？"
+      ]
+    },
+    {
+      "title": "第二日：神造天",
+      "rangeStart": 6,
+      "rangeEnd": 8,
+      "questions": [
+        "神把水怎样分开了？",
+        "神给“空气”起了什么名字？"
+      ]
+    },
+    {
+      "title": "第三日：神造地、海和植物",
+      "rangeStart": 9,
+      "rangeEnd": 13,
+      "questions": [
+        "水聚在一处以后，什么露出来了？",
+        "神把旱地和水的聚处分别叫作什么？",
+        "地上长出了哪几类植物？"
+      ]
+    },
+    {
+      "title": "第四日：神造太阳、月亮和星星",
+      "rangeStart": 14,
+      "rangeEnd": 19,
+      "questions": [
+        "天上的光体有什么用？",
+        "两个大光分别管理什么？",
+        "这一段让你看见神做事有什么次序？"
+      ]
+    },
+    {
+      "title": "第五日：神造鱼和鸟",
+      "rangeStart": 20,
+      "rangeEnd": 23,
+      "questions": [
+        "神在水里和天空中造了什么？",
+        "神对鱼和鸟说了什么祝福的话？"
+      ]
+    },
+    {
+      "title": "第六日上半：神造地上的活物",
+      "rangeStart": 24,
+      "rangeEnd": 25,
+      "questions": [
+        "神造了哪几类地上的动物？"
+      ]
+    },
+    {
+      "title": "第六日下半：神造人并赐福",
+      "rangeStart": 26,
+      "rangeEnd": 31,
+      "questions": [
+        "人是照着谁的形像被造的？",
+        "神要人管理什么？",
+        "神看自己所造的一切怎么样？"
+      ]
+    }
+  ],
+  "chapterLeaderHint": [],
+  "closing": "这一章告诉我们，世界不是乱来的，是神一步一步创造的。神造的一切都有次序，也都很好。人是神特别造的，所以我们要感谢神，也要好好爱护神所造的世界。",
+  "title": "神创造世界",
+  "generatedAt": "2026-03-30T21:22:38.790Z",
+  "savedAt": "2026-03-30T21:25:17.881Z"
+}

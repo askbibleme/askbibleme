@@ -1,0 +1,33 @@
+{
+    "id": "children",
+    "label": "儿童版",
+    "baseRules": {
+      "leaderHint": false,
+      "avoidRepeat": true,
+      "minQuestionsPerSegment": 1,
+      "maxQuestionsPerSegment": 3,
+      "chapterQuestionMin": 8,
+      "chapterQuestionMax": 12,
+      "allowLightApplication": true,
+      "allowGospelEmphasis": false,
+      "allowChildrenTone": true,
+      "allowYouthTone": false,
+      "allowCoupleTone": false,
+      "allowWorkplaceTone": false
+    },
+    "styleTags": ["简洁", "生活化", "更适合初信"],
+    "scene": "儿童读经",
+    "template": "简单版",
+    "languageProfiles": {
+      "zh": {
+        "customPrompt": "问题要短、简单、具体，适合儿童理解，避免抽象表达。"
+      },
+      "en": {
+        "customPrompt": "Keep the questions short, simple, concrete, and child-friendly."
+      },
+      "es": {
+        "customPrompt": "Haz preguntas cortas, sencillas, concretas y aptas para niños."
+      }
+    },
+    "systemPromptOverride": ""
+  }

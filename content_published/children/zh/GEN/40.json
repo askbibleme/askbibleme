@@ -1,0 +1,100 @@
+{
+  "version": "children",
+  "versionLabel": "儿童版",
+  "contentLang": "zh",
+  "bookId": "GEN",
+  "bookLabel": "创世记",
+  "chapter": 40,
+  "theme": "人在困难中，仍然关心别人，也相信神。",
+  "repeatedWords": [
+    {
+      "word": "梦",
+      "count": 9
+    },
+    {
+      "word": "法老",
+      "count": 9
+    },
+    {
+      "word": "约瑟",
+      "count": 7
+    },
+    {
+      "word": "三天",
+      "count": 3
+    },
+    {
+      "word": "酒政",
+      "count": 8
+    },
+    {
+      "word": "膳长",
+      "count": 7
+    }
+  ],
+  "segments": [
+    {
+      "title": "酒政和膳长被关进监牢",
+      "rangeStart": 1,
+      "rangeEnd": 5,
+      "questions": [
+        "酒政和膳长为什么被关进监里？",
+        "他们被关在哪里？那里还有谁？"
+      ]
+    },
+    {
+      "title": "约瑟看见他们发愁",
+      "rangeStart": 6,
+      "rangeEnd": 8,
+      "questions": [
+        "早晨，约瑟看见他们是什么样子？",
+        "约瑟怎样关心这两个人？",
+        "约瑟说解梦是出于谁？"
+      ]
+    },
+    {
+      "title": "酒政讲自己的梦",
+      "rangeStart": 9,
+      "rangeEnd": 11,
+      "questions": [
+        "酒政梦里看见了什么树？树上有什么变化？",
+        "酒政在梦里把葡萄做成了什么，又递给了谁？"
+      ]
+    },
+    {
+      "title": "约瑟解释酒政的梦",
+      "rangeStart": 12,
+      "rangeEnd": 15,
+      "questions": [
+        "三根枝子是什么意思？",
+        "约瑟说三天后，酒政会有什么结果？",
+        "约瑟请酒政以后为他做什么事？"
+      ]
+    },
+    {
+      "title": "膳长讲梦，约瑟也解释出来",
+      "rangeStart": 16,
+      "rangeEnd": 19,
+      "questions": [
+        "膳长梦里头上顶着什么？谁来吃里面的食物？",
+        "三个筐子代表几天？",
+        "约瑟告诉膳长的结果是什么？"
+      ]
+    },
+    {
+      "title": "事情照着约瑟的话发生",
+      "rangeStart": 20,
+      "rangeEnd": 23,
+      "questions": [
+        "第三天，酒政和膳长分别发生了什么事？",
+        "最后酒政有没有记念约瑟？",
+        "如果你是约瑟，别人忘了你，你心里会怎样想？"
+      ]
+    }
+  ],
+  "chapterLeaderHint": [],
+  "closing": "约瑟在监里没有只想自己，他先看见别人的难过，也相信神能帮助人。虽然酒政后来忘了他，故事还没有结束。",
+  "title": "约瑟在监里解梦",
+  "generatedAt": "2026-03-31T15:36:03.525Z",
+  "savedAt": "2026-03-31T15:38:27.664Z"
+}

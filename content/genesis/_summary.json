@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-03-29T03:49:43.273Z",
+  "successCount": 5,
+  "failedCount": 0,
+  "success": [
+    {
+      "chapter": 1,
+      "outputPath": "/project/workspace/content/genesis/1.json"
+    },
+    {
+      "chapter": 2,
+      "outputPath": "/project/workspace/content/genesis/2.json"
+    },
+    {
+      "chapter": 3,
+      "outputPath": "/project/workspace/content/genesis/3.json"
+    },
+    {
+      "chapter": 4,
+      "outputPath": "/project/workspace/content/genesis/4.json"
+    },
+    {
+      "chapter": 5,
+      "outputPath": "/project/workspace/content/genesis/5.json"
+    }
+  ],
+  "failed": [],
+  "version": "genesis-offline-v1"
+}

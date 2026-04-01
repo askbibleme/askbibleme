@@ -1,0 +1,49 @@
+{
+  "id": "job_1774907064176",
+  "type": "bulk_generate",
+  "scope": "book",
+  "versionMode": "single",
+  "version": "default",
+  "langMode": "single",
+  "lang": "zh",
+  "bookId": "COL",
+  "chapter": null,
+  "autoPublish": true,
+  "buildId": "build_1774907064176_book_default_zh",
+  "status": "completed",
+  "done": 4,
+  "total": 4,
+  "targets": [
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "COL",
+      "chapter": 1
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "COL",
+      "chapter": 2
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "COL",
+      "chapter": 3
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "COL",
+      "chapter": 4
+    }
+  ],
+  "errors": [],
+  "startedAt": "2026-03-30T21:44:24.182Z",
+  "finishedAt": "2026-03-30T21:46:10.110Z",
+  "createdAt": "2026-03-30T21:44:24.176Z",
+  "updatedAt": "2026-03-30T21:46:10.110Z",
+  "progressText": "任务完成：4 / 4，并已自动发布",
+  "completionSummary": "完成：成功 4，失败 0，已自动发布"
+}

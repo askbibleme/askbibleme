@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: askbible
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_ROOT
+        value: /var/data
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+    disks:
+      - name: askbible-data
+        mountPath: /var/data
+        sizeGB: 10

@@ -1,0 +1,33 @@
+{
+    "id": "couple",
+    "label": "夫妇版",
+    "baseRules": {
+      "leaderHint": true,
+      "avoidRepeat": true,
+      "minQuestionsPerSegment": 2,
+      "maxQuestionsPerSegment": 4,
+      "chapterQuestionMin": 10,
+      "chapterQuestionMax": 16,
+      "allowLightApplication": true,
+      "allowGospelEmphasis": false,
+      "allowChildrenTone": false,
+      "allowYouthTone": false,
+      "allowCoupleTone": true,
+      "allowWorkplaceTone": false
+    },
+    "styleTags": ["生活化", "更温和", "适合讨论"],
+    "scene": "夫妇读经",
+    "template": "关系版",
+    "languageProfiles": {
+      "zh": {
+        "customPrompt": "可更关注关系、沟通、信任、同心与家庭中的属灵同行。"
+      },
+      "en": {
+        "customPrompt": "You may focus more on relationship, communication, trust, and spiritual companionship in marriage."
+      },
+      "es": {
+        "customPrompt": "Puedes enfocarte más en relación, comunicación, confianza y caminar espiritual en el matrimonio."
+      }
+    },
+    "systemPromptOverride": ""
+  }

@@ -1,0 +1,40 @@
+{
+  "id": "job_1774911567171",
+  "type": "bulk_generate",
+  "scope": "book",
+  "versionMode": "single",
+  "version": "default",
+  "langMode": "single",
+  "lang": "zh",
+  "bookId": "GEN",
+  "chapter": null,
+  "startChapter": 2,
+  "endChapter": 3,
+  "autoPublish": true,
+  "buildId": "build_1774911567171_book_default_zh",
+  "status": "completed",
+  "done": 2,
+  "total": 2,
+  "targets": [
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 2
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 3
+    }
+  ],
+  "errors": [],
+  "startedAt": "2026-03-30T22:59:27.172Z",
+  "finishedAt": "2026-03-30T23:00:24.088Z",
+  "createdAt": "2026-03-30T22:59:27.171Z",
+  "updatedAt": "2026-03-30T23:00:24.088Z",
+  "progressText": "任务完成：2 / 2，并已自动合并发布",
+  "completionSummary": "完成：成功 2，失败 0，已自动合并发布",
+  "retryOfJobId": ""
+}

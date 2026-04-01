@@ -1,0 +1,328 @@
+{
+  "id": "job_1774945493442",
+  "type": "bulk_generate",
+  "scope": "book",
+  "versionMode": "single",
+  "version": "couple",
+  "langMode": "single",
+  "lang": "zh",
+  "bookId": "GEN",
+  "chapter": null,
+  "startChapter": 1,
+  "endChapter": 50,
+  "autoPublish": true,
+  "buildId": "build_1774945493442_book_couple_zh",
+  "status": "running",
+  "done": 18,
+  "total": 50,
+  "targets": [
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 1
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 2
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 3
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 4
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 5
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 6
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 7
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 8
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 9
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 10
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 11
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 12
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 13
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 14
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 15
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 16
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 17
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 18
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 19
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 20
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 21
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 22
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 23
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 24
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 25
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 26
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 27
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 28
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 29
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 30
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 31
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 32
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 33
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 34
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 35
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 36
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 37
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 38
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 39
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 40
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 41
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 42
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 43
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 44
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 45
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 46
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 47
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 48
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 49
+    },
+    {
+      "versionId": "couple",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 50
+    }
+  ],
+  "errors": [],
+  "startedAt": "2026-03-31T15:46:16.740Z",
+  "finishedAt": "",
+  "createdAt": "2026-03-31T08:24:53.442Z",
+  "updatedAt": "2026-03-31T15:54:58.476Z",
+  "progressText": "正在生成 couple / zh / GEN / 19",
+  "completionSummary": "",
+  "retryOfJobId": ""
+}

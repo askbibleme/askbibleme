@@ -1,0 +1,33 @@
+{
+    "id": "workplace",
+    "label": "职场版",
+    "baseRules": {
+      "leaderHint": true,
+      "avoidRepeat": true,
+      "minQuestionsPerSegment": 2,
+      "maxQuestionsPerSegment": 4,
+      "chapterQuestionMin": 10,
+      "chapterQuestionMax": 16,
+      "allowLightApplication": true,
+      "allowGospelEmphasis": false,
+      "allowChildrenTone": false,
+      "allowYouthTone": false,
+      "allowCoupleTone": false,
+      "allowWorkplaceTone": true
+    },
+    "styleTags": ["生活化", "更深入", "适合讨论"],
+    "scene": "职场读经",
+    "template": "实践版",
+    "languageProfiles": {
+      "zh": {
+        "customPrompt": "可更关注品格、忠心、诚信、压力、决策与职场处境。"
+      },
+      "en": {
+        "customPrompt": "You may focus more on character, faithfulness, integrity, pressure, decisions, and workplace life."
+      },
+      "es": {
+        "customPrompt": "Puedes enfocarte más en carácter, fidelidad, integridad, presión, decisiones y vida laboral."
+      }
+    },
+    "systemPromptOverride": ""
+  }

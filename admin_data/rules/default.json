@@ -1,0 +1,37 @@
+{
+  "id": "default",
+  "label": "默认版",
+  "scene": "小组查经",
+  "template": "讨论版",
+  "styleTags": [
+    "简洁",
+    "生活化",
+    "适合讨论"
+  ],
+  "baseRules": {
+    "leaderHint": true,
+    "avoidRepeat": true,
+    "allowLightApplication": true,
+    "allowGospelEmphasis": false,
+    "allowChildrenTone": false,
+    "allowYouthTone": false,
+    "allowCoupleTone": false,
+    "allowWorkplaceTone": false,
+    "minQuestionsPerSegment": 2,
+    "maxQuestionsPerSegment": 4,
+    "chapterQuestionMin": 15,
+    "chapterQuestionMax": 20
+  },
+  "languageProfiles": {
+    "zh": {
+      "customPrompt": "请用自然、清晰、简洁的简体中文输出。"
+    },
+    "en": {
+      "customPrompt": "Output in natural, clear, readable English."
+    },
+    "es": {
+      "customPrompt": "Escribe en español natural, claro y fácil de leer."
+    }
+  },
+  "systemPromptOverride": ""
+}

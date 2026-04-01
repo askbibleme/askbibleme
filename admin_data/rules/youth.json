@@ -1,0 +1,33 @@
+{
+    "id": "youth",
+    "label": "青少年版",
+    "baseRules": {
+      "leaderHint": true,
+      "avoidRepeat": true,
+      "minQuestionsPerSegment": 2,
+      "maxQuestionsPerSegment": 4,
+      "chapterQuestionMin": 10,
+      "chapterQuestionMax": 16,
+      "allowLightApplication": true,
+      "allowGospelEmphasis": false,
+      "allowChildrenTone": false,
+      "allowYouthTone": true,
+      "allowCoupleTone": false,
+      "allowWorkplaceTone": false
+    },
+    "styleTags": ["生活化", "适合讨论", "更深入"],
+    "scene": "青少年读经",
+    "template": "成长版",
+    "languageProfiles": {
+      "zh": {
+        "customPrompt": "可以更关注成长、身份、选择、真实压力与信仰生活。"
+      },
+      "en": {
+        "customPrompt": "You may focus more on identity, choices, peer pressure, and real-life faith."
+      },
+      "es": {
+        "customPrompt": "Puedes enfocarte más en identidad, decisiones, presión de grupo y una fe vivida."
+      }
+    },
+    "systemPromptOverride": ""
+  }
