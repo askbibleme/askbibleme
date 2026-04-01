@@ -1074,6 +1074,21 @@ function getPrimaryScriptureVersionByLang(lang) {
   );
 }
 
+function resolveGenerationPrimaryScriptureVersion({ lang, preferredVersionId }) {
+  const safeLang = safeText(lang || "");
+  const preferredId = safeText(preferredVersionId || "");
+  // Requirement: when BBE is selected as main version, still map generation scripture to WEB.
+  if (safeLang === "en" && preferredId === "bbe_en") {
+    const web = getScriptureVersionConfig("web_en");
+    if (web) return web;
+  }
+  if (preferredId) {
+    const preferred = getScriptureVersionConfig(preferredId);
+    if (preferred && preferred.scriptureEnabled !== false) return preferred;
+  }
+  return getPrimaryScriptureVersionByLang(safeLang);
+}
+
 function upsertScriptureVersion(versionInput) {
   const normalized = normalizeScriptureVersion(versionInput);
   validateScriptureVersion(normalized);
@@ -1798,6 +1813,7 @@ async function generateStudyWithRuleConfig({
   lang,
   bookId,
   chapter,
+  primaryScriptureVersionId = "",
 }) {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("缺少 OPENAI_API_KEY");
@@ -1814,7 +1830,10 @@ async function generateStudyWithRuleConfig({
     throw new Error(`未启用的语言: ${lang}`);
   }
 
-  const primaryScriptureVersion = getPrimaryScriptureVersionByLang(lang);
+  const primaryScriptureVersion = resolveGenerationPrimaryScriptureVersion({
+    lang,
+    preferredVersionId: primaryScriptureVersionId,
+  });
   if (!primaryScriptureVersion) {
     throw new Error(`未找到该语言的圣经版本: ${lang}`);
   }
@@ -3889,7 +3908,7 @@ app.post("/api/admin/rule/save", (req, res) => {
    ========================================================= */
 app.post("/api/admin/test-generate", async (req, res) => {
   try {
-    const { version, lang, bookId, chapter } = req.body || {};
+    const { version, lang, bookId, chapter, primaryScriptureVersionId } = req.body || {};
 
     if (!version || !lang || !bookId || !chapter) {
       return res.status(400).json({
@@ -3902,6 +3921,7 @@ app.post("/api/admin/test-generate", async (req, res) => {
       lang: String(lang),
       bookId: String(bookId),
       chapter: Number(chapter),
+      primaryScriptureVersionId: String(primaryScriptureVersionId || ""),
     });
 
     res.json(result);
