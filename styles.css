@@ -1511,6 +1511,11 @@ button.toolbar-trigger:hover,
   font-weight: 600;
 }
 
+.flow-verse .verse-unit.verse-unit-divine-speech,
+.flow-verse-sub .verse-unit.verse-unit-divine-speech {
+  color: #b67f1a !important;
+}
+
 .flow-verse-continuous {
   display: block;
 }

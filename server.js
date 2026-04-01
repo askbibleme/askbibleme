@@ -45,6 +45,7 @@ const QUESTION_SUBMISSIONS_FILE = path.join(
   "question_submissions.json"
 );
 const POINTS_CONFIG_FILE = path.join(ADMIN_DIR, "points_config.json");
+const OPS_CONFIG_FILE = path.join(ADMIN_DIR, "ops_config.json");
 const AUTH_DB_FILE = path.join(ADMIN_DIR, "auth.sqlite");
 const LEGACY_USERS_FILE = path.join(ADMIN_DIR, "users.json");
 const LEGACY_USER_SESSIONS_FILE = path.join(ADMIN_DIR, "user_sessions.json");
@@ -53,6 +54,9 @@ const DEPLOY_UPLOADS_DIR = path.join(DEPLOY_DIR, "uploads");
 const DEPLOY_RELEASES_DIR = path.join(DEPLOY_DIR, "releases");
 const DEPLOY_BACKUPS_DIR = path.join(DEPLOY_DIR, "backups");
 const DEPLOY_STATE_FILE = path.join(DEPLOY_DIR, "state.json");
+const DATA_BACKUPS_DIR = path.join(ADMIN_DIR, "data_backups");
+const ADMIN_AUDIT_FILE = path.join(ADMIN_DIR, "admin_audit.json");
+const DEFAULT_DATA_BACKUP_KEEP_COUNT = Math.max(1, toSafeNumber(process.env.DATA_BACKUP_KEEP_COUNT, 20));
 
 /* =========================================================
    基础工具
@@ -156,6 +160,64 @@ function savePointsConfig(config) {
   return next;
 }
 
+function getDefaultOpsConfig() {
+  return {
+    dataBackupKeepCount: DEFAULT_DATA_BACKUP_KEEP_COUNT,
+    autoBackupEnabled: false,
+    autoBackupHour: 3,
+    autoBackupMinute: 0,
+    lastAutoBackupDate: "",
+  };
+}
+
+function loadOpsConfig() {
+  const base = getDefaultOpsConfig();
+  const loaded = readJson(OPS_CONFIG_FILE, null);
+  if (!loaded || typeof loaded !== "object") return base;
+  return {
+    ...base,
+    ...loaded,
+    dataBackupKeepCount: Math.max(
+      1,
+      Math.min(200, toSafeNumber(loaded.dataBackupKeepCount, base.dataBackupKeepCount))
+    ),
+    autoBackupEnabled: Boolean(loaded.autoBackupEnabled),
+    autoBackupHour: Math.max(0, Math.min(23, toSafeNumber(loaded.autoBackupHour, base.autoBackupHour))),
+    autoBackupMinute: Math.max(
+      0,
+      Math.min(59, toSafeNumber(loaded.autoBackupMinute, base.autoBackupMinute))
+    ),
+    lastAutoBackupDate: safeText(loaded.lastAutoBackupDate || ""),
+  };
+}
+
+function saveOpsConfig(config) {
+  const current = loadOpsConfig();
+  const next = {
+    ...current,
+    ...(config || {}),
+    dataBackupKeepCount: Math.max(
+      1,
+      Math.min(200, toSafeNumber(config?.dataBackupKeepCount, current.dataBackupKeepCount))
+    ),
+    autoBackupEnabled:
+      typeof config?.autoBackupEnabled === "boolean"
+        ? config.autoBackupEnabled
+        : current.autoBackupEnabled,
+    autoBackupHour: Math.max(
+      0,
+      Math.min(23, toSafeNumber(config?.autoBackupHour, current.autoBackupHour))
+    ),
+    autoBackupMinute: Math.max(
+      0,
+      Math.min(59, toSafeNumber(config?.autoBackupMinute, current.autoBackupMinute))
+    ),
+    lastAutoBackupDate: safeText(config?.lastAutoBackupDate ?? current.lastAutoBackupDate),
+  };
+  writeJson(OPS_CONFIG_FILE, next);
+  return next;
+}
+
 function safeText(value) {
   return String(value ?? "").trim();
 }
@@ -213,6 +275,7 @@ function clearReadCacheByPrefix(prefix) {
 }
 
 function getClientIp(req) {
+  if (!req) return "system";
   const xff = String(req.headers["x-forwarded-for"] || "")
     .split(",")[0]
     .trim();
@@ -262,6 +325,7 @@ ensureDir(DEPLOY_DIR);
 ensureDir(DEPLOY_UPLOADS_DIR);
 ensureDir(DEPLOY_RELEASES_DIR);
 ensureDir(DEPLOY_BACKUPS_DIR);
+ensureDir(DATA_BACKUPS_DIR);
 
 const authDb = new Database(AUTH_DB_FILE);
 authDb.pragma("journal_mode = WAL");
@@ -488,6 +552,182 @@ function loadDeployState() {
 
 function saveDeployState(state) {
   writeJson(DEPLOY_STATE_FILE, state);
+}
+
+function loadAdminAudit() {
+  const data = readJson(ADMIN_AUDIT_FILE, null);
+  if (!data || typeof data !== "object") return { items: [] };
+  if (!Array.isArray(data.items)) data.items = [];
+  return data;
+}
+
+function saveAdminAudit(data) {
+  writeJson(ADMIN_AUDIT_FILE, data);
+}
+
+function appendAdminAudit(req, actor, action, detail = {}) {
+  const db = loadAdminAudit();
+  const item = {
+    id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    at: nowIso(),
+    action: safeText(action || ""),
+    actorId: safeText(actor?.id || ""),
+    actorName: safeText(actor?.name || ""),
+    actorEmail: safeText(actor?.email || ""),
+    actorRole: safeText(actor?.adminRole || ""),
+    ipHash: sha256Hex(getClientIp(req)),
+    detail,
+  };
+  db.items = [item, ...(db.items || [])].slice(0, 2000);
+  saveAdminAudit(db);
+}
+
+function listDataBackups() {
+  ensureDir(DATA_BACKUPS_DIR);
+  return fs
+    .readdirSync(DATA_BACKUPS_DIR)
+    .filter((x) => x.endsWith(".json"))
+    .map((x) => readJson(path.join(DATA_BACKUPS_DIR, x), null))
+    .filter(Boolean)
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+function pruneDataBackups(keepCount) {
+  const keep = Math.max(1, Math.min(200, toSafeNumber(keepCount, DEFAULT_DATA_BACKUP_KEEP_COUNT)));
+  const all = listDataBackups();
+  const removeItems = all.slice(keep);
+  const removed = [];
+  for (const item of removeItems) {
+    const id = safeText(item?.id || "");
+    if (!id) continue;
+    const dir = path.join(DATA_BACKUPS_DIR, id);
+    const metaFile = path.join(DATA_BACKUPS_DIR, `${id}.json`);
+    try {
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      if (fs.existsSync(metaFile)) fs.unlinkSync(metaFile);
+      removed.push(id);
+    } catch (_err) {
+      // ignore one-off cleanup error and continue others
+    }
+  }
+  return { keepCount: keep, removed, removedCount: removed.length, totalBefore: all.length };
+}
+
+function runAutoDataBackupTick() {
+  const ops = loadOpsConfig();
+  if (!ops.autoBackupEnabled) return;
+  const now = new Date();
+  const hh = now.getHours();
+  const mm = now.getMinutes();
+  if (hh !== Number(ops.autoBackupHour) || mm !== Number(ops.autoBackupMinute)) return;
+  const today = now.toISOString().slice(0, 10);
+  if (safeText(ops.lastAutoBackupDate) === today) return;
+  const backup = createDataBackup();
+  const prune = pruneDataBackups(ops.dataBackupKeepCount);
+  saveOpsConfig({ lastAutoBackupDate: today });
+  appendAdminAudit(null, null, "data_backup_auto", {
+    backupId: backup.id,
+    keepCount: ops.dataBackupKeepCount,
+    removedCount: prune.removedCount,
+    scheduledAt: `${String(ops.autoBackupHour).padStart(2, "0")}:${String(
+      ops.autoBackupMinute
+    ).padStart(2, "0")}`,
+  });
+}
+
+function runAutoDataBackupNowByUser(authed, req) {
+  const ops = loadOpsConfig();
+  const backup = createDataBackup();
+  const prune = pruneDataBackups(ops.dataBackupKeepCount);
+  appendAdminAudit(req, authed, "data_backup_auto_manual", {
+    backupId: backup.id,
+    keepCount: ops.dataBackupKeepCount,
+    removedCount: prune.removedCount,
+    scheduledAt: `${String(ops.autoBackupHour).padStart(2, "0")}:${String(
+      ops.autoBackupMinute
+    ).padStart(2, "0")}`,
+  });
+  return {
+    backup,
+    prune,
+    keepCount: ops.dataBackupKeepCount,
+    autoBackupEnabled: ops.autoBackupEnabled,
+    autoBackupHour: ops.autoBackupHour,
+    autoBackupMinute: ops.autoBackupMinute,
+  };
+}
+
+function createDataBackup() {
+  const id = `dbk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const dir = path.join(DATA_BACKUPS_DIR, id);
+  ensureDir(dir);
+  const copied = [];
+  const targets = [
+    { abs: ADMIN_DIR, rel: "admin_data" },
+    { abs: CONTENT_PUBLISHED_DIR, rel: "content_published" },
+    { abs: CONTENT_BUILDS_DIR, rel: "content_builds" },
+  ];
+  for (const t of targets) {
+    if (!fs.existsSync(t.abs)) continue;
+    const dest = path.join(dir, t.rel);
+    fs.cpSync(t.abs, dest, { recursive: true, force: true });
+    copied.push(t.rel);
+  }
+  const meta = {
+    id,
+    createdAt: nowIso(),
+    copied,
+  };
+  writeJson(path.join(DATA_BACKUPS_DIR, `${id}.json`), meta);
+  return meta;
+}
+
+function restoreDataBackup(backupId) {
+  const safeId = safeText(backupId || "");
+  if (!safeId) throw new Error("缺少 backupId");
+  const dir = path.join(DATA_BACKUPS_DIR, safeId);
+  if (!fs.existsSync(dir)) throw new Error("备份不存在");
+  const pairs = [
+    { src: path.join(dir, "admin_data"), dest: ADMIN_DIR },
+    { src: path.join(dir, "content_published"), dest: CONTENT_PUBLISHED_DIR },
+    { src: path.join(dir, "content_builds"), dest: CONTENT_BUILDS_DIR },
+  ];
+  const restored = [];
+  for (const p of pairs) {
+    if (!fs.existsSync(p.src)) continue;
+    ensureDir(path.dirname(p.dest));
+    fs.cpSync(p.src, p.dest, { recursive: true, force: true });
+    restored.push(path.basename(p.dest));
+  }
+  return {
+    backupId: safeId,
+    restored,
+    at: nowIso(),
+  };
+}
+
+function buildDataBackupZip(backupId) {
+  const safeId = safeText(backupId || "");
+  if (!safeId) throw new Error("缺少 backupId");
+  const backupDir = path.join(DATA_BACKUPS_DIR, safeId);
+  if (!fs.existsSync(backupDir)) throw new Error("备份不存在");
+  const zipId = `data_backup_${safeId}_${Date.now()}`;
+  const zipPath = path.join(DEPLOY_UPLOADS_DIR, `${zipId}.zip`);
+  const zip = new AdmZip();
+  const files = walkFiles(backupDir);
+  let addedCount = 0;
+  for (const abs of files) {
+    const rel = path.relative(backupDir, abs).replaceAll("\\", "/");
+    if (!rel) continue;
+    zip.addLocalFile(abs, safeId, rel);
+    addedCount += 1;
+  }
+  zip.addFile(
+    `${safeId}/version.json`,
+    Buffer.from(JSON.stringify({ backupId: safeId, generatedAt: nowIso() }, null, 2), "utf8")
+  );
+  zip.writeZip(zipPath);
+  return { zipPath, backupId: safeId, addedCount };
 }
 
 function walkFiles(baseDir) {
@@ -2377,12 +2617,25 @@ async function runJobRunnerLoop() {
 function startJobRunner() {
   if (jobRunnerStarted) return;
   jobRunnerStarted = true;
+  try {
+    runAutoDataBackupTick();
+  } catch (error) {
+    console.error("runAutoDataBackupTick error:", error);
+  }
 
   setInterval(() => {
     runJobRunnerLoop().catch((error) => {
       console.error("runJobRunnerLoop error:", error);
     });
   }, 2000);
+
+  setInterval(() => {
+    try {
+      runAutoDataBackupTick();
+    } catch (error) {
+      console.error("runAutoDataBackupTick error:", error);
+    }
+  }, 30000);
 }
 
 /* =========================================================
@@ -2410,6 +2663,7 @@ app.get("/api/front/bootstrap", (_req, res) => {
     }));
 
     const defaultPrimary =
+      scriptureVersions.find((x) => x.id === "cuvs_zh")?.id ||
       scriptureVersions.find((x) => x.lang === "zh")?.id ||
       scriptureVersions[0]?.id ||
       "";
@@ -2975,6 +3229,177 @@ app.get("/api/admin/deploy/status", (_req, res) => {
   }
 });
 
+app.get("/api/admin/data-backups", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const opsConfig = loadOpsConfig();
+    res.json({
+      items: listDataBackups().slice(0, 50),
+      defaultKeepCount: DEFAULT_DATA_BACKUP_KEEP_COUNT,
+      keepCount: opsConfig.dataBackupKeepCount,
+      autoBackupEnabled: opsConfig.autoBackupEnabled,
+      autoBackupHour: opsConfig.autoBackupHour,
+      autoBackupMinute: opsConfig.autoBackupMinute,
+      lastAutoBackupDate: opsConfig.lastAutoBackupDate,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取数据备份失败" });
+  }
+});
+
+app.post("/api/admin/data-backups/create", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const backup = createDataBackup();
+    const opsConfig = loadOpsConfig();
+    const keepCount = Math.max(
+      1,
+      Math.min(200, toSafeNumber(req.body?.keepCount, opsConfig.dataBackupKeepCount))
+    );
+    const prune = pruneDataBackups(keepCount);
+    appendAdminAudit(req, authed, "data_backup_create", {
+      backupId: backup.id,
+      copied: backup.copied,
+      keepCount,
+      removedCount: prune.removedCount,
+    });
+    res.json({ ok: true, backup, prune, keepCount });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "创建数据备份失败" });
+  }
+});
+
+app.post("/api/admin/data-backups/prune", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const opsConfig = loadOpsConfig();
+    const keepCount = Math.max(
+      1,
+      Math.min(200, toSafeNumber(req.body?.keepCount, opsConfig.dataBackupKeepCount))
+    );
+    const result = pruneDataBackups(keepCount);
+    appendAdminAudit(req, authed, "data_backup_prune", {
+      keepCount: result.keepCount,
+      removedCount: result.removedCount,
+      removed: result.removed,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "清理旧备份失败" });
+  }
+});
+
+app.post("/api/admin/data-backups/config/save", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const keepCount = Math.max(
+      1,
+      Math.min(200, toSafeNumber(req.body?.keepCount, DEFAULT_DATA_BACKUP_KEEP_COUNT))
+    );
+    const autoBackupEnabled = Boolean(req.body?.autoBackupEnabled);
+    const autoBackupHour = Math.max(0, Math.min(23, toSafeNumber(req.body?.autoBackupHour, 3)));
+    const autoBackupMinute = Math.max(0, Math.min(59, toSafeNumber(req.body?.autoBackupMinute, 0)));
+    const opsConfig = saveOpsConfig({
+      dataBackupKeepCount: keepCount,
+      autoBackupEnabled,
+      autoBackupHour,
+      autoBackupMinute,
+    });
+    appendAdminAudit(req, authed, "data_backup_config_save", {
+      keepCount: opsConfig.dataBackupKeepCount,
+      autoBackupEnabled: opsConfig.autoBackupEnabled,
+      autoBackupHour: opsConfig.autoBackupHour,
+      autoBackupMinute: opsConfig.autoBackupMinute,
+    });
+    res.json({
+      ok: true,
+      keepCount: opsConfig.dataBackupKeepCount,
+      autoBackupEnabled: opsConfig.autoBackupEnabled,
+      autoBackupHour: opsConfig.autoBackupHour,
+      autoBackupMinute: opsConfig.autoBackupMinute,
+      lastAutoBackupDate: opsConfig.lastAutoBackupDate,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "保存备份保留设置失败" });
+  }
+});
+
+app.post("/api/admin/data-backups/auto-run", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const result = runAutoDataBackupNowByUser(authed, req);
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "执行自动备份测试失败" });
+  }
+});
+
+app.post("/api/admin/data-backups/restore", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const backupId = safeText(req.body?.backupId || "");
+    const result = restoreDataBackup(backupId);
+    clearReadCacheByPrefix("study:");
+    clearReadCacheByPrefix("scripture:");
+    appendAdminAudit(req, authed, "data_backup_restore", {
+      backupId: result.backupId,
+      restored: result.restored,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "恢复数据备份失败" });
+  }
+});
+
+app.get("/api/admin/data-backups/download", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const backupId = safeText(req.query.backupId || "");
+    const result = buildDataBackupZip(backupId);
+    const fileName = `askbible-data-backup-${result.backupId}.zip`;
+    appendAdminAudit(req, authed, "data_backup_download", {
+      backupId: result.backupId,
+      addedCount: result.addedCount,
+    });
+    res.download(result.zipPath, fileName, () => {
+      try {
+        if (fs.existsSync(result.zipPath)) fs.unlinkSync(result.zipPath);
+      } catch (_err) {
+        // ignore temp cleanup errors
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "下载数据备份失败" });
+  }
+});
+
+app.get("/api/admin/audit-log", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_roles");
+    if (!authed) return;
+    const limit = Math.max(1, Math.min(300, toSafeNumber(req.query.limit, 80)));
+    const db = loadAdminAudit();
+    res.json({ items: (db.items || []).slice(0, limit) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取审计日志失败" });
+  }
+});
+
 app.get("/api/admin/deploy/package-command", (req, res) => {
   try {
     const authed = requirePermission(req, res, "manage_deploy");
@@ -3136,6 +3561,11 @@ app.post("/api/admin/deploy/apply", (req, res) => {
       ...(state.history || []),
     ].slice(0, 100);
     saveDeployState(state);
+    appendAdminAudit(req, authed, "deploy_apply", {
+      uploadId,
+      version: state.currentVersion,
+      backupId,
+    });
     res.json({ ok: true, version: state.currentVersion, backupId });
   } catch (error) {
     console.error(error);
@@ -3178,6 +3608,9 @@ app.post("/api/admin/deploy/rollback", (req, res) => {
       ...(state.history || []),
     ].slice(0, 100);
     saveDeployState(state);
+    appendAdminAudit(req, authed, "deploy_rollback", {
+      backupId: targetBackupId,
+    });
     res.json({ ok: true, backupId: targetBackupId });
   } catch (error) {
     console.error(error);
@@ -3227,6 +3660,10 @@ app.post("/api/admin/questions/review", (req, res) => {
     });
     if (!updated) return res.status(404).json({ error: "未找到记录" });
     saveQuestionSubmissions(db);
+    appendAdminAudit(req, authed, "question_review", {
+      id,
+      status: nextStatus,
+    });
     res.json({ ok: true });
   } catch (error) {
     console.error(error);
@@ -3236,12 +3673,13 @@ app.post("/api/admin/questions/review", (req, res) => {
 
 app.post("/api/admin/users/set-admin", (req, res) => {
   try {
+    let authed = null;
     const qianCount =
       authDb
         .prepare("SELECT COUNT(1) as c FROM users WHERE admin_role = 'qianfuzhang'")
         .get()?.c || 0;
     if (Number(qianCount) > 0) {
-      const authed = requirePermission(req, res, "manage_roles");
+      authed = requirePermission(req, res, "manage_roles");
       if (!authed) return;
     } else {
       const adminPassword = safeText(req.body?.adminPassword || "");
@@ -3261,6 +3699,11 @@ app.post("/api/admin/users/set-admin", (req, res) => {
     authDb
       .prepare("UPDATE users SET is_admin = ?, admin_role = ?, updated_at = ? WHERE id = ?")
       .run(roleInput ? 1 : 0, roleInput, nowIso(), hit.id);
+    appendAdminAudit(req, authed, "set_admin_role", {
+      targetEmail: email,
+      role: roleInput,
+      bootstrap: !authed,
+    });
     res.json({
       ok: true,
       user: {
