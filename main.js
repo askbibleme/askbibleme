@@ -3790,6 +3790,7 @@ async function runTestGenerate() {
       lang,
       bookId,
       chapter,
+      primaryScriptureVersionId: state.frontState.primaryScriptureVersionId || "",
     }),
   });
 
