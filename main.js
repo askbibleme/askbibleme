@@ -3404,6 +3404,19 @@ function ensureDeployTabExists() {
       <button id="refreshAuditLogBtn" class="secondary-btn" type="button">刷新审计日志</button>
     </div>
     <div id="auditLogBox" class="result-box">尚未读取审计日志。</div>
+    <div class="section-title">系统密钥管理（OpenAI）</div>
+    <div class="admin-grid">
+      <div style="grid-column:1 / -1;">
+        <div class="label">GPT Key（保存到服务器本地，仅管理员可见）</div>
+        <input id="systemOpenAiKeyInput" type="password" class="custom-textarea single-input" placeholder="粘贴 sk-... 新密钥" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="saveSystemOpenAiKeyBtn" class="primary-btn" type="button">保存 GPT Key</button>
+      <button id="clearSystemOpenAiKeyBtn" class="secondary-btn" type="button">清空已保存 Key</button>
+      <button id="refreshSystemOpenAiKeyBtn" class="secondary-btn" type="button">刷新状态</button>
+    </div>
+    <div id="systemOpenAiKeyStatusBox" class="result-box">尚未读取密钥状态。</div>
   `;
   const modalCard = document.querySelector(".modal-card-admin");
   const existingPanels = modalCard?.querySelectorAll(".admin-tab-panel");
@@ -3465,6 +3478,8 @@ function ensurePublishedTabExists() {
             <button id="publishByLangBtn" class="secondary-btn" type="button">按语言整本发布</button>
             <button id="publishByVersionLangBtn" class="secondary-btn" type="button">按版本+语言整本发布</button>
             <button id="publishAllVersionLangBtn" class="primary-btn" type="button">所有语言版本一键发布</button>
+            <button id="autoRepublishMissingAllBtn" class="primary-btn" type="button">一键全部自动查漏补发</button>
+            <button id="stopPublishedActionBtn" class="secondary-btn" type="button">停止当前发布</button>
             <button id="previewPublishBulkBtn" class="secondary-btn" type="button">增量预览</button>
             <button id="exportPublishChangesJsonBtn" class="secondary-btn" type="button">导出改动 JSON</button>
             <button id="exportPublishChangesCsvBtn" class="secondary-btn" type="button">导出改动 CSV</button>
@@ -4500,6 +4515,10 @@ async function initPublishedManagerTab() {
   const publishAllVersionLangBtn = document.getElementById(
     "publishAllVersionLangBtn"
   );
+  const autoRepublishMissingAllBtn = document.getElementById(
+    "autoRepublishMissingAllBtn"
+  );
+  const stopPublishedActionBtn = document.getElementById("stopPublishedActionBtn");
   const previewPublishBulkBtn = document.getElementById("previewPublishBulkBtn");
   const exportPublishChangesJsonBtn = document.getElementById(
     "exportPublishChangesJsonBtn"
@@ -4555,6 +4574,14 @@ async function initPublishedManagerTab() {
 
   publishAllVersionLangBtn?.addEventListener("click", async () => {
     await runPublishedBulkAction("all");
+  });
+
+  autoRepublishMissingAllBtn?.addEventListener("click", async () => {
+    await runPublishedAutoRepublishMissingBulk("all");
+  });
+
+  stopPublishedActionBtn?.addEventListener("click", async () => {
+    await stopCurrentPublishedAction();
   });
 
   previewPublishBulkBtn?.addEventListener("click", async () => {
@@ -4655,6 +4682,101 @@ async function runPublishedBulkAction(mode, dryRun = false) {
   renderPublishHistory();
 }
 
+async function runPublishedAutoRepublishMissingBulk(mode, dryRun = false) {
+  const version = document.getElementById("publishedVersionSelect")?.value || "";
+  const lang = document.getElementById("publishedLangSelect")?.value || "";
+  const onlyChanged =
+    document.getElementById("publishOnlyChangedToggle")?.checked !== false;
+  const statusBox = document.getElementById("publishedBulkActionStatus");
+  if (statusBox) {
+    statusBox.textContent = dryRun
+      ? "正在预览查漏补发，请稍候..."
+      : "正在自动查漏补发，请稍候...";
+  }
+  const res = await fetch("/api/admin/published/auto-republish-missing-bulk", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      mode,
+      version,
+      lang,
+      onlyChanged,
+      dryRun,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    if (statusBox) {
+      statusBox.textContent = `查漏补发失败：${data.error || "未知错误"}`;
+    }
+    return;
+  }
+  if (statusBox) {
+    const changedEntries = (data.details || [])
+      .flatMap((item) =>
+        (item.republishedTargets || []).map((x) => ({
+          version: item.version,
+          lang: item.lang,
+          bookId: x.bookId,
+          chapter: x.chapter,
+        }))
+      )
+      .slice(0, 120);
+    statusBox.innerHTML = `
+      <div><strong>执行模式：</strong>${escapeHtml(String(data.mode || mode))}</div>
+      <div><strong>仅发布改动：</strong>${onlyChanged ? "是" : "否"}</div>
+      <div><strong>运行方式：</strong>${dryRun ? "预览（不落盘）" : "正式补发"}</div>
+      <div><strong>命中版本语言组：</strong>${escapeHtml(String(data.matchedPairs || 0))}</div>
+      <div><strong>补发前缺失章节：</strong>${escapeHtml(String(data.totalMissingBefore || 0))}</div>
+      <div><strong>已尝试章节：</strong>${escapeHtml(String(data.totalAttempted || 0))}</div>
+      <div><strong>补发成功：</strong>${escapeHtml(String(data.totalRepublished || 0))}</div>
+      <div><strong>跳过：</strong>${escapeHtml(String(data.totalSkipped || 0))}</div>
+      <div><strong>失败：</strong>${escapeHtml(String(data.totalFailed || 0))}（无来源 ${escapeHtml(
+      String(data.totalNoSource || 0)
+    )}）</div>
+      <div style="margin-top:8px;"><strong>补发清单（最多 120 条）：</strong></div>
+      <div style="margin-top:6px; line-height:1.6;">
+        ${
+          changedEntries.length
+            ? changedEntries
+                .map(
+                  (x) =>
+                    `${escapeHtml(String(x.version))} / ${escapeHtml(String(x.lang))} / ${escapeHtml(String(x.bookId))} ${escapeHtml(String(x.chapter))}章`
+                )
+                .join("<br/>")
+            : "无可补发章节"
+        }
+      </div>
+    `;
+  }
+
+  if (!dryRun) {
+    await loadPublishedOverview();
+  }
+}
+
+async function stopCurrentPublishedAction() {
+  const statusBox = document.getElementById("publishedBulkActionStatus");
+  if (statusBox) statusBox.textContent = "正在请求停止当前发布任务...";
+  const res = await fetch("/api/admin/published/stop-current", {
+    method: "POST",
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    if (statusBox) {
+      statusBox.textContent = `停止失败：${data.error || "未知错误"}`;
+    }
+    return;
+  }
+  if (statusBox) {
+    statusBox.textContent = data.stopped
+      ? "已发送停止请求，当前发布将尽快中断。"
+      : "当前没有进行中的发布任务。";
+  }
+}
+
 function getFlattenPublishedChanges(data) {
   if (!data || !Array.isArray(data.details)) return [];
   return data.details.flatMap((item) =>
@@ -4723,7 +4845,7 @@ function renderPublishFeatureInfo() {
   box.innerHTML = `
     <div><strong>增量发布能力版本：</strong>${escapeHtml(PUBLISH_MANAGER_FEATURE_VERSION)}</div>
     <div><strong>入口：</strong>管理后台 > 已发布内容</div>
-    <div><strong>能力：</strong>仅发布改动 / 增量预览（dryRun）/ 改动清单导出（JSON, CSV）</div>
+    <div><strong>能力：</strong>所有版本一键发布 / 查看发布内容 / 一键全部自动查漏补发 / 增量预览（dryRun）/ 改动清单导出（JSON, CSV）</div>
   `;
 }
 
@@ -5280,6 +5402,11 @@ async function initDeployManagerTab() {
   const dataBackupStatusBox = document.getElementById("dataBackupStatusBox");
   const refreshAuditLogBtn = document.getElementById("refreshAuditLogBtn");
   const auditLogBox = document.getElementById("auditLogBox");
+  const systemOpenAiKeyInput = document.getElementById("systemOpenAiKeyInput");
+  const saveSystemOpenAiKeyBtn = document.getElementById("saveSystemOpenAiKeyBtn");
+  const clearSystemOpenAiKeyBtn = document.getElementById("clearSystemOpenAiKeyBtn");
+  const refreshSystemOpenAiKeyBtn = document.getElementById("refreshSystemOpenAiKeyBtn");
+  const systemOpenAiKeyStatusBox = document.getElementById("systemOpenAiKeyStatusBox");
   if (!uploadSelect || !statusBox) return;
 
   function getPackageVersion() {
@@ -5420,6 +5547,25 @@ async function initDeployManagerTab() {
           } | ${JSON.stringify(x.detail || {})}`
       )
       .join("\n");
+  }
+
+  async function loadSystemOpenAiKeyStatus() {
+    if (!systemOpenAiKeyStatusBox) return;
+    const res = await fetch("/api/admin/system/openai-key/status", {
+      cache: "no-store",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "读取密钥状态失败");
+    const sourceMap = {
+      system: "后台系统密钥",
+      env: ".env 环境变量",
+      none: "未配置",
+    };
+    systemOpenAiKeyStatusBox.textContent = `当前状态：${
+      data.configured ? "已配置" : "未配置"
+    }；来源：${sourceMap[data.source] || data.source || "未知"}${
+      data.masked ? `；标识：${data.masked}` : ""
+    }`;
   }
 
   uploadBtn?.addEventListener("click", async () => {
@@ -5665,6 +5811,57 @@ async function initDeployManagerTab() {
     }
   });
 
+  saveSystemOpenAiKeyBtn?.addEventListener("click", async () => {
+    const apiKey = String(systemOpenAiKeyInput?.value || "").trim();
+    if (!apiKey) {
+      if (systemOpenAiKeyStatusBox) systemOpenAiKeyStatusBox.textContent = "请先输入 GPT Key。";
+      return;
+    }
+    if (systemOpenAiKeyStatusBox) systemOpenAiKeyStatusBox.textContent = "保存中...";
+    const res = await fetch("/api/admin/system/openai-key/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (systemOpenAiKeyStatusBox) systemOpenAiKeyStatusBox.textContent = data.error || "保存失败";
+      return;
+    }
+    if (systemOpenAiKeyInput) systemOpenAiKeyInput.value = "";
+    if (systemOpenAiKeyStatusBox) {
+      systemOpenAiKeyStatusBox.textContent = `保存成功：${data.masked || "已配置"}`;
+    }
+    await loadSystemOpenAiKeyStatus();
+  });
+
+  clearSystemOpenAiKeyBtn?.addEventListener("click", async () => {
+    if (!confirm("确认清空后台已保存的 GPT Key？")) return;
+    if (systemOpenAiKeyStatusBox) systemOpenAiKeyStatusBox.textContent = "清空中...";
+    const res = await fetch("/api/admin/system/openai-key/clear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (systemOpenAiKeyStatusBox) systemOpenAiKeyStatusBox.textContent = data.error || "清空失败";
+      return;
+    }
+    if (systemOpenAiKeyInput) systemOpenAiKeyInput.value = "";
+    await loadSystemOpenAiKeyStatus();
+  });
+
+  refreshSystemOpenAiKeyBtn?.addEventListener("click", async () => {
+    try {
+      await loadSystemOpenAiKeyStatus();
+    } catch (error) {
+      if (systemOpenAiKeyStatusBox) {
+        systemOpenAiKeyStatusBox.textContent = error?.message || "读取失败";
+      }
+    }
+  });
+
   refreshBtn?.addEventListener("click", loadStatus);
   await loadStatus();
   await loadDataBackups().catch((error) => {
@@ -5672,6 +5869,11 @@ async function initDeployManagerTab() {
   });
   await loadAuditLog().catch((error) => {
     if (auditLogBox) auditLogBox.textContent = error?.message || "读取失败";
+  });
+  await loadSystemOpenAiKeyStatus().catch((error) => {
+    if (systemOpenAiKeyStatusBox) {
+      systemOpenAiKeyStatusBox.textContent = error?.message || "读取失败";
+    }
   });
 }
 

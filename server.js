@@ -25,10 +25,6 @@ const SERVER_BOOT_ISO = new Date(SERVER_BOOT_TS).toISOString();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.static(__dirname));
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 const ADMIN_DIR = path.join(DATA_ROOT, "admin_data");
 const RULES_DIR = path.join(ADMIN_DIR, "rules");
 const JOBS_DIR = path.join(ADMIN_DIR, "jobs");
@@ -56,7 +52,16 @@ const DEPLOY_BACKUPS_DIR = path.join(DEPLOY_DIR, "backups");
 const DEPLOY_STATE_FILE = path.join(DEPLOY_DIR, "state.json");
 const DATA_BACKUPS_DIR = path.join(ADMIN_DIR, "data_backups");
 const ADMIN_AUDIT_FILE = path.join(ADMIN_DIR, "admin_audit.json");
+const SYSTEM_SECRETS_FILE = path.join(ADMIN_DIR, "system_secrets.json");
 const DEFAULT_DATA_BACKUP_KEEP_COUNT = Math.max(1, toSafeNumber(process.env.DATA_BACKUP_KEEP_COUNT, 20));
+const PUBLISH_RUN_STATE = {
+  currentRunId: "",
+  currentAction: "",
+  cancelRequested: false,
+  startedAt: "",
+};
+let openAiClient = null;
+let openAiClientKey = "";
 
 /* =========================================================
    基础工具
@@ -80,6 +85,77 @@ function readJson(filePath, fallback = null) {
 function writeJson(filePath, data) {
   ensureDir(path.dirname(filePath));
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+}
+
+function loadSystemSecrets() {
+  const raw = readJson(SYSTEM_SECRETS_FILE, null);
+  if (!raw || typeof raw !== "object") return { openaiApiKey: "" };
+  return {
+    openaiApiKey: safeText(raw.openaiApiKey || ""),
+  };
+}
+
+function saveSystemSecrets(next) {
+  const current = loadSystemSecrets();
+  const merged = {
+    ...current,
+    ...(next || {}),
+    openaiApiKey: safeText(next?.openaiApiKey ?? current.openaiApiKey),
+  };
+  writeJson(SYSTEM_SECRETS_FILE, merged);
+  return merged;
+}
+
+function getCurrentOpenAiApiKey() {
+  const fromSecret = safeText(loadSystemSecrets().openaiApiKey || "");
+  if (fromSecret) return fromSecret;
+  return safeText(process.env.OPENAI_API_KEY || "");
+}
+
+function getOpenAiClient() {
+  const key = getCurrentOpenAiApiKey();
+  if (!key) return null;
+  if (!openAiClient || openAiClientKey !== key) {
+    openAiClient = new OpenAI({ apiKey: key });
+    openAiClientKey = key;
+  }
+  return openAiClient;
+}
+
+function nextTickAsync() {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+function beginPublishRun(action) {
+  const runId = `pub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  PUBLISH_RUN_STATE.currentRunId = runId;
+  PUBLISH_RUN_STATE.currentAction = safeText(action || "");
+  PUBLISH_RUN_STATE.cancelRequested = false;
+  PUBLISH_RUN_STATE.startedAt = nowIso();
+  return runId;
+}
+
+function endPublishRun(runId) {
+  if (safeText(PUBLISH_RUN_STATE.currentRunId) !== safeText(runId)) return;
+  PUBLISH_RUN_STATE.currentRunId = "";
+  PUBLISH_RUN_STATE.currentAction = "";
+  PUBLISH_RUN_STATE.cancelRequested = false;
+  PUBLISH_RUN_STATE.startedAt = "";
+}
+
+function requestCancelPublishRun() {
+  if (!safeText(PUBLISH_RUN_STATE.currentRunId)) return false;
+  PUBLISH_RUN_STATE.cancelRequested = true;
+  return true;
+}
+
+function assertPublishRunNotCancelled(runId) {
+  if (safeText(PUBLISH_RUN_STATE.currentRunId) !== safeText(runId)) {
+    throw new Error("发布任务已被新的任务替换，请重试");
+  }
+  if (PUBLISH_RUN_STATE.cancelRequested) {
+    throw new Error("发布任务已手动停止");
+  }
 }
 
 function getDefaultPointsConfig() {
@@ -1568,20 +1644,29 @@ function compareBuildChapterWithPublished({
   };
 }
 
-function mergePublishFromBuild({
+async function mergePublishFromBuild({
   buildId,
   versionId,
   lang,
   targets,
   onlyChanged = false,
   dryRun = false,
+  runId = "",
 }) {
   let publishedCount = 0;
   let skippedCount = 0;
   const changedTargets = [];
   const skippedTargets = [];
+  let stepCount = 0;
 
   for (const target of targets) {
+    if (runId) {
+      assertPublishRunNotCancelled(runId);
+      stepCount += 1;
+      if (stepCount % 25 === 0) {
+        await nextTickAsync();
+      }
+    }
     if (target.versionId !== versionId || target.lang !== lang) continue;
     const compare = compareBuildChapterWithPublished({
       buildId,
@@ -1828,7 +1913,8 @@ async function generateStudyWithRuleConfig({
   chapter,
   primaryScriptureVersionId = "",
 }) {
-  if (!process.env.OPENAI_API_KEY) {
+  const aiClient = getOpenAiClient();
+  if (!aiClient) {
     throw new Error("缺少 OPENAI_API_KEY");
   }
 
@@ -1881,7 +1967,7 @@ async function generateStudyWithRuleConfig({
 
   for (const model of modelCandidates) {
     try {
-      response = await client.responses.create({
+      response = await aiClient.responses.create({
         model,
         input: [
           {
@@ -2531,12 +2617,13 @@ function autoRepublishChapter({
   };
 }
 
-function republishBulkFromLatestBuilds({
+async function republishBulkFromLatestBuilds({
   mode,
   version,
   lang,
   onlyChanged = false,
   dryRun = false,
+  runId = "",
 }) {
   const jobs = listAllJobsNewestFirst();
   const completed = jobs.filter(
@@ -2572,18 +2659,23 @@ function republishBulkFromLatestBuilds({
   let totalSkippedCount = 0;
   const details = [];
 
-  selectedPairs.forEach((pairKey) => {
+  for (const pairKey of selectedPairs) {
+    if (runId) {
+      assertPublishRunNotCancelled(runId);
+      await nextTickAsync();
+    }
     const [pairVersion, pairLang] = pairKey.split("__");
     const job = latestByPair.get(pairKey);
-    if (!job) return;
+    if (!job) continue;
 
-    const result = mergePublishFromBuild({
+    const result = await mergePublishFromBuild({
       buildId: job.buildId,
       versionId: pairVersion,
       lang: pairLang,
       targets: job.targets || [],
       onlyChanged,
       dryRun,
+      runId,
     });
 
     totalPublishedCount += Number(result?.publishedCount || 0);
@@ -2602,13 +2694,151 @@ function republishBulkFromLatestBuilds({
         ? result.skippedTargets
         : [],
     });
-  });
+  }
 
   return {
     mode,
     matchedPairs: selectedPairs.length,
     totalPublishedCount,
     totalSkippedCount,
+    details,
+    onlyChanged: Boolean(onlyChanged),
+    dryRun: Boolean(dryRun),
+  };
+}
+
+function listVersionLangPairsByMode({ mode, version, lang }) {
+  const versions = getEnabledContentVersions().map((x) => safeText(x.id)).filter(Boolean);
+  const langs = getEnabledLanguages()
+    .filter((x) => x.contentEnabled !== false)
+    .map((x) => safeText(x.id))
+    .filter(Boolean);
+  const allPairs = [];
+  versions.forEach((v) => {
+    langs.forEach((l) => {
+      allPairs.push({ version: v, lang: l });
+    });
+  });
+  return allPairs.filter((pair) => {
+    if (mode === "all") return true;
+    if (mode === "version") return pair.version === version;
+    if (mode === "lang") return pair.lang === lang;
+    if (mode === "version_lang") return pair.version === version && pair.lang === lang;
+    return false;
+  });
+}
+
+async function autoRepublishMissingBulkFromLatestBuilds({
+  mode,
+  version,
+  lang,
+  onlyChanged = true,
+  dryRun = false,
+  runId = "",
+}) {
+  const pairs = listVersionLangPairsByMode({ mode, version, lang });
+  const books = flattenBooks();
+  const details = [];
+  let totalMissingBefore = 0;
+  let totalAttempted = 0;
+  let totalRepublished = 0;
+  let totalSkipped = 0;
+  let totalFailed = 0;
+  let totalNoSource = 0;
+
+  for (const pair of pairs) {
+    if (runId) {
+      assertPublishRunNotCancelled(runId);
+      await nextTickAsync();
+    }
+    const missingTargets = [];
+    for (const book of books) {
+      const coverage = listPublishedBookChapters(pair.version, pair.lang, book.bookId);
+      (coverage.missingChapters || []).forEach((chapter) => {
+        missingTargets.push({
+          bookId: book.bookId,
+          chapter: Number(chapter),
+        });
+      });
+    }
+    const pairDetail = {
+      version: pair.version,
+      lang: pair.lang,
+      missingBefore: missingTargets.length,
+      attempted: 0,
+      republishedCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+      noSourceCount: 0,
+      republishedTargets: [],
+      skippedTargets: [],
+      failedTargets: [],
+    };
+
+    for (const target of missingTargets) {
+      if (runId) {
+        assertPublishRunNotCancelled(runId);
+        if (pairDetail.attempted % 30 === 0) {
+          await nextTickAsync();
+        }
+      }
+      pairDetail.attempted += 1;
+      totalAttempted += 1;
+      try {
+        const result = autoRepublishChapter({
+          versionId: pair.version,
+          lang: pair.lang,
+          bookId: target.bookId,
+          chapter: target.chapter,
+          onlyChanged,
+          dryRun,
+        });
+        if (result.skipped) {
+          pairDetail.skippedCount += 1;
+          totalSkipped += 1;
+          pairDetail.skippedTargets.push({
+            bookId: target.bookId,
+            chapter: target.chapter,
+          });
+        } else {
+          pairDetail.republishedCount += 1;
+          totalRepublished += 1;
+          pairDetail.republishedTargets.push({
+            bookId: target.bookId,
+            chapter: target.chapter,
+            sourceBuildId: safeText(result.sourceBuildId || ""),
+            sourceJobId: safeText(result.sourceJobId || ""),
+          });
+        }
+      } catch (error) {
+        const message = safeText(error?.message || "未知错误");
+        pairDetail.failedCount += 1;
+        totalFailed += 1;
+        if (message.includes("未找到可用于自动补发的来源记录")) {
+          pairDetail.noSourceCount += 1;
+          totalNoSource += 1;
+        }
+        pairDetail.failedTargets.push({
+          bookId: target.bookId,
+          chapter: target.chapter,
+          error: message,
+        });
+      }
+    }
+
+    totalMissingBefore += pairDetail.missingBefore;
+    details.push(pairDetail);
+  }
+
+  return {
+    mode,
+    matchedPairs: pairs.length,
+    totalMissingBefore,
+    totalAttempted,
+    totalRepublished,
+    totalSkipped,
+    totalFailed,
+    totalNoSource,
     details,
     onlyChanged: Boolean(onlyChanged),
     dryRun: Boolean(dryRun),
@@ -3871,6 +4101,66 @@ app.get("/api/admin/bootstrap", (_req, res) => {
   }
 });
 
+app.get("/api/admin/system/openai-key/status", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_rules");
+    if (!authed) return;
+    const secretKey = safeText(loadSystemSecrets().openaiApiKey || "");
+    const envKey = safeText(process.env.OPENAI_API_KEY || "");
+    res.json({
+      configured: Boolean(secretKey || envKey),
+      source: secretKey ? "system" : envKey ? "env" : "none",
+      masked: secretKey
+        ? `sk-***${secretKey.slice(-4)}`
+        : envKey
+        ? `sk-***${envKey.slice(-4)}`
+        : "",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取密钥状态失败" });
+  }
+});
+
+app.post("/api/admin/system/openai-key/save", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_rules");
+    if (!authed) return;
+    const apiKey = safeText(req.body?.apiKey || "");
+    if (!apiKey || !apiKey.startsWith("sk-")) {
+      return res.status(400).json({ error: "请输入有效的 OpenAI Key" });
+    }
+    saveSystemSecrets({ openaiApiKey: apiKey });
+    openAiClient = null;
+    openAiClientKey = "";
+    appendAdminAudit(req, authed, "system_openai_key_save", { source: "system_secrets" });
+    res.json({ ok: true, configured: true, masked: `sk-***${apiKey.slice(-4)}` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "保存密钥失败" });
+  }
+});
+
+app.post("/api/admin/system/openai-key/clear", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_rules");
+    if (!authed) return;
+    saveSystemSecrets({ openaiApiKey: "" });
+    openAiClient = null;
+    openAiClientKey = "";
+    appendAdminAudit(req, authed, "system_openai_key_clear", {});
+    const envKey = safeText(process.env.OPENAI_API_KEY || "");
+    res.json({
+      ok: true,
+      configured: Boolean(envKey),
+      source: envKey ? "env" : "none",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "清空密钥失败" });
+  }
+});
+
 app.get("/api/admin/points/config", (_req, res) => {
   try {
     const authed = requirePermission(_req, res, "manage_points");
@@ -4277,7 +4567,8 @@ app.post("/api/admin/published/auto-republish-chapter", (req, res) => {
   }
 });
 
-app.post("/api/admin/published/republish-bulk", (req, res) => {
+app.post("/api/admin/published/republish-bulk", async (req, res) => {
+  let runId = "";
   try {
     const authed = requirePermission(req, res, "manage_publish");
     if (!authed) return;
@@ -4302,12 +4593,14 @@ app.post("/api/admin/published/republish-bulk", (req, res) => {
         .json({ error: "按版本+语言发布缺少 version 或 lang" });
     }
 
-    const result = republishBulkFromLatestBuilds({
+    runId = beginPublishRun("republish-bulk");
+    const result = await republishBulkFromLatestBuilds({
       mode: safeMode,
       version: safeText(version),
       lang: safeText(lang),
       onlyChanged: onlyChanged !== false,
       dryRun: dryRun === true,
+      runId,
     });
     if (dryRun !== true) {
       clearReadCacheByPrefix("study:");
@@ -4315,7 +4608,82 @@ app.post("/api/admin/published/republish-bulk", (req, res) => {
     res.json({ ok: true, ...result });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: error.message || "整本发布失败" });
+    const msg = error.message || "整本发布失败";
+    if (msg.includes("已手动停止")) {
+      return res.status(409).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
+  } finally {
+    if (runId) endPublishRun(runId);
+  }
+});
+
+app.post("/api/admin/published/auto-republish-missing-bulk", async (req, res) => {
+  let runId = "";
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const { mode, version, lang, onlyChanged, dryRun } = req.body || {};
+    const safeMode = safeText(mode || "all");
+    const allowedModes = new Set(["all", "version", "lang", "version_lang"]);
+    if (!allowedModes.has(safeMode)) {
+      return res.status(400).json({ error: "mode 不正确" });
+    }
+    if (safeMode === "version" && !isNonEmptyString(version)) {
+      return res.status(400).json({ error: "按版本查漏补发缺少 version" });
+    }
+    if (safeMode === "lang" && !isNonEmptyString(lang)) {
+      return res.status(400).json({ error: "按语言查漏补发缺少 lang" });
+    }
+    if (
+      safeMode === "version_lang" &&
+      (!isNonEmptyString(version) || !isNonEmptyString(lang))
+    ) {
+      return res
+        .status(400)
+        .json({ error: "按版本+语言查漏补发缺少 version 或 lang" });
+    }
+
+    runId = beginPublishRun("auto-republish-missing-bulk");
+    const result = await autoRepublishMissingBulkFromLatestBuilds({
+      mode: safeMode,
+      version: safeText(version),
+      lang: safeText(lang),
+      onlyChanged: onlyChanged !== false,
+      dryRun: dryRun === true,
+      runId,
+    });
+    if (dryRun !== true) {
+      clearReadCacheByPrefix("study:");
+    }
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error(error);
+    const msg = error.message || "查漏补发失败";
+    if (msg.includes("已手动停止")) {
+      return res.status(409).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
+  } finally {
+    if (runId) endPublishRun(runId);
+  }
+});
+
+app.post("/api/admin/published/stop-current", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const stopped = requestCancelPublishRun();
+    res.json({
+      ok: true,
+      stopped,
+      running: Boolean(safeText(PUBLISH_RUN_STATE.currentRunId)),
+      action: safeText(PUBLISH_RUN_STATE.currentAction),
+      runId: safeText(PUBLISH_RUN_STATE.currentRunId),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "停止发布失败" });
   }
 });
 
