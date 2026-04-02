@@ -1366,6 +1366,8 @@ button.toolbar-trigger:hover,
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
+  width: 70%;
+  margin: 0 auto;
   gap: 4px 18px;
   font-size: calc(16px * var(--font-scale));
   line-height: 1.75;
@@ -1376,10 +1378,14 @@ button.toolbar-trigger:hover,
 .repeated-word-item {
   display: inline-flex;
   white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .repeated-word-count {
-  color: rgba(127, 116, 104, 0.72);
+  color: #b67f1a;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* =========================
@@ -2481,6 +2487,7 @@ body.question-only-mode .plain-list li {
 
   .repeated-words-line {
     font-size: calc(14px * var(--font-scale));
+    width: 90%;
   }
 
   .flow-card h3 {
@@ -2740,8 +2747,56 @@ button.toolbar-trigger,
   padding: 14px 16px !important;
 }
 
-#primaryVersionPanel .chapter-grid-wrap + .chapter-grid-wrap {
+#primaryVersionPanel .chapter-grid-wrap {
+  border-top: 1px solid rgba(193, 166, 124, 0.45) !important;
   margin-top: 12px;
+  padding: 12px 10px 10px !important;
+  border-radius: 12px;
+  background: rgba(252, 247, 237, 0.72);
+}
+
+#primaryVersionPanel .chapter-grid-wrap:first-of-type {
+  margin-top: 6px;
+}
+
+#primaryVersionPanel .chapter-grid-wrap + .chapter-grid-wrap {
+  margin-top: 14px;
+}
+
+#primaryVersionPanel .chapter-grid-title {
+  font-size: calc(18px * var(--font-scale));
+  font-weight: 900;
+  color: #8f6518;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+#primaryVersionPanel #compareVersionSectionTitle {
+  border-left: 4px solid rgba(200, 155, 60, 0.72);
+  padding-left: 8px;
+}
+
+#bookChapterPanel .book-tab-row {
+  gap: 10px;
+  margin-bottom: 12px !important;
+}
+
+#bookChapterPanel .book-tab {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(193, 166, 124, 0.5);
+  background: rgba(255, 251, 242, 0.78);
+  color: #7a6957;
+  font-size: calc(18px * var(--font-scale));
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+#bookChapterPanel .book-tab.active {
+  background: rgba(200, 155, 60, 0.22);
+  border-color: rgba(200, 155, 60, 0.62);
+  color: #8f6518;
 }
 
 .version-grid {
