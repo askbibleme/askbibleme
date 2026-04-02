@@ -3,12 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AskBible.me - 笔记本</title>
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="AskBible" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>AskBible.me - 文章中心</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/icon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/icon-180.png" />
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="page-shell">
-      <header class="site-topbar notebook-topbar">
+      <header class="site-topbar">
         <div class="site-topbar-title">
           <h1 id="brandTitle">
             <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>
@@ -17,18 +27,24 @@
       </header>
 
       <main class="book-layout notebook-layout notebook-app">
-        <div class="notebook-shell">
-          <aside class="notebook-col notebook-col-books">
-            <a class="notebook-col-head notebook-back-link" href="/">← 返回</a>
-            <div id="notebookBooks" class="notebook-list"></div>
-          </aside>
-
-          <aside class="notebook-col notebook-col-notes">
-            <div class="notebook-col-head notebook-notes-head">
-              <span>条目</span>
+        <div class="book-spread notebook-article-spread">
+          <section class="book-page notebook-article-page">
+            <div class="notebook-article-columns">
+              <aside class="notebook-article-sidebar">
+                <a class="notebook-back-ribbon" href="/">
+                  <span class="notebook-back-ribbon-label">← 返回读经</span>
+                  <span class="notebook-back-ribbon-star" aria-hidden="true">★</span>
+                </a>
+                <nav
+                  id="notebookBooks"
+                  class="notebook-category-vertical"
+                  role="tablist"
+                  aria-label="文章分类"
+                ></nav>
+              </aside>
+              <div id="notebookNotes" class="notebook-article-list"></div>
             </div>
-            <div id="notebookNotes" class="notebook-list"></div>
-          </aside>
+          </section>
         </div>
       </main>
       <footer class="site-footer">
@@ -39,7 +55,7 @@
     <div id="notebookUserSettingsModal" class="modal-mask" style="display: none">
       <div class="modal-card modal-card-sm notebook-settings-modal">
         <div class="modal-head">
-          <h2>用户配置</h2>
+          <h2>帐号资料</h2>
           <button id="closeNotebookSettingsBtn" class="top-action-btn modal-dark-btn" type="button">关闭</button>
         </div>
         <div class="notebook-settings-group">
@@ -66,6 +82,55 @@
         <div id="notebookUserSettingsStatus" class="error-text"></div>
       </div>
     </div>
+
+    <div
+      id="addToHomeHint"
+      class="add-to-home-hint"
+      hidden
+      role="region"
+      aria-label="添加到主屏幕"
+    >
+      <div class="add-to-home-hint-inner">
+        <span class="add-to-home-hint-icon" aria-hidden="true">📱</span>
+        <p class="add-to-home-hint-text">将 AskBible 加到主屏幕，阅读更方便</p>
+        <div class="add-to-home-hint-actions">
+          <button
+            type="button"
+            id="addToHomeInstallBtn"
+            class="add-to-home-hint-btn add-to-home-hint-btn-primary"
+            hidden
+          >
+            安装
+          </button>
+          <button type="button" id="addToHomeHowBtn" class="add-to-home-hint-btn">如何添加</button>
+          <button type="button" id="addToHomeLaterBtn" class="add-to-home-hint-btn add-to-home-hint-btn-ghost">
+            稍后
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="addToHomeHintModal"
+      class="modal-mask add-to-home-hint-modal"
+      hidden
+      aria-hidden="true"
+    >
+      <div
+        class="modal-card modal-card-sm add-to-home-hint-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="addToHomeHintTitle"
+      >
+        <h2 id="addToHomeHintTitle" class="add-to-home-hint-modal-title">添加到主屏幕</h2>
+        <div id="addToHomeHintSteps" class="add-to-home-hint-steps"></div>
+        <button type="button" id="addToHomeHintModalClose" class="primary-btn add-to-home-hint-modal-ok">
+          知道了
+        </button>
+      </div>
+    </div>
+
+    <script defer src="/pwa-install-hint.js"></script>
     <script>
       const KEY = "askbible_notebook_v1";
       const FAVORITES_KEY = "bible_verse_favorites_v1";
@@ -94,11 +159,11 @@
       };
       const DEFAULT_DATA = {
         books: [
-          { id: "divineSpeech", title: "主说的话", color: "teal" },
-          { id: "hotVerses", title: "热门经文", color: "olive" },
-          { id: "globalFavorites", title: "热门收藏", color: "olive" },
+          { id: "hotVerses", title: "经文热榜", color: "olive" },
           { id: "favorites", title: "我的经文", color: "rose" },
-          { id: "questionFavorites", title: "我的问题", color: "amber" },
+          { id: "questionFavorites", title: "我的贡献", color: "amber" },
+          { id: "divineSpeech", title: "主话摘录", color: "teal" },
+          { id: "globalFavorites", title: "社区精选", color: "olive" },
         ],
         notes: {
           hotVerses: [],
@@ -109,10 +174,45 @@
         },
       };
 
+      const NOTEBOOK_BOOK_TITLE_MIGRATION = {
+        divineSpeech: "主话摘录",
+        hotVerses: "经文热榜",
+        globalFavorites: "社区精选",
+        favorites: "我的经文",
+        questionFavorites: "我的贡献",
+      };
+
       function loadData() {
         try {
           const parsed = JSON.parse(localStorage.getItem(KEY) || "null");
-          if (parsed && parsed.books && parsed.notes) return parsed;
+            if (parsed && parsed.books && parsed.notes) {
+            let changed = false;
+            for (const b of parsed.books) {
+              const next = NOTEBOOK_BOOK_TITLE_MIGRATION[b.id];
+              if (next && b.title !== next) {
+                b.title = next;
+                changed = true;
+              }
+            }
+            const order = [
+              "hotVerses",
+              "favorites",
+              "questionFavorites",
+              "divineSpeech",
+              "globalFavorites",
+            ];
+            const byId = new Map(parsed.books.map((b) => [b.id, b]));
+            const nextBooks = order.map((id) => byId.get(id)).filter(Boolean);
+            if (
+              nextBooks.length === parsed.books.length &&
+              parsed.books.some((b, i) => b.id !== nextBooks[i].id)
+            ) {
+              parsed.books = nextBooks;
+              changed = true;
+            }
+            if (changed) saveData(parsed);
+            return parsed;
+          }
         } catch {}
         return DEFAULT_DATA;
       }
@@ -122,7 +222,7 @@
 
       const state = {
         data: loadData(),
-        activeBookId: "divineSpeech",
+        activeBookId: "hotVerses",
       };
 
       const booksEl = document.getElementById("notebookBooks");
@@ -367,16 +467,16 @@
 
       function syncFavoritesIntoNotebook() {
         state.data.books = [
-          { id: "divineSpeech", title: "主说的话", color: "teal" },
-          { id: "hotVerses", title: "热门经文", color: "olive" },
-          { id: "globalFavorites", title: "热门收藏", color: "olive" },
+          { id: "hotVerses", title: "经文热榜", color: "olive" },
           { id: "favorites", title: "我的经文", color: "rose" },
-          { id: "questionFavorites", title: "我的问题", color: "amber" },
+          { id: "questionFavorites", title: "我的贡献", color: "amber" },
+          { id: "divineSpeech", title: "主话摘录", color: "teal" },
+          { id: "globalFavorites", title: "社区精选", color: "olive" },
         ];
         state.data.notes.favorites = loadFavoriteVerses();
         state.data.notes.questionFavorites = loadFavoriteQuestions();
         if (!state.data.books.some((b) => b.id === state.activeBookId)) {
-          state.activeBookId = "divineSpeech";
+          state.activeBookId = state.data.books[0]?.id || "hotVerses";
         }
       }
 
@@ -519,77 +619,6 @@
         );
       }
 
-      function exportAllData() {
-        const payload = {
-          meta: {
-            app: "askbible",
-            exportedAt: new Date().toISOString(),
-            version: 1,
-          },
-          data: {
-            [FAVORITES_KEY]: JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]"),
-            [QUESTION_FAVORITES_KEY]: JSON.parse(
-              localStorage.getItem(QUESTION_FAVORITES_KEY) || "[]"
-            ),
-            [KEY]: JSON.parse(localStorage.getItem(KEY) || "null"),
-            [FRONT_STATE_KEY]: JSON.parse(localStorage.getItem(FRONT_STATE_KEY) || "null"),
-            [FONT_SCALE_KEY]: localStorage.getItem(FONT_SCALE_KEY),
-            [VIEWPORT_SCROLL_KEY]: localStorage.getItem(VIEWPORT_SCROLL_KEY),
-          },
-        };
-
-        const blob = new Blob([JSON.stringify(payload, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const ts = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
-        a.href = url;
-        a.download = `askbible-userdata-${ts}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }
-
-      function importAllDataFromFile(file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const parsed = JSON.parse(String(reader.result || "{}"));
-            const data = parsed?.data;
-            if (!data || typeof data !== "object") throw new Error("格式错误");
-
-            if (FAVORITES_KEY in data) {
-              localStorage.setItem(FAVORITES_KEY, JSON.stringify(data[FAVORITES_KEY] || []));
-            }
-            if (QUESTION_FAVORITES_KEY in data) {
-              localStorage.setItem(
-                QUESTION_FAVORITES_KEY,
-                JSON.stringify(data[QUESTION_FAVORITES_KEY] || [])
-              );
-            }
-            if (KEY in data) {
-              localStorage.setItem(KEY, JSON.stringify(data[KEY] || DEFAULT_DATA));
-              state.data = loadData();
-            }
-            if (FRONT_STATE_KEY in data) {
-              localStorage.setItem(FRONT_STATE_KEY, JSON.stringify(data[FRONT_STATE_KEY]));
-            }
-            if (FONT_SCALE_KEY in data && data[FONT_SCALE_KEY] != null) {
-              localStorage.setItem(FONT_SCALE_KEY, String(data[FONT_SCALE_KEY]));
-            }
-            if (VIEWPORT_SCROLL_KEY in data && data[VIEWPORT_SCROLL_KEY] != null) {
-              localStorage.setItem(VIEWPORT_SCROLL_KEY, String(data[VIEWPORT_SCROLL_KEY]));
-            }
-            renderAll();
-          } catch {
-            alert("导入失败：文件不是有效的个人数据 JSON");
-          }
-        };
-        reader.readAsText(file);
-      }
-
       function getActiveBook() {
         return state.data.books.find((b) => b.id === state.activeBookId) || state.data.books[0];
       }
@@ -601,9 +630,7 @@
         booksEl.innerHTML = state.data.books
           .map((b) => {
             const active = b.id === state.activeBookId ? "active" : "";
-            return `<button class="notebook-item ${active}" data-book-id="${b.id}">
-              <span class="notebook-color-dot ${b.color}"></span>${b.title}
-            </button>`;
+            return `<button type="button" class="display-mode-btn ${active}" data-book-id="${b.id}" role="tab" aria-selected="${active ? "true" : "false"}">${b.title}</button>`;
           })
           .join("");
         booksEl.querySelectorAll("[data-book-id]").forEach((btn) => {
@@ -620,14 +647,16 @@
         if (!list.length) {
           notesEl.innerHTML = `<div class="empty-state">${
             state.activeBookId === "questionFavorites"
-              ? "暂无收藏问题"
+              ? "暂无我的贡献"
               : state.activeBookId === "hotVerses"
-              ? "暂无热门经文"
+              ? "暂无经文热榜"
               : state.activeBookId === "divineSpeech"
-              ? "暂无主说的话"
+              ? "暂无主话摘录"
               : state.activeBookId === "globalFavorites"
-              ? "暂无热门收藏"
-              : "暂无收藏经文"
+              ? "暂无社区精选"
+              : state.activeBookId === "favorites"
+              ? "暂无我的经文"
+              : "暂无内容"
           }</div>`;
           return;
         }

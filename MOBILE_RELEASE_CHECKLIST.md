@@ -6,8 +6,9 @@
 - Confirm Capacitor platforms exist: `ios/` and `android/`
 
 ## 2) Build Sync
-- Run `npx cap sync`
-- Open Android project: `npx cap open android`
+- Android 一键：更新启动器图标（来自 `assets/icons/source-app-icon.png`）并同步工程  
+  `npm run android:prep`
+- 或分步：`npm run android:icons` → `npm run cap:sync` → `npm run cap:android`（打开 Android Studio）
 - Open iOS project: `npx cap open ios`
 
 ## 3) App Identity
@@ -19,8 +20,8 @@
 - iOS bundle identifier should match `appId`
 
 ## 4) App Icons and Launch
-- Android icon source:
-  - Replace adaptive icon layers in `android/app/src/main/res/mipmap-*`
+- 安全区：自适应前景使用 `drawable/ic_launcher_foreground_inset.xml`（四边 21dp，对齐 66dp 关键区）；网站/PWA 与旧版 mipmap 用脚本按 **66/108** 比例缩图后垫色 `#4A443F`。
+- 重新生成：`bash scripts/refresh-app-icons.sh`（网站）与 `bash scripts/generate-android-launcher-icons.sh`（Android），或 `npm run android:icons`。
 - iOS icon source:
   - Replace assets in `ios/App/App/Assets.xcassets/AppIcon.appiconset`
 - Keep launch screen simple text/logo in both platforms
@@ -38,10 +39,28 @@
 - Confirm login, chapter switching, and admin entry work
 - Confirm PWA/service worker does not block content refresh
 
-## 7) Store Preparation
-- Android:
-  - Build signed AAB in Android Studio
-  - Upload to Google Play internal testing
+## 7) Google Play（Android）上架流程
+
+### 7.1 签名密钥（本机一次）
+- 在 `android/` 下生成密钥（密码自行保管，勿提交仓库）：
+  `keytool -genkey -v -keystore askbible-release.keystore -alias askbible -keyalg RSA -keysize 2048 -validity 10000`
+- 复制 `android/keystore.properties.example` 为 `android/keystore.properties`，填四项，其中 `storeFile=askbible-release.keystore`（文件与 `keystore.properties` 同目录）。
+
+### 7.2 打 AAB
+- `npm run cap:sync`（或至少 `npx cap sync android`）
+- Android Studio：**Build → Generate Signed Bundle / APK → Android App Bundle**，选 release 密钥；或 **Build → Build Bundle(s) / APK(s) → Build Bundle(s)**（已配置 `keystore.properties` 时 release 会自动签名）。
+- 产物：`android/app/build/outputs/bundle/release/app-release.aab`
+- 每次上架前在 `android/app/build.gradle` 的 `defaultConfig` 里 **递增 `versionCode`**，并更新 `versionName`。
+
+### 7.3 Play Console
+- **Create app** → 填写默认语言、应用名、类型、免费/付费。
+- **完成** 商店详情：短说明、完整说明、图标（512）、手机截图、功能图（如需要）。
+- **政策**：隐私政策 URL（有登录/账号一般必填）、内容分级、目标受众、数据安全表单。
+- **版本**：**Testing → Internal testing** → 创建版本 → 上传 `app-release.aab` → 添加测试员邮箱 → 发测试链接。
+- 内测无问题后，再走 **Production** 或 **Closed testing** 逐步放开。
+
+### 7.4 账号侧
+- 顶栏若提示 **finish setting up developer account** 或 **Android developer verification**，需先完成，否则可能无法正式发布。
 - iOS:
   - Set Team and Signing in Xcode
   - Archive and upload to TestFlight

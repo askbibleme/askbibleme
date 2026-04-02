@@ -1380,14 +1380,14 @@ function renderAuthStatus() {
       sideUserTagEl.setAttribute(
         "aria-label",
         level > 0
-          ? `用户：${name}，社区等级 L${level}`
-          : `用户：${name}，会员；通过贡献审核后将显示对应星级`
+          ? `文章中心：${name}，社区等级 L${level}`
+          : `文章中心：${name}；通过贡献审核后将显示对应星级`
       );
     } else {
       sideUserTagEl.textContent = "更多";
       sideUserTagEl.setAttribute(
         "aria-label",
-        "用户注册/登录，解锁更多宝藏"
+        "会员与文章中心（请先登录）"
       );
     }
     sideUserTagEl.setAttribute("href", authed ? "/notebook.html" : "#");

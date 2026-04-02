@@ -1,24 +1,30 @@
 {
-  "name": "AskBible",
+  "name": "AskBible.me",
   "short_name": "AskBible",
   "description": "Bible reading and study companion.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#1f1a14",
-  "theme_color": "#1f1a14",
+  "background_color": "#4a443f",
+  "theme_color": "#4a443f",
   "lang": "zh-CN",
   "icons": [
     {
-      "src": "/assets/icons/icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/icons/icon-maskable.svg",
+      "src": "/assets/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ]

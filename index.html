@@ -3,12 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1f1a14" />
+    <meta name="theme-color" content="#4a443f" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="AskBible" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>AskBible.me</title>
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/icon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/icon-180.png" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
@@ -43,7 +47,13 @@
               hidden
             >
               <div id="memberHubGuest" class="member-hub-state">
-                <p class="member-hub-lead">登录后可提交问题、同步笔记本、收藏与社区互动</p>
+                <p class="member-hub-lead">登录后可提交问题、使用文章中心汇总收藏、参与社区互动</p>
+                <p class="member-hub-install-tip">
+                  手机可将本站<strong>添加到主屏幕</strong>，像 App 一样打开。
+                  <button type="button" class="member-hub-install-tip-btn open-add-to-home-help">
+                    查看怎么添加
+                  </button>
+                </p>
                 <div class="member-hub-actions-row">
                   <button type="button" class="member-hub-primary" data-member-action="login">
                     登录
@@ -61,6 +71,12 @@
                     <div class="member-hub-email" id="memberHubEmail">—</div>
                   </div>
                 </div>
+                <p class="member-hub-install-tip">
+                  手机可<strong>添加到主屏幕</strong>，像 App 一样使用。
+                  <button type="button" class="member-hub-install-tip-btn open-add-to-home-help">
+                    如何添加
+                  </button>
+                </p>
                 <nav class="member-hub-links" aria-label="账户功能">
                   <a class="member-hub-link" href="notebook.html?openSettings=1#settings">帐号资料</a>
                   <button
@@ -86,9 +102,6 @@
         </div>
         <div class="book-spread">
           <section class="book-page left-page">
-            <div class="book-side-extend-tags" aria-label="侧边标签">
-              <a id="sideUserTag" class="book-side-extend-tag" href="/notebook.html" aria-label="打开笔记"></a>
-            </div>
             <div class="page-toolbar">
               <div class="reading-toolbar">
                 <button
@@ -124,6 +137,9 @@
                   <button type="button" id="questionToggleBtn" class="display-mode-btn">问题</button>
                 </div>
 
+                <div class="book-side-extend-tags" aria-label="侧边标签">
+                  <a id="sideUserTag" class="book-side-extend-tag" href="/notebook.html" aria-label="文章中心"></a>
+                </div>
               </div>
 
               <!-- 兼容现有 JS：隐藏保留 -->
@@ -633,6 +649,56 @@
       </div>
     </div>
 
+    <div
+      id="addToHomeHint"
+      class="add-to-home-hint"
+      hidden
+      role="region"
+      aria-label="添加到主屏幕"
+    >
+      <div class="add-to-home-hint-inner">
+        <span class="add-to-home-hint-icon" aria-hidden="true">📱</span>
+        <p class="add-to-home-hint-text">将 AskBible 加到主屏幕，阅读更方便</p>
+        <div class="add-to-home-hint-actions">
+          <button
+            type="button"
+            id="addToHomeInstallBtn"
+            class="add-to-home-hint-btn add-to-home-hint-btn-primary"
+            hidden
+          >
+            安装
+          </button>
+          <button type="button" id="addToHomeHowBtn" class="add-to-home-hint-btn">
+            如何添加
+          </button>
+          <button type="button" id="addToHomeLaterBtn" class="add-to-home-hint-btn add-to-home-hint-btn-ghost">
+            稍后
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="addToHomeHintModal"
+      class="modal-mask add-to-home-hint-modal"
+      hidden
+      aria-hidden="true"
+    >
+      <div
+        class="modal-card modal-card-sm add-to-home-hint-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="addToHomeHintTitle"
+      >
+        <h2 id="addToHomeHintTitle" class="add-to-home-hint-modal-title">添加到主屏幕</h2>
+        <div id="addToHomeHintSteps" class="add-to-home-hint-steps"></div>
+        <button type="button" id="addToHomeHintModalClose" class="primary-btn add-to-home-hint-modal-ok">
+          知道了
+        </button>
+      </div>
+    </div>
+
+    <script defer src="/pwa-install-hint.js"></script>
     <script type="module" src="/main.js"></script>
     <!-- 仅 localhost:3000 + npm run dev 时加载，保存文件后自动刷新（等同点浏览器刷新） -->
     <script>

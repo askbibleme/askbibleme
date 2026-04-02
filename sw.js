@@ -1,5 +1,17 @@
-const CACHE_NAME = "askbible-static-v1";
-const STATIC_ASSETS = ["/", "/index.html", "/styles.css", "/main.js", "/manifest.webmanifest"];
+const CACHE_NAME = "askbible-static-v6";
+const STATIC_ASSETS = [
+  "/",
+  "/index.html",
+  "/styles.css",
+  "/main.js",
+  "/pwa-install-hint.js",
+  "/manifest.webmanifest",
+  "/assets/icons/icon-16.png",
+  "/assets/icons/icon-32.png",
+  "/assets/icons/icon-180.png",
+  "/assets/icons/icon-192.png",
+  "/assets/icons/icon-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
