@@ -11,6 +11,7 @@ const GLOBAL_SYNC_VERSE_KEYS = "bible_global_sync_verse_keys_v1";
 const GLOBAL_SYNC_QUESTION_KEYS = "bible_global_sync_question_keys_v1";
 const LAST_QUESTION_SUBMIT_AT_KEY = "bible_last_question_submit_at_v1";
 const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+const QA_INTERACTIONS_KEY = "bible_qa_interactions_v1";
 const ADMIN_PASSWORD = "0777";
 const PUBLISH_MANAGER_FEATURE_VERSION = "v2.1";
 const PUBLISH_HISTORY_KEY = "bible_publish_history_v1";
@@ -166,6 +167,42 @@ function saveLastPublishedChanges() {
     PUBLISH_LAST_CHANGES_KEY,
     JSON.stringify(adminState.lastPublishedChanges || [])
   );
+}
+
+function loadQaInteractions() {
+  const parsed = safeJsonParse(localStorage.getItem(QA_INTERACTIONS_KEY), {});
+  return parsed && typeof parsed === "object" ? parsed : {};
+}
+
+function saveQaInteractions(data) {
+  localStorage.setItem(QA_INTERACTIONS_KEY, JSON.stringify(data || {}));
+}
+
+function getQaInteractionById(questionId) {
+  const all = loadQaInteractions();
+  const id = String(questionId || "").trim();
+  const row = all[id];
+  if (!id || !row || typeof row !== "object") {
+    return { liked: false, saved: false };
+  }
+  return {
+    liked: row.liked === true,
+    saved: row.saved === true,
+  };
+}
+
+function setQaInteractionById(questionId, patch) {
+  const id = String(questionId || "").trim();
+  if (!id) return { liked: false, saved: false };
+  const all = loadQaInteractions();
+  const prev = all[id] && typeof all[id] === "object" ? all[id] : {};
+  const next = {
+    liked: patch?.liked === true,
+    saved: patch?.saved === true,
+  };
+  all[id] = { ...prev, ...next };
+  saveQaInteractions(all);
+  return next;
 }
 
 function escapeHtml(str) {
@@ -346,7 +383,7 @@ function loadFrontState() {
       ? parsed.secondaryScriptureVersionIds
       : legacyScriptureIds.slice(1).length
       ? legacyScriptureIds.slice(1)
-      : ["bbe_en"],
+      : [],
     testament: parsed?.testament || "旧约",
     bookId: parsed?.bookId || "GEN",
     chapter: Number(parsed?.chapter || 1),
@@ -991,6 +1028,8 @@ async function init() {
     initChapterNav();
     initInlineDisplayToggles();
     initChapterQuestionCollector();
+    initApprovedQuestionReply();
+    initPresetQuestionActions();
     initAuthModal();
     initAdminModal();
     bindViewportScrollPersistence();
@@ -1002,6 +1041,149 @@ async function init() {
   } catch (error) {
     console.error("初始化失败:", error);
   }
+}
+
+function initPresetQuestionActions() {
+  if (document.body.dataset.presetQaBound === "1") return;
+  document.body.dataset.presetQaBound = "1";
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const btn = target.closest(".preset-qa-action-btn");
+    if (!btn) return;
+    const action = String(btn.dataset.action || "");
+    const questionId = String(btn.dataset.questionId || "").trim();
+    if (!questionId || (action !== "like" && action !== "reply")) return;
+    const iconEl = btn.querySelector(".preset-qa-action-icon");
+    if (iconEl instanceof HTMLElement) {
+      iconEl.classList.remove("is-pop");
+      void iconEl.offsetWidth;
+      iconEl.classList.add("is-pop");
+    }
+    if (action === "reply") {
+      const input = document.getElementById("chapterQuestionInput");
+      if (input instanceof HTMLTextAreaElement) {
+        input.focus();
+        if (!String(input.value || "").trim()) {
+          const qText = String(btn.dataset.questionText || "").trim();
+          input.value = qText ? `回复：${qText} ` : "";
+        }
+      }
+      return;
+    }
+    const interaction = getQaInteractionById(questionId);
+    const nextActive = !interaction.liked;
+    setQaInteractionById(questionId, {
+      liked: nextActive,
+      saved: interaction.saved,
+    });
+    btn.classList.toggle("is-active", nextActive);
+    const countEl = btn.querySelector(".preset-qa-action-count");
+    if (countEl instanceof HTMLElement) {
+      const base = Math.max(0, Number(btn.dataset.baseCount || 0));
+      countEl.textContent = String(base + (nextActive ? 1 : 0));
+    }
+  });
+}
+
+function initApprovedQuestionReply() {
+  const approvedEl = document.getElementById("chapterApprovedQuestions");
+  if (!approvedEl || approvedEl.dataset.replyBound === "1") return;
+  approvedEl.dataset.replyBound = "1";
+  approvedEl.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const actionBtn = target.closest(".qa-action-btn");
+    if (actionBtn) {
+      const questionId = String(actionBtn.dataset.questionId || "").trim();
+      const action = String(actionBtn.dataset.action || "");
+      if (!questionId || (action !== "like" && action !== "reply")) return;
+      const safeQuestionIdSelector =
+        typeof CSS !== "undefined" && typeof CSS.escape === "function"
+          ? CSS.escape(questionId)
+          : questionId.replace(/"/g, '\\"');
+      const wrap = approvedEl.querySelector(
+        `.chapter-approved-item[data-question-id="${safeQuestionIdSelector}"]`
+      );
+      if (!(wrap instanceof HTMLElement)) return;
+      const iconEl = actionBtn.querySelector(".qa-action-icon");
+      if (iconEl instanceof HTMLElement) {
+        iconEl.classList.remove("is-pop");
+        void iconEl.offsetWidth;
+        iconEl.classList.add("is-pop");
+      }
+      if (action === "reply") {
+        const editor = wrap.querySelector(".chapter-reply-editor");
+        if (editor instanceof HTMLElement) editor.classList.add("is-open");
+        const input = wrap.querySelector(".chapter-reply-input");
+        if (input instanceof HTMLTextAreaElement) input.focus();
+        return;
+      }
+      const interaction = getQaInteractionById(questionId);
+      const key = "liked";
+      const nextActive = !interaction[key];
+      const next = setQaInteractionById(questionId, {
+        liked: nextActive,
+        saved: interaction.saved,
+      });
+      actionBtn.classList.toggle("is-active", nextActive);
+      const countEl = actionBtn.querySelector(".qa-action-count");
+      if (countEl instanceof HTMLElement) {
+        const base = Number(actionBtn.dataset.baseCount || 0);
+        countEl.textContent = String(base + (nextActive ? 1 : 0));
+      }
+      wrap.setAttribute("data-liked", next.liked ? "1" : "0");
+      wrap.setAttribute("data-saved", next.saved ? "1" : "0");
+      return;
+    }
+
+    const btn = target.closest(".chapter-reply-submit-btn");
+    if (!btn) return;
+    const questionId = String(btn.dataset.questionId || "").trim();
+    if (!questionId) return;
+    const safeQuestionIdSelector =
+      typeof CSS !== "undefined" && typeof CSS.escape === "function"
+        ? CSS.escape(questionId)
+        : questionId.replace(/"/g, '\\"');
+    const wrap = approvedEl.querySelector(
+      `.chapter-approved-item[data-question-id="${safeQuestionIdSelector}"]`
+    );
+    if (!wrap) return;
+    const input = wrap.querySelector(".chapter-reply-input");
+    const status = wrap.querySelector(".chapter-reply-status");
+    if (!(input instanceof HTMLTextAreaElement) || !(status instanceof HTMLElement)) return;
+    const replyText = String(input.value || "").trim();
+    if (replyText.length < 2) {
+      status.textContent = "回复至少 2 个字";
+      return;
+    }
+    if (!state.currentUser) {
+      status.textContent = "请先登录后回复";
+      return;
+    }
+    btn.setAttribute("disabled", "disabled");
+    status.textContent = "回复中...";
+    try {
+      const res = await fetch("/api/questions/reply", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({ questionId, replyText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "回复失败");
+      input.value = "";
+      status.textContent = "回复成功";
+      await loadApprovedChapterQuestions();
+      renderStudyContent();
+    } catch (error) {
+      status.textContent = error?.message || "回复失败";
+    } finally {
+      btn.removeAttribute("disabled");
+    }
+  });
 }
 
 function getAuthToken() {
@@ -2228,12 +2410,7 @@ function renderStudyContent() {
       if (approvedTitleEl) approvedTitleEl.style.display = items.length ? "" : "none";
       approvedEl.innerHTML = items.length
         ? items
-            .map(
-              (item, idx) =>
-                `<div class="chapter-approved-item">${idx + 1}. ${escapeHtml(
-                  String(item.questionText || "")
-                )}${renderApprovedContributorMeta(item)}</div>`
-            )
+            .map((item, idx) => renderApprovedQuestionItem(item, idx))
             .join("")
         : "";
     }
@@ -2259,15 +2436,61 @@ function renderStudyContent() {
     if (approvedTitleEl) approvedTitleEl.style.display = items.length ? "" : "none";
     approvedEl.innerHTML = items.length
       ? items
-          .map(
-            (item, idx) =>
-              `<div class="chapter-approved-item">${idx + 1}. ${escapeHtml(
-                String(item.questionText || "")
-              )}${renderApprovedContributorMeta(item)}</div>`
-          )
+          .map((item, idx) => renderApprovedQuestionItem(item, idx))
           .join("")
       : "";
   }
+}
+
+function renderApprovedQuestionItem(item, idx) {
+  const questionId = String(item?.id || "").trim();
+  const replies = Array.isArray(item?.replies) ? item.replies : [];
+  const interaction = getQaInteractionById(questionId);
+  const likeBaseCount = Math.max(0, Number(item?.likeCount || 0));
+  const likeCount = likeBaseCount + (interaction.liked ? 1 : 0);
+  const actionsHtml = questionId
+    ? `<div class="qa-actions">
+        <button type="button" class="qa-action-btn ${
+          interaction.liked ? "is-active" : ""
+        }" data-question-id="${escapeHtml(questionId)}" data-action="like" data-base-count="${likeBaseCount}">
+          <span class="qa-action-icon">♥</span>
+          <span class="qa-action-label">点赞</span>
+          <span class="qa-action-count">${likeCount}</span>
+        </button>
+        <button type="button" class="qa-action-btn" data-question-id="${escapeHtml(
+          questionId
+        )}" data-action="reply" data-base-count="0">
+          <span class="qa-action-icon">↩</span>
+          <span class="qa-action-label">回复</span>
+        </button>
+      </div>`
+    : "";
+  const replyListHtml = replies.length
+    ? `<div class="chapter-approved-replies">${replies
+        .map(
+          (reply) =>
+            `<div class="chapter-approved-reply"><span class="chapter-approved-reply-author">${escapeHtml(
+              String(reply?.userName || "用户")
+            )}</span>：${escapeHtml(String(reply?.replyText || ""))}</div>`
+        )
+        .join("")}</div>`
+    : "";
+  const replyFormHtml = questionId
+    ? `<div class="chapter-reply-editor">
+        <textarea class="chapter-reply-input" placeholder="写下你的回复..."></textarea>
+        <div class="chapter-reply-actions">
+          <span class="chapter-reply-status"></span>
+          <button type="button" class="chapter-reply-submit-btn" data-question-id="${escapeHtml(
+            questionId
+          )}">回复</button>
+        </div>
+      </div>`
+    : "";
+  return `<div class="chapter-approved-item" data-question-id="${escapeHtml(
+    questionId
+  )}">${idx + 1}. ${escapeHtml(String(item?.questionText || ""))}${renderApprovedContributorMeta(
+    item
+  )}${actionsHtml}${replyListHtml}${replyFormHtml}</div>`;
 }
 
 function renderApprovedContributorMeta(item) {
@@ -2277,7 +2500,15 @@ function renderApprovedContributorMeta(item) {
   const bits = [];
   if (nickname) bits.push(nickname);
   if (level > 0) bits.push(`L${level}`);
-  return ` <span class="chapter-approved-meta">（${escapeHtml(bits.join(" "))}）</span>`;
+  const stars = level > 0 ? renderLevelStars(level) : "";
+  const starHtml = stars ? ` <span class="chapter-approved-stars">${escapeHtml(stars)}</span>` : "";
+  return ` <span class="chapter-approved-meta">（${escapeHtml(bits.join(" "))}${starHtml}）</span>`;
+}
+
+function renderLevelStars(level) {
+  const lv = Math.max(1, Math.min(12, Number(level) || 1));
+  const starCount = Math.max(1, Math.min(5, Math.ceil(lv / 3)));
+  return "★".repeat(starCount);
 }
 
 function renderRepeatedWords(items) {
@@ -2574,11 +2805,13 @@ function renderSegmentCard(seg) {
               const qText = transformQuestionDisplayText(q);
               const qKey = buildQuestionFavoriteKey(seg, qText, idx);
               const active = state.questionFavoriteKeys.has(qKey) ? " is-favorited" : "";
+              const presetQaId = `preset_${qKey}`;
+              const presetQaHtml = renderPresetQuestionInlineActions(presetQaId, qText);
               return `<li class="question-fav-item${active}" data-question-fav-key="${escapeHtml(
                 qKey
               )}" data-question-fav-text="${escapeHtml(qText)}" data-question-fav-title="${escapeHtml(
                 title
-              )}">${escapeHtml(qText)}</li>`;
+              )}">${escapeHtml(qText)}${presetQaHtml}</li>`;
             })
             .join("")}
         </ul>
@@ -2597,6 +2830,26 @@ function renderSegmentCard(seg) {
       ${questionHtml}
     </article>
   `;
+}
+
+function renderPresetQuestionInlineActions(questionId, questionText) {
+  const interaction = getQaInteractionById(questionId);
+  const likeBaseCount = 0;
+  const likeCount = likeBaseCount + (interaction.liked ? 1 : 0);
+  return ` <span class="preset-qa-inline">
+      <button type="button" class="preset-qa-action-btn ${
+        interaction.liked ? "is-active" : ""
+      }" data-action="like" data-question-id="${escapeHtml(
+    questionId
+  )}" data-base-count="${likeBaseCount}">
+        <span class="preset-qa-action-icon">♥</span><span class="preset-qa-action-count">${likeCount}</span>
+      </button>
+      <button type="button" class="preset-qa-action-btn" data-action="reply" data-question-id="${escapeHtml(
+        questionId
+      )}" data-question-text="${escapeHtml(questionText)}">
+        <span class="preset-qa-action-icon">↩</span><span>回复</span>
+      </button>
+    </span>`;
 }
 
 function flattenBooks() {

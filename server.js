@@ -531,6 +531,19 @@ function loadQuestionSubmissions() {
     ...item,
     status: safeText(item?.status || "pending") || "pending",
     reviewedAt: safeText(item?.reviewedAt || ""),
+    replies: Array.isArray(item?.replies)
+      ? item.replies
+          .map((reply) => ({
+            id: safeText(reply?.id || ""),
+            questionId: safeText(reply?.questionId || item?.id || ""),
+            replyText: safeText(reply?.replyText || ""),
+            userId: safeText(reply?.userId || ""),
+            userName: safeText(reply?.userName || ""),
+            userEmail: safeText(reply?.userEmail || ""),
+            createdAt: safeText(reply?.createdAt || ""),
+          }))
+          .filter((reply) => reply.id && reply.replyText)
+      : [],
   }));
   return data;
 }
@@ -3220,12 +3233,87 @@ app.get("/api/questions/approved", (req, res) => {
           ...x,
           userNickname: safeText(x.userName || ""),
           userLevel: level,
+          replies: Array.isArray(x.replies)
+            ? x.replies
+                .map((reply) => ({
+                  id: safeText(reply?.id || ""),
+                  questionId: safeText(reply?.questionId || x.id || ""),
+                  replyText: safeText(reply?.replyText || ""),
+                  userName: safeText(reply?.userName || ""),
+                  createdAt: safeText(reply?.createdAt || ""),
+                }))
+                .filter((reply) => reply.id && reply.replyText)
+                .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+            : [],
         };
       });
     res.json({ items });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "读取已审核问题失败" });
+  }
+});
+
+app.post("/api/questions/reply", (req, res) => {
+  try {
+    const authed = getAuthedUserFromReq(req);
+    if (!authed) {
+      return res.status(401).json({ error: "请先登录后再回复" });
+    }
+    const rate = checkWriteRateLimit({
+      req,
+      actionKey: "question_reply",
+      limit: 20,
+      windowMs: 60 * 1000,
+    });
+    if (!rate.ok) {
+      return res.status(429).json({
+        error: `回复过于频繁，请 ${rate.retryAfterSec}s 后重试`,
+      });
+    }
+
+    const questionId = safeText(req.body?.questionId || "");
+    const replyText = safeText(req.body?.replyText || "");
+    if (!questionId) {
+      return res.status(400).json({ error: "缺少问题编号" });
+    }
+    if (!replyText || replyText.length < 2) {
+      return res.status(400).json({ error: "回复内容至少 2 个字" });
+    }
+
+    const dedupeOk = checkWriteDedupe({
+      dedupeKey: `question_reply:${authed.id}:${questionId}:${replyText}`,
+      ttlMs: 5000,
+    });
+    if (!dedupeOk) {
+      return res.json({ ok: true, deduped: true });
+    }
+
+    const db = loadQuestionSubmissions();
+    const target = (db.items || []).find((x) => safeText(x.id || "") === questionId);
+    if (!target) {
+      return res.status(404).json({ error: "问题不存在" });
+    }
+    if (safeText(target.status || "") !== "approved") {
+      return res.status(400).json({ error: "仅可回复已采纳问题" });
+    }
+
+    const reply = {
+      id: `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      questionId,
+      replyText,
+      userId: safeText(authed.id || ""),
+      userName: safeText(authed.name || ""),
+      userEmail: safeText(authed.email || ""),
+      createdAt: nowIso(),
+    };
+    if (!Array.isArray(target.replies)) target.replies = [];
+    target.replies.push(reply);
+    saveQuestionSubmissions(db);
+    res.json({ ok: true, reply });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "回复失败" });
   }
 });
 
