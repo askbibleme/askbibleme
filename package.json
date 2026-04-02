@@ -3,9 +3,14 @@
   "version": "13.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "DEV_LIVE_RELOAD=1 node server.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
     "adm-zip": "^0.5.17",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.8.0",
@@ -14,5 +19,9 @@
     "multer": "^2.1.1",
     "openai": "^6.33.0",
     "opencc-js": "^1.0.5"
+  },
+  "devDependencies": {
+    "livereload": "^0.10.3",
+    "typescript": "^6.0.2"
   }
 }

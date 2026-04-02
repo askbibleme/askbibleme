@@ -2,10 +2,10 @@
   "default": {
     "zh": {
       "activeBuildId": "build_1774907380967_book_default_zh",
-      "publishedAt": "2026-04-01T15:31:52.704Z",
+      "publishedAt": "2026-04-02T03:54:43.440Z",
       "publishMode": "merge",
-      "lastMergedBuildId": "manual_default_zh",
-      "publishedCount": 15
+      "lastMergedBuildId": "build_1774904368476_book_default_zh",
+      "publishedCount": 56
     },
     "en": {
       "activeBuildId": ""
@@ -17,17 +17,17 @@
   "children": {
     "zh": {
       "activeBuildId": "manual_children_zh",
-      "publishedAt": "2026-03-31T15:38:27.665Z",
+      "publishedAt": "2026-04-02T03:54:07.622Z",
       "publishMode": "merge",
       "lastMergedBuildId": "build_1774945486639_book_children_zh",
-      "publishedCount": 50
+      "publishedCount": 57
     }
   },
   "gospel": {
     "zh": {
       "publishMode": "merge",
-      "lastMergedBuildId": "manual_gospel_zh",
-      "publishedAt": "2026-04-01T06:46:56.404Z",
+      "lastMergedBuildId": "build_1775021372720_book_gospel_zh",
+      "publishedAt": "2026-04-02T03:54:07.606Z",
       "publishedCount": 1
     }
   }

@@ -8,7 +8,7 @@
   </head>
   <body>
     <div class="page-shell">
-      <header class="site-topbar">
+      <header class="site-topbar notebook-topbar">
         <div class="site-topbar-title">
           <h1 id="brandTitle">
             <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>
@@ -26,12 +26,6 @@
           <aside class="notebook-col notebook-col-notes">
             <div class="notebook-col-head notebook-notes-head">
               <span>条目</span>
-              <div class="notebook-actions">
-                <button type="button" id="openNotebookSettingsBtn" class="notebook-action-btn">用户配置</button>
-                <button type="button" id="exportDataBtn" class="notebook-action-btn">导出数据</button>
-                <button type="button" id="importDataBtn" class="notebook-action-btn">导入数据</button>
-                <input id="importDataInput" type="file" accept="application/json" hidden />
-              </div>
             </div>
             <div id="notebookNotes" class="notebook-list"></div>
           </aside>
@@ -133,10 +127,6 @@
 
       const booksEl = document.getElementById("notebookBooks");
       const notesEl = document.getElementById("notebookNotes");
-      const exportDataBtn = document.getElementById("exportDataBtn");
-      const importDataBtn = document.getElementById("importDataBtn");
-      const importDataInput = document.getElementById("importDataInput");
-      const openNotebookSettingsBtn = document.getElementById("openNotebookSettingsBtn");
       const GLOBAL_SYNC_VERSE_KEYS = "bible_global_sync_verse_keys_v1";
       const GLOBAL_SYNC_QUESTION_KEYS = "bible_global_sync_question_keys_v1";
 
@@ -188,6 +178,26 @@
         }
       }
 
+      const NOTEBOOK_SETTINGS_OPEN_FLAG = "askbible_notebook_open_settings_v1";
+
+      async function openNotebookUserSettingsModal() {
+        const modal = document.getElementById("notebookUserSettingsModal");
+        const nameInput = document.getElementById("notebookSettingsNameInput");
+        const emailInput = document.getElementById("notebookSettingsEmailInput");
+        const statusEl = document.getElementById("notebookUserSettingsStatus");
+        // 先把弹窗展示出来，避免“拿不到用户信息 -> 直接 return -> 看不到弹窗”
+        if (modal) modal.style.display = "block";
+        if (statusEl) statusEl.textContent = "";
+
+        const user = await fetchCurrentUser();
+        if (!user) {
+          if (statusEl) statusEl.textContent = "请先在首页登录";
+          return;
+        }
+        if (nameInput) nameInput.value = String(user.name || "");
+        if (emailInput) emailInput.value = String(user.email || "");
+      }
+
       function initNotebookUserSettings() {
         const modal = document.getElementById("notebookUserSettingsModal");
         const closeBtn = document.getElementById("closeNotebookSettingsBtn");
@@ -201,18 +211,6 @@
         );
         const newPasswordInput = document.getElementById("notebookSettingsNewPasswordInput");
         const statusEl = document.getElementById("notebookUserSettingsStatus");
-
-        openNotebookSettingsBtn?.addEventListener("click", async () => {
-          const user = await fetchCurrentUser();
-          if (!user) {
-            alert("请先在首页登录");
-            return;
-          }
-          if (nameInput) nameInput.value = String(user.name || "");
-          if (emailInput) emailInput.value = String(user.email || "");
-          if (statusEl) statusEl.textContent = "";
-          if (modal) modal.style.display = "block";
-        });
 
         closeBtn?.addEventListener("click", () => {
           if (modal) modal.style.display = "none";
@@ -689,17 +687,96 @@
         renderNotes();
       }
 
-      exportDataBtn?.addEventListener("click", exportAllData);
-      importDataBtn?.addEventListener("click", () => importDataInput?.click());
-      importDataInput?.addEventListener("change", (e) => {
-        const file = e.target?.files?.[0];
-        if (!file) return;
-        importAllDataFromFile(file);
-        importDataInput.value = "";
-      });
-
       initNotebookUserSettings();
+
+      function readNotebookSettingsIntentFromLocation() {
+        let fromHash = false;
+        let fromQuery = false;
+        try {
+          const raw = String(window.location.hash || "").replace(/^#/, "").trim();
+          const key = decodeURIComponent(raw.split(/[?&]/)[0] || "")
+            .trim()
+            .toLowerCase();
+          if (key === "settings" || key === "profile") fromHash = true;
+        } catch (_) {}
+        try {
+          const sp = new URLSearchParams(window.location.search || "");
+          if (
+            sp.get("openSettings") === "1" ||
+            sp.get("settings") === "1" ||
+            sp.get("profile") === "1"
+          ) {
+            fromQuery = true;
+          }
+        } catch (_) {}
+        return { fromHash, fromQuery };
+      }
+
+      function stripNotebookSettingsFromUrl() {
+        try {
+          const url = new URL(window.location.href);
+          url.hash = "";
+          url.searchParams.delete("openSettings");
+          url.searchParams.delete("settings");
+          url.searchParams.delete("profile");
+          const qs = url.searchParams.toString();
+          history.replaceState(
+            null,
+            "",
+            url.pathname + (qs ? `?${qs}` : "")
+          );
+        } catch (_) {}
+      }
+
+      async function tryOpenNotebookSettingsDeeplink() {
+        const { fromHash, fromQuery } = readNotebookSettingsIntentFromLocation();
+        let fromStorage = false;
+        try {
+          fromStorage =
+            sessionStorage.getItem(NOTEBOOK_SETTINGS_OPEN_FLAG) === "1" ||
+            localStorage.getItem(NOTEBOOK_SETTINGS_OPEN_FLAG) === "1";
+        } catch (_) {}
+        if (!fromHash && !fromQuery && !fromStorage) return;
+        try {
+          sessionStorage.removeItem(NOTEBOOK_SETTINGS_OPEN_FLAG);
+          localStorage.removeItem(NOTEBOOK_SETTINGS_OPEN_FLAG);
+        } catch (_) {}
+        if (fromHash || fromQuery) {
+          stripNotebookSettingsFromUrl();
+        }
+        await openNotebookUserSettingsModal();
+      }
+
+      window.addEventListener("hashchange", () => {
+        void tryOpenNotebookSettingsDeeplink();
+      });
+      window.addEventListener("load", () => {
+        void tryOpenNotebookSettingsDeeplink();
+      });
+      window.addEventListener("pageshow", () => {
+        void tryOpenNotebookSettingsDeeplink();
+      });
+      void tryOpenNotebookSettingsDeeplink();
+      requestAnimationFrame(() => {
+        void tryOpenNotebookSettingsDeeplink();
+      });
+      setTimeout(() => void tryOpenNotebookSettingsDeeplink(), 0);
+      setTimeout(() => void tryOpenNotebookSettingsDeeplink(), 150);
+      setTimeout(() => void tryOpenNotebookSettingsDeeplink(), 500);
+
       renderAll();
+    </script>
+    <script>
+      (function () {
+        var host = location.hostname;
+        if (host !== "localhost" && host !== "127.0.0.1") return;
+        if (String(location.port || "") !== "3000") return;
+        var s = document.createElement("script");
+        s.src = "http://" + host + ":35729/livereload.js?snipver=1";
+        s.async = true;
+        s.onerror = function () {};
+        document.body.appendChild(s);
+      })();
     </script>
   </body>
 </html>

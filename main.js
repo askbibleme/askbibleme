@@ -510,8 +510,6 @@ function getLocalizedCopy() {
       favoritesTitle: "Favorites",
       clearFavorites: "Clear Favorites",
       emptyFavorites: "No favorites yet. Double-click a verse to save it.",
-      brandSubtitle:
-        "Ask, and it will be given to you; seek, and you will find; knock, and the door will be opened to you. Matthew 7:7-8",
       prevChapter: "Previous",
       nextChapter: "Next",
       noContent: "No content yet for this chapter in the selected version/language.",
@@ -547,8 +545,6 @@ function getLocalizedCopy() {
       favoritesTitle: "Favoritos",
       clearFavorites: "Limpiar favoritos",
       emptyFavorites: "Aun no hay favoritos. Haz doble clic en un versiculo para guardarlo.",
-      brandSubtitle:
-        "Pidan, y se les dara; busquen, y encontraran; llamen, y se les abrira. Mateo 7:7-8",
       prevChapter: "Anterior",
       nextChapter: "Siguiente",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
@@ -584,8 +580,6 @@ function getLocalizedCopy() {
       favoritesTitle: "מועדפים",
       clearFavorites: "נקה מועדפים",
       emptyFavorites: "אין עדיין מועדפים. לחיצה כפולה על פסוק תשמור אותו.",
-      brandSubtitle:
-        "בקשו וינתן לכם; חפשו ותמצאו; דפקו ויפתח לכם. מתי 7:7-8",
       prevChapter: "הקודם",
       nextChapter: "הבא",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
@@ -620,8 +614,6 @@ function getLocalizedCopy() {
     favoritesTitle: "收藏夹",
     clearFavorites: "清空收藏",
     emptyFavorites: "还没有收藏，双击经文即可收藏。",
-    brandSubtitle:
-      "你们祈求，就⋯ 寻找，就⋯ 叩门，就⋯ 马太福音 7:7-8",
     prevChapter: "上一章",
     nextChapter: "下一章",
     noContent: "这一章还没有该版本 / 该语言的内容。",
@@ -647,13 +639,6 @@ function applyReaderI18n() {
   setText("#compareVersionSectionTitle", copy.compareVersionMulti);
   setText("#exportPrettyPdfBtn", copy.export);
   setText("#exportPrintPdfBtn", copy.print);
-  const brandEl = document.querySelector("#brandSubtitle");
-  if (brandEl) {
-    const safe = escapeHtml(copy.brandSubtitle || "");
-    brandEl.innerHTML = safe
-      .replaceAll("⋯", '<span class="brand-ellipsis">⋯</span>')
-      .replaceAll("…", '<span class="brand-ellipsis">⋯</span>');
-  }
   setText("#favoritesPanelTitle", copy.favoritesTitle);
   setText("#clearFavoritesBtn", copy.clearFavorites);
 
@@ -1031,6 +1016,7 @@ async function init() {
     initApprovedQuestionReply();
     initPresetQuestionActions();
     initAuthModal();
+    initMemberHub();
     initAdminModal();
     bindViewportScrollPersistence();
     renderAllSelectors();
@@ -1049,6 +1035,28 @@ function initPresetQuestionActions() {
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const correctBtn = target.closest(
+      '.preset-qa-action-btn[data-action="correct"]'
+    );
+    if (correctBtn) {
+      if (!state.currentUser) {
+        if (typeof window.openAuthModal === "function") window.openAuthModal("login");
+        return;
+      }
+      openQuestionCorrectionDialog({
+        targetType: "preset",
+        bookId: String(correctBtn.dataset.bookId || ""),
+        chapter: Number(correctBtn.dataset.chapter || 0),
+        contentVersion: String(correctBtn.dataset.contentVersion || ""),
+        contentLang: String(correctBtn.dataset.contentLang || ""),
+        rangeStart: Number(correctBtn.dataset.rangeStart || 0),
+        rangeEnd: Number(correctBtn.dataset.rangeEnd || 0),
+        segmentTitle: String(correctBtn.dataset.segmentTitle || ""),
+        questionIndex: Number(correctBtn.dataset.questionIndex || 0),
+        originalText: String(correctBtn.dataset.originalText || ""),
+      });
+      return;
+    }
     const btn = target.closest(".preset-qa-action-btn");
     if (!btn) return;
     const action = String(btn.dataset.action || "");
@@ -1086,6 +1094,88 @@ function initPresetQuestionActions() {
   });
 }
 
+function isQianfuzhangAdmin() {
+  return String(state.currentUser?.adminRole || "").toLowerCase() === "qianfuzhang";
+}
+
+function openQianfuzhangQuestionInlineEditor(itemEl, qtextEl) {
+  const questionId = String(itemEl.dataset.questionId || "").trim();
+  if (!questionId) return;
+  const originalText = qtextEl.textContent || "";
+  const wrap = document.createElement("span");
+  wrap.className = "chapter-approved-qtext-edit-wrap";
+  const ta = document.createElement("textarea");
+  ta.className = "custom-textarea chapter-approved-qtext-edit";
+  ta.rows = Math.min(12, Math.max(3, originalText.split("\n").length + 2));
+  ta.value = originalText;
+  const actions = document.createElement("div");
+  actions.className = "chapter-approved-qtext-edit-actions";
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "primary-btn chapter-qtext-save";
+  saveBtn.textContent = "保存";
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "secondary-btn chapter-qtext-cancel";
+  cancelBtn.textContent = "取消";
+  const statusEl = document.createElement("span");
+  statusEl.className = "chapter-qtext-status error-text";
+  actions.append(saveBtn, cancelBtn, statusEl);
+  wrap.append(ta, actions);
+  qtextEl.replaceWith(wrap);
+  ta.focus();
+  const len = ta.value.length;
+  ta.setSelectionRange(len, len);
+
+  function restoreSpan(text) {
+    const span = document.createElement("span");
+    span.className = "chapter-approved-qtext";
+    span.title = "点击修改问题正文（千夫长）";
+    span.textContent = text;
+    wrap.replaceWith(span);
+  }
+
+  ta.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      ev.preventDefault();
+      restoreSpan(originalText);
+    }
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    restoreSpan(originalText);
+  });
+
+  saveBtn.addEventListener("click", async () => {
+    const next = String(ta.value || "").trim();
+    if (next.length < 4) {
+      statusEl.textContent = "至少 4 个字";
+      return;
+    }
+    saveBtn.setAttribute("disabled", "disabled");
+    cancelBtn.setAttribute("disabled", "disabled");
+    statusEl.textContent = "保存中...";
+    try {
+      const res = await fetch("/api/admin/questions/update-text", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({ questionId, questionText: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "保存失败");
+      await loadApprovedChapterQuestions();
+      renderStudyContent();
+    } catch (err) {
+      statusEl.textContent = err?.message || "保存失败";
+      saveBtn.removeAttribute("disabled");
+      cancelBtn.removeAttribute("disabled");
+    }
+  });
+}
+
 function initApprovedQuestionReply() {
   const approvedEl = document.getElementById("chapterApprovedQuestions");
   if (!approvedEl || approvedEl.dataset.replyBound === "1") return;
@@ -1093,10 +1183,37 @@ function initApprovedQuestionReply() {
   approvedEl.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+
+    const qtextEl = target.closest(".chapter-approved-qtext");
+    if (qtextEl && isQianfuzhangAdmin()) {
+      const itemRoot = qtextEl.closest(".chapter-approved-item");
+      if (
+        itemRoot &&
+        itemRoot.getAttribute("data-qian-edit") === "1" &&
+        !target.closest(".chapter-approved-qtext-edit-wrap")
+      ) {
+        openQianfuzhangQuestionInlineEditor(itemRoot, qtextEl);
+        return;
+      }
+    }
+
     const actionBtn = target.closest(".qa-action-btn");
     if (actionBtn) {
       const questionId = String(actionBtn.dataset.questionId || "").trim();
       const action = String(actionBtn.dataset.action || "");
+      if (action === "correct") {
+        if (!questionId) return;
+        if (!state.currentUser) {
+          if (typeof window.openAuthModal === "function") window.openAuthModal("login");
+          return;
+        }
+        openQuestionCorrectionDialog({
+          targetType: "approved",
+          questionId,
+          originalText: String(actionBtn.dataset.questionText || ""),
+        });
+        return;
+      }
       if (!questionId || (action !== "like" && action !== "reply")) return;
       const safeQuestionIdSelector =
         typeof CSS !== "undefined" && typeof CSS.escape === "function"
@@ -1195,6 +1312,22 @@ function setAuthToken(token) {
   else localStorage.removeItem(USER_AUTH_TOKEN_KEY);
 }
 
+let memberHubCloseFn = () => {};
+
+async function performLogout() {
+  const token = getAuthToken();
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {}
+  setAuthToken("");
+  state.currentUser = null;
+  memberHubCloseFn();
+  renderAuthStatus();
+}
+
 async function fetchCurrentUser() {
   const token = getAuthToken();
   if (!token) {
@@ -1234,13 +1367,85 @@ function renderAuthStatus() {
   if (openBtn) openBtn.style.display = authed ? "none" : "";
   if (logoutBtn) logoutBtn.style.display = authed ? "" : "none";
   if (sideUserTagEl) {
-    sideUserTagEl.textContent = authed ? name : "更多";
-    sideUserTagEl.setAttribute(
-      "aria-label",
-      authed ? `用户：${name}` : "用户注册/登录，解锁更多宝藏"
-    );
+    if (authed) {
+      const level = Number(state.currentUser?.userLevel ?? 0);
+      const starLevel = level > 0 ? level : 1;
+      const stars = renderLevelStars(starLevel);
+      const starsHtml = `<span class="book-side-tag-stars" aria-hidden="true">${escapeHtml(
+        stars
+      )}</span>`;
+      sideUserTagEl.innerHTML = `<span class="book-side-tag-inner"><span class="book-side-tag-name">${escapeHtml(
+        name
+      )}</span>${starsHtml}</span>`;
+      sideUserTagEl.setAttribute(
+        "aria-label",
+        level > 0
+          ? `用户：${name}，社区等级 L${level}`
+          : `用户：${name}，会员；通过贡献审核后将显示对应星级`
+      );
+    } else {
+      sideUserTagEl.textContent = "更多";
+      sideUserTagEl.setAttribute(
+        "aria-label",
+        "用户注册/登录，解锁更多宝藏"
+      );
+    }
     sideUserTagEl.setAttribute("href", authed ? "/notebook.html" : "#");
   }
+  updateChapterQuestionSubmitButtonLabel();
+  renderMemberHub();
+  renderStudyContent();
+}
+
+function renderMemberHub() {
+  const guest = document.getElementById("memberHubGuest");
+  const member = document.getElementById("memberHubMember");
+  const av = document.getElementById("memberHubAvatar");
+  const dn = document.getElementById("memberHubDisplayName");
+  const em = document.getElementById("memberHubEmail");
+  const adminBtn = document.getElementById("memberHubAdminBtn");
+  const hubLabel = document.getElementById("memberHubLabel");
+  const hubTrigger = document.getElementById("memberHubTrigger");
+  if (!guest || !member) return;
+  const u = state.currentUser;
+  const name = String(u?.name || "").trim();
+  const authed = Boolean(name);
+  guest.hidden = authed;
+  member.hidden = !authed;
+  if (hubLabel) {
+    if (authed) {
+      hubLabel.textContent = `${name}的圣经`;
+      hubLabel.title = name ? `当前登录：${name}` : "";
+    } else {
+      hubLabel.textContent = "免费注册";
+      hubLabel.title = "";
+    }
+  }
+  if (hubTrigger) {
+    hubTrigger.setAttribute(
+      "aria-label",
+      authed ? `${name}的圣经，打开账户菜单` : "免费注册与登录"
+    );
+  }
+  if (authed) {
+    const email = String(u?.email || "").trim();
+    const initial = name.charAt(0) || "?";
+    if (av) av.textContent = initial;
+    if (dn) dn.textContent = name;
+    if (em) em.textContent = email || "—";
+    if (adminBtn) {
+      const showAdmin = u?.isAdmin === true;
+      adminBtn.hidden = !showAdmin;
+    }
+  } else if (adminBtn) {
+    adminBtn.hidden = true;
+  }
+}
+
+function updateChapterQuestionSubmitButtonLabel() {
+  const btn = document.getElementById("submitChapterQuestionBtn");
+  if (!btn) return;
+  btn.textContent = state.currentUser ? "提交问题" : "登录";
 }
 
 function initAuthModal() {
@@ -1276,6 +1481,7 @@ function initAuthModal() {
     applyAuthMode(mode);
     if (modal) modal.style.display = "block";
   };
+  window.openAuthModal = open;
   const close = () => {
     if (modal) modal.style.display = "none";
   };
@@ -1322,27 +1528,143 @@ function initAuthModal() {
   sideUserTagEl?.addEventListener("click", (event) => {
     if (state.currentUser?.name) return;
     event.preventDefault();
-    open("register");
+    if (typeof window.openMemberHub === "function") {
+      window.openMemberHub();
+    } else {
+      open("register");
+    }
   });
   closeBtn?.addEventListener("click", close);
   modeLoginBtn?.addEventListener("click", () => applyAuthMode("login"));
   modeRegisterBtn?.addEventListener("click", () => applyAuthMode("register"));
   submitBtn?.addEventListener("click", submit);
   logoutBtn?.addEventListener("click", async () => {
-    const token = getAuthToken();
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-    } catch {}
-    setAuthToken("");
-    state.currentUser = null;
-    renderAuthStatus();
+    await performLogout();
   });
 
   fetchCurrentUser();
   applyAuthMode("login");
+}
+
+function initMemberHub() {
+  const root = document.getElementById("memberHub");
+  const trigger = document.getElementById("memberHubTrigger");
+  const panel = document.getElementById("memberHubPanel");
+  if (!root || !trigger || !panel) return;
+  if (root.dataset.memberHubBound === "1") return;
+  root.dataset.memberHubBound = "1";
+
+  function close() {
+    panel.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+  }
+
+  function open() {
+    renderMemberHub();
+    panel.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+  }
+
+  function toggle() {
+    if (panel.hidden) open();
+    else close();
+  }
+
+  memberHubCloseFn = close;
+  window.openMemberHub = () => {
+    open();
+  };
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggle();
+  });
+
+  /* 捕获阶段处理 <a>，避免被其它逻辑或层叠挡住导致无法跳转 */
+  panel.addEventListener(
+    "click",
+    (event) => {
+      const t = event.target;
+      if (!(t instanceof Element)) return;
+      const link = t.closest("a.member-hub-link");
+      if (!(link instanceof HTMLAnchorElement)) return;
+      const href = link.getAttribute("href");
+      if (!href || href === "#") return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      try {
+        const abs = new URL(href, window.location.href);
+        const leaf = abs.pathname.split("/").pop() || "";
+        const frag = String(abs.hash || "")
+          .replace(/^#/, "")
+          .split(/[?&]/)[0];
+        const isNotebook =
+          leaf === "notebook.html" || abs.pathname.endsWith("/notebook");
+        const isSettingsHash =
+          frag === "settings" || frag === "profile";
+        let isSettingsQuery = false;
+        try {
+          isSettingsQuery =
+            abs.searchParams.get("openSettings") === "1" ||
+            abs.searchParams.get("settings") === "1" ||
+            abs.searchParams.get("profile") === "1";
+        } catch (_) {}
+        if (isNotebook && (isSettingsHash || isSettingsQuery)) {
+          try {
+            sessionStorage.setItem("askbible_notebook_open_settings_v1", "1");
+            // WebView/跳转环境下 sessionStorage 可能丢失；本地兜底一次
+            localStorage.setItem("askbible_notebook_open_settings_v1", "1");
+          } catch (_) {}
+        }
+      } catch (_) {}
+      window.location.assign(link.href);
+    },
+    true
+  );
+
+  panel.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const el = event.target;
+    if (!(el instanceof HTMLElement)) return;
+    const btn = el.closest("[data-member-action]");
+    if (!(btn instanceof HTMLElement)) return;
+    const action = String(btn.dataset.memberAction || "");
+    if (action === "login") {
+      close();
+      window.openAuthModal?.("login");
+      return;
+    }
+    if (action === "register") {
+      close();
+      window.openAuthModal?.("register");
+      return;
+    }
+    if (action === "logout") {
+      close();
+      void performLogout();
+      return;
+    }
+    if (action === "admin") {
+      close();
+      document.getElementById("openAdminBtn")?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true })
+      );
+    }
+  });
+
+  document.addEventListener(
+    "mousedown",
+    (event) => {
+      if (!(event.target instanceof Node)) return;
+      if (!root.contains(event.target)) close();
+    },
+    true
+  );
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") close();
+  });
 }
 
 function initChapterQuestionCollector() {
@@ -1352,6 +1674,17 @@ function initChapterQuestionCollector() {
   if (!inputEl || !submitBtn || !statusEl) return;
 
   submitBtn.addEventListener("click", async () => {
+    if (!state.currentUser) {
+      if (typeof window.openAuthModal === "function") {
+        window.openAuthModal("login");
+      } else {
+        document.getElementById("openAuthBtn")?.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true })
+        );
+      }
+      return;
+    }
+
     const questionText = String(inputEl.value || "").trim();
     if (questionText.length < 4) {
       statusEl.textContent = "请至少输入 4 个字";
@@ -1368,9 +1701,6 @@ function initChapterQuestionCollector() {
     submitBtn.disabled = true;
     statusEl.textContent = "提交中...";
     try {
-      if (!state.currentUser) {
-        throw new Error("请先登录后再提交");
-      }
       const body = {
         questionText,
         note: "",
@@ -2444,6 +2774,7 @@ function renderStudyContent() {
 
 function renderApprovedQuestionItem(item, idx) {
   const questionId = String(item?.id || "").trim();
+  const rawQ = String(item?.questionText || "");
   const replies = Array.isArray(item?.replies) ? item.replies : [];
   const interaction = getQaInteractionById(questionId);
   const likeBaseCount = Math.max(0, Number(item?.likeCount || 0));
@@ -2462,6 +2793,12 @@ function renderApprovedQuestionItem(item, idx) {
         )}" data-action="reply" data-base-count="0">
           <span class="qa-action-icon">↩</span>
           <span class="qa-action-label">回复</span>
+        </button>
+        <button type="button" class="qa-action-btn" data-question-id="${escapeHtml(
+          questionId
+        )}" data-action="correct" data-question-text="${escapeHtml(rawQ)}">
+          <span class="qa-action-icon">✎</span>
+          <span class="qa-action-label">纠错</span>
         </button>
       </div>`
     : "";
@@ -2486,9 +2823,19 @@ function renderApprovedQuestionItem(item, idx) {
         </div>
       </div>`
     : "";
-  return `<div class="chapter-approved-item" data-question-id="${escapeHtml(
+  const qianEdit =
+    isQianfuzhangAdmin() && questionId
+      ? ` data-qian-edit="1"`
+      : "";
+  const questionLeadHtml =
+    isQianfuzhangAdmin() && questionId
+      ? `<span class="chapter-approved-qtext" title="点击修改问题正文（千夫长）">${escapeHtml(
+          rawQ
+        )}</span>`
+      : escapeHtml(rawQ);
+  return `<div class="chapter-approved-item"${qianEdit} data-question-id="${escapeHtml(
     questionId
-  )}">${idx + 1}. ${escapeHtml(String(item?.questionText || ""))}${renderApprovedContributorMeta(
+  )}">${idx + 1}. ${questionLeadHtml}${renderApprovedContributorMeta(
     item
   )}${actionsHtml}${replyListHtml}${replyFormHtml}</div>`;
 }
@@ -2680,6 +3027,148 @@ function buildQuestionFavoriteKey(seg, questionText, index) {
   return `qfav_${hash.toString(16)}`;
 }
 
+/** 与 server.js stablePresetCorrectionKey 一致（不含题干文本，便于纠错后仍命中同一条） */
+function stablePresetCorrectionKeyClient(
+  bookId,
+  chapter,
+  contentVersion,
+  contentLang,
+  rangeStart,
+  rangeEnd,
+  segmentTitle,
+  questionIndex
+) {
+  const seed = [
+    String(bookId || ""),
+    String(Number(chapter) || 0),
+    String(contentVersion || ""),
+    String(contentLang || ""),
+    String(Number(rangeStart) || 0),
+    String(Number(rangeEnd) || 0),
+    String(segmentTitle || ""),
+    String(Number(questionIndex) || 0),
+  ].join("|");
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return `qcorr_${hash.toString(16)}`;
+}
+
+function openQuestionCorrectionDialog(payload) {
+  const mask = document.createElement("div");
+  mask.className = "modal-mask question-correction-mask";
+  const card = document.createElement("div");
+  card.className = "modal-card modal-card-sm question-correction-card";
+  const title = document.createElement("h2");
+  title.className = "question-correction-title";
+  title.textContent = "纠错";
+  const hint = document.createElement("p");
+  hint.className = "question-correction-hint";
+  hint.textContent = isQianfuzhangAdmin()
+    ? "千夫长提交后立即生效。"
+    : "提交后由管理员审核，通过后将替换展示文案。";
+  const ta = document.createElement("textarea");
+  ta.className = "custom-textarea question-correction-textarea";
+  ta.value = String(payload.originalText || "");
+  ta.rows = 5;
+  const statusEl = document.createElement("div");
+  statusEl.className = "error-text question-correction-status";
+  const actions = document.createElement("div");
+  actions.className = "question-correction-actions";
+  const submitBtn = document.createElement("button");
+  submitBtn.type = "button";
+  submitBtn.className = "primary-btn";
+  submitBtn.textContent = "提交";
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "secondary-btn";
+  cancelBtn.textContent = "取消";
+  actions.append(submitBtn, cancelBtn, statusEl);
+  card.append(title, hint, ta, actions);
+  mask.append(card);
+  document.body.append(mask);
+
+  function close() {
+    mask.remove();
+  }
+
+  cancelBtn.addEventListener("click", close);
+  mask.addEventListener("click", (ev) => {
+    if (ev.target === mask) close();
+  });
+
+  submitBtn.addEventListener("click", async () => {
+    const proposedText = String(ta.value || "").trim();
+    if (proposedText.length < 2) {
+      statusEl.textContent = "至少 2 个字";
+      return;
+    }
+    submitBtn.setAttribute("disabled", "disabled");
+    cancelBtn.setAttribute("disabled", "disabled");
+    statusEl.textContent = "提交中...";
+    try {
+      const body =
+        payload.targetType === "preset"
+          ? {
+              targetType: "preset",
+              bookId: payload.bookId,
+              chapter: payload.chapter,
+              contentVersion: payload.contentVersion,
+              contentLang: payload.contentLang,
+              rangeStart: payload.rangeStart,
+              rangeEnd: payload.rangeEnd,
+              segmentTitle: payload.segmentTitle,
+              questionIndex: payload.questionIndex,
+              originalText: payload.originalText,
+              proposedText,
+            }
+          : {
+              targetType: "approved",
+              questionId: payload.questionId,
+              originalText: payload.originalText,
+              proposedText,
+            };
+      const res = await fetch("/api/question-corrections/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const raw = await res.text();
+      let data = {};
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          const looksHtml = raw.trimStart().toLowerCase().startsWith("<!doctype") || raw.trimStart().startsWith("<html");
+          throw new Error(
+            looksHtml
+              ? "服务器返回了网页而不是接口数据。请把含「纠错」接口的最新后端部署到 askbible.me 并重启 Node，或本地用 node server.js 访问（勿只用静态托管）。"
+              : "服务器返回异常，无法解析为 JSON"
+          );
+        }
+      }
+      if (!res.ok) throw new Error(data.error || "提交失败");
+      if (data.status === "approved") {
+        statusEl.textContent = "已生效";
+      } else {
+        statusEl.textContent = "已提交审核";
+      }
+      setTimeout(async () => {
+        close();
+        await refreshCurrentPage();
+      }, 500);
+    } catch (err) {
+      statusEl.textContent = err?.message || "提交失败";
+      submitBtn.removeAttribute("disabled");
+      cancelBtn.removeAttribute("disabled");
+    }
+  });
+}
+
 function initFavorites() {
   document.addEventListener("dblclick", (event) => {
     const unit = event.target?.closest?.("[data-favorite-key]");
@@ -2806,7 +3295,12 @@ function renderSegmentCard(seg) {
               const qKey = buildQuestionFavoriteKey(seg, qText, idx);
               const active = state.questionFavoriteKeys.has(qKey) ? " is-favorited" : "";
               const presetQaId = `preset_${qKey}`;
-              const presetQaHtml = renderPresetQuestionInlineActions(presetQaId, qText);
+              const presetQaHtml = renderPresetQuestionInlineActions(
+                seg,
+                idx,
+                qText,
+                presetQaId
+              );
               return `<li class="question-fav-item${active}" data-question-fav-key="${escapeHtml(
                 qKey
               )}" data-question-fav-text="${escapeHtml(qText)}" data-question-fav-title="${escapeHtml(
@@ -2832,10 +3326,27 @@ function renderSegmentCard(seg) {
   `;
 }
 
-function renderPresetQuestionInlineActions(questionId, questionText) {
+function renderPresetQuestionInlineActions(seg, questionIndex, questionText, questionId) {
   const interaction = getQaInteractionById(questionId);
   const likeBaseCount = 0;
   const likeCount = likeBaseCount + (interaction.liked ? 1 : 0);
+  const bookId = state.frontState.bookId;
+  const chapter = Number(state.frontState.chapter || 0);
+  const contentVersion = state.frontState.contentVersion;
+  const contentLang = state.frontState.contentLang;
+  const rangeStart = Number(seg?.rangeStart || 0);
+  const rangeEnd = Number(seg?.rangeEnd || 0);
+  const segmentTitle = String(seg?.title || "");
+  const sk = stablePresetCorrectionKeyClient(
+    bookId,
+    chapter,
+    contentVersion,
+    contentLang,
+    rangeStart,
+    rangeEnd,
+    segmentTitle,
+    questionIndex
+  );
   return ` <span class="preset-qa-inline">
       <button type="button" class="preset-qa-action-btn ${
         interaction.liked ? "is-active" : ""
@@ -2845,9 +3356,22 @@ function renderPresetQuestionInlineActions(questionId, questionText) {
         <span class="preset-qa-action-icon">♥</span><span class="preset-qa-action-count">${likeCount}</span>
       </button>
       <button type="button" class="preset-qa-action-btn" data-action="reply" data-question-id="${escapeHtml(
-        questionId
-      )}" data-question-text="${escapeHtml(questionText)}">
+    questionId
+  )}" data-question-text="${escapeHtml(questionText)}">
         <span class="preset-qa-action-icon">↩</span><span>回复</span>
+      </button>
+      <button type="button" class="preset-qa-action-btn" data-action="correct" data-book-id="${escapeHtml(
+        bookId
+      )}" data-chapter="${escapeHtml(String(chapter))}" data-content-version="${escapeHtml(
+        contentVersion
+      )}" data-content-lang="${escapeHtml(
+        contentLang
+      )}" data-range-start="${escapeHtml(String(rangeStart))}" data-range-end="${escapeHtml(
+        String(rangeEnd)
+      )}" data-segment-title="${escapeHtml(segmentTitle)}" data-question-index="${escapeHtml(
+        String(questionIndex)
+      )}" data-original-text="${escapeHtml(questionText)}" data-stable-key="${escapeHtml(sk)}">
+        <span class="preset-qa-action-icon">✎</span><span>纠错</span>
       </button>
     </span>`;
 }
@@ -3513,12 +4037,27 @@ function ensurePublishedTabExists() {
           </div>
 
           <div class="modal-actions">
-            <button id="loadPublishedChapterBtn" class="secondary-btn" type="button">查看已发布章节</button>
+            <button id="loadPublishedChapterBtn" class="secondary-btn" type="button">载入已发布章节</button>
             <button id="deletePublishedChapterBtn" class="secondary-btn" type="button">删除已发布章节</button>
+            <button id="savePublishedChapterRevisionBtn" class="primary-btn" type="button">保存并发布（已审核）</button>
           </div>
 
-          <div class="section-title">结果</div>
-          <div id="publishedDetailBox" class="admin-preview-box">尚未读取。</div>
+          <div class="section-title">章节 JSON（可编辑）</div>
+          <p class="admin-hint-line">修改 <code>segments</code>、<code>questions</code>、<code>theme</code> 等字段后，点击下方保存即可覆盖线上该章（与「测试生成」保存同一套发布逻辑）。</p>
+          <textarea
+            id="publishedChapterJsonEditor"
+            class="admin-json-editor"
+            spellcheck="false"
+            placeholder="先选择左侧「内容版本 / 语言」，输入书卷与章节，再点「载入已发布章节」…"
+          ></textarea>
+          <div class="label">审核备注（可选，写入操作日志）</div>
+          <input
+            id="publishedChapterReviewNote"
+            class="custom-textarea single-input"
+            type="text"
+            placeholder="例如：校对第2段问题措辞"
+          />
+          <div id="publishedChapterEditorStatus" class="result-box">尚未载入。</div>
         </div>
       </div>
     `;
@@ -4139,13 +4678,16 @@ async function saveTestResultToContent() {
 
   if (saveStatusEl) saveStatusEl.textContent = "正在保存此章内容并合并发布...";
 
+  const token = getAuthToken();
   const res = await fetch("/api/admin/save-test-result", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
       studyContent: adminState.testResult,
+      reviewNote: "",
     }),
   });
 
@@ -4528,6 +5070,7 @@ async function initPublishedManagerTab() {
   );
   const loadChapterBtn = document.getElementById("loadPublishedChapterBtn");
   const deleteChapterBtn = document.getElementById("deletePublishedChapterBtn");
+  const saveRevisionBtn = document.getElementById("savePublishedChapterRevisionBtn");
 
   if (!versionSelect || !langSelect) return;
 
@@ -4600,6 +5143,10 @@ async function initPublishedManagerTab() {
 
   deleteChapterBtn?.addEventListener("click", async () => {
     await deletePublishedChapterAction();
+  });
+
+  saveRevisionBtn?.addEventListener("click", async () => {
+    await savePublishedChapterRevision();
   });
 }
 
@@ -5094,14 +5641,15 @@ async function loadPublishedChapterDetail() {
   const chapter = document
     .getElementById("publishedDetailChapterInput")
     ?.value.trim();
-  const detailBox = document.getElementById("publishedDetailBox");
+  const editor = document.getElementById("publishedChapterJsonEditor");
+  const statusEl = document.getElementById("publishedChapterEditorStatus");
 
   if (!bookId || !chapter) {
-    if (detailBox) detailBox.textContent = "请先输入书卷和章节。";
+    if (statusEl) statusEl.textContent = "请先输入书卷和章节。";
     return;
   }
 
-  if (detailBox) detailBox.textContent = "正在读取章节详情...";
+  if (statusEl) statusEl.textContent = "正在读取章节…";
 
   const params = new URLSearchParams({
     version,
@@ -5116,14 +5664,93 @@ async function loadPublishedChapterDetail() {
   const data = await res.json();
 
   if (!res.ok) {
-    if (detailBox)
-      detailBox.textContent = `读取失败：${data.error || "未知错误"}`;
+    if (statusEl)
+      statusEl.textContent = `读取失败：${data.error || "未知错误"}`;
+    if (editor) editor.value = "";
     return;
   }
 
-  if (detailBox) {
-    detailBox.textContent = JSON.stringify(data, null, 2);
+  if (editor) {
+    editor.value = JSON.stringify(data, null, 2);
   }
+  if (statusEl) {
+    statusEl.textContent = `已载入 ${bookId} 第${chapter}章，可编辑后点「保存并发布（已审核）」。`;
+  }
+}
+
+async function savePublishedChapterRevision() {
+  const editor = document.getElementById("publishedChapterJsonEditor");
+  const statusEl = document.getElementById("publishedChapterEditorStatus");
+  const noteInput = document.getElementById("publishedChapterReviewNote");
+  if (!editor) return;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(String(editor.value || "").trim() || "{}");
+  } catch (err) {
+    if (statusEl) {
+      statusEl.textContent = `JSON 格式错误：${err?.message || err}`;
+    }
+    return;
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    if (statusEl) statusEl.textContent = "内容不是有效的 JSON 对象。";
+    return;
+  }
+
+  if (
+    !confirm(
+      "确认已完成人工审核？将立即写入构建并合并到已发布内容，读者端会读到新版本。"
+    )
+  ) {
+    return;
+  }
+
+  const token = getAuthToken();
+  if (statusEl) statusEl.textContent = "正在保存并发布…";
+
+  const res = await fetch("/api/admin/save-test-result", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      studyContent: parsed,
+      reviewNote: String(noteInput?.value || "").trim(),
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    if (statusEl) {
+      statusEl.textContent = `保存失败：${data.error || "未知错误"}`;
+    }
+    return;
+  }
+
+  const saved = data.savedContent || {};
+  if (statusEl) {
+    statusEl.textContent = `已发布：${saved.bookId || ""} 第${saved.chapter || ""}章（build ${data.buildId || ""}）`;
+  }
+
+  if (editor && saved && typeof saved === "object") {
+    editor.value = JSON.stringify(saved, null, 2);
+  }
+
+  const sameVersion = state.frontState.contentVersion === saved.version;
+  const sameLang = state.frontState.contentLang === saved.contentLang;
+  const sameBook = state.frontState.bookId === saved.bookId;
+  const sameChapter = Number(state.frontState.chapter) === Number(saved.chapter);
+
+  if (sameVersion && sameLang && sameBook && sameChapter) {
+    await loadStudyContent();
+    renderStudyContent();
+  }
+
+  await loadPublishedOverview();
 }
 
 async function deletePublishedChapterAction() {
@@ -5135,16 +5762,17 @@ async function deletePublishedChapterAction() {
   const chapter = document
     .getElementById("publishedDetailChapterInput")
     ?.value.trim();
-  const detailBox = document.getElementById("publishedDetailBox");
+  const editor = document.getElementById("publishedChapterJsonEditor");
+  const statusEl = document.getElementById("publishedChapterEditorStatus");
 
   if (!bookId || !chapter) {
-    if (detailBox) detailBox.textContent = "请先输入书卷和章节。";
+    if (statusEl) statusEl.textContent = "请先输入书卷和章节。";
     return;
   }
 
   if (!confirm(`确认删除已发布内容：${bookId} ${chapter}章？`)) return;
 
-  if (detailBox) detailBox.textContent = "正在删除...";
+  if (statusEl) statusEl.textContent = "正在删除…";
 
   const params = new URLSearchParams({
     version,
@@ -5159,13 +5787,14 @@ async function deletePublishedChapterAction() {
   const data = await res.json();
 
   if (!res.ok) {
-    if (detailBox)
-      detailBox.textContent = `删除失败：${data.error || "未知错误"}`;
+    if (statusEl)
+      statusEl.textContent = `删除失败：${data.error || "未知错误"}`;
     return;
   }
 
-  if (detailBox) {
-    detailBox.textContent = `删除成功：${bookId} ${chapter}章`;
+  if (editor) editor.value = "";
+  if (statusEl) {
+    statusEl.textContent = `已删除：${bookId} 第${chapter}章`;
   }
 
   await loadPublishedOverview();
@@ -5174,10 +5803,11 @@ async function deletePublishedChapterAction() {
 async function autoRepublishMissingChapter(bookId, chapter) {
   const version = document.getElementById("publishedVersionSelect")?.value;
   const lang = document.getElementById("publishedLangSelect")?.value;
-  const detailBox = document.getElementById("publishedDetailBox");
+  const editor = document.getElementById("publishedChapterJsonEditor");
+  const statusEl = document.getElementById("publishedChapterEditorStatus");
 
-  if (detailBox) {
-    detailBox.textContent = `正在自动补发：${bookId} ${chapter}章...`;
+  if (statusEl) {
+    statusEl.textContent = `正在自动补发：${bookId} 第${chapter}章…`;
   }
 
   const res = await fetch("/api/admin/published/auto-republish-chapter", {
@@ -5196,16 +5826,19 @@ async function autoRepublishMissingChapter(bookId, chapter) {
   const data = await res.json();
 
   if (!res.ok) {
-    if (detailBox) {
-      detailBox.textContent = `自动补发失败：${data.error || "未知错误"}`;
+    if (statusEl) {
+      statusEl.textContent = `自动补发失败：${data.error || "未知错误"}`;
     }
     return;
   }
 
   fillPublishedDetailInputs(bookId, chapter);
 
-  if (detailBox) {
-    detailBox.textContent = JSON.stringify(data, null, 2);
+  if (editor) {
+    editor.value = JSON.stringify(data, null, 2);
+  }
+  if (statusEl) {
+    statusEl.textContent = `已补发并载入 ${bookId} 第${chapter}章。`;
   }
 
   await loadPublishedOverview();

@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "me.askbible.app",
   appName: "AskBible",
-  webDir: ".",
+  webDir: "dist-capacitor",
   server: {
     url: "https://askbible.me",
     cleartext: false,

@@ -40,6 +40,10 @@ const QUESTION_SUBMISSIONS_FILE = path.join(
   ADMIN_DIR,
   "question_submissions.json"
 );
+const QUESTION_CORRECTIONS_FILE = path.join(
+  ADMIN_DIR,
+  "question_text_corrections.json"
+);
 const POINTS_CONFIG_FILE = path.join(ADMIN_DIR, "points_config.json");
 const OPS_CONFIG_FILE = path.join(ADMIN_DIR, "ops_config.json");
 const AUTH_DB_FILE = path.join(ADMIN_DIR, "auth.sqlite");
@@ -472,6 +476,7 @@ const PERMISSION_ROLE_MIN_LEVEL = {
   manage_deploy: 3,
   manage_roles: 3,
   manage_rules: 3,
+  edit_approved_question_text: 3,
 };
 
 function normalizeAdminRole(role) {
@@ -481,7 +486,11 @@ function normalizeAdminRole(role) {
 }
 
 function hasPermission(authedUser, permissionKey) {
-  const strictKeys = new Set(["review_questions", "manage_roles"]);
+  const strictKeys = new Set([
+    "review_questions",
+    "manage_roles",
+    "edit_approved_question_text",
+  ]);
   if (!strictKeys.has(permissionKey)) {
     // Keep existing admin tools usable while RBAC is rolling out.
     return true;
@@ -496,7 +505,11 @@ function hasPermission(authedUser, permissionKey) {
 
 function requirePermission(req, res, permissionKey) {
   const authed = getAuthedUserFromReq(req);
-  const strictKeys = new Set(["review_questions", "manage_roles"]);
+  const strictKeys = new Set([
+    "review_questions",
+    "manage_roles",
+    "edit_approved_question_text",
+  ]);
   if (!strictKeys.has(permissionKey)) {
     return authed || { id: "", name: "", email: "", adminRole: "" };
   }
@@ -626,6 +639,183 @@ function loadQuestionSubmissions() {
 
 function saveQuestionSubmissions(data) {
   writeJson(QUESTION_SUBMISSIONS_FILE, data);
+}
+
+function loadQuestionCorrections() {
+  const data = readJson(QUESTION_CORRECTIONS_FILE, null);
+  if (!data || typeof data !== "object") return { items: [] };
+  if (!Array.isArray(data.items)) data.items = [];
+  return data;
+}
+
+function saveQuestionCorrections(data) {
+  writeJson(QUESTION_CORRECTIONS_FILE, data);
+}
+
+function stablePresetCorrectionKey(
+  bookId,
+  chapter,
+  contentVersion,
+  contentLang,
+  rangeStart,
+  rangeEnd,
+  segmentTitle,
+  questionIndex
+) {
+  const seed = [
+    safeText(bookId),
+    String(toSafeNumber(chapter, 0)),
+    safeText(contentVersion),
+    safeText(contentLang),
+    String(toSafeNumber(rangeStart, 0)),
+    String(toSafeNumber(rangeEnd, 0)),
+    safeText(segmentTitle),
+    String(toSafeNumber(questionIndex, 0)),
+  ].join("|");
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return `qcorr_${hash.toString(16)}`;
+}
+
+function readCurrentPresetQuestionTextFromPublished(fields) {
+  const bookId = safeText(fields.bookId || "");
+  const chapter = toSafeNumber(fields.chapter, 0);
+  const contentVersion = safeText(fields.contentVersion || "");
+  const contentLang = safeText(fields.contentLang || "");
+  const rangeStart = toSafeNumber(fields.rangeStart, 0);
+  const rangeEnd = toSafeNumber(fields.rangeEnd, 0);
+  const segmentTitle = safeText(fields.segmentTitle || "");
+  const questionIndex = toSafeNumber(fields.questionIndex, 0);
+  if (!bookId || !chapter || !contentVersion || !contentLang) {
+    return { error: "缺少书籍或版本信息" };
+  }
+  const data = readPublishedContent({
+    versionId: contentVersion,
+    lang: contentLang,
+    bookId,
+    chapter,
+  });
+  if (!data) return { error: "未找到已发布内容" };
+  const seg = (data.segments || []).find(
+    (s) =>
+      toSafeNumber(s.rangeStart, 0) === rangeStart &&
+      toSafeNumber(s.rangeEnd, 0) === rangeEnd &&
+      safeText(s.title || "") === segmentTitle
+  );
+  if (!seg || !Array.isArray(seg.questions)) {
+    return { error: "未找到对应段落或问题" };
+  }
+  const q = seg.questions[questionIndex];
+  if (typeof q !== "string") return { error: "问题索引无效" };
+  return { text: q };
+}
+
+function buildApprovedPresetCorrectionTextMap(
+  db,
+  bookId,
+  chapter,
+  contentVersion,
+  contentLang
+) {
+  const map = new Map();
+  const items = (db.items || []).filter(
+    (x) =>
+      safeText(x.status) === "approved" &&
+      safeText(x.targetType) === "preset" &&
+      safeText(x.bookId) === safeText(bookId) &&
+      toSafeNumber(x.chapter, 0) === toSafeNumber(chapter, 0) &&
+      safeText(x.contentVersion) === safeText(contentVersion) &&
+      safeText(x.contentLang) === safeText(contentLang)
+  );
+  items.sort((a, b) =>
+    String(b.reviewedAt || b.createdAt || "").localeCompare(
+      String(a.reviewedAt || a.createdAt || "")
+    )
+  );
+  for (const it of items) {
+    const sk = safeText(it.stableKey || "");
+    if (sk && !map.has(sk)) map.set(sk, safeText(it.proposedText || ""));
+  }
+  return map;
+}
+
+function applyPresetQuestionCorrectionsToStudyPayload(
+  data,
+  bookId,
+  chapter,
+  contentVersion,
+  contentLang
+) {
+  if (!data || !Array.isArray(data.segments)) return data;
+  const db = loadQuestionCorrections();
+  const keyToText = buildApprovedPresetCorrectionTextMap(
+    db,
+    bookId,
+    chapter,
+    contentVersion,
+    contentLang
+  );
+  if (!keyToText.size) return data;
+  const next = {
+    ...data,
+    segments: data.segments.map((seg) => ({
+      ...seg,
+      questions: Array.isArray(seg.questions) ? [...seg.questions] : [],
+    })),
+  };
+  for (const seg of next.segments) {
+    const qs = seg.questions;
+    for (let i = 0; i < qs.length; i += 1) {
+      const sk = stablePresetCorrectionKey(
+        bookId,
+        chapter,
+        contentVersion,
+        contentLang,
+        seg.rangeStart,
+        seg.rangeEnd,
+        seg.title,
+        i
+      );
+      const replacement = keyToText.get(sk);
+      if (replacement != null && replacement !== "" && typeof qs[i] === "string") {
+        qs[i] = replacement;
+      }
+    }
+  }
+  return next;
+}
+
+function invalidateStudyContentCache(version, lang, bookId, chapter) {
+  const key = `study:${String(version)}:${String(lang)}:${String(
+    bookId
+  )}:${Number(chapter)}`;
+  readApiCache.delete(key);
+}
+
+/** 与 /api/questions/approved 中 userLevel 计算方式一致（按已通过审核的贡献数） */
+function getCommunityUserLevelFromSubmissions(userId, userEmail) {
+  const db = loadQuestionSubmissions();
+  const approvedAll = (db.items || []).filter(
+    (x) => safeText(x.status) === "approved"
+  );
+  const approvedCountByUser = new Map();
+  approvedAll.forEach((x) => {
+    const uid = safeText(x.userId || x.userEmail || "");
+    if (!uid) return;
+    approvedCountByUser.set(uid, (approvedCountByUser.get(uid) || 0) + 1);
+  });
+  const uid = safeText(userId || "");
+  const email = safeText(userEmail || "");
+  let approvedCount = 0;
+  if (uid && approvedCountByUser.has(uid)) {
+    approvedCount = Number(approvedCountByUser.get(uid) || 0);
+  } else if (email && approvedCountByUser.has(email)) {
+    approvedCount = Number(approvedCountByUser.get(email) || 0);
+  }
+  if (approvedCount <= 0) return 0;
+  return Math.max(1, Math.min(12, Math.floor((approvedCount - 1) / 3) + 1));
 }
 
 function loadDeployState() {
@@ -3006,7 +3196,7 @@ app.get("/api/study-content", (req, res) => {
       return res.json(cached);
     }
 
-    const data = readPublishedContent({
+    let data = readPublishedContent({
       versionId: String(version),
       lang: String(lang),
       bookId: String(bookId),
@@ -3018,6 +3208,14 @@ app.get("/api/study-content", (req, res) => {
         error: "未找到已发布内容",
       });
     }
+
+    data = applyPresetQuestionCorrectionsToStudyPayload(
+      data,
+      String(bookId),
+      Number(chapter),
+      String(version),
+      String(lang)
+    );
 
     setReadCache(cacheKey, data);
     res.json(data);
@@ -3212,6 +3410,7 @@ app.get("/api/auth/me", (req, res) => {
         email: authed.email,
         isAdmin: authed.isAdmin === true,
         adminRole: normalizeAdminRole(authed.adminRole || ""),
+        userLevel: getCommunityUserLevelFromSubmissions(authed.id, authed.email),
       },
     });
   } catch (error) {
@@ -3544,6 +3743,296 @@ app.post("/api/questions/reply", (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "回复失败" });
+  }
+});
+
+app.post("/api/question-corrections/submit", (req, res) => {
+  try {
+    const authed = getAuthedUserFromReq(req);
+    if (!authed) return res.status(401).json({ error: "请先登录" });
+
+    const body = req.body || {};
+    const targetType = safeText(body.targetType || "");
+    const proposedText = safeText(body.proposedText || "");
+    const originalText = safeText(body.originalText || "");
+
+    if (!["preset", "approved"].includes(targetType)) {
+      return res.status(400).json({ error: "targetType 无效" });
+    }
+    if (!proposedText || proposedText.length < 2) {
+      return res.status(400).json({ error: "纠错内容至少 2 个字" });
+    }
+    if (proposedText.length > 4000) {
+      return res.status(400).json({ error: "内容过长" });
+    }
+    if (!originalText || originalText.length < 2) {
+      return res.status(400).json({ error: "请提供原文" });
+    }
+
+    const rate = checkWriteRateLimit({
+      req,
+      actionKey: "question_correction_submit",
+      limit: 20,
+      windowMs: 60 * 1000,
+    });
+    if (!rate.ok) {
+      return res.status(429).json({
+        error: `操作过于频繁，请 ${rate.retryAfterSec}s 后重试`,
+      });
+    }
+
+    const isQian = normalizeAdminRole(authed.adminRole || "") === "qianfuzhang";
+
+    if (targetType === "preset") {
+      const bookId = safeText(body.bookId || "");
+      const chapter = toSafeNumber(body.chapter, 0);
+      const contentVersion = safeText(body.contentVersion || "");
+      const contentLang = safeText(body.contentLang || "");
+      const rangeStart = toSafeNumber(body.rangeStart, 0);
+      const rangeEnd = toSafeNumber(body.rangeEnd, 0);
+      const segmentTitle = safeText(body.segmentTitle || "");
+      const questionIndex = toSafeNumber(body.questionIndex, 0);
+      if (!bookId || !chapter || !contentVersion || !contentLang) {
+        return res.status(400).json({ error: "缺少书籍或版本信息" });
+      }
+      const cur = readCurrentPresetQuestionTextFromPublished({
+        bookId,
+        chapter,
+        contentVersion,
+        contentLang,
+        rangeStart,
+        rangeEnd,
+        segmentTitle,
+        questionIndex,
+      });
+      if (cur.error) return res.status(400).json({ error: cur.error });
+      if (safeText(cur.text) !== safeText(originalText)) {
+        return res.status(409).json({ error: "原文已变更，请刷新页面后重试" });
+      }
+      const stableKey = stablePresetCorrectionKey(
+        bookId,
+        chapter,
+        contentVersion,
+        contentLang,
+        rangeStart,
+        rangeEnd,
+        segmentTitle,
+        questionIndex
+      );
+
+      const cdb = loadQuestionCorrections();
+      const rowBase = {
+        targetType: "preset",
+        stableKey,
+        bookId,
+        chapter,
+        contentVersion,
+        contentLang,
+        rangeStart,
+        rangeEnd,
+        segmentTitle,
+        questionIndex,
+        originalText,
+        proposedText,
+        submitterId: authed.id,
+        submitterName: authed.name,
+        submitterEmail: authed.email,
+      };
+
+      if (isQian) {
+        const row = {
+          ...rowBase,
+          id: `qcr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          status: "approved",
+          createdAt: nowIso(),
+          reviewedAt: nowIso(),
+          reviewedById: authed.id,
+          reviewedByName: authed.name,
+        };
+        cdb.items = [row, ...(cdb.items || [])];
+        saveQuestionCorrections(cdb);
+        invalidateStudyContentCache(contentVersion, contentLang, bookId, chapter);
+        appendAdminAudit(req, authed, "question_correction_apply", {
+          id: row.id,
+          stableKey,
+          targetType: "preset",
+        });
+        return res.json({ ok: true, status: "approved", applied: true });
+      }
+
+      const row = {
+        ...rowBase,
+        id: `qcr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        status: "pending",
+        createdAt: nowIso(),
+      };
+      cdb.items = [row, ...(cdb.items || [])];
+      saveQuestionCorrections(cdb);
+      return res.json({ ok: true, status: "pending" });
+    }
+
+    const questionId = safeText(body.questionId || "");
+    if (!questionId) return res.status(400).json({ error: "缺少问题编号" });
+    const qdb = loadQuestionSubmissions();
+    const target = (qdb.items || []).find((x) => safeText(x.id) === questionId);
+    if (!target) return res.status(404).json({ error: "问题不存在" });
+    if (safeText(target.status) !== "approved") {
+      return res.status(400).json({ error: "仅可对已采纳问题纠错" });
+    }
+    if (safeText(target.questionText) !== safeText(originalText)) {
+      return res.status(409).json({ error: "原文已变更，请刷新后重试" });
+    }
+
+    if (isQian) {
+      const prev = String(target.questionText || "").slice(0, 120);
+      target.questionText = proposedText;
+      target.adminTextEditedAt = nowIso();
+      target.adminTextEditedBy = authed.id;
+      target.adminTextEditedByName = authed.name;
+      saveQuestionSubmissions(qdb);
+      appendAdminAudit(req, authed, "question_correction_apply", {
+        questionId,
+        targetType: "approved",
+        prevPreview: prev,
+      });
+      return res.json({ ok: true, status: "approved", applied: true });
+    }
+
+    const stableKey = `qapproved_${questionId}`;
+    const cdb = loadQuestionCorrections();
+    const row = {
+      id: `qcr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      targetType: "approved",
+      stableKey,
+      questionId,
+      bookId: safeText(target.bookId || ""),
+      chapter: toSafeNumber(target.chapter, 0),
+      contentVersion: safeText(target.contentVersion || ""),
+      contentLang: safeText(target.contentLang || ""),
+      originalText,
+      proposedText,
+      status: "pending",
+      createdAt: nowIso(),
+      submitterId: authed.id,
+      submitterName: authed.name,
+      submitterEmail: authed.email,
+    };
+    cdb.items = [row, ...(cdb.items || [])];
+    saveQuestionCorrections(cdb);
+    return res.json({ ok: true, status: "pending" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "提交失败" });
+  }
+});
+
+app.get("/api/admin/question-corrections", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "review_questions");
+    if (!authed) return;
+    const status = safeText(req.query.status || "pending");
+    const cdb = loadQuestionCorrections();
+    const items = (cdb.items || [])
+      .filter((x) => (status === "all" ? true : safeText(x.status) === status))
+      .sort((a, b) =>
+        String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+      );
+    res.json({ items });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取失败" });
+  }
+});
+
+app.post("/api/admin/question-corrections/review", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "review_questions");
+    if (!authed) return;
+    const id = safeText(req.body?.id || "");
+    const action = safeText(req.body?.action || "");
+    if (!id || !["approve", "reject"].includes(action)) {
+      return res.status(400).json({ error: "参数无效" });
+    }
+    const cdb = loadQuestionCorrections();
+    const row = (cdb.items || []).find((x) => safeText(x.id) === id);
+    if (!row) return res.status(404).json({ error: "记录不存在" });
+    if (safeText(row.status) !== "pending") {
+      return res.status(400).json({ error: "该记录已处理" });
+    }
+
+    if (action === "reject") {
+      row.status = "rejected";
+      row.reviewedAt = nowIso();
+      row.reviewedById = authed.id;
+      row.reviewedByName = authed.name;
+      saveQuestionCorrections(cdb);
+      appendAdminAudit(req, authed, "question_correction_review", {
+        id,
+        action: "reject",
+      });
+      return res.json({ ok: true });
+    }
+
+    if (safeText(row.targetType) === "preset") {
+      const cur = readCurrentPresetQuestionTextFromPublished(row);
+      if (cur.error) return res.status(400).json({ error: cur.error });
+      if (safeText(cur.text) !== safeText(row.originalText)) {
+        return res.status(409).json({ error: "原文已变更，无法采纳此纠错" });
+      }
+      row.status = "approved";
+      row.reviewedAt = nowIso();
+      row.reviewedById = authed.id;
+      row.reviewedByName = authed.name;
+      saveQuestionCorrections(cdb);
+      invalidateStudyContentCache(
+        row.contentVersion,
+        row.contentLang,
+        row.bookId,
+        row.chapter
+      );
+      appendAdminAudit(req, authed, "question_correction_review", {
+        id,
+        action: "approve",
+        targetType: "preset",
+      });
+      return res.json({ ok: true });
+    }
+
+    if (safeText(row.targetType) === "approved") {
+      const qdb = loadQuestionSubmissions();
+      const t = (qdb.items || []).find(
+        (x) => safeText(x.id) === safeText(row.questionId)
+      );
+      if (!t) return res.status(404).json({ error: "目标问题不存在" });
+      if (safeText(t.status) !== "approved") {
+        return res.status(400).json({ error: "目标问题已不是已采纳状态" });
+      }
+      if (safeText(t.questionText) !== safeText(row.originalText)) {
+        return res.status(409).json({ error: "原文已变更，无法采纳此纠错" });
+      }
+      t.questionText = safeText(row.proposedText);
+      t.adminTextEditedAt = nowIso();
+      t.adminTextEditedBy = authed.id;
+      t.adminTextEditedByName = authed.name;
+      saveQuestionSubmissions(qdb);
+      row.status = "approved";
+      row.reviewedAt = nowIso();
+      row.reviewedById = authed.id;
+      row.reviewedByName = authed.name;
+      saveQuestionCorrections(cdb);
+      appendAdminAudit(req, authed, "question_correction_review", {
+        id,
+        action: "approve",
+        targetType: "approved",
+        questionId: row.questionId,
+      });
+      return res.json({ ok: true });
+    }
+
+    return res.status(400).json({ error: "未知纠错类型" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "审核失败" });
   }
 });
 
@@ -4008,6 +4497,55 @@ app.post("/api/admin/questions/review", (req, res) => {
   }
 });
 
+app.post("/api/admin/questions/update-text", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "edit_approved_question_text");
+    if (!authed) return;
+    const questionId = safeText(req.body?.questionId || "");
+    const questionText = safeText(req.body?.questionText || "");
+    if (!questionId) return res.status(400).json({ error: "缺少问题编号" });
+    if (!questionText || questionText.length < 4) {
+      return res.status(400).json({ error: "问题内容至少 4 个字" });
+    }
+    if (questionText.length > 4000) {
+      return res.status(400).json({ error: "问题过长" });
+    }
+    const rate = checkWriteRateLimit({
+      req,
+      actionKey: "question_admin_text_edit",
+      limit: 40,
+      windowMs: 60 * 1000,
+    });
+    if (!rate.ok) {
+      return res.status(429).json({
+        error: `操作过于频繁，请 ${rate.retryAfterSec}s 后重试`,
+      });
+    }
+
+    const db = loadQuestionSubmissions();
+    const target = (db.items || []).find((x) => safeText(x.id) === questionId);
+    if (!target) return res.status(404).json({ error: "问题不存在" });
+    if (safeText(target.status) !== "approved") {
+      return res.status(400).json({ error: "仅可编辑已采纳的问题" });
+    }
+    const prevPreview = String(target.questionText || "").slice(0, 120);
+    target.questionText = questionText;
+    target.adminTextEditedAt = nowIso();
+    target.adminTextEditedBy = authed.id;
+    target.adminTextEditedByName = authed.name;
+    saveQuestionSubmissions(db);
+    appendAdminAudit(req, authed, "question_text_edit", {
+      questionId,
+      prevPreview,
+      newPreview: questionText.slice(0, 120),
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "更新失败" });
+  }
+});
+
 app.post("/api/admin/users/set-admin", (req, res) => {
   try {
     let authed = null;
@@ -4316,7 +4854,8 @@ app.post("/api/admin/test-generate", async (req, res) => {
    ========================================================= */
 app.post("/api/admin/save-test-result", (req, res) => {
   try {
-    const { studyContent } = req.body || {};
+    requirePermission(req, res, "manage_publish");
+    const { studyContent, reviewNote } = req.body || {};
 
     if (!studyContent || typeof studyContent !== "object") {
       return res.status(400).json({
@@ -4325,10 +4864,23 @@ app.post("/api/admin/save-test-result", (req, res) => {
     }
 
     const result = saveStudyContentAndPublish(studyContent);
+    const actor = getAuthedUserFromReq(req);
+    appendAdminAudit(
+      req,
+      actor || { id: "", name: "", email: "", adminRole: "" },
+      "study_chapter_save_publish",
+      {
+        bookId: result.savedContent?.bookId,
+        chapter: result.savedContent?.chapter,
+        version: result.savedContent?.version,
+        contentLang: result.savedContent?.contentLang,
+        reviewNote: safeText(reviewNote || ""),
+      }
+    );
 
     res.json({
       ok: true,
-      message: "测试结果已保存并合并发布",
+      message: "已保存并合并发布",
       buildId: result.buildId,
       savedContent: result.savedContent,
     });
@@ -4910,4 +5462,21 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`http://localhost:${port}`);
   startJobRunner();
+  if (process.env.DEV_LIVE_RELOAD === "1") {
+    import("livereload")
+      .then((mod) => {
+        const lr = mod.default.createServer({
+          delay: 200,
+          extraExts: ["json", "webmanifest", "svg"],
+          exclusions: [/\.git\//, /node_modules\//, /admin_data\/auth\.sqlite/],
+        });
+        lr.watch(__dirname);
+        console.log(
+          "[dev] LiveReload 已开启：修改 HTML/CSS/JS 等文件后会自动刷新浏览器（请使用 npm run dev 启动）"
+        );
+      })
+      .catch((err) => {
+        console.warn("[dev] LiveReload 启动失败:", err?.message || err);
+      });
+  }
 });

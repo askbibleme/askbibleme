@@ -18,12 +18,72 @@
         <div class="site-topbar-title">
           <h1 id="brandTitle">
             <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me" id="openAdminBtn">.me</span>
-            <span id="brandSubtitle" class="brand-subtitle">你们祈求，就⋯ 寻找，就⋯ 叩门，就⋯ 马太福音 7:7-8</span>
           </h1>
         </div>
       </header>
 
       <main class="book-layout">
+        <div class="member-bookmark-wrap">
+          <div class="member-hub member-hub--bookmark" id="memberHub">
+            <button
+              type="button"
+              id="memberHubTrigger"
+              class="member-hub-trigger"
+              aria-expanded="false"
+              aria-controls="memberHubPanel"
+              aria-haspopup="true"
+            >
+              <span id="memberHubLabel" class="member-hub-label">免费注册</span>
+            </button>
+            <div
+              id="memberHubPanel"
+              class="member-hub-panel"
+              role="dialog"
+              aria-label="账户菜单"
+              hidden
+            >
+              <div id="memberHubGuest" class="member-hub-state">
+                <p class="member-hub-lead">登录后可提交问题、同步笔记本、收藏与社区互动</p>
+                <div class="member-hub-actions-row">
+                  <button type="button" class="member-hub-primary" data-member-action="login">
+                    登录
+                  </button>
+                  <button type="button" class="member-hub-secondary" data-member-action="register">
+                    注册
+                  </button>
+                </div>
+              </div>
+              <div id="memberHubMember" class="member-hub-state" hidden>
+                <div class="member-hub-identity">
+                  <div class="member-hub-avatar" id="memberHubAvatar" aria-hidden="true">?</div>
+                  <div class="member-hub-identity-text">
+                    <div class="member-hub-display-name" id="memberHubDisplayName">—</div>
+                    <div class="member-hub-email" id="memberHubEmail">—</div>
+                  </div>
+                </div>
+                <nav class="member-hub-links" aria-label="账户功能">
+                  <a class="member-hub-link" href="notebook.html?openSettings=1#settings">帐号资料</a>
+                  <button
+                    type="button"
+                    class="member-hub-link member-hub-link-admin"
+                    data-member-action="admin"
+                    id="memberHubAdminBtn"
+                    hidden
+                  >
+                    后台管理
+                  </button>
+                  <button
+                    type="button"
+                    class="member-hub-link member-hub-link-danger"
+                    data-member-action="logout"
+                  >
+                    退出登录
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="book-spread">
           <section class="book-page left-page">
             <div class="book-side-extend-tags" aria-label="侧边标签">
@@ -142,13 +202,6 @@
                       <button
                         type="button"
                         class="option-item"
-                        id="exportPrettyPdfBtn"
-                      >
-                        导出
-                      </button>
-                      <button
-                        type="button"
-                        class="option-item"
                         id="exportPrintPdfBtn"
                       >
                         打印
@@ -244,7 +297,7 @@
               ></textarea>
               <div class="chapter-feedback-actions">
                 <button type="button" id="submitChapterQuestionBtn" class="chapter-feedback-btn">
-                  贡献问题
+                  登录
                 </button>
                 <div id="chapterQuestionStatus" class="chapter-feedback-status"></div>
               </div>
@@ -581,5 +634,18 @@
     </div>
 
     <script type="module" src="/main.js"></script>
+    <!-- 仅 localhost:3000 + npm run dev 时加载，保存文件后自动刷新（等同点浏览器刷新） -->
+    <script>
+      (function () {
+        var host = location.hostname;
+        if (host !== "localhost" && host !== "127.0.0.1") return;
+        if (String(location.port || "") !== "3000") return;
+        var s = document.createElement("script");
+        s.src = "http://" + host + ":35729/livereload.js?snipver=1";
+        s.async = true;
+        s.onerror = function () {};
+        document.body.appendChild(s);
+      })();
+    </script>
   </body>
 </html>
