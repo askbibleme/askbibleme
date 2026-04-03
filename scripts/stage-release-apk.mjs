@@ -68,4 +68,6 @@ fs.writeFileSync(
 
 console.log("已复制 APK →", apkOut);
 console.log("已写入元数据 →", versionJsonPath);
-console.log("部署时请把 downloads/askbible-release.apk 与 downloads/version.json 一并上传到站点根目录。");
+console.log(
+  "部署：做法 A 上传到服务器 downloads/ 或 DATA_ROOT/downloads/；做法 B 执行 git add downloads/askbible-release.apk downloads/version.json 后提交推送。"
+);
