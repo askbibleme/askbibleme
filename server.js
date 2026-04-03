@@ -453,6 +453,9 @@ function ensureAuthDbColumns() {
   if (!userCols.includes("admin_role")) {
     authDb.exec("ALTER TABLE users ADD COLUMN admin_role TEXT NOT NULL DEFAULT ''");
   }
+  if (!userCols.includes("online_seconds_total")) {
+    authDb.exec("ALTER TABLE users ADD COLUMN online_seconds_total INTEGER NOT NULL DEFAULT 0");
+  }
   authDb.exec(
     "UPDATE users SET admin_role = 'qianfuzhang' WHERE is_admin = 1 AND (admin_role IS NULL OR admin_role = '')"
   );
@@ -1334,7 +1337,9 @@ function getAuthedUserFromReq(req) {
     return null;
   }
   const user = authDb
-    .prepare("SELECT id, name, email, is_admin, admin_role FROM users WHERE id = ? LIMIT 1")
+    .prepare(
+      "SELECT id, name, email, is_admin, admin_role, COALESCE(online_seconds_total, 0) AS online_seconds_total FROM users WHERE id = ? LIMIT 1"
+    )
     .get(safeText(hit.user_id || ""));
   if (!user) return null;
   return {
@@ -1345,6 +1350,7 @@ function getAuthedUserFromReq(req) {
     isAdmin:
       Number(user.is_admin || 0) === 1 ||
       Boolean(normalizeAdminRole(user.admin_role || "")),
+    totalOnlineSeconds: Number(user.online_seconds_total || 0),
     token,
   };
 }
@@ -2657,6 +2663,7 @@ async function processBulkJob(job) {
 
     if (latestJob.status === "cancelled") {
       latestJob.updatedAt = nowIso();
+      latestJob.finishedAt = latestJob.finishedAt || nowIso();
       latestJob.progressText = "任务已取消";
       latestJob.completionSummary = "已取消";
       writeJob(latestJob);
@@ -3699,11 +3706,50 @@ app.get("/api/auth/me", (req, res) => {
         isAdmin: authed.isAdmin === true,
         adminRole: normalizeAdminRole(authed.adminRole || ""),
         userLevel: getCommunityUserLevelFromSubmissions(authed.id, authed.email),
+        totalOnlineSeconds: Number(authed.totalOnlineSeconds || 0),
       },
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "读取登录态失败" });
+  }
+});
+
+/** 登录用户前台在线时长累积（心跳，约每 45s 一次） */
+app.post("/api/user/online/pulse", (req, res) => {
+  try {
+    const authed = getAuthedUserFromReq(req);
+    if (!authed) return res.status(401).json({ error: "请先登录" });
+    const raw = Number(req.body?.seconds);
+    let chunk = Number.isFinite(raw) ? Math.floor(raw) : 45;
+    chunk = Math.max(1, Math.min(120, chunk));
+    const rl = checkWriteRateLimit({
+      req,
+      actionKey: `online_pulse:${authed.id}`,
+      limit: 80,
+      windowMs: 60000,
+    });
+    if (!rl.ok) {
+      return res.status(429).json({
+        error: "请求过于频繁",
+        retryAfterSec: rl.retryAfterSec,
+      });
+    }
+    const row = authDb
+      .prepare(
+        "SELECT COALESCE(online_seconds_total, 0) AS t FROM users WHERE id = ? LIMIT 1"
+      )
+      .get(authed.id);
+    const prev = Number(row?.t || 0);
+    const cap = 86400 * 365 * 80;
+    const next = Math.min(prev + chunk, cap);
+    authDb
+      .prepare("UPDATE users SET online_seconds_total = ?, updated_at = ? WHERE id = ?")
+      .run(next, nowIso(), authed.id);
+    res.json({ ok: true, totalOnlineSeconds: next, addedSeconds: chunk });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "上报失败" });
   }
 });
 
@@ -5257,6 +5303,7 @@ app.post("/api/admin/job/:id/cancel", (req, res) => {
 
     job.status = "cancelled";
     job.updatedAt = nowIso();
+    job.finishedAt = job.finishedAt || nowIso();
     job.progressText = "任务已取消";
     job.completionSummary = "已取消";
     writeJob(job);

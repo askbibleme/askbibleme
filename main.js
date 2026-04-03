@@ -1017,6 +1017,7 @@ async function init() {
     initPresetQuestionActions();
     initAuthModal();
     initMemberHub();
+    initOnlinePulseVisibility();
     initAdminModal();
     bindViewportScrollPersistence();
     renderAllSelectors();
@@ -1312,9 +1313,12 @@ function setAuthToken(token) {
   else localStorage.removeItem(USER_AUTH_TOKEN_KEY);
 }
 
+let onlinePulseTimerId = null;
+
 let memberHubCloseFn = () => {};
 
 async function performLogout() {
+  stopOnlinePulseTimer();
   const token = getAuthToken();
   try {
     await fetch("/api/auth/logout", {
@@ -1326,6 +1330,73 @@ async function performLogout() {
   state.currentUser = null;
   memberHubCloseFn();
   renderAuthStatus();
+}
+
+function formatTotalOnlineSeconds(sec) {
+  const n = Math.max(0, Math.floor(Number(sec) || 0));
+  if (n < 60) return `${n} 秒`;
+  const m = Math.floor(n / 60);
+  if (m < 60) return `${m} 分钟`;
+  const h = Math.floor(m / 60);
+  const m2 = m % 60;
+  return m2 > 0 ? `${h} 小时 ${m2} 分` : `${h} 小时`;
+}
+
+function stopOnlinePulseTimer() {
+  if (onlinePulseTimerId != null) {
+    window.clearInterval(onlinePulseTimerId);
+    onlinePulseTimerId = null;
+  }
+}
+
+async function sendOnlinePulseOnce() {
+  if (!state.currentUser || !getAuthToken()) return;
+  if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+  try {
+    const res = await fetch("/api/user/online/pulse", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      body: JSON.stringify({ seconds: 45 }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && state.currentUser) {
+      const next = Number(data.totalOnlineSeconds);
+      if (Number.isFinite(next) && next >= 0) {
+        state.currentUser.totalOnlineSeconds = Math.floor(next);
+        renderMemberHub();
+      }
+    }
+  } catch {
+    /* 忽略网络错误 */
+  }
+}
+
+function startOnlinePulseTimer() {
+  stopOnlinePulseTimer();
+  if (!state.currentUser || !getAuthToken()) return;
+  void sendOnlinePulseOnce();
+  onlinePulseTimerId = window.setInterval(() => void sendOnlinePulseOnce(), 45000);
+}
+
+function initOnlinePulseVisibility() {
+  if (typeof document === "undefined") return;
+  if (document.body?.dataset.onlinePulseVisBound === "1") return;
+  if (document.body) document.body.dataset.onlinePulseVisBound = "1";
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void sendOnlinePulseOnce();
+  });
+}
+
+function normalizeUserTotalOnlineSeconds(user) {
+  if (!user || typeof user !== "object") return;
+  const raw = user.totalOnlineSeconds;
+  const n =
+    raw === undefined || raw === null || raw === "" ? NaN : Number(raw);
+  user.totalOnlineSeconds =
+    Number.isFinite(n) && n >= 0 ? Math.min(Math.floor(n), 86400 * 365 * 80) : 0;
 }
 
 async function fetchCurrentUser() {
@@ -1345,12 +1416,16 @@ async function fetchCurrentUser() {
       state.currentUser = null;
       setAuthToken("");
     } else {
-      state.currentUser = data.user || null;
+      const user = data.user || null;
+      normalizeUserTotalOnlineSeconds(user);
+      state.currentUser = user;
     }
   } catch {
     state.currentUser = null;
   }
   renderAuthStatus();
+  if (state.currentUser) startOnlinePulseTimer();
+  else stopOnlinePulseTimer();
 }
 
 function displayNameFromEmail(email) {
@@ -1461,6 +1536,7 @@ function renderMemberHub() {
   const av = document.getElementById("memberHubAvatar");
   const dn = document.getElementById("memberHubDisplayName");
   const em = document.getElementById("memberHubEmail");
+  const onlineEl = document.getElementById("memberHubOnlineTotal");
   const adminBtn = document.getElementById("memberHubAdminBtn");
   const hubLabel = document.getElementById("memberHubLabel");
   const hubTrigger = document.getElementById("memberHubTrigger");
@@ -1501,6 +1577,11 @@ function renderMemberHub() {
     if (av) av.textContent = initial;
     if (dn) dn.textContent = sensible;
     if (em) em.textContent = email || "—";
+    if (onlineEl) {
+      /* 勿用 foo != null 判断：undefined == null，缺字段时 former 会误判 */
+      const ts = Math.max(0, Math.floor(Number(u?.totalOnlineSeconds) || 0));
+      onlineEl.textContent = `累计在线 ${formatTotalOnlineSeconds(ts)}`;
+    }
     if (adminBtn) {
       const showAdmin = u?.isAdmin === true;
       adminBtn.hidden = !showAdmin;
@@ -1628,6 +1709,9 @@ function initMemberHub() {
   }
 
   function open() {
+    if (getAuthToken() && state.currentUser) {
+      void fetchCurrentUser();
+    }
     renderMemberHub();
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
@@ -4928,6 +5012,36 @@ function getScopeLabel(scope) {
   return map[scope] || scope;
 }
 
+function formatJobIsoLocal(iso) {
+  const s = String(iso || "").trim();
+  if (!s) return "—";
+  const t = Date.parse(s);
+  if (Number.isNaN(t)) return s;
+  return new Date(t).toLocaleString("zh-CN", { hour12: false });
+}
+
+/** 执行时长：从 startIso 到 endIso；endIso 缺省且 useNow 为 true 时用 nowMs */
+function formatJobDuration(startIso, endIso, { useNow = false, nowMs = Date.now() } = {}) {
+  const a = Date.parse(String(startIso || ""));
+  let end;
+  if (endIso != null && String(endIso).trim() !== "") {
+    end = Date.parse(String(endIso));
+  } else if (useNow) {
+    end = nowMs;
+  } else {
+    return "—";
+  }
+  if (Number.isNaN(a) || Number.isNaN(end) || end < a) return "—";
+  const sec = Math.round((end - a) / 1000);
+  if (sec < 60) return `${sec} 秒`;
+  const m = Math.floor(sec / 60);
+  const s2 = sec % 60;
+  if (m < 60) return s2 ? `${m} 分 ${s2} 秒` : `${m} 分`;
+  const h = Math.floor(m / 60);
+  const m2 = m % 60;
+  return m2 ? `${h} 小时 ${m2} 分` : `${h} 小时`;
+}
+
 function renderJobsList(jobs) {
   const box = document.getElementById("jobsListBox");
   if (!box) return;
@@ -4979,11 +5093,45 @@ function renderJobsList(jobs) {
           `
           : "";
 
+      const startedAt = String(job.startedAt || "").trim();
+      const createdAt = String(job.createdAt || "").trim();
+      const finishedAt = String(job.finishedAt || "").trim();
+      const isRunning = job.status === "running";
+      const startLabel = startedAt
+        ? formatJobIsoLocal(startedAt)
+        : createdAt
+          ? `尚未开始执行（创建于 ${formatJobIsoLocal(createdAt)}）`
+          : "—";
+      const endLabel = finishedAt
+        ? formatJobIsoLocal(finishedAt)
+        : isRunning
+          ? "进行中"
+          : "—";
+      const durationPlain = startedAt
+        ? formatJobDuration(startedAt, finishedAt, {
+            useNow: isRunning,
+            nowMs: Date.now(),
+          })
+        : "—";
+      const durationLabel =
+        isRunning && startedAt && durationPlain !== "—"
+          ? `已运行 ${durationPlain}`
+          : durationPlain;
+
       return `
         <div class="test-result-seg">
           <h4>${escapeHtml(job.id)}</h4>
           <div class="test-result-line"><strong>状态：</strong>${escapeHtml(
             job.status || "—"
+          )}</div>
+          <div class="test-result-line"><strong>开始：</strong>${escapeHtml(
+            startLabel
+          )}</div>
+          <div class="test-result-line"><strong>完成：</strong>${escapeHtml(
+            endLabel
+          )}</div>
+          <div class="test-result-line"><strong>执行时间：</strong>${escapeHtml(
+            durationLabel
           )}</div>
           <div class="test-result-line"><strong>范围：</strong>${escapeHtml(
             getScopeLabel(job.scope || "—")

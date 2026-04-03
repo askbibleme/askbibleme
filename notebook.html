@@ -14,7 +14,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/icon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/icon-180.png" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=8" />
   </head>
   <body>
     <div class="page-shell">
@@ -61,6 +61,8 @@
           <input id="notebookSettingsNameInput" class="custom-textarea single-input" type="text" />
           <div class="label">邮箱</div>
           <input id="notebookSettingsEmailInput" class="custom-textarea single-input" type="email" />
+          <div class="label">累计在线时长</div>
+          <div id="notebookSettingsOnlineTotal" class="notebook-online-total">—</div>
           <div class="modal-actions notebook-settings-actions">
             <button id="saveNotebookProfileBtn" class="primary-btn" type="button">保存资料</button>
           </div>
@@ -274,6 +276,17 @@
         return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
       }
 
+      function normalizeUserTotalOnlineSeconds(user) {
+        if (!user || typeof user !== "object") return;
+        const raw = user.totalOnlineSeconds;
+        const n =
+          raw === undefined || raw === null || raw === "" ? NaN : Number(raw);
+        user.totalOnlineSeconds =
+          Number.isFinite(n) && n >= 0
+            ? Math.min(Math.floor(n), 86400 * 365 * 80)
+            : 0;
+      }
+
       async function fetchCurrentUser() {
         const token = getAuthToken();
         if (!token) return null;
@@ -284,10 +297,68 @@
           });
           const data = await res.json();
           if (!res.ok) return null;
-          return data.user || null;
+          const user = data.user || null;
+          normalizeUserTotalOnlineSeconds(user);
+          return user;
         } catch {
           return null;
         }
+      }
+
+      function formatNotebookOnlineTotal(sec) {
+        const n = Math.max(0, Math.floor(Number(sec) || 0));
+        if (n < 60) return n + " 秒";
+        const m = Math.floor(n / 60);
+        if (m < 60) return m + " 分钟";
+        const h = Math.floor(m / 60);
+        const m2 = m % 60;
+        return m2 > 0 ? h + " 小时 " + m2 + " 分" : h + " 小时";
+      }
+
+      let notebookOnlinePulseId = null;
+      function stopNotebookOnlinePulse() {
+        if (notebookOnlinePulseId != null) {
+          clearInterval(notebookOnlinePulseId);
+          notebookOnlinePulseId = null;
+        }
+      }
+      async function notebookOnlinePulseOnce() {
+        const token = getAuthToken();
+        if (!token) return;
+        if (document.visibilityState !== "visible") return;
+        try {
+          const res = await fetch("/api/user/online/pulse", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify({ seconds: 45 }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.totalOnlineSeconds != null) {
+            const ot = document.getElementById("notebookSettingsOnlineTotal");
+            const modal = document.getElementById("notebookUserSettingsModal");
+            if (ot && modal && modal.style.display === "block") {
+              ot.textContent =
+                formatNotebookOnlineTotal(data.totalOnlineSeconds) + "（登录使用期间累积）";
+            }
+          }
+        } catch (_) {}
+      }
+      function startNotebookOnlinePulse() {
+        stopNotebookOnlinePulse();
+        if (!getAuthToken()) return;
+        void notebookOnlinePulseOnce();
+        notebookOnlinePulseId = setInterval(() => void notebookOnlinePulseOnce(), 45000);
+      }
+      function initNotebookOnlinePulseClient() {
+        if (document.body.dataset.notebookOnlinePulseInit === "1") return;
+        document.body.dataset.notebookOnlinePulseInit = "1";
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") void notebookOnlinePulseOnce();
+        });
+        startNotebookOnlinePulse();
       }
 
       const NOTEBOOK_SETTINGS_OPEN_FLAG = "askbible_notebook_open_settings_v1";
@@ -308,6 +379,12 @@
         }
         if (nameInput) nameInput.value = String(user.name || "");
         if (emailInput) emailInput.value = String(user.email || "");
+        const ot = document.getElementById("notebookSettingsOnlineTotal");
+        if (ot) {
+          const ts = Math.max(0, Math.floor(Number(user.totalOnlineSeconds) || 0));
+          ot.textContent =
+            formatNotebookOnlineTotal(ts) + "（登录使用期间累积）";
+        }
       }
 
       function initNotebookUserSettings() {
@@ -384,8 +461,11 @@
               headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
           } catch {}
+          stopNotebookOnlinePulse();
           localStorage.removeItem(USER_AUTH_TOKEN_KEY);
           if (modal) modal.style.display = "none";
+          const ot = document.getElementById("notebookSettingsOnlineTotal");
+          if (ot) ot.textContent = "—";
           alert("已退出登录");
         });
       }
@@ -685,6 +765,10 @@
       function renderNotes() {
         const list = getActiveNotes();
         if (!list.length) {
+          if (state.activeBookId === "communityArticles") {
+            notesEl.innerHTML = "";
+            return;
+          }
           notesEl.innerHTML = `<div class="empty-state">${
             state.activeBookId === "questionFavorites"
               ? "暂无我的贡献"
@@ -692,12 +776,10 @@
               ? "暂无经文热榜"
               : state.activeBookId === "divineSpeech"
               ? "暂无主话摘录"
-              :             state.activeBookId === "globalFavorites"
+              : state.activeBookId === "globalFavorites"
               ? "暂无社区精选"
               : state.activeBookId === "favorites"
               ? "暂无我的经文"
-              : state.activeBookId === "communityArticles"
-              ? '暂无社区文章，<a href="/article-studio.html" class="notebook-empty-link">前往发布中心</a>用 AI 整理并投稿'
               : "暂无内容"
           }</div>`;
           return;
@@ -774,6 +856,7 @@
       }
 
       initNotebookUserSettings();
+      initNotebookOnlinePulseClient();
 
       function readNotebookSettingsIntentFromLocation() {
         let fromHash = false;
