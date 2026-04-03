@@ -1005,22 +1005,20 @@ button.member-hub-link:hover {
 }
 
 .book-side-extend-tags {
-  position: absolute;
-  /* 相对 .page-toolbar：与 .book-page 左内边距（34px）相抵，平直左缘对齐书页奶油区左缘 */
-  left: -34px;
-  top: 150px;
   z-index: 8;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-/* 在 reading-toolbar 内：桌面仍绝对定位（相对 .page-toolbar）；窄屏由媒体查询改为网格独占行 */
-.reading-toolbar .book-side-extend-tags {
+/* 丝带在「上一章」行之后（DOM 位于 .title-nav-row 后）；宽屏仍绝对定位与章标题区对齐 */
+.book-page.left-page > .book-side-extend-tags {
   position: absolute;
   left: -34px;
   top: 150px;
   z-index: 6;
+  width: auto;
+  max-width: 100%;
 }
 
 .book-side-extend-tag {
@@ -1776,11 +1774,6 @@ button.member-hub-link:hover {
 .reading-toolbar > * {
   width: 100%;
   min-width: 0;
-}
-
-.reading-toolbar > .book-side-extend-tags {
-  width: auto;
-  max-width: 100%;
 }
 
 .reading-toolbar > .inline-display-toggle {
@@ -3548,17 +3541,17 @@ body.question-only-mode .plain-list li {
     box-sizing: border-box;
   }
 
-  /* 窄屏：侧标与大屏同逻辑——绝对定位在工具栏下方、左缘对齐书页（抵 .book-page 左 padding 16px） */
-  .reading-toolbar .book-side-extend-tags {
-    position: absolute !important;
-    left: -16px;
-    top: calc(100% + 8px);
+  /* 窄屏：丝带在上一章/下一章行之后（与 DOM 顺序一致），不再叠在 < 行上方 */
+  .book-page.left-page > .book-side-extend-tags {
+    position: relative !important;
+    left: 0 !important;
+    top: auto !important;
     right: auto !important;
-    z-index: 8;
+    margin: 0 0 12px !important;
+    margin-left: -16px !important;
+    align-self: flex-start;
     width: auto;
     max-width: none;
-    margin: 0;
-    padding: 0;
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
@@ -3775,8 +3768,8 @@ body.question-only-mode .plain-list li {
     border-radius: 16px !important;
   }
 
-  .reading-toolbar .book-side-extend-tags {
-    left: -10px;
+  .book-page.left-page > .book-side-extend-tags {
+    margin-left: -10px !important;
   }
 
   .notebook-app {
@@ -4303,11 +4296,11 @@ button.toolbar-trigger,
   }
 }
 
-/* 必须置于文件末尾：压住全局 margin，给绝对定位侧标留出下方空隙，避免压住标题行 */
+/* 窄屏工具栏多行网格；丝带已移到 title-nav 之后，不再需大块 margin 给侧标腾位 */
 @media (max-width: 700px) {
   .book-page.left-page .reading-toolbar {
     display: grid !important;
-    margin-bottom: 52px !important;
+    margin-bottom: 14px !important;
   }
 }
 
@@ -4335,6 +4328,12 @@ button.toolbar-trigger,
   border-radius: 16px;
   padding: 1.5rem 1.35rem;
   box-shadow: var(--shadow-md);
+}
+
+.download-platform + .download-platform {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line-soft);
 }
 
 .download-title {
