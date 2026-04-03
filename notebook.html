@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#4a443f" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -29,18 +29,12 @@
       <main class="book-layout notebook-layout notebook-app">
         <div class="book-spread notebook-article-spread">
           <section class="book-page notebook-article-page">
+            <a class="notebook-back-ribbon" href="/">返回读经</a>
             <div class="notebook-article-columns">
               <aside class="notebook-article-sidebar">
-                <a class="notebook-back-ribbon" href="/">
-                  <span class="notebook-back-ribbon-label">← 返回读经</span>
-                  <span class="notebook-back-ribbon-star" aria-hidden="true">★</span>
-                </a>
-                <nav
-                  id="notebookBooks"
-                  class="notebook-category-vertical"
-                  role="tablist"
-                  aria-label="文章分类"
-                ></nav>
+                <div class="notebook-category-vertical">
+                  <div id="notebookBooks" class="notebook-book-tabs" role="tablist" aria-label="文章分类"></div>
+                </div>
               </aside>
               <div id="notebookNotes" class="notebook-article-list"></div>
             </div>

@@ -28,6 +28,20 @@
   --star-g4-1: #7a5c24;
   --star-g4-2: #5f471b;
   --star-g4-3: #453313;
+  /* 读经工具条「经文 / 全显 / 问题」与文章中心栏目：同一套分段槽与 pill */
+  --ui-seg-track-bg: rgba(139, 111, 71, 0.16);
+  --ui-seg-track-radius: 16px;
+  --ui-seg-track-pad-y: 4px;
+  --ui-seg-track-pad-x: 3px;
+  --ui-seg-gap: 2px;
+  --ui-seg-btn-height: 30px;
+  --ui-seg-btn-radius: 12px;
+  --ui-seg-label: rgba(127, 116, 104, 0.6);
+  --ui-seg-label-hover: rgba(100, 90, 78, 0.92);
+  --ui-seg-label-active: #6f6355;
+  --ui-seg-pill-bg: #f8f4ec;
+  --ui-seg-pill-shadow: 0 1px 2px rgba(76, 62, 42, 0.2);
+  --ui-seg-hover-fill: rgba(248, 244, 236, 0.4);
 }
 
 * {
@@ -960,8 +974,10 @@ button.member-hub-link:hover {
 }
 
 /* 文章中心：与读经页同源 book-spread，分类用主页 display-mode-switch 标签 */
+/* overflow 可见：否则 .book-spread 默认 hidden 会裁掉「返回读经」负 margin，无法贴齐奶油区左缘 */
 .notebook-article-spread.book-spread {
   grid-template-columns: 1fr;
+  overflow: visible;
   background: linear-gradient(
     90deg,
     #f3e6d0 0%,
@@ -975,176 +991,362 @@ button.member-hub-link:hover {
   display: none;
 }
 
+/* 左右留白与读经页书页节奏一致，避免栏目外框贴齐视窗侧 */
 .notebook-article-page.book-page {
   grid-column: 1 / -1;
+  padding-top: 28px;
+  padding-right: 34px;
+  padding-bottom: 32px;
+  padding-left: 24px;
+}
+
+/* 单页文章中心勿用读经页左右纸边渐变，否则左右各「吃掉」约 28px，显得不靠左、正文贴右 */
+.notebook-article-page.book-page:first-child::before,
+.notebook-article-page.book-page:last-child::after {
+  display: none;
 }
 
 .notebook-article-columns {
   display: grid;
-  grid-template-columns: minmax(132px, 188px) minmax(0, 1fr);
-  gap: 10px 28px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: auto;
+  gap: 16px 0;
   align-items: start;
+  justify-items: stretch;
   min-height: min(520px, calc(100vh - 200px));
+  /* 为顶部「返回读经」上浮层留出高度，避免与栏目重叠 */
+  padding-top: 56px;
+  box-sizing: border-box;
 }
 
 .notebook-article-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  position: sticky;
-  top: 10px;
-  align-self: start;
+  gap: 0;
+  position: static;
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0;
+  background: transparent;
+  border: none;
+  align-items: stretch;
 }
 
-/* 文章中心：返回读经 — 左侧贴边、右侧尖角的标签 */
+/* 文章中心顶左：棕色右尖丝带 + 白字 */
 .notebook-back-ribbon {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  min-height: 42px;
-  padding: 10px 22px 10px 12px;
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 11px 26px 11px 14px;
   margin: 0;
   width: fit-content;
   max-width: 100%;
-  align-self: flex-start;
+  min-width: 0;
   box-sizing: border-box;
   text-decoration: none;
   white-space: nowrap;
-  font-size: calc(15px * var(--font-scale));
+  font-size: calc(17px * var(--font-scale));
   font-weight: 800;
   line-height: 1.15;
+  letter-spacing: 0.02em;
   color: #fff;
-  background: #967b55;
+  background: linear-gradient(180deg, #a3865c 0%, #967d59 38%, #8a6f4a 100%);
   border: none;
   border-radius: 0;
   cursor: pointer;
-  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 0 100%);
-  filter: drop-shadow(0 2px 5px rgba(52, 40, 28, 0.35));
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 50%, calc(100% - 20px) 100%, 0 100%);
+  filter: drop-shadow(0 2px 6px rgba(52, 40, 28, 0.38));
   transition: background 0.15s ease, filter 0.15s ease;
 }
 
 .notebook-back-ribbon:hover {
-  background: #8a704c;
-  filter: drop-shadow(0 3px 7px rgba(52, 40, 28, 0.4));
+  background: linear-gradient(180deg, #ad9168 0%, #9f855f 40%, #8f7650 100%);
+  filter: drop-shadow(0 3px 8px rgba(52, 40, 28, 0.45));
 }
 
 .notebook-back-ribbon:active {
-  background: #7d6544;
+  filter: drop-shadow(0 1px 4px rgba(52, 40, 28, 0.35));
 }
 
 .notebook-back-ribbon:focus-visible {
   outline: 2px solid #c9a227;
-  outline-offset: 2px;
-}
-
-.notebook-back-ribbon-star {
-  flex-shrink: 0;
-  font-size: 0.95em;
-  line-height: 1;
-  color: #f4d03f;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+  outline-offset: 3px;
 }
 
 .notebook-category-vertical {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px;
-  border-radius: 16px;
-  background: rgba(139, 111, 71, 0.14);
+  min-width: 0;
 }
 
-.notebook-category-vertical .display-mode-btn {
+.notebook-book-tabs {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 大屏文章中心：栏目在正文上方，横排分段槽（同 .display-mode-switch） */
+.notebook-article-sidebar .notebook-category-vertical {
+  width: 100%;
+  max-width: 100%;
+  gap: 0;
+  border-radius: var(--ui-seg-track-radius);
+  padding: var(--ui-seg-track-pad-y) var(--ui-seg-track-pad-x);
+  background: var(--ui-seg-track-bg);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.notebook-article-sidebar .notebook-book-tabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: var(--ui-seg-gap);
+  min-height: var(--ui-seg-btn-height);
+}
+
+.notebook-article-sidebar .notebook-category-vertical .display-mode-btn {
   appearance: none;
   -webkit-appearance: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  width: 100%;
-  min-height: 42px;
-  padding: 8px 11px;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  min-height: var(--ui-seg-btn-height);
+  padding: 0 10px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--ui-seg-btn-radius);
   background: transparent;
-  color: rgba(127, 116, 104, 0.78);
+  color: var(--ui-seg-label);
   font-size: calc(14px * var(--font-scale));
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   cursor: pointer;
-  text-align: left;
-  white-space: normal;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: none;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
-.notebook-category-vertical .display-mode-btn.active {
-  background: #f8f4ec;
-  color: #6f6355;
+.notebook-article-sidebar .notebook-category-vertical .display-mode-btn:hover:not(.active) {
+  color: var(--ui-seg-label-hover);
+  background: var(--ui-seg-hover-fill);
+}
+
+.notebook-article-sidebar .notebook-category-vertical .display-mode-btn.active {
+  background: var(--ui-seg-pill-bg);
+  color: var(--ui-seg-label-active);
   font-weight: 800;
-  box-shadow: 0 1px 2px rgba(76, 62, 42, 0.2);
+  font-size: calc(14px * var(--font-scale));
+  box-shadow: var(--ui-seg-pill-shadow);
+}
+
+/* 「返回读经」相对书页上浮层：左缘贴书页内容盒左边界（与 padding-left 起点一致），叠在栅格之上 */
+.notebook-article-page .notebook-back-ribbon {
+  position: absolute;
+  left: 0;
+  top: 28px;
+  z-index: 20;
+  margin: 0;
+  align-self: auto;
+}
+
+@media (min-width: 701px) {
+  .notebook-article-sidebar {
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .notebook-article-sidebar .notebook-book-tabs {
+    flex-wrap: nowrap;
+  }
 }
 
 .notebook-article-list {
   display: block;
-  padding: 10px 24px 32px 40px;
+  padding: 4px 0 32px 0;
   min-height: 200px;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
-  .notebook-article-columns {
-    grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
-    gap: 8px 16px;
+  .notebook-article-page.book-page {
+    padding: 28px 24px 32px 20px;
   }
 
   .notebook-article-list {
-    padding: 8px 16px 28px 28px;
+    padding: 4px 0 28px 0;
   }
 }
 
 @media (max-width: 700px) {
+  /* 文章页仅此 main 使用：勿 hidden，否则丝带 margin-left:-16px 被裁，无法贴左 */
   .notebook-app {
     border-radius: 18px;
-    overflow: hidden;
+    overflow: visible;
   }
 
+  /* 小屏单列：minmax(0,1fr) 避免 grid 子项 min-width:auto 撑破宽度、右侧裁字 */
   .notebook-article-columns {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px 0;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-top: 50px;
+  }
+
+  .notebook-article-columns > .notebook-article-sidebar,
+  .notebook-article-columns > .notebook-article-list {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .notebook-article-sidebar {
-    position: static;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
+    position: sticky;
+    top: 8px;
+    z-index: 4;
+    align-self: stretch;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    max-height: none;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .notebook-article-page .notebook-back-ribbon {
+    top: 18px;
+  }
+
+  /* 小屏栏目：与读经分段槽同色；栅格 3 列自动换行（如 5 项为 3+2 两行）；须覆盖宽屏 .notebook-book-tabs 的 column */
+  .notebook-article-sidebar .notebook-category-vertical {
+    flex: 0 0 auto;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    width: calc(100% - 32px);
+    max-width: calc(100% - 32px);
+    min-width: 0;
+    margin-left: 16px;
+    margin-right: 16px;
+    border-radius: var(--ui-seg-track-radius);
+    padding: var(--ui-seg-track-pad-y) var(--ui-seg-track-pad-x);
+    background: var(--ui-seg-track-bg);
+    box-sizing: border-box;
+  }
+
+  /* 宽度不够时自动换行：默认 3 列，5 个标签为 3+2 两行 */
+  .notebook-article-sidebar .notebook-book-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--ui-seg-gap);
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    min-height: auto;
+  }
+
+  #notebookBooks.notebook-book-tabs[role="tablist"] {
+    margin: 0;
+    padding: 0;
+    padding-inline: 0;
+    -webkit-padding-start: 0;
+    -moz-padding-start: 0;
+  }
+
+  /* 左右与安全区留白，避免子级 grid 撑出裁切 */
+  .notebook-article-page.book-page {
+    padding: 18px max(14px, env(safe-area-inset-right, 0px)) 22px max(14px, env(safe-area-inset-left, 0px));
+    min-width: 0;
   }
 
   .notebook-back-ribbon {
-    align-self: flex-start;
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: min(100%, 280px);
+    margin: 0;
+    max-width: 100%;
+    font-size: calc(14px * var(--font-scale));
+    min-height: 40px;
+    padding: 9px 18px 9px 12px;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%);
+    filter: none;
+    box-shadow: 0 2px 10px rgba(52, 40, 28, 0.22);
   }
 
-  .notebook-category-vertical {
-    flex: 1 1 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
+  .notebook-back-ribbon:hover,
+  .notebook-back-ribbon:active {
+    filter: none;
+    box-shadow: 0 3px 12px rgba(52, 40, 28, 0.28);
   }
 
-  .notebook-category-vertical .display-mode-btn {
-    flex: 1 1 calc(50% - 4px);
-    min-width: 7em;
+  .notebook-article-sidebar .notebook-category-vertical .display-mode-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
+    width: 100%;
+    min-width: 0;
+    min-height: var(--ui-seg-btn-height);
+    height: auto;
+    border: 0;
+    border-radius: var(--ui-seg-btn-radius);
+    background: transparent;
+    color: var(--ui-seg-label);
+    font-size: calc(14px * var(--font-scale));
+    font-weight: 600;
+    line-height: 1.25;
+    padding: 6px 6px;
+    cursor: pointer;
     text-align: center;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    transition:
+      background 0.12s ease,
+      color 0.12s ease,
+      box-shadow 0.12s ease;
   }
 
+  .notebook-article-sidebar .notebook-category-vertical .display-mode-btn:hover:not(.active) {
+    color: var(--ui-seg-label-hover);
+    background: var(--ui-seg-hover-fill);
+  }
+
+  .notebook-article-sidebar .notebook-category-vertical .display-mode-btn.active {
+    background: var(--ui-seg-pill-bg);
+    color: var(--ui-seg-label-active);
+    font-weight: 800;
+    font-size: calc(14px * var(--font-scale));
+    box-shadow: var(--ui-seg-pill-shadow);
+  }
+
+  /* 与 .notebook-category-vertical 左右 gutter 一致 */
   .notebook-article-list {
-    padding: 12px 10px 24px 16px;
-  }
-
-  .notebook-note-card {
-    padding-left: 4px;
-    padding-right: 6px;
+    padding: 0 16px 24px 16px;
+    min-width: 0;
+    box-sizing: border-box;
+    max-width: 100%;
   }
 }
 
@@ -1204,6 +1406,24 @@ button.member-hub-link:hover {
   color: var(--muted);
   font-weight: 700;
   margin-left: 8px;
+}
+
+@media (max-width: 700px) {
+  #notebookNotes.notebook-article-list .notebook-note-card {
+    padding: 14px 0 14px 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  #notebookNotes .notebook-note-content {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    line-break: anywhere;
+  }
 }
 
 .book-page:first-child::before {
@@ -1342,10 +1562,10 @@ button.toolbar-trigger:hover,
   display: inline-flex;
   align-items: center;
   height: 38px;
-  border-radius: 16px;
-  padding: 4px 3px;
-  background: rgba(139, 111, 71, 0.16);
-  gap: 2px;
+  border-radius: var(--ui-seg-track-radius);
+  padding: var(--ui-seg-track-pad-y) var(--ui-seg-track-pad-x);
+  background: var(--ui-seg-track-bg);
+  gap: var(--ui-seg-gap);
   overflow: hidden;
 }
 
@@ -1355,13 +1575,13 @@ button.toolbar-trigger:hover,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 30px;
+  height: var(--ui-seg-btn-height);
   min-width: 0;
   flex: 1 1 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--ui-seg-btn-radius);
   background: transparent;
-  color: rgba(127, 116, 104, 0.6);
+  color: var(--ui-seg-label);
   font-size: calc(14px * var(--font-scale));
   font-weight: 600;
   line-height: 1;
@@ -1369,13 +1589,22 @@ button.toolbar-trigger:hover,
   cursor: pointer;
   white-space: nowrap;
   gap: 0;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.display-mode-switch .display-mode-btn:hover:not(.active) {
+  color: var(--ui-seg-label-hover);
+  background: var(--ui-seg-hover-fill);
 }
 
 .display-mode-switch .display-mode-btn.active {
-  background: #f8f4ec;
-  color: #6f6355;
+  background: var(--ui-seg-pill-bg);
+  color: var(--ui-seg-label-active);
   font-weight: 800;
-  box-shadow: 0 1px 2px rgba(76, 62, 42, 0.2);
+  box-shadow: var(--ui-seg-pill-shadow);
 }
 
 .toolbar-trigger-toggle {
@@ -3162,6 +3391,11 @@ body.question-only-mode .plain-list li {
 
 /* 极窄屏（约 400px 及以下）：避免顶栏四格挤爆、宽按钮 min-width 溢出 */
 @media (max-width: 400px) {
+  :root {
+    --ui-seg-track-pad-y: 3px;
+    --ui-seg-track-pad-x: 2px;
+  }
+
   .page-shell {
     padding: 8px 5px 12px;
   }
@@ -3172,6 +3406,10 @@ body.question-only-mode .plain-list li {
 
   .book-page {
     padding: 14px 10px 18px;
+  }
+
+  .notebook-article-page.book-page {
+    padding: 14px max(12px, env(safe-area-inset-right, 0px)) 18px max(12px, env(safe-area-inset-left, 0px));
   }
 
   .toolbar-trigger-wide {
@@ -3204,7 +3442,6 @@ body.question-only-mode .plain-list li {
     width: 100%;
     max-width: 100%;
     height: 36px;
-    padding: 3px 2px;
   }
 
   .display-mode-switch .display-mode-btn {
@@ -3240,14 +3477,47 @@ body.question-only-mode .plain-list li {
     border-radius: 16px;
   }
 
-  .notebook-article-list {
-    padding: 10px 8px 20px 12px;
+  .notebook-back-ribbon {
+    margin: 0;
+    max-width: 100%;
   }
 
-  .notebook-category-vertical .display-mode-btn {
-    min-width: 0;
+  .notebook-article-page .notebook-back-ribbon {
+    top: 14px;
+  }
+
+  .notebook-article-columns {
+    padding-top: 46px;
+  }
+
+  .notebook-article-list {
+    padding: 0 12px 20px 12px;
+  }
+
+  .notebook-article-sidebar .notebook-category-vertical {
+    margin-left: 12px;
+    margin-right: 12px;
+    width: calc(100% - 24px);
+    max-width: calc(100% - 24px);
+    padding: var(--ui-seg-track-pad-y) var(--ui-seg-track-pad-x);
+    border-radius: 14px;
+  }
+
+  .notebook-article-sidebar .notebook-book-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-height: auto;
+    gap: var(--ui-seg-gap);
+  }
+
+  .notebook-article-sidebar .notebook-category-vertical .display-mode-btn {
+    min-height: 28px;
     font-size: calc(12px * var(--font-scale));
-    padding: 6px 8px;
+    padding: 5px 4px;
+    border-radius: 11px;
+  }
+
+  .notebook-article-sidebar .notebook-category-vertical .display-mode-btn.active {
+    font-size: calc(12px * var(--font-scale));
   }
 }
 
