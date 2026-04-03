@@ -47,8 +47,12 @@
               <a class="secondary-btn" href="/">返回首页</a>
             </div>
             <p id="dlHint404" class="download-missing" hidden>
-              当前服务器上尚未提供安装包文件。若你是访客，请稍后再试或先用网页版；若你是管理员，请在本地执行
-              <code>npm run apk:stage</code> 并将 <code>downloads/</code> 目录部署到网站。
+              当前服务器上尚未提供安装包文件。若你是访客，请稍后再试或先用网页版；若你是管理员：在本地执行
+              <code>npm run apk:stage</code> 后，将生成的
+              <code>downloads/askbible-release.apk</code>（及可选的
+              <code>version.json</code>）放到站点可访问位置。使用 Render 持久盘时，请把 APK 放到挂载目录下的
+              <code>downloads/askbible-release.apk</code>（例如
+              <code>/var/data/downloads/</code>），无需提交 Git。
             </p>
 
             <section class="download-steps">

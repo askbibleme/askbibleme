@@ -32,6 +32,36 @@ app.post("/api", (req, res) => {
   });
 });
 
+/* APK 直链：*.apk 不进 Git；生产可把文件放到 DATA_ROOT/downloads/（Render 持久盘 /var/data） */
+function resolvePublicApkPath() {
+  const name = "askbible-release.apk";
+  const candidates = [
+    path.join(__dirname, "downloads", name),
+    path.join(DATA_ROOT, "downloads", name),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+function sendPublicApk(req, res, next) {
+  const p = resolvePublicApkPath();
+  if (!p) return next();
+  res.setHeader("Content-Type", "application/vnd.android.package-archive");
+  res.setHeader("Content-Disposition", 'attachment; filename="AskBible.apk"');
+  res.sendFile(path.resolve(p), (err) => {
+    if (err) next(err);
+  });
+}
+
+app.get("/downloads/askbible-release.apk", sendPublicApk);
+app.head("/downloads/askbible-release.apk", sendPublicApk);
+
 app.use(express.static(__dirname));
 
 const ADMIN_DIR = path.join(DATA_ROOT, "admin_data");
