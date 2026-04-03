@@ -110,8 +110,6 @@ const adminState = {
   lastJobsSnapshotKey: "",
   publishedOverview: null,
   lastPublishedBulkResult: null,
-  lastPublishedAutoMissingResult: null,
-  lastPublishedPanelKind: "bulk",
   lastPublishedChanges: loadLastPublishedChanges(),
   publishHistory: loadPublishHistory(),
   scriptureVersions: [],
@@ -129,73 +127,20 @@ function safeJsonParse(raw, fallback) {
   }
 }
 
-/** fetch 后解析 JSON；网关返回 HTML（502 等）时不会抛错，便于提示用户 */
-async function readJsonResponse(res) {
-  const text = await res.text();
-  const trimmed = String(text || "").trim();
-  if (!trimmed) {
-    return {
-      status: res.status,
-      ok: res.ok,
-      data: null,
-      parseError: true,
-      raw: "",
-    };
-  }
-  try {
-    return {
-      status: res.status,
-      ok: res.ok,
-      data: JSON.parse(text),
-      parseError: false,
-      raw: text,
-    };
-  } catch {
-    return {
-      status: res.status,
-      ok: res.ok,
-      data: null,
-      parseError: true,
-      raw: text,
-      bodySnippet: text.slice(0, 200),
-    };
-  }
-}
-
 function loadPublishHistory() {
   const parsed = safeJsonParse(localStorage.getItem(PUBLISH_HISTORY_KEY), []);
   if (!Array.isArray(parsed)) return [];
   return parsed
-    .map((x) => {
-      const actionType =
-        x?.actionType === "auto_republish_missing"
-          ? "auto_republish_missing"
-          : "bulk";
-      const base = {
-        at: String(x?.at || ""),
-        actionType,
-        mode: String(x?.mode || "all"),
-        dryRun: x?.dryRun === true,
-        onlyChanged: x?.onlyChanged !== false,
-        matchedPairs: Number(x?.matchedPairs || 0),
-      };
-      if (actionType === "auto_republish_missing") {
-        return {
-          ...base,
-          totalMissingBefore: Number(x?.totalMissingBefore || 0),
-          totalRepublished: Number(x?.totalRepublished || 0),
-          totalSkipped: Number(x?.totalSkipped || 0),
-          totalFailed: Number(x?.totalFailed || 0),
-          totalNoSource: Number(x?.totalNoSource || 0),
-        };
-      }
-      return {
-        ...base,
-        totalPublishedCount: Number(x?.totalPublishedCount || 0),
-        totalSkippedCount: Number(x?.totalSkippedCount || 0),
-        changeCount: Number(x?.changeCount || 0),
-      };
-    })
+    .map((x) => ({
+      at: String(x?.at || ""),
+      mode: String(x?.mode || "all"),
+      dryRun: x?.dryRun === true,
+      onlyChanged: x?.onlyChanged !== false,
+      matchedPairs: Number(x?.matchedPairs || 0),
+      totalPublishedCount: Number(x?.totalPublishedCount || 0),
+      totalSkippedCount: Number(x?.totalSkippedCount || 0),
+      changeCount: Number(x?.changeCount || 0),
+    }))
     .filter((x) => x.at);
 }
 
@@ -4683,13 +4628,6 @@ function ensureJobPanelExists() {
       </div>
     </div>
 
-    <div class="result-box" style="margin-bottom:12px;">
-      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
-        <input id="jobSkipPublishOverwriteCheck" type="checkbox" style="margin-top:3px;" />
-        <span>批量任务在勾选「自动合并发布」时：若该章在读者端<strong>已有发布文件</strong>且与本次生成<strong>内容不一致</strong>，则<strong>跳过覆盖</strong>（仍会写入 build，便于之后手动合并）。与线上一致时会自动跳过发布。</span>
-      </label>
-    </div>
-
     <div class="modal-actions">
       <button id="createBookJobBtn" class="secondary-btn" type="button">生成整卷 / 范围</button>
       <button id="createOldJobBtn" class="secondary-btn" type="button">生成旧约</button>
@@ -4966,8 +4904,6 @@ function collectJobPayload(scope) {
     lang,
     bookId,
     autoPublish: true,
-    skipPublishOverwrite:
-      document.getElementById("jobSkipPublishOverwriteCheck")?.checked === true,
   };
 
   if (scope === "book" && startChapter > 0 && endChapter > 0) {
@@ -5050,20 +4986,11 @@ async function refreshJobsList(forceRefreshFront = false) {
   if (!box) return;
 
   const res = await fetch("/api/admin/jobs", { cache: "no-store" });
-  const parsed = await readJsonResponse(res);
-
-  if (parsed.parseError) {
-    box.innerHTML = `<div class="empty-state">读取任务失败：服务端返回非 JSON（HTTP ${escapeHtml(
-      String(parsed.status)
-    )}），多为网关超时或服务暂时不可用。</div>`;
-    return;
-  }
-
-  const data = parsed.data;
+  const data = await res.json();
 
   if (!res.ok) {
     box.innerHTML = `<div class="empty-state">读取任务失败：${escapeHtml(
-      data?.error || "未知错误"
+      data.error || "未知错误"
     )}</div>`;
     return;
   }
@@ -5312,151 +5239,22 @@ function renderJobsList(jobs) {
   });
 }
 
-function countReplacesExistingInMergeDetails(details) {
-  let n = 0;
-  for (const d of details || []) {
-    for (const t of d.changedTargets || []) {
-      if (t.replacesExisting) n += 1;
-    }
-  }
-  return n;
-}
-
-/**
- * @returns {Promise<'skip'|'all'|'cancel'>}
- */
-function showMergePublishChoiceDialog({
-  introParagraphs,
-  pub,
-  skipSame,
-  overwrite,
-}) {
-  return new Promise((resolve) => {
-    const mask = document.createElement("div");
-    mask.className = "modal-mask";
-    mask.style.display = "flex";
-    mask.style.alignItems = "center";
-    mask.style.justifyContent = "center";
-    mask.style.zIndex = "30000";
-    mask.setAttribute("role", "dialog");
-    mask.setAttribute("aria-modal", "true");
-
-    const paras = (introParagraphs || [])
-      .map(
-        (line) =>
-          `<p class="merge-publish-dialog-p">${escapeHtml(line)}</p>`
-      )
-      .join("");
-    const summary = `<p class="merge-publish-dialog-p">${escapeHtml(
-      `预检：将写入读者端 ${pub} 章；跳过（与线上一致）${skipSame} 项。`
-    )}</p>`;
-    const warn =
-      overwrite > 0
-        ? `<p class="merge-publish-dialog-warn">${escapeHtml(
-            `其中 ${overwrite} 章将覆盖读者端已有内容（与 build 不一致）。`
-          )}</p>`
-        : "";
-    const hasConflict = overwrite > 0;
-
-    const actions = hasConflict
-      ? `
-        <div class="modal-actions merge-publish-dialog-actions">
-          <button type="button" class="primary-btn" data-merge-choice="skip">
-            仅发布不冲突章节（跳过 ${overwrite} 章覆盖）
-          </button>
-          <button type="button" class="secondary-btn" data-merge-choice="all">
-            全部覆盖并发布
-          </button>
-          <button type="button" class="secondary-btn" data-merge-choice="cancel">
-            取消
-          </button>
-        </div>`
-      : `
-        <div class="modal-actions merge-publish-dialog-actions">
-          <button type="button" class="primary-btn" data-merge-choice="all">
-            执行合并发布
-          </button>
-          <button type="button" class="secondary-btn" data-merge-choice="cancel">
-            取消
-          </button>
-        </div>`;
-
-    mask.innerHTML = `
-      <div class="modal-card modal-card-sm merge-publish-dialog-card">
-        <div class="modal-head">确认合并发布</div>
-        <div class="modal-body merge-publish-dialog-body">
-          ${paras}
-          ${summary}
-          ${warn}
-          <p class="merge-publish-dialog-hint">请选择操作：</p>
-        </div>
-        ${actions}
-      </div>
-    `;
-
-    function cleanup(choice) {
-      mask.remove();
-      resolve(choice);
-    }
-
-    mask.addEventListener("click", (e) => {
-      if (e.target === mask) cleanup("cancel");
-    });
-    mask.querySelectorAll("[data-merge-choice]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        cleanup(btn.getAttribute("data-merge-choice") || "cancel");
-      });
-    });
-
-    document.body.appendChild(mask);
-  });
-}
-
 async function mergePublishJobBuild(jobId) {
   const statusEl = document.getElementById("jobCreateStatus");
-  if (statusEl) statusEl.textContent = `正在比对 build 与已发布：${jobId}…`;
-  const dryRes = await fetch(
-    `/api/admin/job/${encodeURIComponent(jobId)}/merge-publish-build`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ onlyChanged: true, dryRun: true }),
-    }
-  );
-  const dry = await dryRes.json().catch(() => ({}));
-  if (!dryRes.ok) {
-    const msg = dry.error || "预检失败";
-    if (statusEl) statusEl.textContent = msg;
-    alert(msg);
+  if (
+    !confirm(
+      "将该任务已生成并保存在 build 目录中的章节，合并发布到读者端「已发布」内容？\n（仅发布尚未发布或与线上不一致的章节）"
+    )
+  ) {
     return;
   }
-  const pub = Number(dry.totalPublishedCount || 0);
-  const skip = Number(dry.totalSkippedCount || 0);
-  const overwrite = countReplacesExistingInMergeDetails(dry.details);
-  if (pub === 0 && overwrite === 0) {
-    if (statusEl) statusEl.textContent = "无可发布内容（与线上一致或 build 中无章节）。";
-    return;
-  }
-  const choice = await showMergePublishChoiceDialog({
-    introParagraphs: [
-      "该任务将把 build 中已生成的章节合并到读者端「已发布」内容。",
-    ],
-    pub,
-    skipSame: skip,
-    overwrite,
-  });
-  if (choice === "cancel") {
-    if (statusEl) statusEl.textContent = "已取消合并发布。";
-    return;
-  }
-  const skipReplacesExisting = choice === "skip";
   if (statusEl) statusEl.textContent = `正在合并发布：${jobId}…`;
   const res = await fetch(
     `/api/admin/job/${encodeURIComponent(jobId)}/merge-publish-build`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ onlyChanged: true, skipReplacesExisting }),
+      body: JSON.stringify({ onlyChanged: true }),
     }
   );
   const data = await res.json().catch(() => ({}));
@@ -5466,68 +5264,28 @@ async function mergePublishJobBuild(jobId) {
     alert(msg);
     return;
   }
-  const pubDone = Number(data.totalPublishedCount || 0);
-  const skipDone = Number(data.totalSkippedCount || 0);
-  const skipReplace = Number(data.totalSkippedWouldReplaceCount || 0);
+  const pub = Number(data.totalPublishedCount || 0);
+  const skip = Number(data.totalSkippedCount || 0);
   if (statusEl) {
-    let line = `合并发布完成：${jobId}｜新发布或更新 ${pubDone} 章｜跳过（已与线上一致）${skipDone} 项`;
-    if (skipReplace > 0) line += `｜跳过（避免覆盖）${skipReplace} 章`;
-    statusEl.textContent = line;
+    statusEl.textContent = `合并发布完成：${jobId}｜新发布或更新 ${pub} 章｜跳过（已与线上一致）${skip} 项`;
   }
   await refreshJobsList(true);
 }
 
 async function mergePublishAllPartialBuildsFromUI() {
   const statusEl = document.getElementById("jobCreateStatus");
-  if (statusEl) statusEl.textContent = "正在预检批量合并发布…";
-  const dryRes = await fetch("/api/admin/jobs/merge-publish-partial-builds", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ onlyChanged: true, dryRun: true }),
-  });
-  const dry = await dryRes.json().catch(() => ({}));
-  if (!dryRes.ok) {
-    const msg = dry.error || "预检失败";
-    if (statusEl) statusEl.textContent = msg;
-    alert(msg);
+  if (
+    !confirm(
+      "将下列任务的 build 产物依次合并发布：\n· 已取消且已生成过章节（进度 > 0）\n· 或已完成但未勾选「自动合并发布」\n按创建时间从旧到新处理；同一章多任务时以后处理的为准。\n是否继续？"
+    )
+  ) {
     return;
   }
-  const n = Number(dry.jobCount || 0);
-  const pub = Number(dry.totalPublishedCount || 0);
-  const skip = Number(dry.totalSkippedCount || 0);
-  let overwrite = 0;
-  for (const r of dry.results || []) {
-    overwrite += countReplacesExistingInMergeDetails(r.details);
-  }
-  if (n === 0) {
-    if (statusEl) statusEl.textContent = "当前没有可合并的任务。";
-    return;
-  }
-  if (pub === 0 && overwrite === 0) {
-    if (statusEl) statusEl.textContent = "无可发布内容（与线上一致）。";
-    return;
-  }
-  const choice = await showMergePublishChoiceDialog({
-    introParagraphs: [
-      "将按创建时间从旧到新合并下列任务的 build：",
-      "· 已取消且已生成过章节（进度 > 0）",
-      "· 或已完成但未勾选「自动合并发布」",
-      `同一章多任务时以后处理的为准。涉及 ${n} 个任务。`,
-    ],
-    pub,
-    skipSame: skip,
-    overwrite,
-  });
-  if (choice === "cancel") {
-    if (statusEl) statusEl.textContent = "已取消批量合并发布。";
-    return;
-  }
-  const skipReplacesExisting = choice === "skip";
   if (statusEl) statusEl.textContent = "正在批量合并发布…";
   const res = await fetch("/api/admin/jobs/merge-publish-partial-builds", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ onlyChanged: true, skipReplacesExisting }),
+    body: JSON.stringify({ onlyChanged: true }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -5536,14 +5294,11 @@ async function mergePublishAllPartialBuildsFromUI() {
     alert(msg);
     return;
   }
-  const nDone = Number(data.jobCount || 0);
-  const pubDone = Number(data.totalPublishedCount || 0);
-  const skipDone = Number(data.totalSkippedCount || 0);
-  const skipReplace = Number(data.totalSkippedWouldReplaceCount || 0);
+  const n = Number(data.jobCount || 0);
+  const pub = Number(data.totalPublishedCount || 0);
+  const skip = Number(data.totalSkippedCount || 0);
   if (statusEl) {
-    let line = `批量合并完成：处理 ${nDone} 个任务｜新发布或更新 ${pubDone} 章｜跳过（已与线上一致）${skipDone} 项`;
-    if (skipReplace > 0) line += `｜跳过（避免覆盖）${skipReplace} 章`;
-    statusEl.textContent = line;
+    statusEl.textContent = `批量合并完成：处理 ${n} 个任务｜新发布或更新 ${pub} 章｜跳过 ${skip} 项`;
   }
   await refreshJobsList(true);
 }
@@ -5739,7 +5494,6 @@ async function runPublishedBulkAction(mode, dryRun = false) {
 
   const data = await res.json();
   adminState.lastPublishedBulkResult = data;
-  adminState.lastPublishedPanelKind = "bulk";
   adminState.lastPublishedChanges = getFlattenPublishedChanges(data);
   saveLastPublishedChanges();
 
@@ -5815,25 +5569,13 @@ async function runPublishedAutoRepublishMissingBulk(mode, dryRun = false) {
       dryRun,
     }),
   });
-  const parsed = await readJsonResponse(res);
-  if (parsed.parseError) {
-    if (statusBox) {
-      statusBox.textContent = `查漏补发失败：服务端返回异常（HTTP ${parsed.status}）。若为 502/504，多为单次处理时间过长导致网关超时；已优化服务端批量性能，若仍超时请改用「按版本+语言」缩小范围或联系运维调大 proxy_read_timeout。`;
-    }
-    return;
-  }
-  const data = parsed.data;
+  const data = await res.json();
   if (!res.ok) {
     if (statusBox) {
-      statusBox.textContent = `查漏补发失败：${data?.error || "未知错误"}`;
+      statusBox.textContent = `查漏补发失败：${data.error || "未知错误"}`;
     }
     return;
   }
-  adminState.lastPublishedAutoMissingResult = data;
-  adminState.lastPublishedPanelKind = "auto_missing";
-  renderLastPublishedAction();
-  recordAutoRepublishMissingHistory(data);
-  renderPublishHistory();
   if (statusBox) {
     const changedEntries = (data.details || [])
       .flatMap((item) =>
@@ -5857,11 +5599,6 @@ async function runPublishedAutoRepublishMissingBulk(mode, dryRun = false) {
       <div><strong>失败：</strong>${escapeHtml(String(data.totalFailed || 0))}（无来源 ${escapeHtml(
       String(data.totalNoSource || 0)
     )}）</div>
-      ${
-        Number(data.totalNoSource || 0) > 0
-          ? `<div style="margin-top:8px;opacity:.95;">无来源表示在 <code>content_builds</code> 下找不到对应章节 JSON（含未完成任务或从未生成的卷章）。查漏补发只会把<strong>已有构建产物</strong>写入已发布目录，不会自动生成内容；请先对相关任务跑完生成或补建。</div>`
-          : ""
-      }
       <div style="margin-top:8px;"><strong>补发清单（最多 120 条）：</strong></div>
       <div style="margin-top:6px; line-height:1.6;">
         ${
@@ -5978,24 +5715,6 @@ function renderPublishFeatureInfo() {
 function renderLastPublishedAction() {
   const box = document.getElementById("publishedLastActionBox");
   if (!box) return;
-  if (adminState.lastPublishedPanelKind === "auto_missing") {
-    const d = adminState.lastPublishedAutoMissingResult;
-    if (!d || typeof d !== "object") {
-      box.textContent = "最近一次执行：尚无记录。";
-      return;
-    }
-    box.innerHTML = `
-    <div><strong>最近一次执行：</strong>${d.dryRun ? "查漏补发预览" : "一键自动查漏补发"}</div>
-    <div><strong>执行模式：</strong>${escapeHtml(String(d.mode || "all"))}</div>
-    <div><strong>仅发布改动：</strong>${d.onlyChanged !== false ? "是" : "否"}</div>
-    <div><strong>补发前缺失章节：</strong>${escapeHtml(String(d.totalMissingBefore || 0))}</div>
-    <div><strong>补发成功：</strong>${escapeHtml(String(d.totalRepublished || 0))}</div>
-    <div><strong>失败：</strong>${escapeHtml(String(d.totalFailed || 0))}（无来源 ${escapeHtml(
-      String(d.totalNoSource || 0)
-    )}）</div>
-  `;
-    return;
-  }
   const data = adminState.lastPublishedBulkResult;
   if (!data || !Array.isArray(data.details)) {
     box.textContent = "最近一次执行：尚无记录。";
@@ -6015,7 +5734,6 @@ function recordPublishedActionHistory(data) {
   if (!data || !Array.isArray(data.details)) return;
   const entry = {
     at: new Date().toISOString(),
-    actionType: "bulk",
     mode: String(data.mode || "all"),
     dryRun: data.dryRun === true,
     onlyChanged: data.onlyChanged !== false,
@@ -6023,25 +5741,6 @@ function recordPublishedActionHistory(data) {
     totalPublishedCount: Number(data.totalPublishedCount || 0),
     totalSkippedCount: Number(data.totalSkippedCount || 0),
     changeCount: getFlattenPublishedChanges(data).length,
-  };
-  adminState.publishHistory = [entry].concat(adminState.publishHistory || []).slice(0, 10);
-  savePublishHistory();
-}
-
-function recordAutoRepublishMissingHistory(data) {
-  if (!data || typeof data !== "object") return;
-  const entry = {
-    at: new Date().toISOString(),
-    actionType: "auto_republish_missing",
-    mode: String(data.mode || "all"),
-    dryRun: data.dryRun === true,
-    onlyChanged: data.onlyChanged !== false,
-    matchedPairs: Number(data.matchedPairs || 0),
-    totalMissingBefore: Number(data.totalMissingBefore || 0),
-    totalRepublished: Number(data.totalRepublished || 0),
-    totalSkipped: Number(data.totalSkipped || 0),
-    totalFailed: Number(data.totalFailed || 0),
-    totalNoSource: Number(data.totalNoSource || 0),
   };
   adminState.publishHistory = [entry].concat(adminState.publishHistory || []).slice(0, 10);
   savePublishHistory();
@@ -6056,34 +5755,21 @@ function renderPublishHistory() {
     return;
   }
   box.innerHTML = rows
-    .map((x, idx) => {
-      const isAuto = x.actionType === "auto_republish_missing";
-      const title = isAuto
-        ? `${x.dryRun ? "查漏预览" : "查漏补发"}`
-        : `${x.dryRun ? "增量预览" : "正式发布"}`;
-      const detail = isAuto
-        ? `缺失 ${escapeHtml(String(x.totalMissingBefore))}，补发 ${escapeHtml(
-            String(x.totalRepublished)
-          )}，跳过 ${escapeHtml(String(x.totalSkipped))}，失败 ${escapeHtml(
-            String(x.totalFailed)
-          )}（无来源 ${escapeHtml(String(x.totalNoSource))}），版本语言组 ${escapeHtml(
-            String(x.matchedPairs)
-          )}`
-        : `改动 ${escapeHtml(String(x.changeCount))}，发布 ${escapeHtml(
-            String(x.totalPublishedCount)
-          )}，跳过 ${escapeHtml(String(x.totalSkippedCount))}，版本语言组 ${escapeHtml(
-            String(x.matchedPairs)
-          )}`;
-      return `
+    .map(
+      (x, idx) => `
       <div style="padding:6px 0; ${idx ? "border-top:1px solid rgba(214,203,187,.56);" : ""}">
-        <div><strong>${idx + 1}.</strong> ${title}｜mode=${escapeHtml(String(x.mode))}｜仅改动=${
-          x.onlyChanged ? "是" : "否"
-        }</div>
-        <div style="opacity:.88;">${detail}</div>
+        <div><strong>${idx + 1}.</strong> ${x.dryRun ? "增量预览" : "正式发布"}｜mode=${escapeHtml(
+        String(x.mode)
+      )}｜仅改动=${x.onlyChanged ? "是" : "否"}</div>
+        <div style="opacity:.88;">改动 ${escapeHtml(String(x.changeCount))}，发布 ${escapeHtml(
+        String(x.totalPublishedCount)
+      )}，跳过 ${escapeHtml(String(x.totalSkippedCount))}，版本语言组 ${escapeHtml(
+        String(x.matchedPairs)
+      )}</div>
         <div style="opacity:.75;">${escapeHtml(new Date(x.at).toLocaleString())}</div>
       </div>
-    `;
-    })
+    `
+    )
     .join("");
 }
 
@@ -6827,17 +6513,11 @@ async function initDeployManagerTab() {
     const shadowHint = data.systemSecretShadowed
       ? "（后台仍存有一份密钥，当前实际使用环境变量）"
       : "";
-    const envBlock =
-      data.envOverridesSystem && data.source === "env"
-        ? `【重要】服务器上设置了 OPENAI_API_KEY，会覆盖后台保存的 Key。环境变量尾号：${
-            data.envMasked || "?"
-          }；后台文件尾号：${data.systemMasked || "无"}。若你只在后台换了 Key 仍 401，请到部署环境修改或删除 OPENAI_API_KEY 后重启。`
-        : "";
     systemOpenAiKeyStatusBox.textContent = `当前状态：${
       data.configured ? "已配置" : "未配置"
     }；生效来源：${sourceMap[data.source] || data.source || "未知"}${shadowHint}${
-      data.masked ? `；当前生效 Key 尾号：${data.masked}` : ""
-    }${envBlock ? `\n${envBlock}` : ""}`;
+      data.masked ? `；标识：${data.masked}` : ""
+    }`;
   }
 
   uploadBtn?.addEventListener("click", async () => {
@@ -7102,9 +6782,7 @@ async function initDeployManagerTab() {
     }
     if (systemOpenAiKeyInput) systemOpenAiKeyInput.value = "";
     if (systemOpenAiKeyStatusBox) {
-      systemOpenAiKeyStatusBox.textContent = `保存成功：${data.masked || "已配置"}${
-        data.warning ? `\n${data.warning}` : ""
-      }`;
+      systemOpenAiKeyStatusBox.textContent = `保存成功：${data.masked || "已配置"}`;
     }
     await loadSystemOpenAiKeyStatus();
   });

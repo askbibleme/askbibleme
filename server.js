@@ -3074,20 +3074,32 @@ function republishOneChapterFromBuild({
   };
 }
 
-function findLatestBuildForChapterFromFilesystem({ versionId, lang, bookId, chapter }) {
+function findLatestBuildForChapterFromFilesystem({
+  versionId,
+  lang,
+  bookId,
+  chapter,
+  buildSubdirNames = null,
+}) {
   if (!fs.existsSync(CONTENT_BUILDS_DIR)) return null;
   const relSuffix = path.join(versionId, lang, bookId, `${chapter}.json`);
   let best = null;
   let bestMtime = -1;
-  let entries;
-  try {
-    entries = fs.readdirSync(CONTENT_BUILDS_DIR, { withFileTypes: true });
-  } catch {
-    return null;
+  let dirNames;
+  if (Array.isArray(buildSubdirNames)) {
+    dirNames = buildSubdirNames;
+  } else {
+    try {
+      dirNames = fs
+        .readdirSync(CONTENT_BUILDS_DIR, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name);
+    } catch {
+      return null;
+    }
   }
-  for (const ent of entries) {
-    if (!ent.isDirectory()) continue;
-    const candidatePath = path.join(CONTENT_BUILDS_DIR, ent.name, relSuffix);
+  for (const name of dirNames) {
+    const candidatePath = path.join(CONTENT_BUILDS_DIR, name, relSuffix);
     if (!fs.existsSync(candidatePath)) continue;
     let st;
     try {
@@ -3100,7 +3112,7 @@ function findLatestBuildForChapterFromFilesystem({ versionId, lang, bookId, chap
       bestMtime = m;
       best = {
         jobId: "",
-        buildId: ent.name,
+        buildId: name,
         path: candidatePath,
       };
     }
@@ -3108,8 +3120,17 @@ function findLatestBuildForChapterFromFilesystem({ versionId, lang, bookId, chap
   return best;
 }
 
-function findLatestBuildForChapter({ versionId, lang, bookId, chapter }) {
-  const jobs = listAllJobsNewestFirst();
+function findLatestBuildForChapter({
+  versionId,
+  lang,
+  bookId,
+  chapter,
+  jobsSnapshot = null,
+  buildSubdirNames = null,
+}) {
+  const jobs = Array.isArray(jobsSnapshot)
+    ? jobsSnapshot
+    : listAllJobsNewestFirst();
 
   for (const job of jobs) {
     if (job.status !== "completed") continue;
@@ -3132,7 +3153,13 @@ function findLatestBuildForChapter({ versionId, lang, bookId, chapter }) {
     }
   }
 
-  return findLatestBuildForChapterFromFilesystem({ versionId, lang, bookId, chapter });
+  return findLatestBuildForChapterFromFilesystem({
+    versionId,
+    lang,
+    bookId,
+    chapter,
+    buildSubdirNames,
+  });
 }
 
 function autoRepublishChapter({
@@ -3142,8 +3169,17 @@ function autoRepublishChapter({
   chapter,
   onlyChanged = false,
   dryRun = false,
+  jobsSnapshot = null,
+  buildSubdirNames = null,
 }) {
-  const found = findLatestBuildForChapter({ versionId, lang, bookId, chapter });
+  const found = findLatestBuildForChapter({
+    versionId,
+    lang,
+    bookId,
+    chapter,
+    jobsSnapshot,
+    buildSubdirNames,
+  });
 
   if (!found) {
     throw new Error("未找到可用于自动补发的来源记录");
@@ -3287,6 +3323,19 @@ async function autoRepublishMissingBulkFromLatestBuilds({
   dryRun = false,
   runId = "",
 }) {
+  const jobsSnapshot = listAllJobsNewestFirst();
+  let buildSubdirNames = [];
+  if (fs.existsSync(CONTENT_BUILDS_DIR)) {
+    try {
+      buildSubdirNames = fs
+        .readdirSync(CONTENT_BUILDS_DIR, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name);
+    } catch {
+      buildSubdirNames = [];
+    }
+  }
+
   const pairs = listVersionLangPairsByMode({ mode, version, lang });
   const books = flattenBooks();
   const details = [];
@@ -3329,9 +3378,7 @@ async function autoRepublishMissingBulkFromLatestBuilds({
     for (const target of missingTargets) {
       if (runId) {
         assertPublishRunNotCancelled(runId);
-        if (pairDetail.attempted % 30 === 0) {
-          await nextTickAsync();
-        }
+        await nextTickAsync();
       }
       pairDetail.attempted += 1;
       totalAttempted += 1;
@@ -3343,6 +3390,8 @@ async function autoRepublishMissingBulkFromLatestBuilds({
           chapter: target.chapter,
           onlyChanged,
           dryRun,
+          jobsSnapshot,
+          buildSubdirNames,
         });
         if (result.skipped) {
           pairDetail.skippedCount += 1;
@@ -3565,9 +3614,8 @@ app.get("/api/study-content", (req, res) => {
     });
 
     if (!data) {
-      return res.status(404).json({
-        error: "未找到已发布内容",
-      });
+      /* 200 + 标记：避免浏览器对「未发布章节」报 404 控制台噪音（非错误状态） */
+      return res.json({ missing: true });
     }
 
     data = applyPresetQuestionCorrectionsToStudyPayload(
@@ -4769,7 +4817,8 @@ app.get("/api/admin/data-backups/download", (req, res) => {
 
 app.get("/api/admin/audit-log", (req, res) => {
   try {
-    const authed = requirePermission(req, res, "manage_roles");
+    /* 与「部署/数据」页其它接口一致，避免仅打开后台却因未登录报 401 */
+    const authed = requirePermission(req, res, "manage_deploy");
     if (!authed) return;
     const limit = Math.max(1, Math.min(300, toSafeNumber(req.query.limit, 80)));
     const db = loadAdminAudit();
@@ -5207,9 +5256,13 @@ app.get("/api/admin/system/openai-key/status", (req, res) => {
       configured: Boolean(effective),
       source: envKey ? "env" : secretKey ? "system" : "none",
       masked: effective ? `sk-***${effective.slice(-4)}` : "",
+      envMasked: envKey ? `sk-***${envKey.slice(-4)}` : "",
+      systemMasked: secretKey ? `sk-***${secretKey.slice(-4)}` : "",
       hasEnv: Boolean(envKey),
       hasSystemSecret: Boolean(secretKey),
       systemSecretShadowed: Boolean(envKey && secretKey),
+      /** 环境变量优先时，后台保存的 Key 不会参与请求 */
+      envOverridesSystem: Boolean(envKey),
     });
   } catch (error) {
     console.error(error);
@@ -5229,7 +5282,15 @@ app.post("/api/admin/system/openai-key/save", (req, res) => {
     openAiClient = null;
     openAiClientKey = "";
     appendAdminAudit(req, authed, "system_openai_key_save", { source: "system_secrets" });
-    res.json({ ok: true, configured: true, masked: `sk-***${apiKey.slice(-4)}` });
+    const envKey = safeText(process.env.OPENAI_API_KEY || "");
+    res.json({
+      ok: true,
+      configured: true,
+      masked: `sk-***${apiKey.slice(-4)}`,
+      warning: envKey
+        ? "已保存到后台，但当前进程仍优先使用环境变量 OPENAI_API_KEY（与后台可为不同 Key）。若测试生成仍 401，请到服务器/托管面板更新或删除 OPENAI_API_KEY 后重启服务。"
+        : "",
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "保存密钥失败" });

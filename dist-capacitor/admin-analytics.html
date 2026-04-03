@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>AskBible.me - 数据观察</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-topbar">
+        <div class="site-topbar-title">
+          <h1>
+            <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>
+          </h1>
+        </div>
+        <div class="site-topbar-actions">
+          <a href="/" class="site-topbar-link">读经</a>
+          <a href="/notebook.html" class="site-topbar-link">文章中心</a>
+        </div>
+      </header>
+
+      <main class="book-layout notebook-layout admin-analytics-app">
+        <div class="book-spread notebook-article-spread">
+          <section class="book-page admin-analytics-page">
+            <a class="notebook-back-ribbon" href="/">返回首页</a>
+            <p id="adminAnalyticsAuthBar" class="article-studio-auth-bar" hidden></p>
+            <div id="adminAnalyticsContent" class="admin-analytics-content" hidden>
+              <h2 class="article-studio-heading">数据观察</h2>
+              <p class="article-studio-lead admin-analytics-lead">
+                统计口径按 <strong>Asia/Shanghai</strong> 自然日汇总；在线时长由页面打开时的心跳估算（约每 45 秒累计一次），仅供参考。
+              </p>
+              <p class="admin-analytics-meta" id="adminAnalyticsMeta"></p>
+
+              <div class="admin-analytics-cards" id="adminAnalyticsCards"></div>
+
+              <h3 class="admin-analytics-subheading">最近 14 日</h3>
+              <div class="admin-analytics-table-wrap">
+                <table class="admin-analytics-table" id="adminAnalyticsTable">
+                  <thead>
+                    <tr>
+                      <th scope="col">日期</th>
+                      <th scope="col">独立访客</th>
+                      <th scope="col">页面浏览</th>
+                      <th scope="col">估算在线时长</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminAnalyticsTbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+      <footer class="site-footer">
+        <span class="site-footer-version">数据观察</span>
+        <span class="site-footer-copy">© 2026 AskBible.me</span>
+      </footer>
+    </div>
+
+    <script src="/analytics-collect.js"></script>
+    <script>
+      const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+
+      function getToken() {
+        return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+      }
+
+      function authHeaders() {
+        const t = getToken();
+        return t ? { Authorization: "Bearer " + t, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+      }
+
+      const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+
+      function normalizeApiOrigin(raw) {
+        let s = String(raw || "").trim();
+        if (!s) return "";
+        s = s.replace(/\/+$/, "");
+        if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+        return s.replace(/\/+$/, "");
+      }
+
+      function getApiBase() {
+        const m = document.querySelector('meta[name="askbible-api-base"]');
+        const fromMeta = m && String(m.getAttribute("content") || "").trim();
+        if (fromMeta) return normalizeApiOrigin(fromMeta);
+        if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+          return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+        }
+        try {
+          const proto = window.location.protocol || "";
+          if (proto === "capacitor:" || proto === "file:") {
+            return DEFAULT_PRODUCTION_ORIGIN;
+          }
+        } catch (_) {}
+        return "";
+      }
+
+      function apiUrl(path) {
+        const p = path.startsWith("/") ? path : "/" + path;
+        const base = getApiBase();
+        if (!base) return p;
+        try {
+          const origin = normalizeApiOrigin(base);
+          return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+        } catch {
+          return base.replace(/\/$/, "") + p;
+        }
+      }
+
+      function formatSeconds(sec) {
+        const n = Number(sec) || 0;
+        if (n < 60) return n + " 秒";
+        const m = Math.floor(n / 60);
+        if (m < 60) return m + " 分钟";
+        const h = Math.floor(m / 60);
+        const mm = m % 60;
+        return h + " 小时" + (mm ? " " + mm + " 分" : "");
+      }
+
+      function describeFetchFailure(status, rawText, data) {
+        const msg = String(data?.error || data?.message || "").trim();
+        if (msg) return msg;
+        const raw = String(rawText || "").replace(/\s+/g, " ").trim();
+        const snippet = raw.slice(0, 160);
+        if (status === 404) {
+          return (
+            "接口返回 404（未找到）。请确认服务器已部署含「数据观察」的最新 server.js；若前面有 nginx，请使用 location /api/ 与 proxy_pass …/api/; 保留完整子路径并 reload。"
+          );
+        }
+        if (status === 502 || status === 503 || status === 504) {
+          return "网关或服务暂时不可用（HTTP " + status + "）。请稍后重试或检查 Node 是否在运行。";
+        }
+        if (snippet && /^</.test(snippet)) {
+          return "服务器返回了网页而非 JSON（HTTP " + status + "）。多为未部署新接口或反代未指向 Node。";
+        }
+        if (snippet) return "HTTP " + status + "：" + snippet;
+        return "HTTP " + status + "，无法读取统计（响应非 JSON 或为空）。";
+      }
+
+      const authBar = document.getElementById("adminAnalyticsAuthBar");
+      const content = document.getElementById("adminAnalyticsContent");
+      const meta = document.getElementById("adminAnalyticsMeta");
+      const cards = document.getElementById("adminAnalyticsCards");
+      const tbody = document.getElementById("adminAnalyticsTbody");
+
+      async function load() {
+        const token = getToken();
+        if (!token) {
+          authBar.hidden = false;
+          authBar.innerHTML = '请先 <a href="/">返回首页</a> 登录；本页仅管理员可见。';
+          content.hidden = true;
+          return;
+        }
+        try {
+          const url = apiUrl("/api/admin/analytics/overview");
+          const res = await fetch(url, {
+            headers: { Authorization: "Bearer " + token },
+            cache: "no-store",
+          });
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (res.status === 401) {
+            authBar.hidden = false;
+            authBar.innerHTML = '请先 <a href="/">返回首页</a> 登录。';
+            content.hidden = true;
+            return;
+          }
+          if (res.status === 403) {
+            authBar.hidden = false;
+            authBar.innerHTML = "需要管理员权限。若你应为管理员，请联系千夫长账号在后台授权。";
+            content.hidden = true;
+            return;
+          }
+          if (!res.ok) {
+            throw new Error(describeFetchFailure(res.status, raw, data));
+          }
+          if (data && data.ok !== true && data.registeredUsers == null) {
+            throw new Error(
+              "响应异常（缺少 ok）。若从 App 打开，请确认 meta askbible-api-base 指向线上站点根地址。"
+            );
+          }
+          authBar.hidden = true;
+          content.hidden = false;
+          const t = data.today || {};
+          meta.textContent =
+            "服务器时间 " +
+            (data.serverTime || "") +
+            " · 启动 " +
+            (data.serverBootIso || "") +
+            " · 时区 " +
+            (data.timezone || "");
+          cards.innerHTML = [
+            { label: "今日日期", value: t.date || "—", sub: "" },
+            { label: "今日独立访客", value: String(t.uniqueVisitors ?? "—"), sub: "按访客 ID 去重" },
+            { label: "今日页面浏览", value: String(t.pageViews ?? "—"), sub: "含重复加载" },
+            { label: "今日估算在线总时长", value: formatSeconds(t.onlineSeconds), sub: "全站合计" },
+            { label: "注册用户总数", value: String(data.registeredUsers ?? "—"), sub: "用户表人数" },
+          ]
+            .map(
+              (x) =>
+                `<div class="admin-analytics-card"><div class="admin-analytics-card-label">${x.label}</div><div class="admin-analytics-card-value">${x.value}</div>${
+                  x.sub ? `<div class="admin-analytics-card-sub">${x.sub}</div>` : ""
+                }</div>`
+            )
+            .join("");
+          const rows = Array.isArray(data.daily) ? data.daily : [];
+          tbody.innerHTML = rows
+            .map(
+              (r) =>
+                `<tr><td>${r.date}</td><td>${r.uniqueVisitors}</td><td>${r.pageViews}</td><td>${formatSeconds(
+                  r.onlineSeconds
+                )}</td></tr>`
+            )
+            .join("");
+          if (!rows.length) {
+            tbody.innerHTML =
+              '<tr><td colspan="4" class="admin-analytics-empty">尚无汇总数据（部署采集脚本后，随访问会逐步累积）。</td></tr>';
+          }
+        } catch (e) {
+          authBar.hidden = false;
+          authBar.textContent = "";
+          const m = String(e?.message || "").trim() || "加载失败";
+          authBar.appendChild(document.createTextNode(m + " "));
+          const a = document.createElement("a");
+          a.href = "/";
+          a.textContent = "返回首页";
+          authBar.appendChild(a);
+          authBar.appendChild(document.createTextNode(" · 请求："));
+          const code = document.createElement("code");
+          code.className = "admin-analytics-code";
+          code.textContent = apiUrl("/api/admin/analytics/overview");
+          authBar.appendChild(code);
+          content.hidden = true;
+        }
+      }
+
+      void load();
+    </script>
+  </body>
+</html>
