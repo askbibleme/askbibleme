@@ -12,6 +12,7 @@ const dest = path.join(root, "dist-capacitor");
 
 const topFiles = [
   "index.html",
+  "download.html",
   "article-studio.html",
   "notebook.html",
   "blank-page.html",
@@ -38,6 +39,17 @@ for (const d of dirs) {
   if (!fs.existsSync(src)) continue;
   fs.cpSync(src, out, { recursive: true });
   console.log("copy", d + "/");
+}
+
+const dlSrc = path.join(root, "downloads");
+const dlDest = path.join(dest, "downloads");
+if (fs.existsSync(dlSrc)) {
+  fs.mkdirSync(dlDest, { recursive: true });
+  const vj = path.join(dlSrc, "version.json");
+  if (fs.existsSync(vj)) {
+    fs.copyFileSync(vj, path.join(dlDest, "version.json"));
+    console.log("copy downloads/version.json");
+  }
 }
 
 console.log("dist-capacitor 已更新（若仍 404，请部署含 /api/article-studio 的 server.js）。");

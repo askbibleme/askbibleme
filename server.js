@@ -2021,9 +2021,11 @@ async function mergePublishFromBuild({
   onlyChanged = false,
   dryRun = false,
   runId = "",
+  skipReplacesExisting = false,
 }) {
   let publishedCount = 0;
   let skippedCount = 0;
+  let skippedWouldReplaceCount = 0;
   const changedTargets = [];
   const skippedTargets = [];
   let stepCount = 0;
@@ -2052,6 +2054,18 @@ async function mergePublishFromBuild({
       skippedTargets.push({
         bookId: target.bookId,
         chapter: target.chapter,
+        reason: "unchanged",
+      });
+      continue;
+    }
+    const replacesExisting = Boolean(compare.publishedExists && isChanged);
+    if (skipReplacesExisting && replacesExisting) {
+      skippedCount += 1;
+      skippedWouldReplaceCount += 1;
+      skippedTargets.push({
+        bookId: target.bookId,
+        chapter: target.chapter,
+        reason: "would_replace",
       });
       continue;
     }
@@ -2059,7 +2073,7 @@ async function mergePublishFromBuild({
       bookId: target.bookId,
       chapter: target.chapter,
       changed: isChanged,
-      replacesExisting: Boolean(compare.publishedExists && isChanged),
+      replacesExisting,
     });
     if (!dryRun) {
       mergePublishOneChapter(compare.buildContent);
@@ -2072,9 +2086,11 @@ async function mergePublishFromBuild({
       published: loadPublished(),
       publishedCount,
       skippedCount,
+      skippedWouldReplaceCount,
       changedTargets,
       skippedTargets,
       dryRun: true,
+      skipReplacesExisting: Boolean(skipReplacesExisting),
     };
   }
 
@@ -2094,15 +2110,17 @@ async function mergePublishFromBuild({
     published,
     publishedCount,
     skippedCount,
+    skippedWouldReplaceCount,
     changedTargets,
     skippedTargets,
+    skipReplacesExisting: Boolean(skipReplacesExisting),
   };
 }
 
 /** 将某次批量任务已写入 content_builds 的章节合并进 content_published（用于取消/未完成且未自动发布） */
 async function mergePublishFromJobBuild(
   job,
-  { onlyChanged = true, dryRun = false } = {}
+  { onlyChanged = true, dryRun = false, skipReplacesExisting = false } = {}
 ) {
   if (!job || !isNonEmptyString(job.buildId)) {
     throw new Error("任务缺少 buildId");
@@ -2120,6 +2138,7 @@ async function mergePublishFromJobBuild(
   const details = [];
   let totalPublishedCount = 0;
   let totalSkippedCount = 0;
+  let totalSkippedWouldReplaceCount = 0;
   for (const pair of touchedPairs) {
     const [versionId, lang] = pair.split("__");
     if (!versionId || !lang) continue;
@@ -2130,14 +2149,17 @@ async function mergePublishFromJobBuild(
       targets: job.targets,
       onlyChanged,
       dryRun,
+      skipReplacesExisting,
     });
     totalPublishedCount += Number(result.publishedCount || 0);
     totalSkippedCount += Number(result.skippedCount || 0);
+    totalSkippedWouldReplaceCount += Number(result.skippedWouldReplaceCount || 0);
     details.push({
       versionId,
       lang,
       publishedCount: result.publishedCount,
       skippedCount: result.skippedCount,
+      skippedWouldReplaceCount: result.skippedWouldReplaceCount || 0,
       changedTargets: result.changedTargets || [],
       skippedTargets: result.skippedTargets || [],
     });
@@ -2147,9 +2169,11 @@ async function mergePublishFromJobBuild(
     buildId: job.buildId,
     totalPublishedCount,
     totalSkippedCount,
+    totalSkippedWouldReplaceCount,
     details,
     onlyChanged: Boolean(onlyChanged),
     dryRun: Boolean(dryRun),
+    skipReplacesExisting: Boolean(skipReplacesExisting),
   };
 }
 
@@ -2173,24 +2197,33 @@ function listJobsEligibleForPartialMergePublish() {
 async function mergePublishAllPartialJobBuilds({
   onlyChanged = true,
   dryRun = false,
+  skipReplacesExisting = false,
 } = {}) {
   const jobs = listJobsEligibleForPartialMergePublish();
   const results = [];
   let totalPublishedCount = 0;
   let totalSkippedCount = 0;
+  let totalSkippedWouldReplaceCount = 0;
   for (const job of jobs) {
-    const r = await mergePublishFromJobBuild(job, { onlyChanged, dryRun });
+    const r = await mergePublishFromJobBuild(job, {
+      onlyChanged,
+      dryRun,
+      skipReplacesExisting,
+    });
     totalPublishedCount += r.totalPublishedCount;
     totalSkippedCount += r.totalSkippedCount;
+    totalSkippedWouldReplaceCount += Number(r.totalSkippedWouldReplaceCount || 0);
     results.push(r);
   }
   return {
     jobCount: jobs.length,
     totalPublishedCount,
     totalSkippedCount,
+    totalSkippedWouldReplaceCount,
     results,
     onlyChanged: Boolean(onlyChanged),
     dryRun: Boolean(dryRun),
+    skipReplacesExisting: Boolean(skipReplacesExisting),
   };
 }
 
@@ -3106,6 +3139,7 @@ async function republishBulkFromLatestBuilds({
   onlyChanged = false,
   dryRun = false,
   runId = "",
+  skipReplacesExisting = false,
 }) {
   const jobs = listAllJobsNewestFirst();
   const completed = jobs.filter(
@@ -3158,6 +3192,7 @@ async function republishBulkFromLatestBuilds({
       onlyChanged,
       dryRun,
       runId,
+      skipReplacesExisting,
     });
 
     totalPublishedCount += Number(result?.publishedCount || 0);
@@ -5482,7 +5517,12 @@ app.post("/api/admin/job/:id/merge-publish-build", async (req, res) => {
     const body = req.body || {};
     const onlyChanged = body.onlyChanged !== false;
     const dryRun = body.dryRun === true;
-    const result = await mergePublishFromJobBuild(job, { onlyChanged, dryRun });
+    const skipReplacesExisting = body.skipReplacesExisting === true;
+    const result = await mergePublishFromJobBuild(job, {
+      onlyChanged,
+      dryRun,
+      skipReplacesExisting,
+    });
     if (!dryRun && result.totalPublishedCount > 0) {
       const prefixes = new Set();
       for (const t of job.targets || []) {
@@ -5497,6 +5537,7 @@ app.post("/api/admin/job/:id/merge-publish-build", async (req, res) => {
       buildId: job.buildId,
       totalPublishedCount: result.totalPublishedCount,
       dryRun,
+      skipReplacesExisting,
     });
     res.json({ ok: true, ...result });
   } catch (error) {
@@ -5512,9 +5553,11 @@ app.post("/api/admin/jobs/merge-publish-partial-builds", async (req, res) => {
     const body = req.body || {};
     const onlyChanged = body.onlyChanged !== false;
     const dryRun = body.dryRun === true;
+    const skipReplacesExisting = body.skipReplacesExisting === true;
     const result = await mergePublishAllPartialJobBuilds({
       onlyChanged,
       dryRun,
+      skipReplacesExisting,
     });
     if (!dryRun && result.totalPublishedCount > 0) {
       clearReadCacheByPrefix("study:");
@@ -5523,6 +5566,7 @@ app.post("/api/admin/jobs/merge-publish-partial-builds", async (req, res) => {
       jobCount: result.jobCount,
       totalPublishedCount: result.totalPublishedCount,
       dryRun,
+      skipReplacesExisting,
     });
     res.json({ ok: true, ...result });
   } catch (error) {
@@ -5534,24 +5578,26 @@ app.post("/api/admin/jobs/merge-publish-partial-builds", async (req, res) => {
 /* =========================================================
    手动合并发布
    ========================================================= */
-app.post("/api/admin/publish", (req, res) => {
+app.post("/api/admin/publish", async (req, res) => {
   try {
     const authed = requirePermission(req, res, "manage_publish");
     if (!authed) return;
-    const { buildId, version, lang, targets, onlyChanged, dryRun } = req.body || {};
+    const body = req.body || {};
+    const { buildId, version, lang, targets, onlyChanged, dryRun } = body;
     if (!buildId || !version || !lang || !Array.isArray(targets)) {
       return res.status(400).json({
         error: "缺少 buildId / version / lang / targets",
       });
     }
 
-    const result = mergePublishFromBuild({
+    const result = await mergePublishFromBuild({
       buildId,
       versionId: version,
       lang,
       targets,
       onlyChanged: onlyChanged !== false,
       dryRun: dryRun === true,
+      skipReplacesExisting: body.skipReplacesExisting === true,
     });
     if (dryRun !== true) {
       clearReadCacheByPrefix(`study:${String(version)}:${String(lang)}:`);
@@ -5678,7 +5724,8 @@ app.post("/api/admin/published/republish-bulk", async (req, res) => {
   try {
     const authed = requirePermission(req, res, "manage_publish");
     if (!authed) return;
-    const { mode, version, lang, onlyChanged, dryRun } = req.body || {};
+    const body = req.body || {};
+    const { mode, version, lang, onlyChanged, dryRun } = body;
     const safeMode = safeText(mode || "all");
     const allowedModes = new Set(["all", "version", "lang", "version_lang"]);
     if (!allowedModes.has(safeMode)) {
@@ -5707,6 +5754,7 @@ app.post("/api/admin/published/republish-bulk", async (req, res) => {
       onlyChanged: onlyChanged !== false,
       dryRun: dryRun === true,
       runId,
+      skipReplacesExisting: body.skipReplacesExisting === true,
     });
     if (dryRun !== true) {
       clearReadCacheByPrefix("study:");

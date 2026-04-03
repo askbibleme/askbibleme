@@ -5254,6 +5254,96 @@ function countReplacesExistingInMergeDetails(details) {
   return n;
 }
 
+/**
+ * @returns {Promise<'skip'|'all'|'cancel'>}
+ */
+function showMergePublishChoiceDialog({
+  introParagraphs,
+  pub,
+  skipSame,
+  overwrite,
+}) {
+  return new Promise((resolve) => {
+    const mask = document.createElement("div");
+    mask.className = "modal-mask";
+    mask.style.display = "flex";
+    mask.style.alignItems = "center";
+    mask.style.justifyContent = "center";
+    mask.style.zIndex = "30000";
+    mask.setAttribute("role", "dialog");
+    mask.setAttribute("aria-modal", "true");
+
+    const paras = (introParagraphs || [])
+      .map(
+        (line) =>
+          `<p class="merge-publish-dialog-p">${escapeHtml(line)}</p>`
+      )
+      .join("");
+    const summary = `<p class="merge-publish-dialog-p">${escapeHtml(
+      `预检：将写入读者端 ${pub} 章；跳过（与线上一致）${skipSame} 项。`
+    )}</p>`;
+    const warn =
+      overwrite > 0
+        ? `<p class="merge-publish-dialog-warn">${escapeHtml(
+            `其中 ${overwrite} 章将覆盖读者端已有内容（与 build 不一致）。`
+          )}</p>`
+        : "";
+    const hasConflict = overwrite > 0;
+
+    const actions = hasConflict
+      ? `
+        <div class="modal-actions merge-publish-dialog-actions">
+          <button type="button" class="primary-btn" data-merge-choice="skip">
+            仅发布不冲突章节（跳过 ${overwrite} 章覆盖）
+          </button>
+          <button type="button" class="secondary-btn" data-merge-choice="all">
+            全部覆盖并发布
+          </button>
+          <button type="button" class="secondary-btn" data-merge-choice="cancel">
+            取消
+          </button>
+        </div>`
+      : `
+        <div class="modal-actions merge-publish-dialog-actions">
+          <button type="button" class="primary-btn" data-merge-choice="all">
+            执行合并发布
+          </button>
+          <button type="button" class="secondary-btn" data-merge-choice="cancel">
+            取消
+          </button>
+        </div>`;
+
+    mask.innerHTML = `
+      <div class="modal-card modal-card-sm merge-publish-dialog-card">
+        <div class="modal-head">确认合并发布</div>
+        <div class="modal-body merge-publish-dialog-body">
+          ${paras}
+          ${summary}
+          ${warn}
+          <p class="merge-publish-dialog-hint">请选择操作：</p>
+        </div>
+        ${actions}
+      </div>
+    `;
+
+    function cleanup(choice) {
+      mask.remove();
+      resolve(choice);
+    }
+
+    mask.addEventListener("click", (e) => {
+      if (e.target === mask) cleanup("cancel");
+    });
+    mask.querySelectorAll("[data-merge-choice]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        cleanup(btn.getAttribute("data-merge-choice") || "cancel");
+      });
+    });
+
+    document.body.appendChild(mask);
+  });
+}
+
 async function mergePublishJobBuild(jobId) {
   const statusEl = document.getElementById("jobCreateStatus");
   if (statusEl) statusEl.textContent = `正在比对 build 与已发布：${jobId}…`;
@@ -5275,22 +5365,30 @@ async function mergePublishJobBuild(jobId) {
   const pub = Number(dry.totalPublishedCount || 0);
   const skip = Number(dry.totalSkippedCount || 0);
   const overwrite = countReplacesExistingInMergeDetails(dry.details);
-  let confirmMsg = `比对结果：将写入读者端 ${pub} 章，跳过（与线上一致）${skip} 项。`;
-  if (overwrite > 0) {
-    confirmMsg += `\n\n其中 ${overwrite} 章将覆盖读者端已有内容（与 build 不一致）。`;
+  if (pub === 0 && overwrite === 0) {
+    if (statusEl) statusEl.textContent = "无可发布内容（与线上一致或 build 中无章节）。";
+    return;
   }
-  confirmMsg += `\n\n是否执行合并发布？`;
-  if (!confirm(confirmMsg)) {
+  const choice = await showMergePublishChoiceDialog({
+    introParagraphs: [
+      "该任务将把 build 中已生成的章节合并到读者端「已发布」内容。",
+    ],
+    pub,
+    skipSame: skip,
+    overwrite,
+  });
+  if (choice === "cancel") {
     if (statusEl) statusEl.textContent = "已取消合并发布。";
     return;
   }
+  const skipReplacesExisting = choice === "skip";
   if (statusEl) statusEl.textContent = `正在合并发布：${jobId}…`;
   const res = await fetch(
     `/api/admin/job/${encodeURIComponent(jobId)}/merge-publish-build`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ onlyChanged: true }),
+      body: JSON.stringify({ onlyChanged: true, skipReplacesExisting }),
     }
   );
   const data = await res.json().catch(() => ({}));
@@ -5302,8 +5400,11 @@ async function mergePublishJobBuild(jobId) {
   }
   const pubDone = Number(data.totalPublishedCount || 0);
   const skipDone = Number(data.totalSkippedCount || 0);
+  const skipReplace = Number(data.totalSkippedWouldReplaceCount || 0);
   if (statusEl) {
-    statusEl.textContent = `合并发布完成：${jobId}｜新发布或更新 ${pubDone} 章｜跳过（已与线上一致）${skipDone} 项`;
+    let line = `合并发布完成：${jobId}｜新发布或更新 ${pubDone} 章｜跳过（已与线上一致）${skipDone} 项`;
+    if (skipReplace > 0) line += `｜跳过（避免覆盖）${skipReplace} 章`;
+    statusEl.textContent = line;
   }
   await refreshJobsList(true);
 }
@@ -5330,25 +5431,35 @@ async function mergePublishAllPartialBuildsFromUI() {
   for (const r of dry.results || []) {
     overwrite += countReplacesExistingInMergeDetails(r.details);
   }
-  let confirmMsg =
-    "将按创建时间从旧到新合并下列任务的 build：\n" +
-    "· 已取消且已生成过章节（进度 > 0）\n" +
-    "· 或已完成但未勾选「自动合并发布」\n" +
-    "同一章多任务时以后处理的为准。\n\n" +
-    `预检：涉及 ${n} 个任务；将写入读者端 ${pub} 章；跳过（与线上一致）${skip} 项。`;
-  if (overwrite > 0) {
-    confirmMsg += `\n\n其中 ${overwrite} 章将覆盖读者端已有内容（与 build 不一致）。`;
+  if (n === 0) {
+    if (statusEl) statusEl.textContent = "当前没有可合并的任务。";
+    return;
   }
-  confirmMsg += `\n\n是否执行批量合并发布？`;
-  if (!confirm(confirmMsg)) {
+  if (pub === 0 && overwrite === 0) {
+    if (statusEl) statusEl.textContent = "无可发布内容（与线上一致）。";
+    return;
+  }
+  const choice = await showMergePublishChoiceDialog({
+    introParagraphs: [
+      "将按创建时间从旧到新合并下列任务的 build：",
+      "· 已取消且已生成过章节（进度 > 0）",
+      "· 或已完成但未勾选「自动合并发布」",
+      `同一章多任务时以后处理的为准。涉及 ${n} 个任务。`,
+    ],
+    pub,
+    skipSame: skip,
+    overwrite,
+  });
+  if (choice === "cancel") {
     if (statusEl) statusEl.textContent = "已取消批量合并发布。";
     return;
   }
+  const skipReplacesExisting = choice === "skip";
   if (statusEl) statusEl.textContent = "正在批量合并发布…";
   const res = await fetch("/api/admin/jobs/merge-publish-partial-builds", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ onlyChanged: true }),
+    body: JSON.stringify({ onlyChanged: true, skipReplacesExisting }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -5360,8 +5471,11 @@ async function mergePublishAllPartialBuildsFromUI() {
   const nDone = Number(data.jobCount || 0);
   const pubDone = Number(data.totalPublishedCount || 0);
   const skipDone = Number(data.totalSkippedCount || 0);
+  const skipReplace = Number(data.totalSkippedWouldReplaceCount || 0);
   if (statusEl) {
-    statusEl.textContent = `批量合并完成：处理 ${nDone} 个任务｜新发布或更新 ${pubDone} 章｜跳过 ${skipDone} 项`;
+    let line = `批量合并完成：处理 ${nDone} 个任务｜新发布或更新 ${pubDone} 章｜跳过（已与线上一致）${skipDone} 项`;
+    if (skipReplace > 0) line += `｜跳过（避免覆盖）${skipReplace} 章`;
+    statusEl.textContent = line;
   }
   await refreshJobsList(true);
 }

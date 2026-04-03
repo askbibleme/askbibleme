@@ -4311,3 +4311,135 @@ button.toolbar-trigger,
   }
 }
 
+.member-hub-inline-sep {
+  margin: 0 0.2em;
+  color: var(--muted-soft);
+  font-weight: 600;
+}
+
+/* 客户直链下载页（/download.html） */
+.download-brand-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.download-page {
+  padding: 1rem 1rem 2.5rem;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.download-card {
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 16px;
+  padding: 1.5rem 1.35rem;
+  box-shadow: var(--shadow-md);
+}
+
+.download-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+}
+
+.download-lead {
+  margin: 0 0 1rem;
+  line-height: 1.55;
+  color: var(--muted);
+  font-size: calc(15px * var(--font-scale));
+}
+
+.download-version {
+  font-size: calc(13px * var(--font-scale));
+  margin: 0 0 1rem;
+  min-height: 1.2em;
+  color: var(--muted);
+}
+
+.muted-text {
+  color: var(--muted);
+  font-size: calc(14px * var(--font-scale));
+  line-height: 1.5;
+}
+
+.download-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+  align-items: center;
+}
+
+.download-actions a.primary-btn.download-apk-btn,
+.download-actions a.secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.download-missing {
+  font-size: calc(13px * var(--font-scale));
+  color: #b42318;
+  line-height: 1.45;
+  margin: 0 0 1rem;
+}
+
+.download-missing code {
+  font-size: 0.92em;
+}
+
+.download-steps {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.download-steps h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.download-steps ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.55;
+  color: var(--muted);
+  font-size: calc(14px * var(--font-scale));
+}
+
+.merge-publish-dialog-card {
+  max-width: 440px;
+  width: calc(100% - 32px);
+}
+
+.merge-publish-dialog-body {
+  padding: 12px 18px 8px;
+  line-height: 1.5;
+  font-size: calc(14px * var(--font-scale));
+  color: var(--ink);
+}
+
+.merge-publish-dialog-p {
+  margin: 0 0 8px;
+}
+
+.merge-publish-dialog-warn {
+  margin: 0 0 10px;
+  color: #b42318;
+  font-weight: 700;
+}
+
+.merge-publish-dialog-hint {
+  margin: 10px 0 0;
+  font-weight: 700;
+}
+
+.merge-publish-dialog-actions {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0 18px 16px;
+  gap: 10px;
+}
+

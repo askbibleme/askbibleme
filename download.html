@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4a443f" />
+    <title>下载 AskBible Android 版 · AskBible.me</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/icon-32.png" />
+    <link rel="stylesheet" href="/styles.css?v=22" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-topbar">
+        <div class="site-topbar-title">
+          <h1>
+            <a href="/" class="download-brand-link" title="返回首页"
+              ><span class="brand-ask">Ask</span><span class="brand-bible">Bible</span
+              ><span class="brand-me">.me</span></a
+            >
+          </h1>
+        </div>
+      </header>
+
+      <main class="download-page">
+        <div class="download-card">
+          <h2 class="download-title">Android 客户端（直接安装）</h2>
+          <p class="download-lead">
+            适用于希望像普通应用一样打开 AskBible 的安卓用户。安装包由官方站点提供下载；也可使用浏览器「添加到主屏幕」使用网页版。
+          </p>
+          <p id="dlVersion" class="download-version muted-text" aria-live="polite"></p>
+          <div class="download-actions">
+            <a
+              id="dlBtn"
+              class="primary-btn download-apk-btn"
+              href="/downloads/askbible-release.apk"
+              download="AskBible.apk"
+              >下载安装包（APK）</a
+            >
+            <a class="secondary-btn" href="/">返回首页</a>
+          </div>
+          <p id="dlHint404" class="download-missing" hidden>
+            当前服务器上尚未提供安装包文件。若你是访客，请稍后再试或先用网页版；若你是管理员，请在本地执行
+            <code>npm run apk:stage</code> 并将 <code>downloads/</code> 目录部署到网站。
+          </p>
+
+          <section class="download-steps">
+            <h3>安装说明</h3>
+            <ol>
+              <li>下载完成后在通知栏或「文件」中打开 APK。</li>
+              <li>若系统提示「禁止安装未知来源应用」，请在设置中允许本次来源（或浏览器）安装。</li>
+              <li>本应用加载线上站点，请保持网络畅通。</li>
+            </ol>
+          </section>
+
+          <section class="download-steps">
+            <h3>iPhone / iPad</h3>
+            <p class="muted-text">
+              请使用 Safari 打开本站，通过「分享 → 添加到主屏幕」使用；或等待 App Store 版本（如有上架）。
+            </p>
+          </section>
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <span class="site-footer-copy">© 2026 AskBible.me</span>
+      </footer>
+    </div>
+    <script>
+      (async function () {
+        var verEl = document.getElementById("dlVersion");
+        var missEl = document.getElementById("dlHint404");
+        var meta = {};
+        try {
+          var r = await fetch("/downloads/version.json", { cache: "no-store" });
+          if (r.ok) meta = await r.json();
+        } catch (e) {}
+        if (meta.versionName) {
+          var t = meta.updatedAt ? String(meta.updatedAt).slice(0, 10) : "";
+          verEl.textContent =
+            "当前安装包版本：" +
+            meta.versionName +
+            "（build " +
+            (meta.versionCode != null ? meta.versionCode : "—") +
+            (t ? "）· " + t : "）");
+        } else {
+          verEl.textContent = "";
+        }
+        try {
+          var h = await fetch("/downloads/askbible-release.apk", {
+            method: "HEAD",
+            cache: "no-store",
+          });
+          if (!h.ok) missEl.hidden = false;
+        } catch (e) {
+          missEl.hidden = false;
+        }
+      })();
+    </script>
+  </body>
+</html>
