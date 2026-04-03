@@ -2151,7 +2151,7 @@ function initExportButtons() {
     .getElementById("exportPrintPdfBtn")
     ?.addEventListener("click", () => {
       window.print();
-    });
+  });
 }
 
 function initSelectors() {
@@ -3191,7 +3191,7 @@ function renderVerseRangeBlock(start, end) {
         .join(" ")}</div>`;
 
   const secondaryContinuous = secondaryVersions
-    .map((version) => {
+            .map((version) => {
       if (version.lang === "he") {
         const rtlText = renderRtlContinuous(version.id);
         if (!rtlText) return "";
@@ -3212,10 +3212,10 @@ function renderVerseRangeBlock(start, end) {
         .join(" ");
       if (!verseUnits) return "";
       return `<div class="flow-verse-sub flow-verse-continuous">${verseUnits}</div>`;
-    })
-    .join("");
+            })
+            .join("");
 
-  return `
+          return `
     <div class="flow-scripture">
       ${primaryHtml}
       ${secondaryContinuous}
@@ -3733,6 +3733,7 @@ function initAdminModal() {
     await initTestGenerateTab();
     await initPublishedManagerTab();
     await initScriptureVersionManagerTab();
+    await initContentVersionsManagerTab();
     await initDeployManagerTab();
     await initPointsSystemTab();
     initQuestionReviewTab();
@@ -3762,9 +3763,32 @@ function initAdminModal() {
   });
 }
 
+/** Parse JSON from fetch; if body is HTML (SPA/404/login page), throw a clear error. */
+async function parseFetchJsonResponse(res) {
+  const text = await res.text();
+  const head = text.trimStart().slice(0, 64).toLowerCase();
+  if (
+    head.startsWith("<!doctype") ||
+    head.startsWith("<html") ||
+    head.startsWith("<head")
+  ) {
+    throw new Error(
+      "接口返回了网页而不是 JSON。请先在浏览器「网络」里查看该请求的 URL、状态码与响应正文。常见原因：① 本机 3000 端口不是本项目的 node server.js（请 lsof -i :3000 确认并重启 npm start）；② 反代把 /api 指错；③ 会话过期被重定向到登录页；④ 线上未部署含该接口的版本。若刚改过 server.js，务必完全重启 Node 后再试。"
+    );
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    const preview = text.replace(/\s+/g, " ").slice(0, 120);
+    throw new Error(
+      `无效 JSON 响应（HTTP ${res.status}）${preview ? `：${preview}…` : ""}`
+    );
+  }
+}
+
 async function loadAdminBootstrap() {
   const res = await fetch("/api/admin/bootstrap", { cache: "no-store" });
-  const data = await res.json();
+  const data = await parseFetchJsonResponse(res);
 
   if (!res.ok) {
     throw new Error(data.error || "后台初始化失败");
@@ -3778,6 +3802,7 @@ async function loadAdminBootstrap() {
 function bindAdminTabs() {
   ensurePublishedTabExists();
   ensureScriptureVersionManagerTabExists();
+  ensureContentVersionsManagerTabExists();
   ensureDeployTabExists();
   ensurePointsSystemTabExists();
   ensureQuestionReviewTabExists();
@@ -4288,6 +4313,48 @@ function ensurePublishedTabExists() {
     btn.type = "button";
     btn.dataset.adminTab = "published";
     btn.textContent = "已发布内容";
+    tabsWrap.appendChild(btn);
+  }
+}
+
+function ensureContentVersionsManagerTabExists() {
+  if (
+    document.querySelector(
+      '.admin-tab-btn[data-admin-tab="content_versions_menu"]'
+    )
+  ) {
+    return;
+  }
+
+  const tabsWrap = document.querySelector(".admin-tabs");
+  const panel = document.createElement("div");
+  panel.className = "admin-tab-panel";
+  panel.id = "adminTab-content_versions_menu";
+  panel.innerHTML = `
+    <div class="section-title">内容版本 · 前台菜单</div>
+    <p class="admin-hint-muted">
+      仅「启用」且勾选「前台菜单显示」的版本会出现在首页工具栏「版本」面板。关闭「前台菜单显示」后，用户无法在主页切换该类型，后台生成与规则编辑仍可使用该版本。
+    </p>
+    <div id="contentVersionsRows" class="content-versions-rows"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="reloadContentVersionsBtn" class="secondary-btn" type="button">重新载入</button>
+      <button id="saveContentVersionsBtn" class="primary-btn" type="button">保存内容版本</button>
+    </div>
+    <div id="contentVersionsSaveResult" class="admin-preview-box" style="margin-top:12px;">尚未保存。</div>
+  `;
+
+  const modalCard = document.querySelector(".modal-card-admin");
+  const existingPanels = modalCard?.querySelectorAll(".admin-tab-panel");
+  if (existingPanels?.length) {
+    existingPanels[existingPanels.length - 1].after(panel);
+  }
+
+  if (tabsWrap) {
+    const btn = document.createElement("button");
+    btn.className = "admin-tab-btn";
+    btn.type = "button";
+    btn.dataset.adminTab = "content_versions_menu";
+    btn.textContent = "内容版本菜单";
     tabsWrap.appendChild(btn);
   }
 }
@@ -6487,6 +6554,102 @@ async function autoRepublishMissingChapter(bookId, chapter) {
 /* =========================
    圣经版本管理
    ========================= */
+function renderContentVersionsEditorFromBootstrap() {
+  const box = document.getElementById("contentVersionsRows");
+  if (!box) return;
+  const rows = (adminState.bootstrap?.contentVersions || [])
+    .slice()
+    .sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
+  if (!rows.length) {
+    box.innerHTML = `<div class="empty-state">无内容版本数据。</div>`;
+    return;
+  }
+  box.innerHTML = rows
+    .map((item) => {
+      const id = escapeHtml(item.id);
+      const label = escapeHtml(item.label || item.id);
+      const order = Number(item.order) || 0;
+      const en = item.enabled !== false;
+      const menu = item.showInMenu !== false;
+      return `<div class="content-version-row" data-cv-id="${id}">
+        <div class="cv-cell cv-id"><span class="label">ID</span><div class="cv-id-text">${id}</div></div>
+        <div class="cv-cell"><span class="label">显示名称</span><input type="text" class="custom-textarea single-input cv-label" value="${label}" /></div>
+        <div class="cv-cell cv-order"><span class="label">排序</span><input type="number" class="custom-textarea single-input cv-order-input" value="${order}" /></div>
+        <label class="cv-cell cv-check"><input type="checkbox" class="cv-enabled" ${en ? "checked" : ""} /> <span>启用（系统）</span></label>
+        <label class="cv-cell cv-check"><input type="checkbox" class="cv-show-menu" ${menu ? "checked" : ""} /> <span>前台菜单显示</span></label>
+      </div>`;
+    })
+    .join("");
+}
+
+function collectContentVersionsFromEditor() {
+  return Array.from(
+    document.querySelectorAll("#contentVersionsRows .content-version-row")
+  ).map((row) => {
+    const id = String(row.getAttribute("data-cv-id") || "").trim();
+    const label = String(row.querySelector(".cv-label")?.value || "").trim();
+    const order = Number(row.querySelector(".cv-order-input")?.value) || 0;
+    const enabled = row.querySelector(".cv-enabled")?.checked === true;
+    const showInMenu = row.querySelector(".cv-show-menu")?.checked === true;
+    return { id, label: label || id, order, enabled, showInMenu };
+  });
+}
+
+async function initContentVersionsManagerTab() {
+  renderContentVersionsEditorFromBootstrap();
+
+  const resultEl = document.getElementById("contentVersionsSaveResult");
+  const setResult = (text) => {
+    if (resultEl) resultEl.textContent = text;
+  };
+
+  const reloadBtn = document.getElementById("reloadContentVersionsBtn");
+  if (reloadBtn && !reloadBtn.dataset.bound) {
+    reloadBtn.dataset.bound = "1";
+    reloadBtn.addEventListener("click", async () => {
+      try {
+        await loadAdminBootstrap();
+        renderContentVersionsEditorFromBootstrap();
+        await initRuleEditorTab();
+        renderTestVersionOptions();
+        setResult("已从服务器重新载入。");
+      } catch (e) {
+        setResult(e?.message || String(e));
+      }
+    });
+  }
+
+  const saveBtn = document.getElementById("saveContentVersionsBtn");
+  if (!saveBtn || saveBtn.dataset.bound) return;
+  saveBtn.dataset.bound = "1";
+  saveBtn.addEventListener("click", async () => {
+    const list = collectContentVersionsFromEditor();
+    if (!list.length) {
+      alert("没有可保存的数据");
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/content-versions/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentVersions: list }),
+      });
+      const data = await parseFetchJsonResponse(res);
+      if (!res.ok) throw new Error(data.error || "保存失败");
+      adminState.bootstrap = adminState.bootstrap || {};
+      adminState.bootstrap.contentVersions = data.contentVersions || list;
+      renderContentVersionsEditorFromBootstrap();
+      await initRuleEditorTab();
+      renderTestVersionOptions();
+      setResult("已保存。刷新首页后读经菜单将更新。");
+      alert("内容版本已保存。");
+    } catch (e) {
+      alert(e?.message || String(e));
+      setResult(e?.message || String(e));
+    }
+  });
+}
+
 async function initScriptureVersionManagerTab() {
   await refreshScriptureVersionsList();
 
@@ -7148,7 +7311,7 @@ async function initDeployManagerTab() {
     if (systemOpenAiKeyStatusBox) {
       systemOpenAiKeyStatusBox.textContent = error?.message || "读取失败";
     }
-  });
+    });
 }
 
 async function refreshScriptureVersionsList() {

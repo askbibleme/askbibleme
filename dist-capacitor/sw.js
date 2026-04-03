@@ -1,7 +1,11 @@
-const CACHE_NAME = "askbible-static-v23";
+const CACHE_NAME = "askbible-static-v25";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
+  "/download.html",
+  "/promo.html",
+  "/vision.html",
+  "/vision.css",
   "/styles.css",
   "/main.js",
   "/pwa-install-hint.js",
@@ -35,6 +39,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
+  if (url.pathname.startsWith("/downloads/")) {
+    event.respondWith(fetch(req));
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then((cached) => {
