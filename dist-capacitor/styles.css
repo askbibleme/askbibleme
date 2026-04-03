@@ -4320,6 +4320,18 @@ button.toolbar-trigger,
   box-shadow: var(--shadow-md);
 }
 
+.download-card-intro {
+  margin-top: 0;
+}
+
+.download-card code {
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgba(139, 111, 71, 0.12);
+  color: var(--ink);
+}
+
 .download-platform + .download-platform {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
@@ -4336,6 +4348,10 @@ button.toolbar-trigger,
   line-height: 1.55;
   color: var(--muted);
   font-size: calc(15px * var(--font-scale));
+}
+
+.download-lead--tight {
+  margin-bottom: 0.35rem;
 }
 
 .download-version {
@@ -4359,7 +4375,7 @@ button.toolbar-trigger,
   align-items: center;
 }
 
-.download-actions a.primary-btn.download-apk-btn,
+.download-actions a.primary-btn,
 .download-actions a.secondary-btn {
   display: inline-flex;
   align-items: center;

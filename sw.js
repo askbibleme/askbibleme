@@ -1,8 +1,11 @@
-const CACHE_NAME = "askbible-static-v23";
+const CACHE_NAME = "askbible-static-v25";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/download.html",
+  "/promo.html",
+  "/vision.html",
+  "/vision.css",
   "/styles.css",
   "/main.js",
   "/pwa-install-hint.js",

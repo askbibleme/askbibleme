@@ -62,8 +62,6 @@ function sendPublicApk(req, res, next) {
 app.get("/downloads/askbible-release.apk", sendPublicApk);
 app.head("/downloads/askbible-release.apk", sendPublicApk);
 
-app.use(express.static(__dirname));
-
 const ADMIN_DIR = path.join(DATA_ROOT, "admin_data");
 const RULES_DIR = path.join(ADMIN_DIR, "rules");
 const JOBS_DIR = path.join(ADMIN_DIR, "jobs");
@@ -629,6 +627,17 @@ function saveScriptureVersions(data) {
 
 function loadContentVersions() {
   return readJson(CONTENT_VERSIONS_FILE, { contentVersions: [] });
+}
+
+function saveContentVersions(data) {
+  writeJson(CONTENT_VERSIONS_FILE, data);
+}
+
+/** 前台读经菜单「版本」里展示的条目：enabled 且 showInMenu 未显式为 false */
+function getMenuContentVersions() {
+  return (loadContentVersions().contentVersions || [])
+    .filter((x) => x && x.enabled !== false && x.showInMenu !== false)
+    .sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
 }
 
 function loadPublished() {
@@ -3549,7 +3558,8 @@ app.get("/api/front/bootstrap", (_req, res) => {
         sortOrder: Number(x.sortOrder || 999),
       }));
 
-    const contentVersions = getEnabledContentVersions().map((x) => ({
+    const menuContentVersions = getMenuContentVersions();
+    const contentVersions = menuContentVersions.map((x) => ({
       id: x.id,
       label: x.label,
     }));
@@ -3560,6 +3570,11 @@ app.get("/api/front/bootstrap", (_req, res) => {
       scriptureVersions[0]?.id ||
       "";
 
+    const defaultContentVersionId =
+      menuContentVersions.find((x) => x.id === "default")?.id ||
+      menuContentVersions[0]?.id ||
+      "default";
+
     res.json({
       uiLanguages,
       scriptureVersions,
@@ -3568,7 +3583,7 @@ app.get("/api/front/bootstrap", (_req, res) => {
         uiLang: "zh",
         primaryScriptureVersionId: defaultPrimary,
         secondaryScriptureVersionIds: [],
-        contentVersionId: "default",
+        contentVersionId: defaultContentVersionId,
         contentLang: "zh",
       },
       testamentOptions: flattenBooks(),
@@ -5390,6 +5405,58 @@ app.get("/api/admin/scripture-versions", (_req, res) => {
   }
 });
 
+/* =========================================================
+   内容版本（读经类型 / 前台菜单可见性）
+   ========================================================= */
+app.get("/api/admin/content-versions", (_req, res) => {
+  try {
+    const authed = requirePermission(_req, res, "manage_rules");
+    if (!authed) return;
+    res.json(loadContentVersions());
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取内容版本失败" });
+  }
+});
+
+app.post("/api/admin/content-versions/save", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_rules");
+    if (!authed) return;
+    const raw = req.body?.contentVersions;
+    if (!Array.isArray(raw) || !raw.length) {
+      return res.status(400).json({ error: "contentVersions 必须为非空数组" });
+    }
+    const seen = new Set();
+    const normalized = raw.map((x, i) => {
+      const id = safeText(x?.id || "");
+      if (!id) throw new Error(`第 ${i + 1} 条缺少 id`);
+      if (seen.has(id)) throw new Error(`重复的 id：${id}`);
+      seen.add(id);
+      return {
+        id,
+        label: safeText(x?.label || id),
+        enabled: x?.enabled !== false,
+        showInMenu: x?.showInMenu !== false,
+        order: Number(x?.order) || i + 1,
+      };
+    });
+    const menuCount = normalized.filter(
+      (x) => x.enabled && x.showInMenu !== false
+    ).length;
+    if (!menuCount) {
+      return res
+        .status(400)
+        .json({ error: "至少保留一个在「前台菜单显示」且已启用的版本" });
+    }
+    saveContentVersions({ contentVersions: normalized });
+    res.json({ ok: true, contentVersions: normalized });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "保存内容版本失败" });
+  }
+});
+
 app.post("/api/admin/scripture-version/save", (req, res) => {
   try {
     const authed = requirePermission(req, res, "manage_rules");
@@ -6184,6 +6251,9 @@ app.get("/admin/questions-review", (req, res) => {
 </body>
 </html>`);
 });
+
+/* 静态资源放在所有 /api 路由之后，避免根目录下出现与 /api/... 冲突的路径时被 express.static 抢先返回 HTML */
+app.use(express.static(__dirname));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

@@ -1,6 +1,15 @@
 :root {
   --bg: #2c2824;
   --paper: #fffdf8;
+  /* 读经 .book-spread 纸色横纹：大屏 / 小屏共用，改一处即同步 */
+  --book-spread-paper-gradient: linear-gradient(
+    90deg,
+    #faf6ee 0%,
+    #fffdf8 47%,
+    #f3ebe0 50%,
+    #fffdf8 53%,
+    #faf6ee 100%
+  );
   --paper-soft: #f8f2e8;
   --paper-edge: #eadcc8;
   --ink: #2d2925;
@@ -12,6 +21,12 @@
   --ui-text-hover: #efe4d5;
   --line: rgba(205, 193, 176, 0.62);
   --line-soft: rgba(205, 193, 176, 0.3);
+  /* 读经：一般经文纯黑；神说与节号/重复字统计同色（金黄） */
+  --scripture-verse-color: #000;
+  --verse-repeat-yellow: #b88623;
+  --scripture-divine-color: var(--verse-repeat-yellow);
+  /* 章首重复词行字号，与经文节号共用 */
+  --repeated-word-line-font-size: calc(16px * var(--font-scale));
   --panel-line: rgba(214, 203, 187, 0.72);
   --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 24px 60px rgba(0, 0, 0, 0.16);
@@ -73,7 +88,8 @@ body {
 .page-shell {
   max-width: 1500px;
   margin: 0 auto;
-  padding: 18px;
+  /* 上略紧：顶缘→logo、logo→书卡都更贴 */
+  padding: 10px 18px 18px;
 }
 
 .site-footer {
@@ -96,11 +112,19 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .site-topbar-title {
   min-width: 0;
+  /* Logo 略右移；上间距收紧 */
+  margin-left: clamp(40px, 4.8vw, 58px);
+  margin-top: clamp(2px, 0.6vw, 6px);
+}
+
+.notebook-topbar .site-topbar-title {
+  margin-left: 0;
+  margin-top: 0;
 }
 
 .site-topbar-title h1 {
@@ -265,10 +289,10 @@ body {
   content: "";
   position: absolute;
   left: 50%;
-  top: 2px;
+  top: 0;
   transform: translateX(-50%);
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
   opacity: 0.92;
@@ -278,11 +302,11 @@ body {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: 1px;
+  bottom: 0;
   transform: translateX(-50%);
-  width: 14px;
-  height: 8px;
-  border-radius: 7px 7px 0 0;
+  width: 11px;
+  height: 5px;
+  border-radius: 5px 5px 0 0;
   background: currentColor;
   opacity: 0.92;
 }
@@ -294,7 +318,7 @@ body {
   right: clamp(10px, 3.2vw, 38px);
   top: 0;
   z-index: 1;
-  /* 底边与书页顶沿对齐（直角贴合，无三角缺口）；translateX 仅平移书签，不动书页 */
+  /* 底边与书页顶沿对齐；translateX 仅左右平移 */
   transform: translateY(-100%) translateX(-10px);
   pointer-events: none;
 }
@@ -315,23 +339,24 @@ body {
 .member-hub--bookmark .member-hub-trigger.member-hub-trigger--guest-label {
   min-width: 108px;
   max-width: 148px;
-  padding: 0 10px 0 12px;
-  gap: 6px;
-  font-size: calc(15px * var(--font-scale));
+  padding: 1px 10px 3px 12px;
+  gap: 2px;
+  font-size: calc(13px * var(--font-scale));
   font-weight: 800;
   letter-spacing: 0.02em;
 }
 
 .member-hub--bookmark .member-hub-trigger.member-hub-trigger--guest-label .member-hub-label {
   max-width: none;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   text-align: left;
+  line-height: 1;
 }
 
 .member-hub--bookmark .member-hub-trigger.member-hub-trigger--guest-label .member-hub-trigger-glyph {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
@@ -339,9 +364,9 @@ body {
 .member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label {
   min-width: 96px;
   max-width: 172px;
-  padding: 0 8px 0 10px;
-  gap: 5px;
-  font-size: calc(13px * var(--font-scale));
+  padding: 1px 8px 3px 10px;
+  gap: 2px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 800;
   letter-spacing: 0.01em;
 }
@@ -354,38 +379,38 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1;
 }
 
 .member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label .member-hub-trigger-glyph {
-  width: 17px;
-  height: 17px;
+  width: 13px;
+  height: 13px;
   flex-shrink: 0;
 }
 
 .member-hub--bookmark .member-hub-trigger {
   display: inline-flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   position: relative;
   width: auto;
   min-width: 44px;
   max-width: 72px;
-  /* 与左侧 .book-side-extend-tag 高度一致 */
-  height: 40px;
-  min-height: 40px;
-  padding: 0 18px;
+  /* 较左侧丝带略矮；上下 padding 收紧 */
+  height: 28px;
+  min-height: 28px;
+  padding: 1px 16px 3px;
   gap: 0;
-  /* 顶角弧度与 .book-spread / .book-layout 一致（26px） */
-  border-radius: 26px 26px 0 0;
-  /* 与顶栏背景、账户下拉面板同系深灰棕（非书页金棕），「某某的圣经」书签融进顶区 */
-  border: 1px solid rgba(216, 201, 178, 0.32);
+  /* 顶角弧度与小屏书签一致（18px）；大屏书卡仍为 26px */
+  border-radius: 18px 18px 0 0;
+  /* 无浅色描边/顶内高光，避免默认「白边」；仅底边与书卡分界 */
+  border: none;
   border-bottom: 1px solid rgba(0, 0, 0, 0.38);
   background: linear-gradient(180deg, #423c36 0%, #35302b 42%, #2d2925 100%);
   color: #efe8dc;
   font-size: calc(13px * var(--font-scale));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -3px 8px rgba(0, 0, 0, 0.22),
     0 4px 14px rgba(0, 0, 0, 0.35);
   transition: filter 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease,
@@ -393,7 +418,7 @@ body {
 }
 
 .member-hub--bookmark .member-hub-trigger:hover {
-  border-color: rgba(228, 214, 192, 0.44);
+  border-bottom-color: rgba(0, 0, 0, 0.48);
   filter: brightness(1.08);
   color: #fffdf8;
 }
@@ -404,10 +429,9 @@ body {
 }
 
 .member-hub--bookmark .member-hub-trigger[aria-expanded="true"] {
-  border-color: rgba(228, 214, 192, 0.5);
+  border-bottom-color: rgba(0, 0, 0, 0.5);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 0 0 2px rgba(180, 165, 145, 0.38),
+    0 0 0 1px rgba(0, 0, 0, 0.42),
     0 4px 14px rgba(0, 0, 0, 0.32);
 }
 
@@ -926,10 +950,10 @@ button.member-hub-link:hover {
   pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0.1),
     transparent 12%,
     transparent 88%,
-    rgba(82, 63, 40, 0.03)
+    rgba(82, 63, 40, 0.018)
   );
   z-index: 0;
 }
@@ -945,8 +969,8 @@ button.member-hub-link:hover {
   border-bottom-right-radius: 26px;
   background: linear-gradient(
     to left,
-    rgba(0, 0, 0, 0.18),
-    rgba(0, 0, 0, 0.05),
+    rgba(0, 0, 0, 0.1),
+    rgba(0, 0, 0, 0.03),
     transparent
   );
   pointer-events: none;
@@ -959,36 +983,12 @@ button.member-hub-link:hover {
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: calc(100vh - 120px);
-  background: linear-gradient(
-    90deg,
-    #f3e6d0 0%,
-    #fffdf8 47%,
-    #e7d6bb 50%,
-    #fffdf8 53%,
-    #f3e6d0 100%
-  );
+  /* 大屏双栏：纸色横纹（与小屏同一变量） */
+  background: var(--book-spread-paper-gradient);
   border-radius: 26px;
   /* 左页丝带需向左探出书页内边距，hidden 会裁切；背景仍随圆角绘制 */
   overflow: visible;
   z-index: 2;
-}
-
-.book-spread::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 42px;
-  transform: translateX(-50%);
-  background: linear-gradient(
-    to right,
-    rgba(120, 96, 63, 0.18),
-    rgba(120, 96, 63, 0.07),
-    transparent 60%
-  );
-  pointer-events: none;
-  z-index: 1;
 }
 
 /* =========================
@@ -1017,16 +1017,33 @@ button.member-hub-link:hover {
 /* 丝带：文档流在翻页行与章标题之间；左缘 = 左页边框内侧，再向视口左探 --ribbon-outdent（各断点随 --book-pad-left） */
 .book-page.left-page > .book-side-extend-tags {
   --ribbon-outdent: 8px;
+  --ribbon-fold-tri-size: 8px;
+  --ribbon-tag-height: 40px;
   position: relative;
   left: 0;
   top: auto;
   z-index: 6;
   width: auto;
   max-width: 100%;
-  margin: 0 0 12px calc(0px - var(--book-pad-left) - var(--ribbon-outdent));
+  margin: 0 0 calc(12px + var(--ribbon-fold-tri-size))
+    calc(0px - var(--book-pad-left) - var(--ribbon-outdent));
   align-self: flex-start;
   justify-content: flex-start;
   align-items: flex-start;
+}
+
+/* 丝带正下方独立三角：8×8，直角在右上 */
+.book-page.left-page > .book-side-extend-tags::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--ribbon-tag-height);
+  width: var(--ribbon-fold-tri-size);
+  height: var(--ribbon-fold-tri-size);
+  background: #2a1d12;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .book-side-extend-tag {
@@ -1038,7 +1055,7 @@ button.member-hub-link:hover {
   -webkit-appearance: none;
   border: 0;
   min-width: 156px;
-  height: 40px;
+  height: var(--ribbon-tag-height, 40px);
   padding: 0 18px 0 30px;
   color: #fff9ef;
   font-size: calc(16px * var(--font-scale));
@@ -1046,21 +1063,32 @@ button.member-hub-link:hover {
   letter-spacing: 0.2px;
   text-align: left;
   cursor: pointer;
-  background: linear-gradient(180deg, #9f8258 0%, #826743 100%);
+  /* 立体仅靠渐变 + 外阴影，避免 clip-path 与 inset/伪元素叠出接缝、白边 */
+  background:
+    linear-gradient(100deg, rgba(42, 30, 18, 0.2) 0%, transparent 22px),
+    linear-gradient(180deg, #b3946e 0%, #967a54 42%, #7a6142 100%);
   clip-path: polygon(0 0, 84% 0, 100% 50%, 84% 100%, 0 100%);
-  box-shadow: 0 6px 12px rgba(63, 46, 24, 0.26);
+  box-shadow:
+    0 3px 10px rgba(50, 36, 22, 0.28),
+    0 8px 18px rgba(45, 32, 18, 0.14);
   display: inline-flex;
   align-items: center;
   text-decoration: none;
   overflow: hidden;
+  transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .book-side-extend-tag:hover {
-  filter: brightness(1.04);
+  filter: brightness(1.05);
   transform: translateX(1px);
+  box-shadow:
+    0 4px 12px rgba(50, 36, 22, 0.3),
+    0 10px 22px rgba(45, 32, 18, 0.16);
 }
 
 .book-side-tag-inner {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1495,7 +1523,7 @@ button.member-hub-link:hover {
 }
 
 .notebook-note-content.is-divine-speech-note {
-  color: #b67f1a;
+  color: var(--scripture-divine-color);
   font-weight: 600;
 }
 
@@ -1734,8 +1762,8 @@ button.member-hub-link:hover {
   width: 28px;
   background: linear-gradient(
     to right,
-    rgba(120, 96, 63, 0.25),
-    rgba(120, 96, 63, 0.08),
+    rgba(120, 96, 63, 0.14),
+    rgba(120, 96, 63, 0.05),
     transparent
   );
   pointer-events: none;
@@ -1748,11 +1776,31 @@ button.member-hub-link:hover {
   top: 0;
   bottom: 0;
   right: 0;
-  width: 28px;
+  width: 48px;
   background: linear-gradient(
     to left,
-    rgba(70, 52, 30, 0.25),
-    rgba(70, 52, 30, 0.08),
+    rgba(70, 52, 30, 0.28),
+    rgba(70, 52, 30, 0.12),
+    rgba(70, 52, 30, 0.04),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 书缝：仅右页左缘阴影向右淡开（左页靠缝侧无阴影） */
+.book-page.right-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(
+    to right,
+    rgba(120, 96, 63, 0.3),
+    rgba(120, 96, 63, 0.2),
+    rgba(120, 96, 63, 0.1),
     transparent
   );
   pointer-events: none;
@@ -2307,7 +2355,7 @@ button.toolbar-trigger:hover,
   width: 70%;
   margin: 0 auto;
   gap: 4px 18px;
-  font-size: calc(16px * var(--font-scale));
+  font-size: var(--repeated-word-line-font-size);
   line-height: 1.75;
   color: var(--muted);
   font-weight: 600;
@@ -2321,7 +2369,7 @@ button.toolbar-trigger:hover,
 }
 
 .repeated-word-count {
-  color: #b67f1a;
+  color: var(--verse-repeat-yellow);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2704,7 +2752,7 @@ button.toolbar-trigger:hover,
 
 .flow-card h3 {
   margin: 0 0 10px;
-  font-size: calc(26px * var(--font-scale));
+  font-size: calc(24px * var(--font-scale));
   line-height: 1.28;
   color: var(--muted-soft);
   font-weight: 800;
@@ -2722,33 +2770,44 @@ button.toolbar-trigger:hover,
 }
 
 .flow-verse {
-  font-size: calc(20px * var(--font-scale));
+  font-size: calc(22px * var(--font-scale));
   line-height: 1.9;
-  color: var(--ink);
+  color: var(--scripture-verse-color);
   margin: 3px 0 4px;
 }
 
 .flow-verse-sub {
-  font-size: calc(15px * var(--font-scale));
+  font-size: calc(16px * var(--font-scale));
   line-height: 1.52;
-  color: var(--muted);
+  color: var(--scripture-verse-color);
   margin-top: 2px;
 }
 
 .verse-no {
-  color: #b67f1a;
+  display: inline-block;
+  font-size: var(--repeated-word-line-font-size);
+  line-height: 1;
   font-weight: 700;
+  color: var(--verse-repeat-yellow);
   margin-right: 8px;
+  /* 与正文「顶」对齐，避免落在线盒垂直中间 */
+  vertical-align: text-top;
+}
+
+/* 神说整段着色时，节号仍用重复字同款黄 */
+.flow-verse .verse-unit.verse-unit-divine-speech .verse-no,
+.flow-verse-sub .verse-unit.verse-unit-divine-speech .verse-no {
+  color: var(--verse-repeat-yellow) !important;
 }
 
 .verse-unit-divine-speech {
-  color: #b67f1a;
+  color: var(--scripture-divine-color);
   font-weight: 600;
 }
 
 .flow-verse .verse-unit.verse-unit-divine-speech,
 .flow-verse-sub .verse-unit.verse-unit-divine-speech {
-  color: #b67f1a !important;
+  color: var(--scripture-divine-color) !important;
 }
 
 .flow-verse-continuous {
@@ -3349,29 +3408,35 @@ body.question-only-mode .plain-list li {
    ========================= */
 
 @media (max-width: 1100px) {
+  /* 单栏：与大屏同一套纸色底纹（.book-spread 90deg 渐变）+ 同大屏左页书口晕叠在两侧 */
   .book-spread {
     grid-template-columns: 1fr;
-    background: var(--paper);
+    background-color: var(--paper);
+    background-image: linear-gradient(
+        to right,
+        rgba(120, 96, 63, 0.14),
+        rgba(120, 96, 63, 0.05),
+        transparent 100%
+      ),
+      linear-gradient(
+        to left,
+        rgba(120, 96, 63, 0.14),
+        rgba(120, 96, 63, 0.05),
+        transparent 100%
+      ),
+      var(--book-spread-paper-gradient);
+    /* 横纹宽 200% 且左对齐：原 50% 书脊落在视口右缘，整屏≈大屏左半页 */
+    background-size: 28px 100%, 28px 100%, 200% 100%;
+    background-position: left top, right top, left center;
+    background-repeat: no-repeat, no-repeat, no-repeat;
     isolation: isolate;
     transform: translateZ(0);
   }
 
-  .book-spread::after {
-    display: none;
-  }
-
-  /* 窄屏（单栏）：去掉外框大阴影与书口/边缘渐变伪元素 */
-  .book-layout:not(.notebook-layout) {
-    box-shadow: none;
-  }
-
-  .book-layout:not(.notebook-layout)::before,
-  .book-layout:not(.notebook-layout)::after {
-    display: none;
-  }
-
-  .book-page:first-child::before {
-    display: none;
+  .book-page:first-child::before,
+  .book-page:last-child::after,
+  .book-page.right-page::before {
+    display: none !important;
   }
 
   .site-topbar {
@@ -3387,10 +3452,6 @@ body.question-only-mode .plain-list li {
     overflow: visible;
   }
 
-  .book-page:last-child::after {
-    display: none;
-  }
-
   .page-chapter-number {
     font-size: calc(84px * var(--font-scale));
   }
@@ -3400,7 +3461,11 @@ body.question-only-mode .plain-list li {
   }
 
   .flow-card h3 {
-    font-size: calc(24px * var(--font-scale));
+    font-size: calc(22px * var(--font-scale));
+  }
+
+  .flow-verse {
+    font-size: calc(21px * var(--font-scale));
   }
 
   .book-grid {
@@ -3469,6 +3534,11 @@ body.question-only-mode .plain-list li {
     margin-bottom: 10px;
   }
 
+  .site-topbar-title {
+    margin-left: clamp(28px, 7vw, 46px);
+    margin-top: 10px;
+  }
+
   .site-topbar-title h1 {
     font-size: calc(26px * var(--font-scale));
     line-height: 1.08;
@@ -3516,9 +3586,9 @@ body.question-only-mode .plain-list li {
   .member-hub--bookmark .member-hub-trigger {
     max-width: 64px;
     min-width: 44px;
-    height: 40px;
-    min-height: 40px;
-    padding: 0 14px;
+    height: 28px;
+    min-height: 28px;
+    padding: 3px 12px 1px;
     gap: 0;
     font-size: calc(12px * var(--font-scale));
     border-radius: 18px 18px 0 0;
@@ -3527,16 +3597,16 @@ body.question-only-mode .plain-list li {
   .member-hub--bookmark .member-hub-trigger.member-hub-trigger--guest-label {
     max-width: 128px;
     min-width: 100px;
-    padding: 0 8px 0 10px;
-    gap: 4px;
-    font-size: calc(13px * var(--font-scale));
+    padding: 1px 8px 3px 10px;
+    gap: 2px;
+    font-size: calc(12px * var(--font-scale));
   }
 
   .member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label {
     max-width: 150px;
     min-width: 88px;
-    padding: 0 6px 0 8px;
-    gap: 4px;
+    padding: 1px 6px 3px 8px;
+    gap: 2px;
     font-size: calc(12px * var(--font-scale));
   }
 
@@ -3629,18 +3699,25 @@ body.question-only-mode .plain-list li {
     letter-spacing: 0.5px;
   }
 
+  :root {
+    --repeated-word-line-font-size: calc(14px * var(--font-scale));
+  }
+
   .repeated-words-line {
-    font-size: calc(14px * var(--font-scale));
     width: 90%;
   }
 
   .flow-card h3 {
-    font-size: calc(22px * var(--font-scale));
+    font-size: calc(20px * var(--font-scale));
   }
 
   .flow-verse {
-    font-size: calc(18px * var(--font-scale));
+    font-size: calc(21px * var(--font-scale));
     line-height: 1.78;
+  }
+
+  .flow-verse-sub {
+    font-size: calc(15px * var(--font-scale));
   }
 
   .plain-list li {
@@ -3689,7 +3766,12 @@ body.question-only-mode .plain-list li {
   }
 
   .page-shell {
-    padding: 8px 5px 12px;
+    padding: 5px 5px 12px;
+  }
+
+  .site-topbar-title {
+    margin-left: clamp(22px, 6vw, 34px);
+    margin-top: 2px;
   }
 
   .site-topbar-title h1 {
@@ -3741,20 +3823,22 @@ body.question-only-mode .plain-list li {
 
   .member-hub--bookmark .member-hub-trigger {
     border-radius: 16px 16px 0 0;
-    padding: 0 12px;
+    height: 28px;
+    min-height: 28px;
+    padding: 1px 10px 3px;
   }
 
   .member-hub--bookmark .member-hub-trigger.member-hub-trigger--guest-label {
     max-width: 120px;
     min-width: 96px;
-    padding: 0 6px 0 8px;
+    padding: 1px 6px 3px 8px;
     font-size: calc(12px * var(--font-scale));
   }
 
   .member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label {
     max-width: 138px;
     min-width: 84px;
-    padding: 0 5px 0 6px;
+    padding: 1px 5px 3px 6px;
     font-size: calc(11px * var(--font-scale));
   }
 
@@ -4320,6 +4404,18 @@ button.toolbar-trigger,
   box-shadow: var(--shadow-md);
 }
 
+.download-card-intro {
+  margin-top: 0;
+}
+
+.download-card code {
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgba(139, 111, 71, 0.12);
+  color: var(--ink);
+}
+
 .download-platform + .download-platform {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
@@ -4336,6 +4432,10 @@ button.toolbar-trigger,
   line-height: 1.55;
   color: var(--muted);
   font-size: calc(15px * var(--font-scale));
+}
+
+.download-lead--tight {
+  margin-bottom: 0.35rem;
 }
 
 .download-version {
@@ -4359,7 +4459,7 @@ button.toolbar-trigger,
   align-items: center;
 }
 
-.download-actions a.primary-btn.download-apk-btn,
+.download-actions a.primary-btn,
 .download-actions a.secondary-btn {
   display: inline-flex;
   align-items: center;
@@ -4430,5 +4530,65 @@ button.toolbar-trigger,
   align-items: stretch;
   padding: 0 18px 16px;
   gap: 10px;
+}
+
+/* 后台 · 内容版本菜单 */
+.admin-hint-muted {
+  font-size: calc(13px * var(--font-scale));
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0 0 14px;
+  max-width: 52rem;
+}
+
+.content-versions-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.content-version-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1.1fr) minmax(160px, 2fr) 96px auto auto;
+  gap: 10px 16px;
+  align-items: end;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-line);
+  border-radius: 12px;
+  background: rgba(255, 253, 248, 0.75);
+}
+
+.content-version-row .cv-cell .label {
+  display: block;
+  font-size: calc(11px * var(--font-scale));
+  color: var(--muted-soft);
+  margin-bottom: 4px;
+}
+
+.content-version-row .cv-id-text {
+  font-weight: 700;
+  font-size: calc(14px * var(--font-scale));
+  color: var(--ink);
+}
+
+.content-version-row .cv-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(13px * var(--font-scale));
+  margin: 0;
+  padding-bottom: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .content-version-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .content-version-row .cv-check {
+    grid-column: 1 / -1;
+  }
 }
 

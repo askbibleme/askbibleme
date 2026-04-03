@@ -13,10 +13,13 @@ const dest = path.join(root, "dist-capacitor");
 const topFiles = [
   "index.html",
   "download.html",
+  "promo.html",
+  "vision.html",
   "article-studio.html",
   "notebook.html",
   "blank-page.html",
   "styles.css",
+  "vision.css",
   "main.js",
   "pwa-install-hint.js",
   "manifest.webmanifest",
