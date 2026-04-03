@@ -8,40 +8,36 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="AskBible" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>AskBible.me - 文章中心</title>
+    <title>AskBible.me - 笔记本</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/icon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/icon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/icon-180.png" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=8" />
+    <link rel="stylesheet" href="/styles.css?v=20" />
   </head>
   <body>
     <div class="page-shell">
-      <header class="site-topbar">
+      <header class="site-topbar notebook-topbar">
         <div class="site-topbar-title">
           <h1 id="brandTitle">
             <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>
           </h1>
         </div>
-        <div class="site-topbar-actions">
-          <a href="/article-studio.html" class="site-topbar-link">发布中心</a>
-        </div>
       </header>
 
       <main class="book-layout notebook-layout notebook-app">
-        <div class="book-spread notebook-article-spread">
-          <section class="book-page notebook-article-page">
-            <a class="notebook-back-ribbon" href="/">返回读经</a>
-            <div class="notebook-article-columns">
-              <aside class="notebook-article-sidebar">
-                <div class="notebook-category-vertical">
-                  <div id="notebookBooks" class="notebook-book-tabs" role="tablist" aria-label="文章分类"></div>
-                </div>
-              </aside>
-              <div id="notebookNotes" class="notebook-article-list"></div>
+        <div class="notebook-shell">
+          <aside class="notebook-col notebook-col-books">
+            <a class="notebook-col-head notebook-back-link" href="/">← 返回</a>
+            <div id="notebookBooks" class="notebook-list" role="tablist" aria-label="笔记本分类"></div>
+          </aside>
+          <aside class="notebook-col notebook-col-notes">
+            <div class="notebook-col-head notebook-notes-head">
+              <span>条目</span>
             </div>
-          </section>
+            <div id="notebookNotes" class="notebook-list"></div>
+          </aside>
         </div>
       </main>
       <footer class="site-footer">
@@ -163,7 +159,6 @@
           { id: "questionFavorites", title: "我的贡献", color: "amber" },
           { id: "divineSpeech", title: "主话摘录", color: "teal" },
           { id: "globalFavorites", title: "社区精选", color: "olive" },
-          { id: "communityArticles", title: "社区文章", color: "amber" },
         ],
         notes: {
           hotVerses: [],
@@ -171,7 +166,6 @@
           questionFavorites: [],
           globalFavorites: [],
           divineSpeech: [],
-          communityArticles: [],
         },
       };
 
@@ -181,7 +175,6 @@
         globalFavorites: "社区精选",
         favorites: "我的经文",
         questionFavorites: "我的贡献",
-        communityArticles: "社区文章",
       };
 
       function loadData() {
@@ -202,14 +195,9 @@
               "questionFavorites",
               "divineSpeech",
               "globalFavorites",
-              "communityArticles",
             ];
             const byId = new Map(parsed.books.map((b) => [b.id, b]));
             let nextBooks = order.map((id) => byId.get(id)).filter(Boolean);
-            if (!byId.has("communityArticles")) {
-              nextBooks.push({ id: "communityArticles", title: "社区文章", color: "amber" });
-              changed = true;
-            }
             if (
               nextBooks.length === parsed.books.length &&
               parsed.books.some((b, i) => b.id !== nextBooks[i].id)
@@ -218,10 +206,6 @@
               changed = true;
             } else if (nextBooks.length !== parsed.books.length || nextBooks.some((b, i) => parsed.books[i]?.id !== b.id)) {
               parsed.books = nextBooks;
-              changed = true;
-            }
-            if (!Array.isArray(parsed.notes.communityArticles)) {
-              parsed.notes.communityArticles = [];
               changed = true;
             }
             if (changed) saveData(parsed);
@@ -236,7 +220,7 @@
 
       const state = {
         data: loadData(),
-        activeBookId: "hotVerses",
+        activeBookId: "divineSpeech",
       };
 
       const booksEl = document.getElementById("notebookBooks");
@@ -336,12 +320,15 @@
             body: JSON.stringify({ seconds: 45 }),
           });
           const data = await res.json().catch(() => ({}));
-          if (res.ok && data.totalOnlineSeconds != null) {
-            const ot = document.getElementById("notebookSettingsOnlineTotal");
-            const modal = document.getElementById("notebookUserSettingsModal");
-            if (ot && modal && modal.style.display === "block") {
-              ot.textContent =
-                formatNotebookOnlineTotal(data.totalOnlineSeconds) + "（登录使用期间累积）";
+          if (res.ok) {
+            const next = Number(data.totalOnlineSeconds);
+            if (Number.isFinite(next) && next >= 0) {
+              const ot = document.getElementById("notebookSettingsOnlineTotal");
+              const modal = document.getElementById("notebookUserSettingsModal");
+              if (ot && modal && modal.style.display === "block") {
+                ot.textContent =
+                  formatNotebookOnlineTotal(next) + "（登录使用期间累积）";
+              }
             }
           }
         } catch (_) {}
@@ -559,44 +546,16 @@
 
       function syncFavoritesIntoNotebook() {
         state.data.books = [
-          { id: "hotVerses", title: "经文热榜", color: "olive" },
+          { id: "divineSpeech", title: "主说的话", color: "teal" },
+          { id: "hotVerses", title: "热门经文", color: "olive" },
+          { id: "globalFavorites", title: "热门收藏", color: "olive" },
           { id: "favorites", title: "我的经文", color: "rose" },
-          { id: "questionFavorites", title: "我的贡献", color: "amber" },
-          { id: "divineSpeech", title: "主话摘录", color: "teal" },
-          { id: "globalFavorites", title: "社区精选", color: "olive" },
-          { id: "communityArticles", title: "社区文章", color: "amber" },
+          { id: "questionFavorites", title: "我的问题", color: "amber" },
         ];
         state.data.notes.favorites = loadFavoriteVerses();
         state.data.notes.questionFavorites = loadFavoriteQuestions();
-        if (!Array.isArray(state.data.notes.communityArticles)) {
-          state.data.notes.communityArticles = [];
-        }
         if (!state.data.books.some((b) => b.id === state.activeBookId)) {
-          state.activeBookId = state.data.books[0]?.id || "hotVerses";
-        }
-      }
-
-      async function syncCommunityArticlesIntoNotebook() {
-        try {
-          const res = await fetch("/api/community-articles?columnId=communityArticles", {
-            cache: "no-store",
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "fail");
-          const items = Array.isArray(data.items) ? data.items : [];
-          state.data.notes.communityArticles = items.map((x) => ({
-            id: String(x.id || ""),
-            key: String(x.id || ""),
-            type: "article",
-            bookId: "",
-            chapter: 0,
-            title: String(x.title || ""),
-            content: String(x.body || ""),
-            authorName: String(x.authorName || ""),
-            createdAt: String(x.createdAt || ""),
-          }));
-        } catch {
-          state.data.notes.communityArticles = [];
+          state.activeBookId = "divineSpeech";
         }
       }
 
@@ -750,7 +709,7 @@
         booksEl.innerHTML = state.data.books
           .map((b) => {
             const active = b.id === state.activeBookId ? "active" : "";
-            return `<button type="button" class="display-mode-btn ${active}" data-book-id="${b.id}" role="tab" aria-selected="${active ? "true" : "false"}">${b.title}</button>`;
+            return `<button type="button" class="notebook-item ${active}" data-book-id="${b.id}" role="tab" aria-selected="${active ? "true" : "false"}"><span class="notebook-color-dot ${b.color}" aria-hidden="true"></span>${b.title}</button>`;
           })
           .join("");
         booksEl.querySelectorAll("[data-book-id]").forEach((btn) => {
@@ -765,19 +724,15 @@
       function renderNotes() {
         const list = getActiveNotes();
         if (!list.length) {
-          if (state.activeBookId === "communityArticles") {
-            notesEl.innerHTML = "";
-            return;
-          }
           notesEl.innerHTML = `<div class="empty-state">${
             state.activeBookId === "questionFavorites"
-              ? "暂无我的贡献"
+              ? "暂无我的问题"
               : state.activeBookId === "hotVerses"
-              ? "暂无经文热榜"
+              ? "暂无热门经文"
               : state.activeBookId === "divineSpeech"
-              ? "暂无主话摘录"
+              ? "暂无主说的话"
               : state.activeBookId === "globalFavorites"
-              ? "暂无社区精选"
+              ? "暂无热门收藏"
               : state.activeBookId === "favorites"
               ? "暂无我的经文"
               : "暂无内容"
@@ -786,7 +741,7 @@
         }
         notesEl.innerHTML = list
           .map((n, idx) => {
-            if (state.activeBookId === "communityArticles" || n.type === "article") {
+            if (n.type === "article") {
               const title = String(n.title || "").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
               const body = String(n.content || "").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
               const by = String(n.authorName || "").trim();
@@ -850,7 +805,6 @@
         syncFavoritesIntoNotebook();
         await syncGlobalFavoritesIntoNotebook();
         await syncDivineSpeechIntoNotebook();
-        await syncCommunityArticlesIntoNotebook();
         renderBooks();
         renderNotes();
       }
