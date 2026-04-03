@@ -24,6 +24,9 @@
             <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>
           </h1>
         </div>
+        <div class="site-topbar-actions">
+          <a href="/article-studio.html" class="site-topbar-link">发布中心</a>
+        </div>
       </header>
 
       <main class="book-layout notebook-layout notebook-app">
@@ -158,6 +161,7 @@
           { id: "questionFavorites", title: "我的贡献", color: "amber" },
           { id: "divineSpeech", title: "主话摘录", color: "teal" },
           { id: "globalFavorites", title: "社区精选", color: "olive" },
+          { id: "communityArticles", title: "社区文章", color: "amber" },
         ],
         notes: {
           hotVerses: [],
@@ -165,6 +169,7 @@
           questionFavorites: [],
           globalFavorites: [],
           divineSpeech: [],
+          communityArticles: [],
         },
       };
 
@@ -174,6 +179,7 @@
         globalFavorites: "社区精选",
         favorites: "我的经文",
         questionFavorites: "我的贡献",
+        communityArticles: "社区文章",
       };
 
       function loadData() {
@@ -194,14 +200,26 @@
               "questionFavorites",
               "divineSpeech",
               "globalFavorites",
+              "communityArticles",
             ];
             const byId = new Map(parsed.books.map((b) => [b.id, b]));
-            const nextBooks = order.map((id) => byId.get(id)).filter(Boolean);
+            let nextBooks = order.map((id) => byId.get(id)).filter(Boolean);
+            if (!byId.has("communityArticles")) {
+              nextBooks.push({ id: "communityArticles", title: "社区文章", color: "amber" });
+              changed = true;
+            }
             if (
               nextBooks.length === parsed.books.length &&
               parsed.books.some((b, i) => b.id !== nextBooks[i].id)
             ) {
               parsed.books = nextBooks;
+              changed = true;
+            } else if (nextBooks.length !== parsed.books.length || nextBooks.some((b, i) => parsed.books[i]?.id !== b.id)) {
+              parsed.books = nextBooks;
+              changed = true;
+            }
+            if (!Array.isArray(parsed.notes.communityArticles)) {
+              parsed.notes.communityArticles = [];
               changed = true;
             }
             if (changed) saveData(parsed);
@@ -466,11 +484,39 @@
           { id: "questionFavorites", title: "我的贡献", color: "amber" },
           { id: "divineSpeech", title: "主话摘录", color: "teal" },
           { id: "globalFavorites", title: "社区精选", color: "olive" },
+          { id: "communityArticles", title: "社区文章", color: "amber" },
         ];
         state.data.notes.favorites = loadFavoriteVerses();
         state.data.notes.questionFavorites = loadFavoriteQuestions();
+        if (!Array.isArray(state.data.notes.communityArticles)) {
+          state.data.notes.communityArticles = [];
+        }
         if (!state.data.books.some((b) => b.id === state.activeBookId)) {
           state.activeBookId = state.data.books[0]?.id || "hotVerses";
+        }
+      }
+
+      async function syncCommunityArticlesIntoNotebook() {
+        try {
+          const res = await fetch("/api/community-articles?columnId=communityArticles", {
+            cache: "no-store",
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "fail");
+          const items = Array.isArray(data.items) ? data.items : [];
+          state.data.notes.communityArticles = items.map((x) => ({
+            id: String(x.id || ""),
+            key: String(x.id || ""),
+            type: "article",
+            bookId: "",
+            chapter: 0,
+            title: String(x.title || ""),
+            content: String(x.body || ""),
+            authorName: String(x.authorName || ""),
+            createdAt: String(x.createdAt || ""),
+          }));
+        } catch {
+          state.data.notes.communityArticles = [];
         }
       }
 
@@ -646,16 +692,29 @@
               ? "暂无经文热榜"
               : state.activeBookId === "divineSpeech"
               ? "暂无主话摘录"
-              : state.activeBookId === "globalFavorites"
+              :             state.activeBookId === "globalFavorites"
               ? "暂无社区精选"
               : state.activeBookId === "favorites"
               ? "暂无我的经文"
+              : state.activeBookId === "communityArticles"
+              ? '暂无社区文章，<a href="/article-studio.html" class="notebook-empty-link">前往发布中心</a>用 AI 整理并投稿'
               : "暂无内容"
           }</div>`;
           return;
         }
         notesEl.innerHTML = list
           .map((n, idx) => {
+            if (state.activeBookId === "communityArticles" || n.type === "article") {
+              const title = String(n.title || "").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+              const body = String(n.content || "").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+              const by = String(n.authorName || "").trim();
+              const byline = by ? `<p class="notebook-article-byline">${by.replaceAll("<", "&lt;")}</p>` : "";
+              return `<article class="notebook-note-card is-article-card" data-article="1">
+                <h3 class="notebook-article-heading"><span class="notebook-note-rank">${idx + 1}.</span>${title}</h3>
+                ${byline}
+                <div class="notebook-note-content">${body}</div>
+              </article>`;
+            }
             const isVerseItem =
               state.activeBookId === "divineSpeech" ||
               state.activeBookId === "hotVerses" ||
@@ -675,6 +734,9 @@
           card.addEventListener("click", () => {
             const item = list[idx];
             if (!item) return;
+            if (card.getAttribute("data-article") === "1" || item.type === "article") {
+              return;
+            }
             const currentState = JSON.parse(localStorage.getItem(FRONT_STATE_KEY) || "{}");
             const nextState = {
               ...currentState,
@@ -706,6 +768,7 @@
         syncFavoritesIntoNotebook();
         await syncGlobalFavoritesIntoNotebook();
         await syncDivineSpeechIntoNotebook();
+        await syncCommunityArticlesIntoNotebook();
         renderBooks();
         renderNotes();
       }

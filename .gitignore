@@ -1,2 +1,6 @@
-
 .env
+.env.*
+!.env.example
+
+# 勿将 OpenAI 等密钥提交到 Git（后台「系统密钥」写入的文件）
+admin_data/system_secrets.json

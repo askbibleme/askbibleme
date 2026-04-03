@@ -23,6 +23,15 @@ const app = express();
 const SERVER_BOOT_TS = Date.now();
 const SERVER_BOOT_ISO = new Date(SERVER_BOOT_TS).toISOString();
 app.use(express.json({ limit: "10mb" }));
+
+/* 仅匹配「恰好 POST /api」：常见于 nginx proxy_pass 截断子路径，请求未到达 /api/article-studio/chat */
+app.post("/api", (req, res) => {
+  res.status(400).json({
+    error:
+      "请求路径不完整（只到了 /api）。正确地址为 POST /api/article-studio/chat。若使用 nginx 反代 Node，请使用：location /api/ { proxy_pass http://127.0.0.1:端口/api/; }（location 与 proxy_pass 均带末尾斜杠），并 reload nginx。",
+  });
+});
+
 app.use(express.static(__dirname));
 
 const ADMIN_DIR = path.join(DATA_ROOT, "admin_data");
@@ -36,6 +45,7 @@ const SCRIPTURE_VERSIONS_FILE = path.join(ADMIN_DIR, "scripture_versions.json");
 const CONTENT_VERSIONS_FILE = path.join(ADMIN_DIR, "content_versions.json");
 const PUBLISHED_FILE = path.join(ADMIN_DIR, "published.json");
 const GLOBAL_FAVORITES_FILE = path.join(ADMIN_DIR, "global_favorites.json");
+const COMMUNITY_ARTICLES_FILE = path.join(ADMIN_DIR, "community_articles.json");
 const QUESTION_SUBMISSIONS_FILE = path.join(
   ADMIN_DIR,
   "question_submissions.json"
@@ -610,6 +620,113 @@ function saveGlobalFavorites(data) {
   writeJson(GLOBAL_FAVORITES_FILE, data);
 }
 
+const PUBLISHABLE_ARTICLE_COLUMNS = new Set(["communityArticles"]);
+const MAX_COMMUNITY_ARTICLES = 800;
+
+function loadCommunityArticles() {
+  const data = readJson(COMMUNITY_ARTICLES_FILE, null);
+  if (!data || typeof data !== "object") {
+    return { items: [] };
+  }
+  if (!Array.isArray(data.items)) data.items = [];
+  return data;
+}
+
+function saveCommunityArticles(data) {
+  writeJson(COMMUNITY_ARTICLES_FILE, {
+    items: Array.isArray(data.items) ? data.items : [],
+  });
+}
+
+function sanitizeChatMessagesForOpenAi(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const m of raw.slice(-48)) {
+    const role = safeText(m?.role || "").toLowerCase();
+    if (role !== "user" && role !== "assistant") continue;
+    const content = safeText(m?.content || "").slice(0, 24000);
+    if (!content) continue;
+    out.push({ role, content });
+  }
+  return out;
+}
+
+function formatOpenAiChatError(err) {
+  const status = Number(
+    err?.status ?? err?.response?.status ?? err?.statusCode ?? 0
+  );
+  const raw = String(
+    err?.message || err?.error?.message || err?.cause?.message || ""
+  );
+  if (status === 401 || /invalid_api_key|incorrect api key/i.test(raw)) {
+    return "OpenAI API Key 无效或缺失，请在管理后台「系统密钥」或环境变量 OPENAI_API_KEY 中配置。";
+  }
+  if (status === 429 || /rate limit|too many requests/i.test(raw)) {
+    return "AI 服务请求过于频繁，请稍后再试。";
+  }
+  if (status === 503 || /overloaded|capacity|unavailable/i.test(raw)) {
+    return "AI 服务暂时不可用，请稍后再试。";
+  }
+  if (
+    /model.*not found|does not exist|invalid.*model|unknown model/i.test(raw)
+  ) {
+    return `当前模型不可用（${safeText(
+      process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini"
+    )}）。请在服务器环境变量 OPENAI_CHAT_MODEL / OPENAI_CHAT_MODEL_FALLBACK 中改为可用模型（如 gpt-4o-mini）。`;
+  }
+  if (raw) return raw.length > 400 ? `${raw.slice(0, 400)}…` : raw;
+  return "AI 对话请求失败";
+}
+
+async function openAiChatHelper({ system, messages }) {
+  const client = getOpenAiClient();
+  if (!client) {
+    throw new Error("缺少 OPENAI_API_KEY");
+  }
+  const modelPrimary = safeText(process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini");
+  const modelFallback = safeText(process.env.OPENAI_CHAT_MODEL_FALLBACK || "gpt-4o");
+  const payload = {
+    model: modelPrimary,
+    messages: [{ role: "system", content: system }, ...messages],
+    max_tokens: 4096,
+  };
+  try {
+    const r = await client.chat.completions.create(payload);
+    return String(r.choices[0]?.message?.content || "").trim();
+  } catch (err) {
+    if (modelFallback && modelFallback !== modelPrimary) {
+      try {
+        const r2 = await client.chat.completions.create({
+          ...payload,
+          model: modelFallback,
+        });
+        return String(r2.choices[0]?.message?.content || "").trim();
+      } catch (err2) {
+        throw new Error(formatOpenAiChatError(err2));
+      }
+    }
+    throw new Error(formatOpenAiChatError(err));
+  }
+}
+
+function parseDraftJsonFromAssistant(text) {
+  let t = String(text || "").trim();
+  const fence = /^```(?:json)?\s*([\s\S]*?)```$/im.exec(t);
+  if (fence) t = fence[1].trim();
+  const start = t.indexOf("{");
+  const end = t.lastIndexOf("}");
+  if (start === -1 || end <= start) {
+    throw new Error("模型未返回有效 JSON");
+  }
+  const obj = JSON.parse(t.slice(start, end + 1));
+  const title = safeText(obj?.title || "").slice(0, 200);
+  const body = safeText(obj?.body || "").slice(0, 50000);
+  if (!title || !body) {
+    throw new Error("JSON 中缺少 title 或 body");
+  }
+  return { title, body };
+}
+
 function loadQuestionSubmissions() {
   const data = readJson(QUESTION_SUBMISSIONS_FILE, null);
   if (!data || typeof data !== "object") {
@@ -1030,12 +1147,16 @@ function shouldSkipPackageRelPath(rel, kind = "upgrade") {
   if (!normalized) return true;
   const commonSkips = [".git/", ".cursor/", ".DS_Store", "node_modules/"];
   if (commonSkips.some((p) => normalized.startsWith(p))) return true;
+  /* 部署包永不打入密钥与本地环境（避免 zip 外流或误传仓库） */
+  if (normalized === "admin_data/system_secrets.json") return true;
+  if (normalized === ".env" || normalized.startsWith(".env.")) return true;
   if (kind === "upgrade") {
     const upgradeSkips = [
       "admin_data/deploy/",
       "admin_data/auth.db",
       "admin_data/auth/",
       "admin_data/global_favorites.json",
+      "admin_data/community_articles.json",
       "admin_data/question_submissions.json",
     ];
     if (upgradeSkips.some((p) => normalized.startsWith(p))) return true;
@@ -1226,6 +1347,19 @@ function getAuthedUserFromReq(req) {
       Boolean(normalizeAdminRole(user.admin_role || "")),
     token,
   };
+}
+
+function requireAdminUser(req, res) {
+  const authed = getAuthedUserFromReq(req);
+  if (!authed) {
+    res.status(401).json({ error: "请先登录" });
+    return null;
+  }
+  if (authed.isAdmin !== true) {
+    res.status(403).json({ error: "需要管理员权限" });
+    return null;
+  }
+  return authed;
 }
 
 function readClientMeta(req) {
@@ -3299,6 +3433,160 @@ app.get("/api/divine-speech-verses", (req, res) => {
   }
 });
 
+app.get("/api/community-articles", (req, res) => {
+  try {
+    const columnId = safeText(req.query.columnId || "");
+    const db = loadCommunityArticles();
+    let items = (db.items || []).slice();
+    if (columnId) {
+      items = items.filter((x) => safeText(x?.columnId) === columnId);
+    }
+    items.sort((a, b) =>
+      String(b?.createdAt || "").localeCompare(String(a?.createdAt || ""))
+    );
+    res.json({ items });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取社区文章失败" });
+  }
+});
+
+/** 部署自检：浏览器打开 GET /api/article-studio/ping 应看到 {"ok":true} */
+app.get("/api/article-studio/ping", (_req, res) => {
+  res.json({ ok: true, service: "article-studio", ts: SERVER_BOOT_ISO });
+});
+
+app.post("/api/article-studio/chat", async (req, res) => {
+  try {
+    const authed = getAuthedUserFromReq(req);
+    if (!authed) return res.status(401).json({ error: "请先登录" });
+    const cleaned = sanitizeChatMessagesForOpenAi(req.body?.messages);
+    if (!cleaned.length) {
+      return res.status(400).json({ error: "请至少发送一条消息" });
+    }
+    const system = `你是 AskBible 的中文信仰写作同伴。用户会和你讨论圣经观、生活与信仰话题。请用温暖、清晰、尊重不同传统的语气回应；避免说教口吻；可适度引用经文思路但不要编造章节号码。回复用简体中文，段落简洁。`;
+    const text = await openAiChatHelper({ system, messages: cleaned });
+    res.json({ message: text });
+  } catch (error) {
+    console.error(error);
+    const msg = error?.message || "对话失败";
+    if (/缺少 OPENAI|API_KEY|401|invalid/i.test(msg)) {
+      return res.status(503).json({ error: "服务器未配置可用的 OpenAI Key" });
+    }
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.post("/api/article-studio/draft", async (req, res) => {
+  try {
+    const authed = getAuthedUserFromReq(req);
+    if (!authed) return res.status(401).json({ error: "请先登录" });
+    const cleaned = sanitizeChatMessagesForOpenAi(req.body?.messages);
+    if (!cleaned.length) {
+      return res.status(400).json({ error: "没有可整理的对话" });
+    }
+    const system = `你是中文信仰类短文的编辑。根据用户与助手之间的对话，整理成一篇可单独阅读的短文（非对话体）。
+只输出一个 JSON 对象，不要 markdown 代码围栏，不要其它说明。格式严格为：
+{"title":"标题不超过30字","body":"正文，可含换行符，300～1800字为宜，分段用\\n"}
+正文语气与对话一致，去口语赘字，保留核心观点与例证。`;
+    const text = await openAiChatHelper({ system, messages: cleaned });
+    const draft = parseDraftJsonFromAssistant(text);
+    res.json(draft);
+  } catch (error) {
+    console.error(error);
+    const msg = error?.message || "整理失败";
+    if (/缺少 OPENAI|API_KEY|401|invalid/i.test(msg)) {
+      return res.status(503).json({ error: "服务器未配置可用的 OpenAI Key" });
+    }
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.post("/api/article-studio/publish", (req, res) => {
+  try {
+    const authed = getAuthedUserFromReq(req);
+    if (!authed) return res.status(401).json({ error: "请先登录" });
+    const title = safeText(req.body?.title || "").slice(0, 200);
+    const body = safeText(req.body?.body || "").slice(0, 50000);
+    const columnId = safeText(req.body?.columnId || "communityArticles");
+    if (!PUBLISHABLE_ARTICLE_COLUMNS.has(columnId)) {
+      return res.status(400).json({ error: "不支持的目标栏目" });
+    }
+    if (title.length < 2) {
+      return res.status(400).json({ error: "标题至少 2 个字" });
+    }
+    if (body.length < 20) {
+      return res.status(400).json({ error: "正文至少约 20 字" });
+    }
+    const db = loadCommunityArticles();
+    const item = {
+      id: `ca_${Date.now()}_${crypto.randomBytes(5).toString("hex")}`,
+      columnId,
+      title,
+      body,
+      authorId: authed.id,
+      authorName: safeText(authed.name || "").slice(0, 80),
+      createdAt: nowIso(),
+      type: "article",
+    };
+    const nextItems = [item, ...(db.items || [])].slice(0, MAX_COMMUNITY_ARTICLES);
+    saveCommunityArticles({ items: nextItems });
+    res.json({ ok: true, item });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "发布失败" });
+  }
+});
+
+/** 管理员：列出社区文章（含正文预览） */
+app.get("/api/admin/community-articles", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const db = loadCommunityArticles();
+    let items = (db.items || []).slice();
+    items.sort((a, b) =>
+      String(b?.createdAt || "").localeCompare(String(a?.createdAt || ""))
+    );
+    res.json({
+      items: items.map((x) => ({
+        id: safeText(x?.id || ""),
+        columnId: safeText(x?.columnId || ""),
+        title: safeText(x?.title || ""),
+        authorId: safeText(x?.authorId || ""),
+        authorName: safeText(x?.authorName || ""),
+        createdAt: safeText(x?.createdAt || ""),
+        bodyPreview: safeText(x?.body || "").slice(0, 280),
+      })),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取社区文章失败" });
+  }
+});
+
+/** 管理员：删除一篇社区文章 */
+app.delete("/api/admin/community-articles/:id", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const id = safeText(req.params.id || "");
+    if (!id) return res.status(400).json({ error: "缺少文章 id" });
+    const db = loadCommunityArticles();
+    const prevLen = (db.items || []).length;
+    const items = (db.items || []).filter((x) => safeText(x?.id || "") !== id);
+    if (items.length === prevLen) {
+      return res.status(404).json({ error: "未找到该文章" });
+    }
+    saveCommunityArticles({ items });
+    appendAdminAudit(req, authed, "community_article_delete", { id });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "删除失败" });
+  }
+});
+
 app.post("/api/auth/register", (req, res) => {
   try {
     const name = safeText(req.body?.name || "");
@@ -4239,6 +4527,9 @@ app.get("/api/admin/deploy/package-command", (req, res) => {
       ".git/*",
       ".cursor/*",
       "admin_data/deploy/*",
+      "admin_data/system_secrets.json",
+      ".env",
+      ".env.*",
     ];
     const cmd = `cd "${__dirname}" && zip -r "${packageName}" . ${excludes
       .map((x) => `-x "${x}"`)

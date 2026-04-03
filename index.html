@@ -32,12 +32,13 @@
             <button
               type="button"
               id="memberHubTrigger"
-              class="member-hub-trigger"
+              class="member-hub-trigger member-hub-trigger--guest-label"
               aria-expanded="false"
               aria-controls="memberHubPanel"
               aria-haspopup="true"
             >
               <span id="memberHubLabel" class="member-hub-label">免费注册</span>
+              <span class="member-hub-trigger-glyph" aria-hidden="true"></span>
             </button>
             <div
               id="memberHubPanel"
@@ -46,24 +47,25 @@
               aria-label="账户菜单"
               hidden
             >
-              <div id="memberHubGuest" class="member-hub-state">
-                <p class="member-hub-lead">登录后可提交问题、使用文章中心汇总收藏、参与社区互动</p>
-                <p class="member-hub-install-tip">
-                  手机可将本站<strong>添加到主屏幕</strong>，像 App 一样打开。
-                  <button type="button" class="member-hub-install-tip-btn open-add-to-home-help">
-                    查看怎么添加
-                  </button>
+              <div id="memberHubGuest" class="member-hub-state member-hub-state--guest">
+                <p class="member-hub-guest-hint">
+                  登录后可提交问题、同步笔记本、收藏与社区互动。
+                  <a
+                    href="#"
+                    class="member-hub-add-app-link open-add-to-home-help"
+                    title="查看添加到主屏幕的步骤"
+                    >如何添加 APP</a>
                 </p>
-                <div class="member-hub-actions-row">
+                <div class="member-hub-actions-row member-hub-actions-row--solo">
                   <button type="button" class="member-hub-primary" data-member-action="login">
                     登录
                   </button>
                   <button type="button" class="member-hub-secondary" data-member-action="register">
-                    注册
+                    免费注册
                   </button>
                 </div>
               </div>
-              <div id="memberHubMember" class="member-hub-state" hidden>
+              <div id="memberHubMember" class="member-hub-state member-hub-state--member" hidden>
                 <div class="member-hub-identity">
                   <div class="member-hub-avatar" id="memberHubAvatar" aria-hidden="true">?</div>
                   <div class="member-hub-identity-text">
@@ -71,14 +73,9 @@
                     <div class="member-hub-email" id="memberHubEmail">—</div>
                   </div>
                 </div>
-                <p class="member-hub-install-tip">
-                  手机可<strong>添加到主屏幕</strong>，像 App 一样使用。
-                  <button type="button" class="member-hub-install-tip-btn open-add-to-home-help">
-                    如何添加
-                  </button>
-                </p>
                 <nav class="member-hub-links" aria-label="账户功能">
                   <a class="member-hub-link" href="notebook.html?openSettings=1#settings">帐号资料</a>
+                  <a class="member-hub-link" href="/article-studio.html">文章发布中心</a>
                   <button
                     type="button"
                     class="member-hub-link member-hub-link-admin"
@@ -380,11 +377,11 @@
         <div id="authHintBar" class="auth-hint-bar">登录后会解锁更多宝藏</div>
         <div class="modal-actions">
           <button id="authModeLoginBtn" class="secondary-btn" type="button">登录</button>
-          <button id="authModeRegisterBtn" class="secondary-btn" type="button">注册</button>
+          <button id="authModeRegisterBtn" class="secondary-btn" type="button">免费注册</button>
         </div>
         <div id="authNameField">
           <div class="section-title">用户昵称</div>
-          <input id="authNameInput" class="custom-textarea single-input" type="text" placeholder="请输入用户昵称" />
+          <input id="authNameInput" class="custom-textarea single-input" type="text" placeholder="你的称呼，如：小雅（勿用「昵称」占位）" />
         </div>
         <div class="section-title">邮箱</div>
         <input id="authEmailInput" class="custom-textarea single-input" type="email" placeholder="name@example.com" />

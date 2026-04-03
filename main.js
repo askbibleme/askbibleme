@@ -1353,16 +1353,73 @@ async function fetchCurrentUser() {
   renderAuthStatus();
 }
 
+function displayNameFromEmail(email) {
+  const e = String(email || "").trim();
+  const at = e.indexOf("@");
+  if (at <= 0) return "";
+  let local = e.slice(0, at).trim();
+  local = local.replace(/^[\s._-]+|[\s._-]+$/g, "");
+  if (local.length < 2) return "";
+  if (local.length > 14) local = `${local.slice(0, 13)}…`;
+  return local;
+}
+
+function isGenericUserDisplayName(name) {
+  const n = String(name || "").trim();
+  if (!n) return true;
+  const lower = n.toLowerCase();
+  if (n === "昵称的圣经" || (n.includes("昵称") && n.includes("圣经"))) {
+    return true;
+  }
+  const generics = new Set([
+    "昵称",
+    "用户",
+    "名字",
+    "name",
+    "user",
+    "test",
+    "admin",
+    "新用户",
+    "用户昵称",
+    "请输入用户昵称",
+    "your name",
+    "username",
+  ]);
+  if (generics.has(n) || generics.has(lower)) return true;
+  if (/^用户\d+$/.test(n)) return true;
+  return false;
+}
+
+/** 会员区、问候语：占位称呼时用邮箱前缀或兜底文案 */
+function getSensibleDisplayName(user) {
+  const raw = String(user?.name || "").trim();
+  if (raw && !isGenericUserDisplayName(raw)) return raw;
+  const fromEmail = displayNameFromEmail(user?.email || "");
+  if (fromEmail) return fromEmail;
+  return "同路人";
+}
+
+/** 侧标主文案：优先真实称呼，其次邮箱前缀，再退回「文章中心」 */
+function getSideTagDisplayLine(user) {
+  const raw = String(user?.name || "").trim();
+  if (raw && !isGenericUserDisplayName(raw)) return raw;
+  const fromEmail = displayNameFromEmail(user?.email || "");
+  if (fromEmail) return fromEmail;
+  return "文章中心";
+}
+
 function renderAuthStatus() {
   const userNameEl = document.getElementById("authUserName");
   const openBtn = document.getElementById("openAuthBtn");
   const logoutBtn = document.getElementById("logoutAuthBtn");
   const sideUserTagEl = document.getElementById("sideUserTag");
-  const name = String(state.currentUser?.name || "");
+  const u = state.currentUser;
+  const name = String(u?.name || "");
   const authed = Boolean(name);
+  const showName = authed ? getSensibleDisplayName(u) : "";
   if (userNameEl) {
     userNameEl.style.display = authed ? "" : "none";
-    userNameEl.textContent = authed ? `你好，${name}` : "";
+    userNameEl.textContent = authed ? `你好，${showName}` : "";
   }
   if (openBtn) openBtn.style.display = authed ? "none" : "";
   if (logoutBtn) logoutBtn.style.display = authed ? "" : "none";
@@ -1374,20 +1431,21 @@ function renderAuthStatus() {
       const starsHtml = `<span class="book-side-tag-stars" aria-hidden="true">${escapeHtml(
         stars
       )}</span>`;
+      const sideLine = getSideTagDisplayLine(u);
       sideUserTagEl.innerHTML = `<span class="book-side-tag-inner"><span class="book-side-tag-name">${escapeHtml(
-        name
+        sideLine
       )}</span>${starsHtml}</span>`;
       sideUserTagEl.setAttribute(
         "aria-label",
         level > 0
-          ? `文章中心：${name}，社区等级 L${level}`
-          : `文章中心：${name}；通过贡献审核后将显示对应星级`
+          ? `文章中心，${showName}，社区等级 L${level}`
+          : `文章中心，${showName}；通过贡献审核后将显示对应星级`
       );
     } else {
-      sideUserTagEl.textContent = "更多";
+      sideUserTagEl.textContent = "登录更精彩";
       sideUserTagEl.setAttribute(
         "aria-label",
-        "会员与文章中心（请先登录）"
+        "登录更精彩，打开注册与登录"
       );
     }
     sideUserTagEl.setAttribute("href", authed ? "/notebook.html" : "#");
@@ -1410,28 +1468,38 @@ function renderMemberHub() {
   const u = state.currentUser;
   const name = String(u?.name || "").trim();
   const authed = Boolean(name);
+  const sensible = authed ? getSensibleDisplayName(u) : "";
   guest.hidden = authed;
   member.hidden = !authed;
   if (hubLabel) {
     if (authed) {
+      /* 书签上显示「昵称的圣经」样式（与账户资料中的称呼一致） */
       hubLabel.textContent = `${name}的圣经`;
-      hubLabel.title = name ? `当前登录：${name}` : "";
+      hubLabel.classList.remove("member-hub-label--sr");
     } else {
       hubLabel.textContent = "免费注册";
-      hubLabel.title = "";
+      hubLabel.classList.remove("member-hub-label--sr");
     }
   }
   if (hubTrigger) {
+    hubTrigger.classList.toggle("member-hub-trigger--guest-label", !authed);
+    hubTrigger.classList.toggle("member-hub-trigger--member-label", authed);
     hubTrigger.setAttribute(
       "aria-label",
-      authed ? `${name}的圣经，打开账户菜单` : "免费注册与登录"
+      authed ? `${name}的圣经，打开账户菜单` : "免费注册，打开登录与注册菜单"
     );
+    hubTrigger.title =
+      authed && name
+        ? isGenericUserDisplayName(name)
+          ? `当前登录（称呼未完善，显示为 ${sensible}）`
+          : `当前登录：${name}`
+        : "免费注册或登录";
   }
   if (authed) {
     const email = String(u?.email || "").trim();
-    const initial = name.charAt(0) || "?";
+    const initial = (sensible.charAt(0) || "?").toUpperCase();
     if (av) av.textContent = initial;
-    if (dn) dn.textContent = name;
+    if (dn) dn.textContent = sensible;
     if (em) em.textContent = email || "—";
     if (adminBtn) {
       const showAdmin = u?.isAdmin === true;
@@ -1469,7 +1537,7 @@ function initAuthModal() {
   function applyAuthMode(mode) {
     authMode = mode === "register" ? "register" : "login";
     if (titleEl) titleEl.textContent = authMode === "register" ? "用户注册" : "用户登录";
-    if (submitBtn) submitBtn.textContent = authMode === "register" ? "注册" : "登录";
+    if (submitBtn) submitBtn.textContent = authMode === "register" ? "免费注册" : "登录";
     if (nameFieldEl) nameFieldEl.style.display = authMode === "register" ? "" : "none";
     if (modeLoginBtn) modeLoginBtn.classList.toggle("active", authMode === "login");
     if (modeRegisterBtn) modeRegisterBtn.classList.toggle("active", authMode === "register");
