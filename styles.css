@@ -2529,6 +2529,16 @@ button.toolbar-trigger:hover,
 .qa-action-icon {
   font-size: calc(12px * var(--font-scale));
   transform-origin: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qa-reply-glyph {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .qa-action-icon.is-pop {
@@ -2862,6 +2872,9 @@ body.question-only-mode .plain-list li {
 
 .preset-qa-action-icon {
   transform-origin: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .preset-qa-action-icon.is-pop {

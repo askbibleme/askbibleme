@@ -12,6 +12,8 @@ const GLOBAL_SYNC_QUESTION_KEYS = "bible_global_sync_question_keys_v1";
 const LAST_QUESTION_SUBMIT_AT_KEY = "bible_last_question_submit_at_v1";
 const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
 const QA_INTERACTIONS_KEY = "bible_qa_interactions_v1";
+/** Safari/iOS 将「↩」绘成彩色系统符号；用 currentColor SVG 与 ♥/✎ 同色 */
+const REPLY_ACTION_GLYPH_SVG = `<svg class="qa-reply-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>`;
 const ADMIN_PASSWORD = "0777";
 const PUBLISH_MANAGER_FEATURE_VERSION = "v2.1";
 const PUBLISH_HISTORY_KEY = "bible_publish_history_v1";
@@ -3508,9 +3510,9 @@ function renderPresetQuestionInlineActions(seg, questionIndex, questionText, que
         <span class="preset-qa-action-icon">♥</span><span class="preset-qa-action-count">${likeCount}</span>
       </button>
       <button type="button" class="preset-qa-action-btn" data-action="reply" data-question-id="${escapeHtml(
-    questionId
-  )}" data-question-text="${escapeHtml(questionText)}">
-        <span class="preset-qa-action-icon">↩</span><span>回复</span>
+        questionId
+      )}" data-question-text="${escapeHtml(questionText)}">
+        <span class="preset-qa-action-icon" aria-hidden="true">${REPLY_ACTION_GLYPH_SVG}</span><span>回复</span>
       </button>
       <button type="button" class="preset-qa-action-btn" data-action="correct" data-book-id="${escapeHtml(
         bookId
@@ -4539,6 +4541,7 @@ async function initTestGenerateTab() {
   const createNewJobBtn = document.getElementById("createNewJobBtn");
   const createBibleJobBtn = document.getElementById("createBibleJobBtn");
   const refreshJobsBtn = document.getElementById("refreshJobsBtn");
+  const mergePartialJobsBtn = document.getElementById("mergePartialJobsBtn");
 
   if (testBookSelect) {
     testBookSelect.onchange = () => {
@@ -4589,6 +4592,12 @@ async function initTestGenerateTab() {
     };
   }
 
+  if (mergePartialJobsBtn) {
+    mergePartialJobsBtn.onclick = async () => {
+      await mergePublishAllPartialBuildsFromUI();
+    };
+  }
+
   syncRangeInputsWithSelectedBook();
   await refreshJobsList();
 }
@@ -4615,12 +4624,20 @@ function ensureJobPanelExists() {
       </div>
     </div>
 
+    <div class="result-box" style="margin-bottom:12px;">
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+        <input id="jobSkipPublishOverwriteCheck" type="checkbox" style="margin-top:3px;" />
+        <span>批量任务在勾选「自动合并发布」时：若该章在读者端<strong>已有发布文件</strong>且与本次生成<strong>内容不一致</strong>，则<strong>跳过覆盖</strong>（仍会写入 build，便于之后手动合并）。与线上一致时会自动跳过发布。</span>
+      </label>
+    </div>
+
     <div class="modal-actions">
       <button id="createBookJobBtn" class="secondary-btn" type="button">生成整卷 / 范围</button>
       <button id="createOldJobBtn" class="secondary-btn" type="button">生成旧约</button>
       <button id="createNewJobBtn" class="secondary-btn" type="button">生成新约</button>
       <button id="createBibleJobBtn" class="secondary-btn" type="button">生成整本</button>
       <button id="refreshJobsBtn" class="secondary-btn" type="button">刷新任务</button>
+      <button id="mergePartialJobsBtn" class="primary-btn" type="button">合并发布未完成任务的产物</button>
     </div>
 
     <div class="section-title">任务状态</div>
@@ -4890,6 +4907,8 @@ function collectJobPayload(scope) {
     lang,
     bookId,
     autoPublish: true,
+    skipPublishOverwrite:
+      document.getElementById("jobSkipPublishOverwriteCheck")?.checked === true,
   };
 
   if (scope === "book" && startChapter > 0 && endChapter > 0) {
@@ -5059,6 +5078,13 @@ function renderJobsList(jobs) {
         String(job.progressText || "").includes("自动合并发布");
       const errorCount = Number(job.errors?.length || 0);
       const canRetryFailed = job.status === "completed" && errorCount > 0;
+      const doneNum = Number(job.done || 0);
+      const canMergePublishFromBuild =
+        Boolean(job.buildId) &&
+        Array.isArray(job.targets) &&
+        job.targets.length > 0 &&
+        doneNum > 0 &&
+        (job.status === "cancelled" || job.status === "completed");
       const rangeText =
         job.scope === "book" && job.startChapter && job.endChapter
           ? `（${job.startChapter}-${job.endChapter}章）`
@@ -5180,6 +5206,13 @@ function renderJobsList(jobs) {
                   )}">重跑失败章节</button>`
                 : ""
             }
+            ${
+              canMergePublishFromBuild
+                ? `<button class="primary-btn" type="button" data-merge-publish-job-id="${escapeHtml(
+                    job.id
+                  )}">合并发布已生成</button>`
+                : ""
+            }
           </div>
         </div>
       `;
@@ -5201,6 +5234,136 @@ function renderJobsList(jobs) {
       await retryFailedJob(jobId);
     });
   });
+
+  box.querySelectorAll("[data-merge-publish-job-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const jobId = btn.getAttribute("data-merge-publish-job-id");
+      if (!jobId) return;
+      await mergePublishJobBuild(jobId);
+    });
+  });
+}
+
+function countReplacesExistingInMergeDetails(details) {
+  let n = 0;
+  for (const d of details || []) {
+    for (const t of d.changedTargets || []) {
+      if (t.replacesExisting) n += 1;
+    }
+  }
+  return n;
+}
+
+async function mergePublishJobBuild(jobId) {
+  const statusEl = document.getElementById("jobCreateStatus");
+  if (statusEl) statusEl.textContent = `正在比对 build 与已发布：${jobId}…`;
+  const dryRes = await fetch(
+    `/api/admin/job/${encodeURIComponent(jobId)}/merge-publish-build`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ onlyChanged: true, dryRun: true }),
+    }
+  );
+  const dry = await dryRes.json().catch(() => ({}));
+  if (!dryRes.ok) {
+    const msg = dry.error || "预检失败";
+    if (statusEl) statusEl.textContent = msg;
+    alert(msg);
+    return;
+  }
+  const pub = Number(dry.totalPublishedCount || 0);
+  const skip = Number(dry.totalSkippedCount || 0);
+  const overwrite = countReplacesExistingInMergeDetails(dry.details);
+  let confirmMsg = `比对结果：将写入读者端 ${pub} 章，跳过（与线上一致）${skip} 项。`;
+  if (overwrite > 0) {
+    confirmMsg += `\n\n其中 ${overwrite} 章将覆盖读者端已有内容（与 build 不一致）。`;
+  }
+  confirmMsg += `\n\n是否执行合并发布？`;
+  if (!confirm(confirmMsg)) {
+    if (statusEl) statusEl.textContent = "已取消合并发布。";
+    return;
+  }
+  if (statusEl) statusEl.textContent = `正在合并发布：${jobId}…`;
+  const res = await fetch(
+    `/api/admin/job/${encodeURIComponent(jobId)}/merge-publish-build`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ onlyChanged: true }),
+    }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data.error || "合并发布失败";
+    if (statusEl) statusEl.textContent = msg;
+    alert(msg);
+    return;
+  }
+  const pubDone = Number(data.totalPublishedCount || 0);
+  const skipDone = Number(data.totalSkippedCount || 0);
+  if (statusEl) {
+    statusEl.textContent = `合并发布完成：${jobId}｜新发布或更新 ${pubDone} 章｜跳过（已与线上一致）${skipDone} 项`;
+  }
+  await refreshJobsList(true);
+}
+
+async function mergePublishAllPartialBuildsFromUI() {
+  const statusEl = document.getElementById("jobCreateStatus");
+  if (statusEl) statusEl.textContent = "正在预检批量合并发布…";
+  const dryRes = await fetch("/api/admin/jobs/merge-publish-partial-builds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ onlyChanged: true, dryRun: true }),
+  });
+  const dry = await dryRes.json().catch(() => ({}));
+  if (!dryRes.ok) {
+    const msg = dry.error || "预检失败";
+    if (statusEl) statusEl.textContent = msg;
+    alert(msg);
+    return;
+  }
+  const n = Number(dry.jobCount || 0);
+  const pub = Number(dry.totalPublishedCount || 0);
+  const skip = Number(dry.totalSkippedCount || 0);
+  let overwrite = 0;
+  for (const r of dry.results || []) {
+    overwrite += countReplacesExistingInMergeDetails(r.details);
+  }
+  let confirmMsg =
+    "将按创建时间从旧到新合并下列任务的 build：\n" +
+    "· 已取消且已生成过章节（进度 > 0）\n" +
+    "· 或已完成但未勾选「自动合并发布」\n" +
+    "同一章多任务时以后处理的为准。\n\n" +
+    `预检：涉及 ${n} 个任务；将写入读者端 ${pub} 章；跳过（与线上一致）${skip} 项。`;
+  if (overwrite > 0) {
+    confirmMsg += `\n\n其中 ${overwrite} 章将覆盖读者端已有内容（与 build 不一致）。`;
+  }
+  confirmMsg += `\n\n是否执行批量合并发布？`;
+  if (!confirm(confirmMsg)) {
+    if (statusEl) statusEl.textContent = "已取消批量合并发布。";
+    return;
+  }
+  if (statusEl) statusEl.textContent = "正在批量合并发布…";
+  const res = await fetch("/api/admin/jobs/merge-publish-partial-builds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ onlyChanged: true }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data.error || "批量合并发布失败";
+    if (statusEl) statusEl.textContent = msg;
+    alert(msg);
+    return;
+  }
+  const nDone = Number(data.jobCount || 0);
+  const pubDone = Number(data.totalPublishedCount || 0);
+  const skipDone = Number(data.totalSkippedCount || 0);
+  if (statusEl) {
+    statusEl.textContent = `批量合并完成：处理 ${nDone} 个任务｜新发布或更新 ${pubDone} 章｜跳过 ${skipDone} 项`;
+  }
+  await refreshJobsList(true);
 }
 
 async function cancelJob(jobId) {
@@ -6406,13 +6569,16 @@ async function initDeployManagerTab() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "读取密钥状态失败");
     const sourceMap = {
-      system: "后台系统密钥",
-      env: ".env 环境变量",
+      system: "后台系统密钥（文件）",
+      env: "环境变量 OPENAI_API_KEY（优先）",
       none: "未配置",
     };
+    const shadowHint = data.systemSecretShadowed
+      ? "（后台仍存有一份密钥，当前实际使用环境变量）"
+      : "";
     systemOpenAiKeyStatusBox.textContent = `当前状态：${
       data.configured ? "已配置" : "未配置"
-    }；来源：${sourceMap[data.source] || data.source || "未知"}${
+    }；生效来源：${sourceMap[data.source] || data.source || "未知"}${shadowHint}${
       data.masked ? `；标识：${data.masked}` : ""
     }`;
   }

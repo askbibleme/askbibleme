@@ -120,10 +120,11 @@ function saveSystemSecrets(next) {
   return merged;
 }
 
+/** 环境变量优先：线上常在 Render 等面板配置 OPENAI_API_KEY，避免后台 JSON 里过期 Key 覆盖有效配置 */
 function getCurrentOpenAiApiKey() {
-  const fromSecret = safeText(loadSystemSecrets().openaiApiKey || "");
-  if (fromSecret) return fromSecret;
-  return safeText(process.env.OPENAI_API_KEY || "");
+  const fromEnv = safeText(process.env.OPENAI_API_KEY || "");
+  if (fromEnv) return fromEnv;
+  return safeText(loadSystemSecrets().openaiApiKey || "");
 }
 
 function getOpenAiClient() {
@@ -1927,6 +1928,19 @@ function mergePublishOneChapter(studyContent) {
   return filePath;
 }
 
+/** 批量任务逐章发布时更新 published.json（不整批重算） */
+function bumpPublishedMergeMetaForOneChapter(versionId, lang, buildId) {
+  const published = loadPublished();
+  if (!published[versionId]) published[versionId] = {};
+  if (!published[versionId][lang]) published[versionId][lang] = {};
+  const row = published[versionId][lang];
+  row.publishMode = "merge";
+  row.lastMergedBuildId = buildId;
+  row.publishedAt = nowIso();
+  row.publishedCount = (row.publishedCount || 0) + 1;
+  savePublished(published);
+}
+
 function getStudyContentHash(studyContent) {
   const normalized = normalizeStudyContentForSave(studyContent);
   return sha256Hex(JSON.stringify(normalized));
@@ -1959,6 +1973,7 @@ function compareBuildChapterWithPublished({
     bookId,
     chapter,
   });
+  const publishedExists = fs.existsSync(publishedPath);
   const publishedContent = readJson(publishedPath, null);
   const buildHash = getStudyContentHash(buildContent);
   const publishedHash = publishedContent ? getStudyContentHash(publishedContent) : "";
@@ -1966,11 +1981,35 @@ function compareBuildChapterWithPublished({
   return {
     existsInBuild: true,
     changed,
+    publishedExists,
     buildHash,
     publishedHash,
     sourcePath,
     publishedPath,
     buildContent,
+  };
+}
+
+/** 比较内存中的章节与读者端已发布文件（用于批量生成后逐章发布） */
+function compareStudyContentWithPublished(studyContent) {
+  const normalized = normalizeStudyContentForSave(studyContent);
+  const publishedPath = getPublishedContentFilePath({
+    versionId: normalized.version,
+    lang: normalized.contentLang,
+    bookId: normalized.bookId,
+    chapter: normalized.chapter,
+  });
+  const publishedExists = fs.existsSync(publishedPath);
+  const publishedContent = readJson(publishedPath, null);
+  const newHash = getStudyContentHash(normalized);
+  const publishedHash = publishedContent ? getStudyContentHash(publishedContent) : "";
+  const changed = !publishedHash || newHash !== publishedHash;
+  return {
+    publishedExists,
+    changed,
+    newHash,
+    publishedHash,
+    publishedPath,
   };
 }
 
@@ -2020,6 +2059,7 @@ async function mergePublishFromBuild({
       bookId: target.bookId,
       chapter: target.chapter,
       changed: isChanged,
+      replacesExisting: Boolean(compare.publishedExists && isChanged),
     });
     if (!dryRun) {
       mergePublishOneChapter(compare.buildContent);
@@ -2056,6 +2096,101 @@ async function mergePublishFromBuild({
     skippedCount,
     changedTargets,
     skippedTargets,
+  };
+}
+
+/** 将某次批量任务已写入 content_builds 的章节合并进 content_published（用于取消/未完成且未自动发布） */
+async function mergePublishFromJobBuild(
+  job,
+  { onlyChanged = true, dryRun = false } = {}
+) {
+  if (!job || !isNonEmptyString(job.buildId)) {
+    throw new Error("任务缺少 buildId");
+  }
+  if (!Array.isArray(job.targets) || job.targets.length === 0) {
+    throw new Error("任务没有目标列表");
+  }
+  const done = Math.max(0, Number(job.done || 0));
+  if (done < 1) {
+    throw new Error("该任务尚无已生成章节（进度为 0），无可发布内容");
+  }
+  const touchedPairs = new Set(
+    job.targets.map((x) => `${safeText(x.versionId)}__${safeText(x.lang)}`)
+  );
+  const details = [];
+  let totalPublishedCount = 0;
+  let totalSkippedCount = 0;
+  for (const pair of touchedPairs) {
+    const [versionId, lang] = pair.split("__");
+    if (!versionId || !lang) continue;
+    const result = await mergePublishFromBuild({
+      buildId: job.buildId,
+      versionId,
+      lang,
+      targets: job.targets,
+      onlyChanged,
+      dryRun,
+    });
+    totalPublishedCount += Number(result.publishedCount || 0);
+    totalSkippedCount += Number(result.skippedCount || 0);
+    details.push({
+      versionId,
+      lang,
+      publishedCount: result.publishedCount,
+      skippedCount: result.skippedCount,
+      changedTargets: result.changedTargets || [],
+      skippedTargets: result.skippedTargets || [],
+    });
+  }
+  return {
+    jobId: job.id,
+    buildId: job.buildId,
+    totalPublishedCount,
+    totalSkippedCount,
+    details,
+    onlyChanged: Boolean(onlyChanged),
+    dryRun: Boolean(dryRun),
+  };
+}
+
+function listJobsEligibleForPartialMergePublish() {
+  return listAllJobsNewestFirst()
+    .filter((job) => {
+      if (!isNonEmptyString(job.buildId)) return false;
+      if (!Array.isArray(job.targets) || job.targets.length === 0) return false;
+      const done = Math.max(0, Number(job.done || 0));
+      if (done < 1) return false;
+      if (job.status === "cancelled") return true;
+      if (job.status === "completed" && job.autoPublish !== true) return true;
+      return false;
+    })
+    .sort((a, b) =>
+      String(a.createdAt || "").localeCompare(String(b.createdAt || ""))
+    );
+}
+
+/** 按任务创建时间从旧到新依次合并，同一章多任务时以后处理的为准 */
+async function mergePublishAllPartialJobBuilds({
+  onlyChanged = true,
+  dryRun = false,
+} = {}) {
+  const jobs = listJobsEligibleForPartialMergePublish();
+  const results = [];
+  let totalPublishedCount = 0;
+  let totalSkippedCount = 0;
+  for (const job of jobs) {
+    const r = await mergePublishFromJobBuild(job, { onlyChanged, dryRun });
+    totalPublishedCount += r.totalPublishedCount;
+    totalSkippedCount += r.totalSkippedCount;
+    results.push(r);
+  }
+  return {
+    jobCount: jobs.length,
+    totalPublishedCount,
+    totalSkippedCount,
+    results,
+    onlyChanged: Boolean(onlyChanged),
+    dryRun: Boolean(dryRun),
   };
 }
 
@@ -2572,6 +2707,9 @@ function createBulkJob(payload) {
     endChapter:
       payload.endChapter !== undefined ? Number(payload.endChapter) : null,
     autoPublish: payload.autoPublish === true,
+    skipPublishOverwrite:
+      payload.skipPublishOverwrite === true ||
+      payload.skipPublishWhenPublishedExists === true,
     buildId,
     status: "queued",
     done: 0,
@@ -2621,6 +2759,7 @@ function createRetryFailedJob(sourceJobId) {
     startChapter: sourceJob.startChapter || null,
     endChapter: sourceJob.endChapter || null,
     autoPublish: true,
+    skipPublishOverwrite: sourceJob.skipPublishOverwrite === true,
     buildId,
     status: "queued",
     done: 0,
@@ -2646,7 +2785,7 @@ function buildCompletionSummary(job) {
     Number(job.done || 0) - Number(job.errors?.length || 0)
   );
   const errorCount = Number(job.errors?.length || 0);
-  const autoPublished = job.autoPublish ? "已自动合并发布" : "未自动发布";
+  const autoPublished = job.autoPublish ? "已自动逐章合并发布" : "未自动发布";
   return `完成：成功 ${successCount}，失败 ${errorCount}，${autoPublished}`;
 }
 
@@ -2684,11 +2823,36 @@ async function processBulkJob(job) {
         chapter: target.chapter,
       });
 
-      saveStudyContentToBuild(result, latestJob.buildId);
+      const { savedContent } = saveStudyContentToBuild(result, latestJob.buildId);
+
+      if (latestJob.autoPublish) {
+        const cmp = compareStudyContentWithPublished(savedContent);
+        const skipOverwrite = latestJob.skipPublishOverwrite === true;
+        if (!cmp.changed) {
+          latestJob.progressText = `已生成，与已发布一致已跳过发布 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
+        } else if (skipOverwrite && cmp.publishedExists) {
+          latestJob.progressText = `已生成，该章已有发布已跳过覆盖 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
+        } else {
+          mergePublishOneChapter(savedContent);
+          bumpPublishedMergeMetaForOneChapter(
+            target.versionId,
+            target.lang,
+            latestJob.buildId
+          );
+          invalidateStudyContentCache(
+            target.versionId,
+            target.lang,
+            target.bookId,
+            target.chapter
+          );
+          latestJob.progressText = `已生成并发布 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
+        }
+      } else {
+        latestJob.progressText = `已完成 ${i + 1} / ${latestJob.total}`;
+      }
 
       latestJob.done = i + 1;
       latestJob.updatedAt = nowIso();
-      latestJob.progressText = `已完成 ${latestJob.done} / ${latestJob.total}`;
       writeJob(latestJob);
 
       await sleep(150);
@@ -2715,21 +2879,8 @@ async function processBulkJob(job) {
   finalJob.progressText = `任务完成：${finalJob.done} / ${finalJob.total}`;
 
   if (finalJob.autoPublish) {
-    const touchedPairs = new Set(
-      finalJob.targets.map((x) => `${x.versionId}__${x.lang}`)
-    );
-
-    for (const pair of touchedPairs) {
-      const [versionId, lang] = pair.split("__");
-      mergePublishFromBuild({
-        buildId: finalJob.buildId,
-        versionId,
-        lang,
-        targets: finalJob.targets,
-      });
-    }
-
-    finalJob.progressText += "，并已自动合并发布";
+    /* 生成阶段已逐章 mergePublish，此处不再整批 merge，避免重复计数与重复写盘 */
+    finalJob.progressText += "，并已自动合并发布（逐章）";
   }
 
   finalJob.completionSummary = buildCompletionSummary(finalJob);
@@ -4982,14 +5133,14 @@ app.get("/api/admin/system/openai-key/status", (req, res) => {
     if (!authed) return;
     const secretKey = safeText(loadSystemSecrets().openaiApiKey || "");
     const envKey = safeText(process.env.OPENAI_API_KEY || "");
+    const effective = envKey || secretKey;
     res.json({
-      configured: Boolean(secretKey || envKey),
-      source: secretKey ? "system" : envKey ? "env" : "none",
-      masked: secretKey
-        ? `sk-***${secretKey.slice(-4)}`
-        : envKey
-        ? `sk-***${envKey.slice(-4)}`
-        : "",
+      configured: Boolean(effective),
+      source: envKey ? "env" : secretKey ? "system" : "none",
+      masked: effective ? `sk-***${effective.slice(-4)}` : "",
+      hasEnv: Boolean(envKey),
+      hasSystemSecret: Boolean(secretKey),
+      systemSecretShadowed: Boolean(envKey && secretKey),
     });
   } catch (error) {
     console.error(error);
@@ -5312,6 +5463,71 @@ app.post("/api/admin/job/:id/cancel", (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "取消任务失败" });
+  }
+});
+
+app.post("/api/admin/job/:id/merge-publish-build", async (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const job = readJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: "任务不存在" });
+    }
+    if (job.status === "running" || job.status === "queued") {
+      return res
+        .status(400)
+        .json({ error: "任务仍在排队或执行中，请等待结束后再合并发布" });
+    }
+    const body = req.body || {};
+    const onlyChanged = body.onlyChanged !== false;
+    const dryRun = body.dryRun === true;
+    const result = await mergePublishFromJobBuild(job, { onlyChanged, dryRun });
+    if (!dryRun && result.totalPublishedCount > 0) {
+      const prefixes = new Set();
+      for (const t of job.targets || []) {
+        if (t?.versionId && t?.lang) {
+          prefixes.add(`study:${String(t.versionId)}:${String(t.lang)}:`);
+        }
+      }
+      prefixes.forEach((p) => clearReadCacheByPrefix(p));
+    }
+    appendAdminAudit(req, authed, "job_merge_publish_build", {
+      jobId: job.id,
+      buildId: job.buildId,
+      totalPublishedCount: result.totalPublishedCount,
+      dryRun,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "合并发布失败" });
+  }
+});
+
+app.post("/api/admin/jobs/merge-publish-partial-builds", async (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const body = req.body || {};
+    const onlyChanged = body.onlyChanged !== false;
+    const dryRun = body.dryRun === true;
+    const result = await mergePublishAllPartialJobBuilds({
+      onlyChanged,
+      dryRun,
+    });
+    if (!dryRun && result.totalPublishedCount > 0) {
+      clearReadCacheByPrefix("study:");
+    }
+    appendAdminAudit(req, authed, "jobs_merge_publish_partial_builds", {
+      jobCount: result.jobCount,
+      totalPublishedCount: result.totalPublishedCount,
+      dryRun,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "批量合并发布失败" });
   }
 });
 
