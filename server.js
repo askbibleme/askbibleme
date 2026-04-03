@@ -3074,6 +3074,40 @@ function republishOneChapterFromBuild({
   };
 }
 
+function findLatestBuildForChapterFromFilesystem({ versionId, lang, bookId, chapter }) {
+  if (!fs.existsSync(CONTENT_BUILDS_DIR)) return null;
+  const relSuffix = path.join(versionId, lang, bookId, `${chapter}.json`);
+  let best = null;
+  let bestMtime = -1;
+  let entries;
+  try {
+    entries = fs.readdirSync(CONTENT_BUILDS_DIR, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const ent of entries) {
+    if (!ent.isDirectory()) continue;
+    const candidatePath = path.join(CONTENT_BUILDS_DIR, ent.name, relSuffix);
+    if (!fs.existsSync(candidatePath)) continue;
+    let st;
+    try {
+      st = fs.statSync(candidatePath);
+    } catch {
+      continue;
+    }
+    const m = st.mtimeMs;
+    if (m > bestMtime) {
+      bestMtime = m;
+      best = {
+        jobId: "",
+        buildId: ent.name,
+        path: candidatePath,
+      };
+    }
+  }
+  return best;
+}
+
 function findLatestBuildForChapter({ versionId, lang, bookId, chapter }) {
   const jobs = listAllJobsNewestFirst();
 
@@ -3098,7 +3132,7 @@ function findLatestBuildForChapter({ versionId, lang, bookId, chapter }) {
     }
   }
 
-  return null;
+  return findLatestBuildForChapterFromFilesystem({ versionId, lang, bookId, chapter });
 }
 
 function autoRepublishChapter({

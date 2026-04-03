@@ -110,6 +110,8 @@ const adminState = {
   lastJobsSnapshotKey: "",
   publishedOverview: null,
   lastPublishedBulkResult: null,
+  lastPublishedAutoMissingResult: null,
+  lastPublishedPanelKind: "bulk",
   lastPublishedChanges: loadLastPublishedChanges(),
   publishHistory: loadPublishHistory(),
   scriptureVersions: [],
@@ -131,16 +133,36 @@ function loadPublishHistory() {
   const parsed = safeJsonParse(localStorage.getItem(PUBLISH_HISTORY_KEY), []);
   if (!Array.isArray(parsed)) return [];
   return parsed
-    .map((x) => ({
-      at: String(x?.at || ""),
-      mode: String(x?.mode || "all"),
-      dryRun: x?.dryRun === true,
-      onlyChanged: x?.onlyChanged !== false,
-      matchedPairs: Number(x?.matchedPairs || 0),
-      totalPublishedCount: Number(x?.totalPublishedCount || 0),
-      totalSkippedCount: Number(x?.totalSkippedCount || 0),
-      changeCount: Number(x?.changeCount || 0),
-    }))
+    .map((x) => {
+      const actionType =
+        x?.actionType === "auto_republish_missing"
+          ? "auto_republish_missing"
+          : "bulk";
+      const base = {
+        at: String(x?.at || ""),
+        actionType,
+        mode: String(x?.mode || "all"),
+        dryRun: x?.dryRun === true,
+        onlyChanged: x?.onlyChanged !== false,
+        matchedPairs: Number(x?.matchedPairs || 0),
+      };
+      if (actionType === "auto_republish_missing") {
+        return {
+          ...base,
+          totalMissingBefore: Number(x?.totalMissingBefore || 0),
+          totalRepublished: Number(x?.totalRepublished || 0),
+          totalSkipped: Number(x?.totalSkipped || 0),
+          totalFailed: Number(x?.totalFailed || 0),
+          totalNoSource: Number(x?.totalNoSource || 0),
+        };
+      }
+      return {
+        ...base,
+        totalPublishedCount: Number(x?.totalPublishedCount || 0),
+        totalSkippedCount: Number(x?.totalSkippedCount || 0),
+        changeCount: Number(x?.changeCount || 0),
+      };
+    })
     .filter((x) => x.at);
 }
 
@@ -5671,6 +5693,7 @@ async function runPublishedBulkAction(mode, dryRun = false) {
 
   const data = await res.json();
   adminState.lastPublishedBulkResult = data;
+  adminState.lastPublishedPanelKind = "bulk";
   adminState.lastPublishedChanges = getFlattenPublishedChanges(data);
   saveLastPublishedChanges();
 
@@ -5753,6 +5776,11 @@ async function runPublishedAutoRepublishMissingBulk(mode, dryRun = false) {
     }
     return;
   }
+  adminState.lastPublishedAutoMissingResult = data;
+  adminState.lastPublishedPanelKind = "auto_missing";
+  renderLastPublishedAction();
+  recordAutoRepublishMissingHistory(data);
+  renderPublishHistory();
   if (statusBox) {
     const changedEntries = (data.details || [])
       .flatMap((item) =>
@@ -5776,6 +5804,11 @@ async function runPublishedAutoRepublishMissingBulk(mode, dryRun = false) {
       <div><strong>失败：</strong>${escapeHtml(String(data.totalFailed || 0))}（无来源 ${escapeHtml(
       String(data.totalNoSource || 0)
     )}）</div>
+      ${
+        Number(data.totalNoSource || 0) > 0
+          ? `<div style="margin-top:8px;opacity:.95;">无来源表示在 <code>content_builds</code> 下找不到对应章节 JSON（含未完成任务或从未生成的卷章）。查漏补发只会把<strong>已有构建产物</strong>写入已发布目录，不会自动生成内容；请先对相关任务跑完生成或补建。</div>`
+          : ""
+      }
       <div style="margin-top:8px;"><strong>补发清单（最多 120 条）：</strong></div>
       <div style="margin-top:6px; line-height:1.6;">
         ${
@@ -5892,6 +5925,24 @@ function renderPublishFeatureInfo() {
 function renderLastPublishedAction() {
   const box = document.getElementById("publishedLastActionBox");
   if (!box) return;
+  if (adminState.lastPublishedPanelKind === "auto_missing") {
+    const d = adminState.lastPublishedAutoMissingResult;
+    if (!d || typeof d !== "object") {
+      box.textContent = "最近一次执行：尚无记录。";
+      return;
+    }
+    box.innerHTML = `
+    <div><strong>最近一次执行：</strong>${d.dryRun ? "查漏补发预览" : "一键自动查漏补发"}</div>
+    <div><strong>执行模式：</strong>${escapeHtml(String(d.mode || "all"))}</div>
+    <div><strong>仅发布改动：</strong>${d.onlyChanged !== false ? "是" : "否"}</div>
+    <div><strong>补发前缺失章节：</strong>${escapeHtml(String(d.totalMissingBefore || 0))}</div>
+    <div><strong>补发成功：</strong>${escapeHtml(String(d.totalRepublished || 0))}</div>
+    <div><strong>失败：</strong>${escapeHtml(String(d.totalFailed || 0))}（无来源 ${escapeHtml(
+      String(d.totalNoSource || 0)
+    )}）</div>
+  `;
+    return;
+  }
   const data = adminState.lastPublishedBulkResult;
   if (!data || !Array.isArray(data.details)) {
     box.textContent = "最近一次执行：尚无记录。";
@@ -5911,6 +5962,7 @@ function recordPublishedActionHistory(data) {
   if (!data || !Array.isArray(data.details)) return;
   const entry = {
     at: new Date().toISOString(),
+    actionType: "bulk",
     mode: String(data.mode || "all"),
     dryRun: data.dryRun === true,
     onlyChanged: data.onlyChanged !== false,
@@ -5918,6 +5970,25 @@ function recordPublishedActionHistory(data) {
     totalPublishedCount: Number(data.totalPublishedCount || 0),
     totalSkippedCount: Number(data.totalSkippedCount || 0),
     changeCount: getFlattenPublishedChanges(data).length,
+  };
+  adminState.publishHistory = [entry].concat(adminState.publishHistory || []).slice(0, 10);
+  savePublishHistory();
+}
+
+function recordAutoRepublishMissingHistory(data) {
+  if (!data || typeof data !== "object") return;
+  const entry = {
+    at: new Date().toISOString(),
+    actionType: "auto_republish_missing",
+    mode: String(data.mode || "all"),
+    dryRun: data.dryRun === true,
+    onlyChanged: data.onlyChanged !== false,
+    matchedPairs: Number(data.matchedPairs || 0),
+    totalMissingBefore: Number(data.totalMissingBefore || 0),
+    totalRepublished: Number(data.totalRepublished || 0),
+    totalSkipped: Number(data.totalSkipped || 0),
+    totalFailed: Number(data.totalFailed || 0),
+    totalNoSource: Number(data.totalNoSource || 0),
   };
   adminState.publishHistory = [entry].concat(adminState.publishHistory || []).slice(0, 10);
   savePublishHistory();
@@ -5932,21 +6003,34 @@ function renderPublishHistory() {
     return;
   }
   box.innerHTML = rows
-    .map(
-      (x, idx) => `
+    .map((x, idx) => {
+      const isAuto = x.actionType === "auto_republish_missing";
+      const title = isAuto
+        ? `${x.dryRun ? "查漏预览" : "查漏补发"}`
+        : `${x.dryRun ? "增量预览" : "正式发布"}`;
+      const detail = isAuto
+        ? `缺失 ${escapeHtml(String(x.totalMissingBefore))}，补发 ${escapeHtml(
+            String(x.totalRepublished)
+          )}，跳过 ${escapeHtml(String(x.totalSkipped))}，失败 ${escapeHtml(
+            String(x.totalFailed)
+          )}（无来源 ${escapeHtml(String(x.totalNoSource))}），版本语言组 ${escapeHtml(
+            String(x.matchedPairs)
+          )}`
+        : `改动 ${escapeHtml(String(x.changeCount))}，发布 ${escapeHtml(
+            String(x.totalPublishedCount)
+          )}，跳过 ${escapeHtml(String(x.totalSkippedCount))}，版本语言组 ${escapeHtml(
+            String(x.matchedPairs)
+          )}`;
+      return `
       <div style="padding:6px 0; ${idx ? "border-top:1px solid rgba(214,203,187,.56);" : ""}">
-        <div><strong>${idx + 1}.</strong> ${x.dryRun ? "增量预览" : "正式发布"}｜mode=${escapeHtml(
-        String(x.mode)
-      )}｜仅改动=${x.onlyChanged ? "是" : "否"}</div>
-        <div style="opacity:.88;">改动 ${escapeHtml(String(x.changeCount))}，发布 ${escapeHtml(
-        String(x.totalPublishedCount)
-      )}，跳过 ${escapeHtml(String(x.totalSkippedCount))}，版本语言组 ${escapeHtml(
-        String(x.matchedPairs)
-      )}</div>
+        <div><strong>${idx + 1}.</strong> ${title}｜mode=${escapeHtml(String(x.mode))}｜仅改动=${
+          x.onlyChanged ? "是" : "否"
+        }</div>
+        <div style="opacity:.88;">${detail}</div>
         <div style="opacity:.75;">${escapeHtml(new Date(x.at).toLocaleString())}</div>
       </div>
-    `
-    )
+    `;
+    })
     .join("");
 }
 
