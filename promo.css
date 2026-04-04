@@ -59,7 +59,7 @@ body.promo-page-body {
 }
 
 .promo-shell .brand-bible {
-  color: #b5832f;
+  color: var(--brand-bible, #ffb82e);
 }
 
 .promo-main {
@@ -317,4 +317,245 @@ body.promo-page-body {
   .promo-actions .secondary-btn {
     transition: none;
   }
+}
+
+/* —— Markdown 正文（/api/promo-page + marked） —— */
+.promo-md-status {
+  margin: 0;
+  padding: 32px 20px 40px;
+  text-align: center;
+  font-size: 15px;
+  color: #86868b;
+}
+
+.promo-md-error {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 20px 22px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #8b2c2c;
+  background: rgba(139, 44, 44, 0.08);
+  border: 1px solid rgba(139, 44, 44, 0.2);
+  border-radius: 14px;
+}
+
+.promo-md-root article.promo-block h2 {
+  margin: 0 0 16px;
+  font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: #1d1d1f;
+}
+
+.promo-md-root article.promo-block h3 {
+  margin: 20px 0 10px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.promo-md-root article.promo-block p {
+  margin: 0 0 12px;
+  font-size: 17px;
+  line-height: 1.588;
+  letter-spacing: -0.01em;
+  color: #1d1d1f;
+}
+
+.promo-md-root article.promo-block p:last-child {
+  margin-bottom: 0;
+}
+
+.promo-md-root article.promo-block strong {
+  font-weight: 600;
+}
+
+.promo-md-root article.promo-block ul,
+.promo-md-root article.promo-block ol {
+  margin: 12px 0 16px;
+  padding-left: 1.35em;
+  font-size: 17px;
+  line-height: 1.5;
+  color: #1d1d1f;
+}
+
+.promo-md-root article.promo-block li {
+  margin-bottom: 8px;
+}
+
+.promo-md-root article.promo-block li::marker {
+  color: #a67c2a;
+}
+
+.promo-md-root article.promo-block blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 4px solid rgba(181, 131, 47, 0.45);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 0 12px 12px 0;
+  color: #424245;
+}
+
+.promo-md-root article.promo-block pre {
+  margin: 16px 0;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: #1d1d1f;
+  color: #f5f5f7;
+}
+
+.promo-md-root article.promo-block code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.promo-md-root article.promo-block pre code {
+  font-size: inherit;
+}
+
+.promo-md-root article.promo-block a {
+  color: #8b6914;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.promo-md-root article.promo-block hr {
+  margin: 28px 0;
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.promo-md-root article.promo-block img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 12px 0;
+}
+
+.promo-md-root .promo-kicker {
+  margin: 32px 0 12px;
+  text-align: center;
+}
+
+/* —— 管理页 promo-edit.html —— */
+.promo-edit-app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 12px 32px;
+}
+
+.promo-edit-auth-bar {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(181, 131, 47, 0.12);
+  border: 1px solid rgba(181, 131, 47, 0.28);
+  font-size: 14px;
+  line-height: 1.45;
+  color: #3d3428;
+}
+
+.promo-edit-auth-bar a {
+  color: #8b6914;
+  font-weight: 600;
+}
+
+.promo-edit-head {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #1d1d1f;
+}
+
+.promo-edit-lead {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6e6e73;
+}
+
+.promo-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .promo-edit-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+}
+
+.promo-edit-panel {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 16px 16px 18px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+}
+
+.promo-edit-label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #424245;
+}
+
+.promo-edit-textarea {
+  width: 100%;
+  min-height: min(52vh, 520px);
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fafafa;
+  color: #1d1d1f;
+  resize: vertical;
+}
+
+.promo-edit-textarea:focus {
+  outline: none;
+  border-color: rgba(181, 131, 47, 0.55);
+  box-shadow: 0 0 0 3px rgba(181, 131, 47, 0.15);
+}
+
+.promo-edit-preview-wrap {
+  min-height: min(52vh, 520px);
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  padding: 8px 4px 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+  background: #f5f5f7;
+}
+
+.promo-edit-preview-inner.promo-md-root {
+  padding: 4px 10px 12px;
+}
+
+.promo-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.promo-edit-status {
+  flex: 1 1 200px;
+  min-width: min(100%, 220px);
+  font-size: 13px;
+  line-height: 1.45;
+  color: #6e6e73;
 }

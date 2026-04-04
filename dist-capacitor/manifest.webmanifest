@@ -1,7 +1,7 @@
 {
   "name": "AskBible.me",
   "short_name": "AskBible",
-  "description": "Bible reading and study companion.",
+  "description": "在线读经与查经平台：书页式阅读、问题式查经、笔记本，适合灵修与小组聚会。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

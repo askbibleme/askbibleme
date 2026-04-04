@@ -1,9 +1,10 @@
-const CACHE_NAME = "askbible-static-v33";
+const CACHE_NAME = "askbible-static-v34";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/download.html",
   "/promo.html",
+  "/promo-edit.html",
   "/vision.html",
   "/vision.css",
   "/styles.css",

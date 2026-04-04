@@ -31,6 +31,8 @@
   --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 24px 60px rgba(0, 0, 0, 0.16);
   --font-scale: 1;
+  /* Logo「Bible」：与用户中心黄标相近的亮金黄 */
+  --brand-bible: #ffb82e;
   --star-g1-1: #ede6d8;
   --star-g1-2: #e4d7be;
   --star-g1-3: #dcc8a5;
@@ -150,7 +152,7 @@ body {
 }
 
 .brand-bible {
-  color: #f0be62;
+  color: var(--brand-bible);
 }
 
 .brand-subtitle {
@@ -164,7 +166,7 @@ body {
 }
 
 .brand-ellipsis {
-  color: #f0be62;
+  color: var(--brand-bible);
   font-weight: 800;
   display: inline-block;
   font-size: 1.32em;
@@ -290,6 +292,12 @@ body {
   color: inherit;
 }
 
+/* JS 设 hidden 时须压过下方的 display，否则仍会占位或画出伪元素 */
+.member-hub-trigger-glyph[hidden],
+.member-hub-trigger-stars-wrap[hidden] {
+  display: none !important;
+}
+
 .member-hub--bookmark .member-hub-trigger-glyph::before {
   content: "";
   position: absolute;
@@ -365,7 +373,7 @@ body {
   flex-shrink: 0;
 }
 
-/* 已登录：书签上显示「某某的圣经」+ 图标 */
+/* 已登录：书签上显示「昵称的圣经」+ 等级星 */
 .member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label {
   min-width: 96px;
   max-width: 212px;
@@ -391,6 +399,43 @@ body {
   width: 13px;
   height: 13px;
   flex-shrink: 0;
+}
+
+/* 已登录书签：右侧等级标星 */
+.member-hub--bookmark .member-hub-trigger-stars-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 18px;
+  max-width: 42px;
+  height: 14px;
+  line-height: 1;
+}
+
+.member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label .member-hub-trigger-stars-wrap {
+  height: 13px;
+}
+
+.member-hub-trigger-stars-wrap .member-hub-star-strip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.member-hub-trigger-stars-wrap .star-level {
+  font-size: 11px;
+  letter-spacing: -0.05em;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.38);
+}
+
+.member-hub-star-strip--empty {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(239, 232, 220, 0.42);
+  line-height: 1;
 }
 
 .member-hub--bookmark .member-hub-trigger {
@@ -1288,6 +1333,19 @@ button.member-hub-link:hover {
   filter: brightness(1.02);
 }
 
+/* 经文收藏列表：Logo 黄实底（--brand-bible） */
+.favorite-item--verse .favorite-jump-btn:hover {
+  background: var(--brand-bible);
+  color: var(--ink);
+  filter: none;
+}
+
+.favorite-item--verse .favorite-jump-btn:active {
+  background: var(--brand-bible);
+  color: var(--ink);
+  filter: brightness(0.96);
+}
+
 .favorite-ref {
   font-weight: 700;
   font-size: calc(14px * var(--font-scale));
@@ -2105,39 +2163,46 @@ button.member-hub-link:hover {
 }
 
 .reading-toolbar {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, auto);
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
   margin-bottom: 14px;
   padding-right: 18px;
 }
 
-.reading-toolbar > * {
+.reading-toolbar-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, auto);
+  gap: 8px;
+  align-items: center;
+}
+
+.reading-toolbar-row > * {
   width: 100%;
   min-width: 0;
 }
 
-.reading-toolbar > .inline-display-toggle {
+.reading-toolbar-row > .inline-display-toggle {
   width: auto;
 }
+
 
 .reading-toolbar .toolbar-trigger {
   min-width: 0 !important;
 }
 
 /* 书卷 / 选版本 / 搜经文：三格等分内左对齐（与搜经文同一行结构） */
-.reading-toolbar > #bookChapterTrigger,
-.reading-toolbar > #primaryVersionTrigger,
-.reading-toolbar > #verseSearchOpenBtn {
+.reading-toolbar-row > #bookChapterTrigger,
+.reading-toolbar-row > #primaryVersionTrigger,
+.reading-toolbar-row > #verseSearchOpenBtn {
   justify-content: flex-start;
   padding-inline: 10px;
   font-size: calc(13px * var(--font-scale));
 }
 
-.reading-toolbar > #bookChapterTrigger .toolbar-trigger-lead,
-.reading-toolbar > #primaryVersionTrigger .toolbar-trigger-lead,
-.reading-toolbar > #verseSearchOpenBtn .toolbar-trigger-lead {
+.reading-toolbar-row > #bookChapterTrigger .toolbar-trigger-lead,
+.reading-toolbar-row > #primaryVersionTrigger .toolbar-trigger-lead,
+.reading-toolbar-row > #verseSearchOpenBtn .toolbar-trigger-lead {
   flex: 1 1 auto;
   min-width: 0;
   justify-content: flex-start;
@@ -3361,6 +3426,13 @@ body.question-only-mode .plain-list li {
   display: none !important;
 }
 
+/* 搜经文：与其它全屏卡片一致，垂直居中（含小屏） */
+#verseSearchOverlay.verse-search-overlay {
+  align-items: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .verse-search-backdrop {
   position: absolute;
   inset: 0;
@@ -3503,9 +3575,12 @@ body.book-chapter-open {
   overflow: hidden;
 }
 
-/* 选版本：与搜经文同壳（全屏遮罩 + min(100%,520px) 卡片） */
+/* 选版本：与搜经文同壳（全屏遮罩 + min(100%,520px) 卡片）；卡片在屏幕垂直居中 */
 #primaryVersionPanel.primary-version-overlay {
   z-index: 218;
+  align-items: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 #primaryVersionPanel .primary-version-card {
@@ -3534,54 +3609,26 @@ body.book-chapter-open {
   padding: 10px 12px 14px !important;
 }
 
-.primary-version-promo-wrap {
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(190, 170, 140, 0.35);
-}
-
-.primary-version-promo-link {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(139, 111, 71, 0.38);
-  background: rgba(139, 111, 71, 0.1);
-  text-decoration: none;
-  color: inherit;
-  transition: background 0.15s ease, filter 0.15s ease;
-}
-
-.primary-version-promo-link:hover {
-  background: rgba(139, 111, 71, 0.16);
-  filter: brightness(1.02);
-}
-
-.primary-version-promo-main {
-  display: block;
-  font-size: calc(15px * var(--font-scale));
-  font-weight: 700;
-  color: var(--ink);
-  line-height: 1.35;
-}
-
-.primary-version-promo-sub {
-  display: block;
-  margin-top: 4px;
-  font-size: calc(12px * var(--font-scale));
-  font-weight: 500;
-  color: var(--muted);
-  line-height: 1.4;
-}
-
 /* 书卷：与搜经文 / 选版本同壳 */
 #bookChapterPanel.book-chapter-overlay {
   z-index: 217;
+  align-items: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 #bookChapterPanel .book-chapter-card {
+  box-sizing: border-box;
+  height: 80vh;
+  max-height: 80vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: none !important;
+  box-shadow: 0 6px 18px rgba(15, 12, 10, 0.07) !important;
+  padding: 5px 7px 7px !important;
+  gap: 3px !important;
 }
 
 #bookChapterPanel .toolbar-panel-inner {
@@ -3589,6 +3636,8 @@ body.book-chapter-open {
   height: auto !important;
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden !important;
   overflow-y: auto !important;
   background: transparent !important;
@@ -3602,13 +3651,254 @@ body.book-chapter-open {
   display: none !important;
 }
 
-#bookChapterPanel .toolbar-panel-book {
-  padding: 10px 12px 14px !important;
+#bookChapterPanel .toolbar-panel-head {
+  flex-shrink: 0;
+  margin-bottom: 2px !important;
+  gap: 4px;
 }
 
-/* 收藏：与选书卷同壳，内容区双列 */
+#bookChapterPanel .toolbar-panel-book {
+  padding: 3px 5px 5px !important;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* 选书卷：旧约 | 新约 | 章节 三栏，总宽分四份 2:1:1 */
+#bookChapterPanel .book-chapter-triple {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 3px 5px;
+  align-items: stretch;
+  min-height: 0;
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+#bookChapterPanel .book-chapter-col {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#bookChapterPanel .book-chapter-col .book-grid,
+#bookChapterPanel .book-chapter-col .chapter-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#bookChapterPanel .book-grid--ot {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  row-gap: 0;
+  column-gap: 0;
+}
+
+/* 旧约 / 新约 分组小标题：占满该书卷网格整行（与书卷按钮灰褐字色区分） */
+#bookChapterPanel .book-grid--ot .book-bible-section-title,
+#bookChapterPanel .book-grid--nt .book-bible-section-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  box-sizing: border-box;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4px 6px;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+  text-transform: none;
+}
+
+#bookChapterPanel .book-grid--ot .book-bible-section-title {
+  color: #8f6518;
+  background: rgba(200, 155, 60, 0.12);
+}
+
+/* 新约栏内分类：次层次 — 米金底 + 深黄褐字（与旧约同系，略浅于顶栏） */
+#bookChapterPanel .book-grid--nt .book-bible-section-title {
+  color: #6a4810;
+  background: rgba(236, 220, 200, 0.55);
+}
+
+#bookChapterPanel .book-grid--nt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) !important;
+  row-gap: 0;
+  column-gap: 0;
+}
+
+#bookChapterPanel .book-chapter-chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 3px;
+}
+
+/* 小屏：首行三列标题（旧约｜新约｜章节），次行同宽比内容区；总宽分 7 份 → 3:3:1 */
+@media (max-width: 700px) {
+  #bookChapterPanel .book-chapter-triple {
+    grid-template-columns: 3fr 3fr 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 4px;
+    row-gap: 4px;
+    align-items: stretch;
+  }
+
+  #bookChapterPanel .book-chapter-col {
+    display: contents;
+  }
+
+  /* DOM 为「每栏标题+内容」交替，自动排列会把书卷格挤到首行；固定为第 1 行标题、第 2 行内容 */
+  #bookChapterPanel .book-chapter-col--ot > .book-chapter-section-title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #bookChapterPanel .book-chapter-col--ot > .book-grid--ot {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 0;
+  }
+
+  #bookChapterPanel .book-chapter-col--nt > .book-chapter-section-title {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  #bookChapterPanel .book-chapter-col--nt > .book-grid--nt {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 0;
+  }
+
+  #bookChapterPanel .book-chapter-col--chapters > .book-chapter-section-title {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  #bookChapterPanel .book-chapter-col--chapters > .book-chapter-chapter-grid {
+    grid-column: 3;
+    grid-row: 2;
+    min-height: 0;
+  }
+
+  #bookChapterPanel .book-chapter-section-title {
+    margin-bottom: 0;
+    text-align: center;
+    font-size: calc(14px * var(--font-scale));
+    padding: 1px 1px 2px;
+  }
+
+  #bookChapterPanel .book-grid--ot {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #bookChapterPanel .book-chapter-chapter-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* 书卷弹层内：书卷无边框、行距收紧；章节号格与分类标题行高一致 */
+#bookChapterPanel .book-item,
+#bookChapterPanel .chapter-item {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#bookChapterPanel .book-item {
+  min-height: 28px !important;
+  padding: 2px 4px !important;
+}
+
+#bookChapterPanel .chapter-item {
+  min-height: 32px !important;
+  padding: 4px 4px !important;
+}
+
+#bookChapterPanel .book-item:hover,
+#bookChapterPanel .chapter-item:hover {
+  border: none !important;
+  outline: none !important;
+  transform: none !important;
+}
+
+#bookChapterPanel .book-item.active,
+#bookChapterPanel .chapter-item.active {
+  border: none !important;
+  outline: none !important;
+}
+
+#bookChapterPanel .toolbar-panel-close {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+#bookChapterPanel .book-item:focus-visible,
+#bookChapterPanel .chapter-item:focus-visible,
+#bookChapterPanel .toolbar-panel-close:focus-visible {
+  outline: 2px solid rgba(139, 111, 71, 0.45);
+  outline-offset: 1px;
+}
+
+#bookChapterPanel .chapter-grid-title.book-chapter-section-title {
+  margin-bottom: 0 !important;
+}
+
+/* 旧约 / 新约 / 章节 栏目标题：底纹 + 居中（旧约金褐；新约深金底 + 深黄褐字；章节最浅金） */
+#bookChapterPanel .book-chapter-col--ot > .book-chapter-section-title,
+#bookChapterPanel .book-chapter-col--nt > .book-chapter-section-title,
+#bookChapterPanel .book-chapter-col--chapters > .book-chapter-section-title {
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 4px;
+  padding: 4px 6px 5px;
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+#bookChapterPanel .book-chapter-col--ot > .book-chapter-section-title,
+#bookChapterPanel .book-chapter-col--chapters > .book-chapter-section-title {
+  color: #8f6518;
+}
+
+#bookChapterPanel .book-chapter-col--chapters > .book-chapter-section-title {
+  background: rgba(200, 155, 60, 0.12);
+}
+
+/* 新约顶栏：主层次 — 深金底 + 深黄褐字（比旧约栏用色更深一档） */
+#bookChapterPanel .book-chapter-col--nt > .book-chapter-section-title {
+  color: #523208;
+  background: rgba(198, 158, 92, 0.52);
+}
+
+#bookChapterPanel .book-chapter-col--ot > .book-chapter-section-title {
+  background: rgba(200, 155, 60, 0.24);
+}
+
+/* 收藏：与选书卷同壳，内容区双列；弹层垂直居中（含小屏） */
 #favoritesPanel.book-chapter-overlay {
   z-index: 217;
+  align-items: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 #favoritesPanel .book-chapter-card {
@@ -3739,6 +4029,24 @@ body.book-chapter-open {
   color: var(--muted);
 }
 
+.admin-modal-util-bar {
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: calc(13px * var(--font-scale));
+  line-height: 1.4;
+}
+
+.admin-util-link {
+  color: #8b6914;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.admin-util-link:hover {
+  color: #6b5010;
+}
+
 .modal-dark-btn {
   border-color: rgba(0, 0, 0, 0.08);
   background: rgba(0, 0, 0, 0.04);
@@ -3848,58 +4156,190 @@ body.book-chapter-open {
   color: #b42318;
 }
 
-.auth-hint-bar {
-  margin: 4px 0 10px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(181, 122, 22, 0.2);
-  color: #8a5a0a;
+/* ----- 登录 / 注册弹窗：纸感卡片 + 读经同款分段槽 + 会员区金色主按钮 ----- */
+.auth-modal-mask {
+  background: rgba(35, 31, 28, 0.52);
+  backdrop-filter: blur(6px);
+}
+
+#authModal .modal-card.modal-card-auth {
+  width: min(100%, 420px);
+  max-width: 420px;
+  margin-top: min(11vh, 100px);
+  padding: 22px 22px 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(205, 188, 162, 0.55);
+  background: var(--book-spread-paper-gradient);
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  color: var(--ink);
+}
+
+#authModal .auth-modal-head {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(139, 111, 71, 0.14);
+  align-items: flex-start;
+}
+
+#authModal .auth-modal-head h2 {
+  font-size: calc(22px * var(--font-scale));
   font-weight: 800;
-  font-size: calc(18px * var(--font-scale));
-  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--ink);
 }
 
-#authModal #authModeLoginBtn,
-#authModal #authModeRegisterBtn {
-  min-width: 118px;
-  min-height: 48px;
-  padding: 0 20px;
-  border-radius: 14px;
-  font-size: calc(19px * var(--font-scale));
-  font-weight: 900;
+#authModal .auth-modal-close {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(139, 111, 71, 0.28);
+  background: rgba(255, 253, 248, 0.65);
+  color: var(--muted);
+  font-size: calc(13px * var(--font-scale));
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+#authModal .auth-modal-close:hover {
+  background: rgba(255, 253, 248, 0.92);
+  color: var(--ink);
+  border-color: rgba(139, 111, 71, 0.42);
+}
+
+.auth-mode-switch {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  height: 38px;
+  border-radius: var(--ui-seg-track-radius);
+  padding: var(--ui-seg-track-pad-y) var(--ui-seg-track-pad-x);
+  background: var(--ui-seg-track-bg);
+  gap: var(--ui-seg-gap);
+  margin: 0 0 16px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.auth-mode-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--ui-seg-btn-height);
+  border: 0;
+  border-radius: var(--ui-seg-btn-radius);
+  background: transparent;
+  color: var(--ui-seg-label);
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 600;
   line-height: 1;
-  border-width: 1.5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
-#authModal #authModeLoginBtn.active,
-#authModal #authModeRegisterBtn.active {
-  background: rgba(200, 155, 60, 0.2);
-  border-color: rgba(200, 155, 60, 0.72);
-  color: #8f6518;
-  box-shadow: 0 2px 8px rgba(143, 101, 24, 0.15);
+.auth-mode-btn:hover:not(.active) {
+  color: var(--ui-seg-label-hover);
+  background: var(--ui-seg-hover-fill);
 }
 
-#authModal .modal-actions {
-  gap: 10px;
+.auth-mode-btn.active {
+  background: var(--ui-seg-pill-bg);
+  color: var(--ui-seg-label-active);
+  font-weight: 800;
+  box-shadow: var(--ui-seg-pill-shadow);
 }
 
-#authModal .section-title {
-  margin: 12px 0 8px;
+#authModal .auth-modal-body .section-title {
+  margin: 14px 0 6px;
+  font-size: calc(13px * var(--font-scale));
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+#authModal .auth-modal-body #authNameField .section-title {
+  margin-top: 0;
+}
+
+#authModal .single-input,
+#authModal .custom-textarea.single-input {
+  border: 1px solid rgba(139, 111, 71, 0.28);
+  background: rgba(255, 253, 248, 0.88);
+  color: var(--ink);
+  border-radius: 12px;
+  height: 48px;
   font-size: calc(15px * var(--font-scale));
+  box-shadow: inset 0 1px 2px rgba(76, 62, 42, 0.06);
 }
 
-#authModal .single-input {
-  height: 50px;
+#authModal .single-input::placeholder {
+  color: rgba(127, 116, 104, 0.72);
+}
+
+#authModal .single-input:focus {
+  outline: none;
+  border-color: rgba(200, 155, 60, 0.65);
+  box-shadow:
+    inset 0 1px 2px rgba(76, 62, 42, 0.06),
+    0 0 0 2px rgba(200, 155, 60, 0.2);
+}
+
+#authModal .auth-modal-body .error-text {
+  min-height: 1.25em;
+  margin-top: 12px;
+  color: #a32012;
+  font-weight: 600;
+}
+
+#authModal .auth-modal-form {
+  margin: 0;
+}
+
+.admin-password-form {
+  margin: 0;
+}
+
+#authModal .auth-modal-submit-row {
+  margin-top: 16px;
+}
+
+#authModal .auth-submit-btn {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(200, 130, 25, 0.72);
+  /* 与顶栏 Logo「Bible」同色 --brand-bible，略提亮作高光 */
+  background: linear-gradient(180deg, #ffcc5e, var(--brand-bible));
+  color: var(--ink);
   font-size: calc(16px * var(--font-scale));
-  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset;
+  transition:
+    filter 0.15s ease,
+    transform 0.1s ease,
+    border-color 0.15s ease;
 }
 
-#authModal #authSubmitBtn {
-  min-height: 46px;
-  min-width: 96px;
-  border-radius: 12px;
-  font-size: calc(17px * var(--font-scale));
-  padding: 0 20px;
+#authModal .auth-submit-btn:hover {
+  filter: brightness(1.05);
+  border-color: rgba(180, 110, 20, 0.85);
+}
+
+#authModal .auth-submit-btn:active {
+  transform: translateY(1px);
 }
 
 .star-level {
@@ -4180,7 +4620,7 @@ body.book-chapter-open {
     grid-template-columns: 1fr;
   }
 
-  .reading-toolbar {
+  .reading-toolbar-row {
     grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.4fr);
   }
 
@@ -4309,7 +4749,7 @@ body.book-chapter-open {
     font-size: calc(14px * var(--font-scale));
   }
 
-  .reading-toolbar {
+  .reading-toolbar-row {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px !important;
@@ -4317,12 +4757,57 @@ body.book-chapter-open {
     position: relative;
   }
 
+  /* 小屏：书卷 / 版本 / 搜索 三键严格三等分、内容居中 */
+  .reading-toolbar-row > #bookChapterTrigger,
+  .reading-toolbar-row > #primaryVersionTrigger,
+  .reading-toolbar-row > #verseSearchOpenBtn {
+    grid-column: auto;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: none !important;
+    justify-content: center !important;
+    padding-inline: 6px !important;
+  }
+
+  .reading-toolbar-row > #bookChapterTrigger .toolbar-trigger-lead,
+  .reading-toolbar-row > #primaryVersionTrigger .toolbar-trigger-lead,
+  .reading-toolbar-row > #verseSearchOpenBtn .toolbar-trigger-lead {
+    justify-content: center !important;
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
   .reading-toolbar .toolbar-trigger-wide {
     min-width: 0 !important;
   }
 
-  #displayModeSwitch {
+  /*
+   * 小屏整体两行：第 1 行书卷/版本/搜索三等分；第 2 行显示模式单独一行，且
+   * 经文 / 全显 / 问题 也在同一行内各占 1/3（不要 2+1）。
+   */
+  .reading-toolbar-row #displayModeSwitch {
     grid-column: 1 / -1;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto;
+    width: 100%;
+    height: auto !important;
+    min-height: 38px;
+    align-self: stretch;
+    box-sizing: border-box;
+    align-items: stretch;
+    gap: var(--ui-seg-gap);
+  }
+
+  .reading-toolbar-row #displayModeSwitch .display-mode-btn {
+    grid-column: auto;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 36px;
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.25;
+    padding: 6px 4px;
   }
 
   .toolbar-panel {
@@ -4458,15 +4943,21 @@ body.book-chapter-open {
     min-width: 0 !important;
   }
 
+  /* 勿对 .reading-toolbar 设多列 grid：唯一子元素 .reading-toolbar-row 会只占第一列，整栏被压成 ~1/3 宽 */
   .reading-toolbar {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex !important;
+    flex-direction: column;
     gap: 6px !important;
     position: relative;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
-  #displayModeSwitch {
-    grid-column: 1 / -1;
+  .reading-toolbar > .reading-toolbar-row {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .toolbar-trigger,
@@ -4476,15 +4967,17 @@ body.book-chapter-open {
     font-size: calc(13px * var(--font-scale));
   }
 
-  .display-mode-switch {
+  .reading-toolbar-row #displayModeSwitch.display-mode-switch {
     width: 100%;
     max-width: 100%;
-    height: 36px;
+    height: auto !important;
+    min-height: 34px;
   }
 
-  .display-mode-switch .display-mode-btn {
-    padding: 0 6px;
+  .reading-toolbar-row #displayModeSwitch .display-mode-btn {
+    padding: 5px 6px;
     font-size: calc(12px * var(--font-scale));
+    min-height: 34px;
   }
 
   .book-layout,
@@ -4510,6 +5003,7 @@ body.book-chapter-open {
     max-width: 178px;
     min-width: 84px;
     padding: 1px 30px 3px 30px;
+    gap: 3px;
     font-size: calc(11px * var(--font-scale));
   }
 
@@ -4648,7 +5142,7 @@ body.book-chapter-open {
 
 .toolbar-trigger,
 button.toolbar-trigger,
-.reading-toolbar button {
+.reading-toolbar button:not(.display-mode-btn) {
   height: 40px !important;
   padding: 0 14px !important;
   font-size: 14px !important;
@@ -4720,11 +5214,11 @@ button.toolbar-trigger,
 }
 
 #primaryVersionPanel .chapter-grid-wrap {
-  border-top: 1px solid rgba(193, 166, 124, 0.45) !important;
+  border-top: none !important;
   margin-top: 12px;
-  padding: 12px 10px 10px !important;
-  border-radius: 12px;
-  background: rgba(252, 247, 237, 0.72);
+  padding: 8px 0 6px !important;
+  border-radius: 0;
+  background: transparent !important;
 }
 
 #primaryVersionPanel .chapter-grid-wrap:first-of-type {
@@ -4744,37 +5238,8 @@ button.toolbar-trigger,
 }
 
 #primaryVersionPanel #compareVersionSectionTitle {
-  border-left: 4px solid rgba(200, 155, 60, 0.72);
-  padding-left: 8px;
-}
-
-#bookChapterPanel .book-tab-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 12px !important;
-}
-
-#bookChapterPanel .book-tab {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  height: 40px;
-  padding: 0 12px;
-  text-align: center;
-  border-radius: 12px;
-  border: 1px solid rgba(193, 166, 124, 0.5);
-  background: rgba(255, 251, 242, 0.78);
-  color: #7a6957;
-  font-size: calc(18px * var(--font-scale));
-  font-weight: 900;
-  letter-spacing: 0.5px;
-}
-
-#bookChapterPanel .book-tab.active {
-  background: rgba(200, 155, 60, 0.22);
-  border-color: rgba(200, 155, 60, 0.62);
-  color: #8f6518;
+  border-left: none;
+  padding-left: 0;
 }
 
 .toolbar-primary-version-select {
@@ -4973,11 +5438,28 @@ button.toolbar-trigger,
 }
 
 .verse-unit-favorite:hover {
-  background: rgba(139, 111, 71, 0.12);
+  background: var(--brand-bible);
+  color: var(--ink);
 }
 
 .verse-unit-favorite.is-favorited {
-  background: rgba(139, 111, 71, 0.24);
+  background: var(--brand-bible);
+  color: var(--ink);
+}
+
+/* 实底黄上：神说/节号金改深字，保证对比度 */
+.flow-verse .verse-unit.verse-unit-favorite:hover,
+.flow-verse-sub .verse-unit.verse-unit-favorite:hover,
+.flow-verse .verse-unit.verse-unit-favorite.is-favorited,
+.flow-verse-sub .verse-unit.verse-unit-favorite.is-favorited {
+  color: var(--ink) !important;
+}
+
+.flow-verse .verse-unit.verse-unit-favorite:hover .verse-no,
+.flow-verse-sub .verse-unit.verse-unit-favorite:hover .verse-no,
+.flow-verse .verse-unit.verse-unit-favorite.is-favorited .verse-no,
+.flow-verse-sub .verse-unit.verse-unit-favorite.is-favorited .verse-no {
+  color: var(--ink) !important;
 }
 
 .verse-unit-favorite.favorite-flash {
@@ -5005,22 +5487,25 @@ button.toolbar-trigger,
 
 @keyframes favoriteFlash {
   0% {
-    background: rgba(180, 145, 94, 0.4);
+    background: var(--brand-bible);
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+    filter: brightness(1.08);
+  }
+  55% {
+    background: var(--brand-bible);
+    outline: 1px solid var(--ink);
+    outline-offset: 0;
+    filter: brightness(1.02);
   }
   100% {
-    background: rgba(139, 111, 71, 0.24);
+    background: var(--brand-bible);
+    outline: none;
+    filter: none;
   }
 }
 
-/* 书卷面板（全屏卡片内）：书卷网格 + 章节 8 列 */
-#bookChapterPanel .book-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-}
-
-/* 书卷面板 ·「章节」数字格固定 8 列（覆盖各断点下 .chapter-grid 的列数） */
-#bookChapterPanel #chapterGrid.chapter-grid {
-  grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
-}
+/* 选书卷三栏内列数由 .book-grid--ot / --nt、.book-chapter-chapter-grid 定义（见上） */
 
 /* ===== FINAL OVERRIDE：统一面板尺寸（书卷已改为遮罩卡片，仅内容型面板） ===== */
 #contentTypePanel {
@@ -5037,33 +5522,38 @@ button.toolbar-trigger,
 
 /* ===== 宽屏：书卷 / 版本 / 搜经文 三等分，显示模式不拉伸 ===== */
 @media (min-width: 701px) {
-  .reading-toolbar {
+  .reading-toolbar-row {
     display: flex !important;
     justify-content: flex-start !important;
     align-items: center !important;
     gap: 8px !important;
   }
 
-  .reading-toolbar > #bookChapterTrigger,
-  .reading-toolbar > #primaryVersionTrigger,
-  .reading-toolbar > #verseSearchOpenBtn {
+  .reading-toolbar-row > #bookChapterTrigger,
+  .reading-toolbar-row > #primaryVersionTrigger,
+  .reading-toolbar-row > #verseSearchOpenBtn {
     flex: 1 1 0 !important;
     min-width: 0 !important;
     width: auto !important;
     max-width: none !important;
   }
 
-  .reading-toolbar > #displayModeSwitch {
+  .reading-toolbar-row > #displayModeSwitch {
     flex: 0 0 auto;
     width: auto;
     min-width: 0;
   }
+
 }
 
 /* 窄屏工具栏多行网格；丝带已移到 title-nav 之后，不再需大块 margin 给侧标腾位 */
 @media (max-width: 700px) {
   .book-page.left-page .reading-toolbar {
-    display: grid !important;
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     margin-bottom: 14px !important;
   }
 }

@@ -14,6 +14,7 @@ const topFiles = [
   "index.html",
   "download.html",
   "promo.html",
+  "promo-edit.html",
   "vision.html",
   "article-studio.html",
   "notebook.html",

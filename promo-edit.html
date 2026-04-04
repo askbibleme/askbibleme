@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f5f7" />
+    <meta name="askbible-api-base" content="" />
+    <title>宣传页 Markdown · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=73" />
+    <link rel="stylesheet" href="/promo.css?v=2" />
+  </head>
+  <body class="promo-page-body">
+    <div class="page-shell promo-shell">
+      <header class="site-topbar">
+        <div class="site-topbar-title">
+          <a href="/promo.html" class="download-brand-link" title="宣传页"
+            ><span class="brand-ask">Ask</span><span class="brand-bible">Bible</span
+            ><span class="brand-me">.me</span></a
+          >
+        </div>
+        <div class="site-topbar-actions">
+          <a href="/promo.html" class="site-topbar-link">查看宣传页</a>
+          <a href="/article-studio.html" class="site-topbar-link">文章发布中心</a>
+          <a href="/" class="site-topbar-link">读经首页</a>
+        </div>
+      </header>
+
+      <main class="promo-main">
+        <div class="promo-edit-app">
+          <p id="promoEditAuthBar" class="promo-edit-auth-bar" hidden></p>
+          <h1 class="promo-edit-head">宣传页 Markdown</h1>
+          <p class="promo-edit-lead">
+            左侧粘贴或编辑 Markdown，右侧实时预览。支持标题、列表、加粗、链接、引用、代码块等。可嵌入带
+            <code>class="promo-kicker"</code> 的 HTML 段落作为章节小标题（与原先版式一致）。保存后正文写入服务器
+            <code>admin_data/promo_page.json</code>，浏览器打开
+            <a href="/promo.html" target="_blank" rel="noopener noreferrer">宣传页</a>
+            时会从接口加载——<strong>仓库里的 promo.html 源文件不会改写</strong>，属正常。
+          </p>
+          <p id="promoEditMeta" class="promo-edit-status"></p>
+
+          <div class="promo-edit-grid">
+            <div class="promo-edit-panel">
+              <label class="promo-edit-label" for="promoEditMarkdown">Markdown 源码</label>
+              <textarea
+                id="promoEditMarkdown"
+                class="promo-edit-textarea"
+                spellcheck="false"
+                placeholder="在此粘贴 Markdown…"
+              ></textarea>
+              <div class="promo-edit-actions">
+                <button type="button" id="promoEditReloadBtn" class="secondary-btn">从服务器加载</button>
+                <button type="button" id="promoEditSaveBtn" class="primary-btn">保存并发布</button>
+                <span id="promoEditStatus" class="promo-edit-status" role="status"></span>
+              </div>
+            </div>
+            <div class="promo-edit-panel">
+              <span class="promo-edit-label">预览（与宣传页相同的卡片分组规则）</span>
+              <div class="promo-edit-preview-wrap">
+                <div id="promoEditPreview" class="promo-edit-preview-inner promo-md-root"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <span class="site-footer-copy">© 2026 AskBible.me</span>
+      </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script>
+      const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+      const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+
+      function getToken() {
+        return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+      }
+
+      function authHeaders() {
+        const t = getToken();
+        return t
+          ? { Authorization: "Bearer " + t, "Content-Type": "application/json" }
+          : { "Content-Type": "application/json" };
+      }
+
+      function normalizeApiOrigin(raw) {
+        let s = String(raw || "").trim();
+        if (!s) return "";
+        s = s.replace(/\/+$/, "");
+        if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+        return s.replace(/\/+$/, "");
+      }
+
+      function getApiBase() {
+        const m = document.querySelector('meta[name="askbible-api-base"]');
+        const fromMeta = m && String(m.getAttribute("content") || "").trim();
+        if (fromMeta) return normalizeApiOrigin(fromMeta);
+        if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+          return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+        }
+        try {
+          const proto = window.location.protocol || "";
+          if (proto === "capacitor:" || proto === "file:") return DEFAULT_PRODUCTION_ORIGIN;
+        } catch (_) {}
+        return "";
+      }
+
+      function apiUrl(path) {
+        const p = path.startsWith("/") ? path : "/" + path;
+        const base = getApiBase();
+        if (!base) return p;
+        try {
+          const origin = normalizeApiOrigin(base);
+          return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+        } catch {
+          return base.replace(/\/$/, "") + p;
+        }
+      }
+
+      async function fetchApiJson(path, init) {
+        const res = await fetch(apiUrl(path), init);
+        const raw = await res.text();
+        let data = {};
+        if (raw.trim()) {
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = {};
+          }
+        }
+        if (!res.ok) {
+          const detail = (data && (data.error || data.message)) || "";
+          throw new Error(detail || "请求失败（HTTP " + res.status + "）");
+        }
+        return data;
+      }
+
+      function purifyHtml(html) {
+        return DOMPurify.sanitize(html, {
+          ALLOWED_TAGS: [
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "p",
+            "br",
+            "ul",
+            "ol",
+            "li",
+            "strong",
+            "em",
+            "b",
+            "i",
+            "u",
+            "a",
+            "blockquote",
+            "pre",
+            "code",
+            "hr",
+            "table",
+            "thead",
+            "tbody",
+            "tr",
+            "th",
+            "td",
+            "span",
+            "div",
+            "img",
+          ],
+          ALLOWED_ATTR: ["href", "title", "target", "rel", "class", "id", "src", "alt", "loading"],
+          ADD_ATTR: ["target"],
+        });
+      }
+
+      function afterSanitize(root) {
+        if (!root) return;
+        root.querySelectorAll("a[href]").forEach(function (a) {
+          const href = a.getAttribute("href") || "";
+          if (/^https?:\/\//i.test(href)) {
+            a.setAttribute("target", "_blank");
+            a.setAttribute("rel", "noopener noreferrer");
+          }
+        });
+      }
+
+      function wrapSections(root) {
+        const nodes = Array.from(root.childNodes);
+        const frag = document.createDocumentFragment();
+        let buf = [];
+        function flush() {
+          if (!buf.length) return;
+          const art = document.createElement("article");
+          art.className = "promo-block";
+          buf.forEach(function (n) {
+            art.appendChild(n);
+          });
+          frag.appendChild(art);
+          buf = [];
+        }
+        nodes.forEach(function (n) {
+          if (n.nodeType !== 1) {
+            if (n.textContent && n.textContent.trim()) buf.push(n);
+            return;
+          }
+          const el = n;
+          if (el.classList && el.classList.contains("promo-kicker")) {
+            flush();
+            frag.appendChild(el);
+            return;
+          }
+          if (/^H2$/i.test(el.tagName)) {
+            flush();
+            buf.push(el);
+            return;
+          }
+          buf.push(el);
+        });
+        flush();
+        root.textContent = "";
+        root.appendChild(frag);
+      }
+
+      function renderPreview(md, previewEl) {
+        if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+          previewEl.textContent = "请等待 Markdown 组件加载…";
+          return;
+        }
+        marked.setOptions({ gfm: true, breaks: true, headerIds: true, mangle: false });
+        const raw = marked.parse(String(md || ""));
+        previewEl.innerHTML = purifyHtml(raw);
+        afterSanitize(previewEl);
+        wrapSections(previewEl);
+      }
+
+      const authBar = document.getElementById("promoEditAuthBar");
+      const ta = document.getElementById("promoEditMarkdown");
+      const preview = document.getElementById("promoEditPreview");
+      const reloadBtn = document.getElementById("promoEditReloadBtn");
+      const saveBtn = document.getElementById("promoEditSaveBtn");
+      const statusEl = document.getElementById("promoEditStatus");
+      const metaEl = document.getElementById("promoEditMeta");
+
+      let previewTimer = null;
+      function schedulePreview() {
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(function () {
+          try {
+            renderPreview(ta.value, preview);
+          } catch (e) {
+            preview.textContent = "预览错误：" + (e && e.message ? e.message : String(e));
+          }
+        }, 200);
+      }
+
+      function escHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function sessionUserIsSiteAdmin(user) {
+        if (!user || typeof user !== "object") return false;
+        if (user.isAdmin === true || user.isAdmin === 1) return true;
+        const r = String(user.adminRole || "").toLowerCase();
+        return ["shifuzhang", "baifuzhang", "qianfuzhang"].includes(r);
+      }
+
+      /**
+       * 只更新顶部提示条，不禁用「保存」按钮。
+       * 避免：先打开本页时未登录 → 按钮被 disabled → 别处登录后回来点击毫无反应。
+       */
+      async function syncPromoAdminUi() {
+        const token = getToken();
+        if (!token) {
+          authBar.hidden = false;
+          authBar.innerHTML =
+            '请先 <a href="/">返回首页</a> 登录；本页仅<strong>管理员</strong>可保存宣传正文。（仍可从服务器加载公开正文预览）';
+          return false;
+        }
+        try {
+          const me = await fetchApiJson("/api/auth/me", {
+            headers: { Authorization: "Bearer " + token },
+            cache: "no-store",
+          });
+          const user = me && typeof me === "object" ? me.user || null : null;
+          if (!sessionUserIsSiteAdmin(user)) {
+            authBar.hidden = false;
+            const em = user && user.email ? String(user.email) : "";
+            authBar.innerHTML =
+              (em
+                ? `当前登录为 <strong>${escHtml(em)}</strong>，该帐号在服务器上不是管理员，无法保存。`
+                : "未能识别登录帐号的管理员身份，无法保存。") +
+              " 若刚在后台被设为管理员，请先在首页<strong>退出登录再登录</strong>后<strong>点一次保存</strong>或刷新本页。";
+            return false;
+          }
+          authBar.hidden = true;
+          return true;
+        } catch {
+          authBar.hidden = false;
+          authBar.innerHTML = '登录已失效，请 <a href="/">返回首页</a> 重新登录。';
+          return false;
+        }
+      }
+
+      async function loadFromServer() {
+        statusEl.textContent = "加载中…";
+        try {
+          const data = await fetchApiJson("/api/admin/promo-page", {
+            headers: authHeaders(),
+            cache: "no-store",
+          });
+          ta.value = String((data && data.markdown) || "");
+          metaEl.textContent = data.updatedAt ? "服务器上次更新：" + data.updatedAt : "（尚未在服务器保存过，当前为仓库内建草稿）";
+          schedulePreview();
+          statusEl.textContent = "已加载。";
+        } catch (e) {
+          statusEl.textContent = e.message || "加载失败";
+        }
+      }
+
+      ta.addEventListener("input", schedulePreview);
+
+      reloadBtn.addEventListener("click", async function () {
+        if (!(await syncPromoAdminUi())) {
+          try {
+            const pub = await fetchApiJson("/api/promo-page", { cache: "no-store" });
+            ta.value = String((pub && pub.markdown) || "");
+            metaEl.textContent = "（公开接口，只读）";
+            schedulePreview();
+            statusEl.textContent = "已加载公开正文（未登录管理员时无法写回）。";
+          } catch (e) {
+            statusEl.textContent = e.message || "加载失败";
+          }
+          return;
+        }
+        await loadFromServer();
+      });
+
+      let promoSaveInFlight = false;
+      saveBtn.addEventListener("click", async function () {
+        if (promoSaveInFlight) return;
+        statusEl.textContent = "检查登录…";
+        const ok = await syncPromoAdminUi();
+        if (!ok) {
+          statusEl.textContent =
+            "无法保存：未登录或当前帐号无管理员权限。若已在其他标签登录，请刷新本页后再试。";
+          return;
+        }
+        promoSaveInFlight = true;
+        saveBtn.disabled = true;
+        saveBtn.setAttribute("aria-busy", "true");
+        statusEl.textContent = "保存中…";
+        try {
+          const data = await fetchApiJson("/api/admin/promo-page", {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ markdown: ta.value }),
+          });
+          metaEl.textContent =
+            (data.updatedAt ? "已发布。更新时间：" + data.updatedAt : "已保存。") +
+            " 请用浏览器打开本站 /promo.html 查看（强刷或新开标签）；若仍旧，确认访问的是正在运行的同一台 Node 服务。";
+          statusEl.textContent = "已保存并发布。";
+        } catch (e) {
+          statusEl.textContent = e.message || "保存失败";
+        } finally {
+          promoSaveInFlight = false;
+          saveBtn.disabled = false;
+          saveBtn.removeAttribute("aria-busy");
+        }
+      });
+
+      void (async function init() {
+        if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+          authBar.hidden = false;
+          authBar.textContent = "无法加载 Markdown 组件（CDN），请检查网络后刷新。";
+          return;
+        }
+        const ok = await syncPromoAdminUi();
+        if (ok) {
+          await loadFromServer();
+        } else {
+          try {
+            const pub = await fetchApiJson("/api/promo-page", { cache: "no-store" });
+            ta.value = String((pub && pub.markdown) || "");
+            metaEl.textContent = "只读预览（登录管理员后可编辑保存）";
+            schedulePreview();
+          } catch {
+            ta.value = "";
+            schedulePreview();
+          }
+        }
+      })();
+
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") {
+          void syncPromoAdminUi();
+        }
+      });
+    </script>
+  </body>
+</html>

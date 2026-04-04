@@ -74,6 +74,9 @@ const CONTENT_VERSIONS_FILE = path.join(ADMIN_DIR, "content_versions.json");
 const PUBLISHED_FILE = path.join(ADMIN_DIR, "published.json");
 const GLOBAL_FAVORITES_FILE = path.join(ADMIN_DIR, "global_favorites.json");
 const COMMUNITY_ARTICLES_FILE = path.join(ADMIN_DIR, "community_articles.json");
+const PROMO_PAGE_FILE = path.join(ADMIN_DIR, "promo_page.json");
+const PROMO_PAGE_BOOTSTRAP_FILE = path.join(ADMIN_DIR, "promo_page.bootstrap.md");
+const PROMO_PAGE_MAX_MARKDOWN = 400000;
 const QUESTION_SUBMISSIONS_FILE = path.join(
   ADMIN_DIR,
   "question_submissions.json"
@@ -85,6 +88,8 @@ const QUESTION_CORRECTIONS_FILE = path.join(
 const POINTS_CONFIG_FILE = path.join(ADMIN_DIR, "points_config.json");
 const OPS_CONFIG_FILE = path.join(ADMIN_DIR, "ops_config.json");
 const AUTH_DB_FILE = path.join(ADMIN_DIR, "auth.sqlite");
+/** 登录会话在服务端有效期（自登录时起算）。原 30 天；延长后减轻频繁重登。 */
+const USER_SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const LEGACY_USERS_FILE = path.join(ADMIN_DIR, "users.json");
 const LEGACY_USER_SESSIONS_FILE = path.join(ADMIN_DIR, "user_sessions.json");
 const DEPLOY_DIR = path.join(ADMIN_DIR, "deploy");
@@ -597,7 +602,7 @@ function migrateLegacyAuthJsonIfNeeded() {
         safeText(s.token || ""),
         safeText(s.userId || ""),
         safeText(s.createdAt || nowIso()),
-        new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString()
+        new Date(Date.now() + USER_SESSION_TTL_MS).toISOString()
       );
     }
   }
@@ -679,6 +684,34 @@ function saveCommunityArticles(data) {
   writeJson(COMMUNITY_ARTICLES_FILE, {
     items: Array.isArray(data.items) ? data.items : [],
   });
+}
+
+function loadPromoPagePayload() {
+  const data = readJson(PROMO_PAGE_FILE, null);
+  if (data && typeof data === "object" && typeof data.markdown === "string") {
+    return {
+      markdown: data.markdown,
+      updatedAt: safeText(data.updatedAt || ""),
+    };
+  }
+  let bootstrap = "";
+  try {
+    if (fs.existsSync(PROMO_PAGE_BOOTSTRAP_FILE)) {
+      bootstrap = fs.readFileSync(PROMO_PAGE_BOOTSTRAP_FILE, "utf8");
+    }
+  } catch (error) {
+    console.error("读取 promo_page.bootstrap.md 失败:", error);
+  }
+  return { markdown: bootstrap, updatedAt: "" };
+}
+
+function savePromoPageMarkdown(markdown) {
+  const payload = {
+    markdown: String(markdown ?? ""),
+    updatedAt: nowIso(),
+  };
+  writeJson(PROMO_PAGE_FILE, payload);
+  return payload;
 }
 
 function sanitizeChatMessagesForOpenAi(raw) {
@@ -1200,6 +1233,7 @@ function shouldSkipPackageRelPath(rel, kind = "upgrade") {
       "admin_data/auth/",
       "admin_data/global_favorites.json",
       "admin_data/community_articles.json",
+      "admin_data/promo_page.json",
       "admin_data/question_submissions.json",
     ];
     if (upgradeSkips.some((p) => normalized.startsWith(p))) return true;
@@ -1382,17 +1416,24 @@ function getAuthedUserFromReq(req) {
     )
     .get(safeText(hit.user_id || ""));
   if (!user) return null;
+  const adminRole = normalizeAdminRole(user.admin_role || "");
+  const isAdmin =
+    Number(user.is_admin || 0) === 1 || Boolean(adminRole);
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    adminRole: normalizeAdminRole(user.admin_role || ""),
-    isAdmin:
-      Number(user.is_admin || 0) === 1 ||
-      Boolean(normalizeAdminRole(user.admin_role || "")),
+    adminRole,
+    isAdmin: Boolean(isAdmin),
     totalOnlineSeconds: Number(user.online_seconds_total || 0),
     token,
   };
+}
+
+function authedUserHasAdminAccess(authed) {
+  if (!authed) return false;
+  if (authed.isAdmin === true) return true;
+  return Boolean(normalizeAdminRole(authed.adminRole || ""));
 }
 
 function requireAdminUser(req, res) {
@@ -1401,7 +1442,7 @@ function requireAdminUser(req, res) {
     res.status(401).json({ error: "请先登录" });
     return null;
   }
-  if (authed.isAdmin !== true) {
+  if (!authedUserHasAdminAccess(authed)) {
     res.status(403).json({ error: "需要管理员权限" });
     return null;
   }
@@ -4013,6 +4054,59 @@ app.post("/api/article-studio/publish", (req, res) => {
   }
 });
 
+/** 公开：宣传页 Markdown 正文（无鉴权） */
+app.get("/api/promo-page", (_req, res) => {
+  try {
+    res.set(
+      "Cache-Control",
+      "private, no-store, no-cache, max-age=0, must-revalidate"
+    );
+    const p = loadPromoPagePayload();
+    res.json({ markdown: p.markdown, updatedAt: p.updatedAt });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取宣传页失败" });
+  }
+});
+
+/** 管理员：读取宣传页 Markdown（与公开接口同源，便于编辑） */
+app.get("/api/admin/promo-page", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    res.set(
+      "Cache-Control",
+      "private, no-store, no-cache, max-age=0, must-revalidate"
+    );
+    const p = loadPromoPagePayload();
+    res.json({ markdown: p.markdown, updatedAt: p.updatedAt });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取宣传页失败" });
+  }
+});
+
+/** 管理员：保存并发布宣传页 Markdown */
+app.post("/api/admin/promo-page", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    let md =
+      typeof req.body?.markdown === "string" ? req.body.markdown : "";
+    if (md.length > PROMO_PAGE_MAX_MARKDOWN) {
+      md = md.slice(0, PROMO_PAGE_MAX_MARKDOWN);
+    }
+    const payload = savePromoPageMarkdown(md);
+    appendAdminAudit(req, authed, "promo_page_save", {
+      bytes: payload.markdown.length,
+    });
+    res.json({ ok: true, updatedAt: payload.updatedAt });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "保存宣传页失败" });
+  }
+});
+
 /** 管理员：列出社区文章（含正文预览） */
 app.get("/api/admin/community-articles", (req, res) => {
   try {
@@ -4128,7 +4222,7 @@ app.post("/api/auth/login", (req, res) => {
     }
     const token = createUserToken();
     const createdAt = nowIso();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
+    const expiresAt = new Date(Date.now() + USER_SESSION_TTL_MS).toISOString();
     const meta = readClientMeta(req);
     authDb.prepare("DELETE FROM user_sessions WHERE user_id = ?").run(user.id);
     authDb
@@ -4152,7 +4246,7 @@ app.post("/api/auth/login", (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        isAdmin: Number(user.is_admin || 0) === 1 || Boolean(role),
+        isAdmin: Boolean(Number(user.is_admin || 0) === 1 || role),
         adminRole: role,
       },
     });
@@ -4166,13 +4260,14 @@ app.get("/api/auth/me", (req, res) => {
   try {
     const authed = getAuthedUserFromReq(req);
     if (!authed) return res.status(401).json({ error: "未登录" });
+    const adminRole = normalizeAdminRole(authed.adminRole || "");
     res.json({
       user: {
         id: authed.id,
         name: authed.name,
         email: authed.email,
-        isAdmin: authed.isAdmin === true,
-        adminRole: normalizeAdminRole(authed.adminRole || ""),
+        adminRole,
+        isAdmin: Boolean(authed.isAdmin === true || adminRole),
         userLevel: getCommunityUserLevelFromSubmissions(authed.id, authed.email),
         totalOnlineSeconds: Number(authed.totalOnlineSeconds || 0),
       },
@@ -6405,6 +6500,69 @@ app.get("/admin/questions-review", (req, res) => {
   </script>
 </body>
 </html>`);
+});
+
+/* SEO：robots / 站点地图（自托管请设 PUBLIC_SITE_URL=https://你的域名 勿带末尾斜杠） */
+function getPublicSiteOrigin() {
+  const raw = safeText(process.env.PUBLIC_SITE_URL || "https://askbible.me");
+  return raw.replace(/\/+$/, "");
+}
+
+app.get("/robots.txt", (req, res) => {
+  const origin = getPublicSiteOrigin();
+  res.type("text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.send(
+    [
+      "User-agent: *",
+      "Allow: /",
+      "",
+      "Disallow: /api/",
+      "",
+      `Sitemap: ${origin}/sitemap.xml`,
+      "",
+    ].join("\n")
+  );
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  const origin = getPublicSiteOrigin();
+  const paths = [
+    { path: "/", priority: "1.0", changefreq: "weekly" },
+    { path: "/promo.html", priority: "0.9", changefreq: "weekly" },
+    { path: "/download.html", priority: "0.85", changefreq: "monthly" },
+    { path: "/notebook.html", priority: "0.85", changefreq: "weekly" },
+    { path: "/vision.html", priority: "0.75", changefreq: "monthly" },
+    { path: "/article-studio.html", priority: "0.7", changefreq: "weekly" },
+  ];
+  const lastmod = new Date().toISOString().slice(0, 10);
+  const escXml = (s) =>
+    String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  const urlEntries = paths
+    .map(({ path: p, priority, changefreq }) => {
+      const loc = p === "/" ? `${origin}/` : `${origin}${p}`;
+      return (
+        `  <url>\n` +
+        `    <loc>${escXml(loc)}</loc>\n` +
+        `    <lastmod>${lastmod}</lastmod>\n` +
+        `    <changefreq>${changefreq}</changefreq>\n` +
+        `    <priority>${priority}</priority>\n` +
+        `  </url>`
+      );
+    })
+    .join("\n");
+  const xml =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+    `${urlEntries}\n` +
+    `</urlset>`;
+  res.type("application/xml; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.send(xml);
 });
 
 /* 静态资源放在所有 /api 路由之后，避免根目录下出现与 /api/... 冲突的路径时被 express.static 抢先返回 HTML */

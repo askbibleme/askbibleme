@@ -570,6 +570,240 @@ function getBooksForCurrentTestament() {
   return allBooks.filter((b) => b.testamentName === state.frontState.testament);
 }
 
+function getBooksForTestament(testamentName) {
+  const allBooks = state.bootstrap?.testamentOptions || [];
+  return allBooks.filter((b) => b.testamentName === testamentName);
+}
+
+/** 旧约书卷分组（与 src/books.js 顺序一致，小标题随界面语言 uiLang） */
+const OLD_TESTAMENT_SECTIONS = [
+  {
+    labels: {
+      zh: "摩西五经",
+      en: "The Pentateuch",
+      es: "El Pentateuco",
+      he: "תורה",
+    },
+    bookIds: ["GEN", "EXO", "LEV", "NUM", "DEU"],
+  },
+  {
+    labels: {
+      zh: "历史书",
+      en: "Historical Books",
+      es: "Libros históricos",
+      he: "ספרי ההיסטוריה",
+    },
+    bookIds: [
+      "JOS",
+      "JDG",
+      "RUT",
+      "1SA",
+      "2SA",
+      "1KI",
+      "2KI",
+      "1CH",
+      "2CH",
+      "EZR",
+      "NEH",
+      "EST",
+    ],
+  },
+  {
+    labels: {
+      zh: "诗歌智慧书",
+      en: "Poetry & Wisdom",
+      es: "Poesía y sabiduría",
+      he: "כתובים",
+    },
+    bookIds: ["JOB", "PSA", "PRO", "ECC", "SNG"],
+  },
+  {
+    labels: {
+      zh: "大先知书",
+      en: "Major Prophets",
+      es: "Profetas mayores",
+      he: "נביאים גדולים",
+    },
+    bookIds: ["ISA", "JER", "LAM", "EZK", "DAN"],
+  },
+  {
+    labels: {
+      zh: "小先知书",
+      en: "Minor Prophets",
+      es: "Profetas menores",
+      he: "נביאים קטנים",
+    },
+    bookIds: [
+      "HOS",
+      "JOL",
+      "AMO",
+      "OBA",
+      "JON",
+      "MIC",
+      "NAM",
+      "HAB",
+      "ZEP",
+      "HAG",
+      "ZEC",
+      "MAL",
+    ],
+  },
+];
+
+/** 新约书卷分组（与 src/books.js 顺序一致） */
+const NEW_TESTAMENT_SECTIONS = [
+  {
+    labels: {
+      zh: "四福音书",
+      en: "The Four Gospels",
+      es: "Los cuatro evangelios",
+      he: "ארבע הבשורות",
+    },
+    bookIds: ["MAT", "MRK", "LUK", "JHN"],
+  },
+  {
+    labels: {
+      zh: "使徒行传",
+      en: "Acts of the Apostles",
+      es: "Hechos de los apóstoles",
+      he: "מעשי השליחים",
+    },
+    bookIds: ["ACT"],
+  },
+  {
+    labels: {
+      zh: "保罗书信",
+      en: "Paul's Letters",
+      es: "Epístolas de Pablo",
+      he: "אגרות פאולוס",
+    },
+    bookIds: [
+      "ROM",
+      "1CO",
+      "2CO",
+      "GAL",
+      "EPH",
+      "PHP",
+      "COL",
+      "1TH",
+      "2TH",
+      "1TI",
+      "2TI",
+      "TIT",
+      "PHM",
+    ],
+  },
+  {
+    labels: {
+      zh: "普通书信",
+      en: "General Epistles",
+      es: "Epístolas generales",
+      he: "אגרות כלליות",
+    },
+    bookIds: ["HEB", "JAS", "1PE", "2PE", "1JN", "2JN", "3JN", "JUD"],
+  },
+  {
+    labels: {
+      zh: "启示录",
+      en: "The Revelation",
+      es: "El Apocalipsis",
+      he: "חזון יוחנן",
+    },
+    bookIds: ["REV"],
+  },
+];
+
+/** 新教传统书卷顺序 1–66（与上列分组顺序一致） */
+const BOOK_CANONICAL_ORDER_MAP = (() => {
+  const m = new Map();
+  let n = 1;
+  for (const s of OLD_TESTAMENT_SECTIONS) {
+    for (const id of s.bookIds) {
+      if (!m.has(id)) m.set(id, n++);
+    }
+  }
+  for (const s of NEW_TESTAMENT_SECTIONS) {
+    for (const id of s.bookIds) {
+      if (!m.has(id)) m.set(id, n++);
+    }
+  }
+  return m;
+})();
+
+function formatBookGridButtonLabel(book, bookLabelFn) {
+  const ord = BOOK_CANONICAL_ORDER_MAP.get(book.bookId);
+  const name = bookLabelFn(book);
+  return ord != null ? `${ord}. ${name}` : name;
+}
+
+/** 与 getLocalizedCopy、书卷名一致：按主经文语言，不用 uiLang（避免英文经卷 + 中文界面时分组仍中文） */
+function pickBibleGridSectionLabel(labels) {
+  let lang = getPrimaryScriptureLang() || "zh";
+  if (typeof lang === "string") {
+    if (lang.startsWith("en")) lang = "en";
+    else if (lang.startsWith("es")) lang = "es";
+    else if (lang.startsWith("he")) lang = "he";
+  }
+  return (
+    labels[lang] || labels.zh || labels.en || Object.values(labels)[0] || ""
+  );
+}
+
+function buildGroupedBookGridHtml(books, bookLabel, sections) {
+  const booksById = new Map(books.map((b) => [b.bookId, b]));
+  const mappedIds = new Set(sections.flatMap((s) => s.bookIds));
+
+  const buttonHtml = (book) => {
+    const active = book.bookId === state.frontState.bookId ? "active" : "";
+    return `<button type="button" class="book-item ${active}" data-book-grid-id="${escapeHtml(
+      book.bookId
+    )}">${escapeHtml(formatBookGridButtonLabel(book, bookLabel))}</button>`;
+  };
+
+  const parts = [];
+  for (const section of sections) {
+    const sectionBooks = section.bookIds
+      .map((id) => booksById.get(id))
+      .filter(Boolean);
+    if (!sectionBooks.length) continue;
+    parts.push(
+      `<div class="book-bible-section-title" role="heading" aria-level="3">${escapeHtml(
+        pickBibleGridSectionLabel(section.labels)
+      )}</div>`
+    );
+    for (const book of sectionBooks) {
+      parts.push(buttonHtml(book));
+    }
+  }
+
+  const extra = books.filter((b) => !mappedIds.has(b.bookId));
+  if (extra.length) {
+    parts.push(
+      `<div class="book-bible-section-title" role="heading" aria-level="3">${escapeHtml(
+        pickBibleGridSectionLabel({
+          zh: "其他",
+          en: "Other books",
+          es: "Otros libros",
+          he: "אחר",
+        })
+      )}</div>`
+    );
+    for (const book of extra) {
+      parts.push(buttonHtml(book));
+    }
+  }
+
+  return parts.join("");
+}
+
+function buildOldTestamentBookGridHtml(books, bookLabel) {
+  return buildGroupedBookGridHtml(books, bookLabel, OLD_TESTAMENT_SECTIONS);
+}
+
+function buildNewTestamentBookGridHtml(books, bookLabel) {
+  return buildGroupedBookGridHtml(books, bookLabel, NEW_TESTAMENT_SECTIONS);
+}
+
 function getCurrentBookMeta() {
   return (
     (state.bootstrap?.testamentOptions || []).find(
@@ -667,8 +901,6 @@ function getLocalizedCopy() {
       noContent: "No content yet for this chapter in the selected version/language.",
       promoHelpAria:
         "About Berean-style reading and AskBible.me (opens in new tab)",
-      bereanPromoLine1: "Berean-style study",
-      bereanPromoLine2: "Guided by questions · opens in new tab",
     };
   }
   if (lang === "es") {
@@ -719,8 +951,6 @@ function getLocalizedCopy() {
       nextChapter: "Siguiente",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
       promoHelpAria: "Sobre el estilo Berea y AskBible.me (nueva pestana)",
-      bereanPromoLine1: "Estudio estilo Berea",
-      bereanPromoLine2: "Guiados por preguntas · se abre en pestana nueva",
     };
   }
   if (lang === "he") {
@@ -771,19 +1001,17 @@ function getLocalizedCopy() {
       nextChapter: "הבא",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
       promoHelpAria: "אודות לימוד בסגנון בראיים ו-AskBible.me (בלשונית חדשה)",
-      bereanPromoLine1: "לימוד בסגנון בראיים",
-      bereanPromoLine2: "מונחים בשאלות · נפתח בלשונית חדשה",
     };
   }
   return {
-    triggerBook: "选书卷",
-    triggerTranslation: "选版本",
+    triggerBook: "书卷",
+    triggerTranslation: "版本+",
     triggerVersion: "问题类型",
-    bookChapter: "选书卷",
-    searchScripture: "搜经文",
+    bookChapter: "书卷",
+    searchScripture: "搜索",
     display: "显示",
     type: "类型",
-    bibleVersion: "选版本",
+    bibleVersion: "版本+",
     close: "关闭",
     oldTestament: "旧约",
     newTestament: "新约",
@@ -822,8 +1050,6 @@ function getLocalizedCopy() {
     nextChapter: "下一章",
     noContent: "这一章还没有该版本 / 该语言的内容。",
     promoHelpAria: "了解庇哩亚式读经与 AskBible.me（新窗口打开）",
-    bereanPromoLine1: "庇哩亚式读经",
-    bereanPromoLine2: "让经文自己发声 · 新窗口打开",
   };
 }
 
@@ -838,24 +1064,31 @@ function applyReaderI18n() {
   setText("#qaViewPanel .toolbar-panel-title", copy.displayContent);
   setText("#primaryVersionPanel .toolbar-panel-title", copy.bibleVersion);
   setText("#verseSearchTitle", copy.searchScripture);
-  setText('#bookChapterPanel [data-testament-tab="旧约"]', copy.oldTestament);
-  setText('#bookChapterPanel [data-testament-tab="新约"]', copy.newTestament);
-  setText("#bookChapterPanel .chapter-grid-title", copy.chapters);
+  document
+    .querySelectorAll(
+      '#bookChapterPanel [data-book-chapter-section="ot"]'
+    )
+    .forEach((el) => {
+      el.textContent = copy.oldTestament;
+    });
+  document
+    .querySelectorAll(
+      '#bookChapterPanel [data-book-chapter-section="nt"]'
+    )
+    .forEach((el) => {
+      el.textContent = copy.newTestament;
+    });
+  document
+    .querySelectorAll(
+      '#bookChapterPanel [data-book-chapter-section="chapters"]'
+    )
+    .forEach((el) => {
+      el.textContent = copy.chapters;
+    });
   setText("#qaViewPanel .chapter-grid-title", copy.quickActions);
   setText("#contentVersionSectionTitle", copy.triggerVersion || "问题类型");
   setText("#primaryVersionSectionTitle", copy.primaryVersionSingle);
   setText("#compareVersionSectionTitle", copy.compareVersionMulti);
-  const bereanLink = document.getElementById("bereanPromoLink");
-  if (bereanLink) {
-    const main = bereanLink.querySelector(".primary-version-promo-main");
-    const sub = bereanLink.querySelector(".primary-version-promo-sub");
-    if (main) main.textContent = copy.bereanPromoLine1 || "";
-    if (sub) sub.textContent = copy.bereanPromoLine2 || "";
-    bereanLink.setAttribute(
-      "aria-label",
-      `${copy.bereanPromoLine1 || ""}. ${copy.bereanPromoLine2 || ""}`
-    );
-  }
   const sidePromoHelp = document.getElementById("sidePromoHelpLink");
   if (sidePromoHelp && copy.promoHelpAria) {
     sidePromoHelp.setAttribute("aria-label", copy.promoHelpAria);
@@ -1995,8 +2228,11 @@ function renderMemberHub() {
   const em = document.getElementById("memberHubEmail");
   const onlineEl = document.getElementById("memberHubOnlineTotal");
   const adminBtn = document.getElementById("memberHubAdminBtn");
+  const promoEditLink = document.getElementById("memberHubPromoEditLink");
   const hubLabel = document.getElementById("memberHubLabel");
   const hubTrigger = document.getElementById("memberHubTrigger");
+  const triggerGlyph = document.getElementById("memberHubTriggerGlyph");
+  const triggerStarsWrap = document.getElementById("memberHubTriggerStarsWrap");
   if (!guest || !member) return;
   const u = state.currentUser;
   const name = String(u?.name || "").trim();
@@ -2006,7 +2242,7 @@ function renderMemberHub() {
   member.hidden = !authed;
   if (hubLabel) {
     if (authed) {
-      /* 书签上显示「昵称的圣经」样式（与账户资料中的称呼一致） */
+      /* 书签上显示「昵称的圣经」+ 等级星（与账户资料中的称呼一致） */
       hubLabel.textContent = `${name}的圣经`;
       hubLabel.classList.remove("member-hub-label--sr");
     } else {
@@ -2017,16 +2253,21 @@ function renderMemberHub() {
   if (hubTrigger) {
     hubTrigger.classList.toggle("member-hub-trigger--guest-label", !authed);
     hubTrigger.classList.toggle("member-hub-trigger--member-label", authed);
+    const lvNum = Number(u?.userLevel) || 0;
+    const levelAria = lvNum > 0 ? `，等级 L${Math.min(12, lvNum)}` : "";
     hubTrigger.setAttribute(
       "aria-label",
-      authed ? `${name}的圣经，打开账户菜单` : "免费注册，打开登录与注册菜单"
+      authed
+        ? `${name}的圣经${levelAria}，打开账户菜单`
+        : "免费注册，打开登录"
     );
+    const tipLevel = lvNum > 0 ? ` · 等级 L${Math.min(12, lvNum)}` : "";
     hubTrigger.title =
       authed && name
-        ? isGenericUserDisplayName(name)
-          ? `当前登录（称呼未完善，显示为 ${sensible}）`
-          : `当前登录：${name}`
-        : "免费注册或登录";
+        ? (isGenericUserDisplayName(name)
+            ? `当前登录（称呼未完善，显示为 ${sensible}）`
+            : `当前登录：${name}`) + tipLevel
+        : "点击打开登录";
   }
   if (authed) {
     const email = String(u?.email || "").trim();
@@ -2039,12 +2280,30 @@ function renderMemberHub() {
       const ts = Math.max(0, Math.floor(Number(u?.totalOnlineSeconds) || 0));
       onlineEl.textContent = `累计在线 ${formatTotalOnlineSeconds(ts)}`;
     }
+    const siteAdmin =
+      u?.isAdmin === true ||
+      ["shifuzhang", "baifuzhang", "qianfuzhang"].includes(
+        String(u?.adminRole || "").toLowerCase()
+      );
     if (adminBtn) {
-      const showAdmin = u?.isAdmin === true;
-      adminBtn.hidden = !showAdmin;
+      adminBtn.hidden = !siteAdmin;
     }
-  } else if (adminBtn) {
-    adminBtn.hidden = true;
+    if (promoEditLink) {
+      promoEditLink.hidden = !siteAdmin;
+    }
+    if (triggerGlyph) triggerGlyph.hidden = true;
+    if (triggerStarsWrap) {
+      triggerStarsWrap.hidden = false;
+      triggerStarsWrap.innerHTML = renderMemberHubBookmarkStars(u?.userLevel);
+    }
+  } else {
+    if (adminBtn) adminBtn.hidden = true;
+    if (promoEditLink) promoEditLink.hidden = true;
+    if (triggerGlyph) triggerGlyph.hidden = false;
+    if (triggerStarsWrap) {
+      triggerStarsWrap.hidden = true;
+      triggerStarsWrap.innerHTML = "";
+    }
   }
 }
 
@@ -2063,12 +2322,12 @@ function initAuthModal() {
   const modeRegisterBtn = document.getElementById("authModeRegisterBtn");
   const submitBtn = document.getElementById("authSubmitBtn");
   const titleEl = document.getElementById("authModalTitle");
-  const hintEl = document.getElementById("authHintBar");
   const nameFieldEl = document.getElementById("authNameField");
   const nameInput = document.getElementById("authNameInput");
   const emailInput = document.getElementById("authEmailInput");
   const passwordInput = document.getElementById("authPasswordInput");
   const errEl = document.getElementById("authErrorText");
+  const authForm = document.getElementById("authForm");
   let authMode = "login";
 
   function applyAuthMode(mode) {
@@ -2078,8 +2337,13 @@ function initAuthModal() {
     if (nameFieldEl) nameFieldEl.style.display = authMode === "register" ? "" : "none";
     if (modeLoginBtn) modeLoginBtn.classList.toggle("active", authMode === "login");
     if (modeRegisterBtn) modeRegisterBtn.classList.toggle("active", authMode === "register");
+    if (passwordInput) {
+      passwordInput.setAttribute(
+        "autocomplete",
+        authMode === "register" ? "new-password" : "current-password"
+      );
+    }
     if (errEl) errEl.textContent = "";
-    if (hintEl) hintEl.textContent = "登录后会解锁更多宝藏";
   }
 
   const open = (mode = "login") => {
@@ -2133,7 +2397,10 @@ function initAuthModal() {
   closeBtn?.addEventListener("click", close);
   modeLoginBtn?.addEventListener("click", () => applyAuthMode("login"));
   modeRegisterBtn?.addEventListener("click", () => applyAuthMode("register"));
-  submitBtn?.addEventListener("click", submit);
+  authForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    void submit();
+  });
   logoutBtn?.addEventListener("click", async () => {
     await performLogout();
   });
@@ -2171,11 +2438,23 @@ function initMemberHub() {
 
   memberHubCloseFn = close;
   window.openMemberHub = () => {
+    const name = String(state.currentUser?.name || "").trim();
+    if (!name) {
+      close();
+      window.openAuthModal?.("login");
+      return;
+    }
     open();
   };
 
   trigger.addEventListener("click", (event) => {
     event.stopPropagation();
+    const name = String(state.currentUser?.name || "").trim();
+    if (!name) {
+      close();
+      window.openAuthModal?.("login");
+      return;
+    }
     toggle();
   });
 
@@ -2896,22 +3175,12 @@ function closeVerseSearchOverlay() {
   document.removeEventListener("keydown", verseSearchOverlayEscHandler);
 }
 
-/** 与原先 .toolbar-panel 下拉一致：顶缘 = page-toolbar 底 + gap（搜经文 / 选版本 共用） */
+/** 选书卷 / 选版本 / 搜经文 / 收藏等全屏卡片均由 CSS 在视口中垂直居中；清除遗留的 marginTop。 */
 function syncToolbarSheetCardTop(overlay) {
   if (!overlay || overlay.hasAttribute("hidden")) return;
   const card = overlay.querySelector(".verse-search-card");
-  const toolbar = document.querySelector(".page-toolbar");
   if (!card) return;
-  const gap = window.matchMedia("(max-width: 700px)").matches ? 10 : 12;
-  if (!toolbar) {
-    card.style.marginTop = "";
-    return;
-  }
-  const targetTop = toolbar.getBoundingClientRect().bottom + gap;
-  const padTop = parseFloat(getComputedStyle(overlay).paddingTop) || 12;
-  const contentTop = overlay.getBoundingClientRect().top + padTop;
-  const mt = Math.max(0, Math.round(targetTop - contentTop));
-  card.style.marginTop = `${mt}px`;
+  card.style.marginTop = "";
 }
 
 function syncVerseSearchCardTop() {
@@ -3290,12 +3559,11 @@ function renderToolbarTriggers() {
   const copy = getLocalizedCopy();
 
   if (bookChapterTriggerText) {
-    bookChapterTriggerText.textContent = copy.triggerBook || "选书卷";
+    bookChapterTriggerText.textContent = copy.triggerBook || "书卷";
   }
-
   const verseSearchTriggerText = document.getElementById("verseSearchTriggerText");
   if (verseSearchTriggerText) {
-    verseSearchTriggerText.textContent = copy.searchScripture || "搜经文";
+    verseSearchTriggerText.textContent = copy.searchScripture || "搜索";
   }
 
   if (qaViewTriggerText) {
@@ -3303,7 +3571,7 @@ function renderToolbarTriggers() {
   }
 
   if (primaryVersionTriggerText) {
-    primaryVersionTriggerText.textContent = copy.triggerTranslation || "选版本";
+    primaryVersionTriggerText.textContent = copy.triggerTranslation || "版本+";
   }
   if (favoritesTriggerText) {
     const n =
@@ -3403,65 +3671,70 @@ function renderQaViewPanel() {
 }
 
 function renderBookChapterPanel() {
-  const bookGrid = document.getElementById("bookGrid");
-  const chapterGrid = document.getElementById("chapterGrid");
-  if (!bookGrid || !chapterGrid) return;
-
-  document.querySelectorAll("[data-testament-tab]").forEach((btn) => {
-    const isActive =
-      btn.getAttribute("data-testament-tab") === state.frontState.testament;
-    btn.classList.toggle("active", isActive);
-
-    if (!btn.dataset.boundTab) {
-      btn.dataset.boundTab = "1";
-      btn.addEventListener("click", async () => {
-        const nextTestament = btn.getAttribute("data-testament-tab");
-        if (!nextTestament || nextTestament === state.frontState.testament)
-          return;
-
-        state.frontState.testament = nextTestament;
-        const books = getBooksForCurrentTestament();
-        if (books[0]) {
-          state.frontState.bookId = books[0].bookId;
-          state.frontState.chapter = 1;
-        }
-
-        saveFrontState();
-        renderAllSelectors();
-        await refreshCurrentPage();
-      });
-    }
+  renderBookChapterGrids({
+    otGridId: "bookGridOt",
+    ntGridId: "bookGridNt",
+    chapterGridId: "chapterGrid",
+    closePanelId: "bookChapterPanel",
   });
+}
 
-  const books = getBooksForCurrentTestament();
+function renderBookChapterGrids({
+  otGridId,
+  ntGridId,
+  chapterGridId,
+  closePanelId,
+}) {
+  const otGrid = document.getElementById(otGridId);
+  const ntGrid = document.getElementById(ntGridId);
+  const chapterGrid = document.getElementById(chapterGridId);
+  if (!otGrid || !ntGrid || !chapterGrid) return;
+
   const scriptureLang = getPrimaryScriptureLang();
 
-  bookGrid.innerHTML = books
-    .map((book) => {
-      const label =
-        scriptureLang === "en" || scriptureLang === "es" || scriptureLang === "he"
-          ? BOOK_NAME_EN_BY_ID[book.bookId] || book.bookEn || book.bookCn || book.bookId
-          : book.bookCn || book.bookEn || book.bookId;
+  const bookLabel = (book) =>
+    scriptureLang === "en" || scriptureLang === "es" || scriptureLang === "he"
+      ? BOOK_NAME_EN_BY_ID[book.bookId] || book.bookEn || book.bookCn || book.bookId
+      : book.bookCn || book.bookEn || book.bookId;
 
-      const active = book.bookId === state.frontState.bookId ? "active" : "";
+  const fillBookGrid = (container, testamentName) => {
+    const books = getBooksForTestament(testamentName);
+    container.innerHTML =
+      testamentName === "旧约"
+        ? buildOldTestamentBookGridHtml(books, bookLabel)
+        : testamentName === "新约"
+          ? buildNewTestamentBookGridHtml(books, bookLabel)
+          : [...books]
+              .sort((a, b) => {
+                const oa = BOOK_CANONICAL_ORDER_MAP.get(a.bookId) ?? 999;
+                const ob = BOOK_CANONICAL_ORDER_MAP.get(b.bookId) ?? 999;
+                return oa - ob;
+              })
+              .map((book) => {
+                const active =
+                  book.bookId === state.frontState.bookId ? "active" : "";
+                return `<button type="button" class="book-item ${active}" data-book-grid-id="${escapeHtml(
+                  book.bookId
+                )}">${escapeHtml(formatBookGridButtonLabel(book, bookLabel))}</button>`;
+              })
+              .join("");
 
-      return `<button type="button" class="book-item ${active}" data-book-grid-id="${escapeHtml(
-        book.bookId
-      )}">${escapeHtml(label)}</button>`;
-    })
-    .join("");
+    container.querySelectorAll("[data-book-grid-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const nextBookId = btn.getAttribute("data-book-grid-id");
+        if (!nextBookId) return;
 
-  bookGrid.querySelectorAll("[data-book-grid-id]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const nextBookId = btn.getAttribute("data-book-grid-id");
-      if (!nextBookId) return;
-
-      state.frontState.bookId = nextBookId;
-      state.frontState.chapter = 1;
-      saveFrontState();
-      renderAllSelectors();
+        state.frontState.testament = testamentName;
+        state.frontState.bookId = nextBookId;
+        state.frontState.chapter = 1;
+        saveFrontState();
+        renderAllSelectors();
+      });
     });
-  });
+  };
+
+  fillBookGrid(otGrid, "旧约");
+  fillBookGrid(ntGrid, "新约");
 
   const currentBook = getCurrentBookMeta();
   const chapterCount = Number(currentBook?.chapters || 1);
@@ -3479,7 +3752,7 @@ function renderBookChapterPanel() {
       state.frontState.chapter = nextChapter;
       saveFrontState();
       renderAllSelectors();
-      closeToolbarPanel("bookChapterPanel");
+      closeToolbarPanel(closePanelId);
       await refreshCurrentPage();
     });
   });
@@ -3703,7 +3976,6 @@ function updatePageTitle() {
   const bookChapterTriggerText = document.getElementById(
     "bookChapterTriggerText"
   );
-
   const scriptureBookLabel = getBookLabelForPrimaryScripture();
   const chapterLabel = `${state.frontState.chapter}`;
   const copy = getLocalizedCopy();
@@ -3894,6 +4166,17 @@ function renderLevelStars(level) {
   const lv = Math.max(1, Math.min(12, Number(level) || 1));
   const starCount = Math.max(1, Math.min(5, Math.ceil(lv / 3)));
   return "★".repeat(starCount);
+}
+
+/** 书签入口右侧：等级标星（与后台积分预览 renderStars 同色阶） */
+function renderMemberHubBookmarkStars(level) {
+  const raw = Number(level) || 0;
+  if (raw <= 0) {
+    return `<span class="member-hub-star-strip member-hub-star-strip--empty" title="尚未形成等级（尚无已通过审核的贡献）">☆</span>`;
+  }
+  const capped = Math.max(1, Math.min(12, raw));
+  const starsHtml = renderStars(capped).replace(/\s+title="Learning progress"/, "");
+  return `<span class="member-hub-star-strip" title="等级 L${capped}">${starsHtml}</span>`;
 }
 
 /** 主题行纯文本（与页面 repeatedWords 一致，用于收藏列表展示） */
@@ -4548,12 +4831,10 @@ function initAdminModal() {
   const closeAdminPasswordBtn = document.getElementById(
     "closeAdminPasswordBtn"
   );
-  const submitAdminPasswordBtn = document.getElementById(
-    "submitAdminPasswordBtn"
-  );
   const closeAdminBtn = document.getElementById("closeAdminBtn");
   const adminPasswordInput = document.getElementById("adminPasswordInput");
   const adminPasswordError = document.getElementById("adminPasswordError");
+  const adminPasswordForm = document.getElementById("adminPasswordForm");
 
   async function openPasswordModal() {
     if (adminPasswordInput) adminPasswordInput.value = "";
@@ -4584,13 +4865,18 @@ function initAdminModal() {
     if (passwordModal) passwordModal.style.display = "none";
   });
 
-  submitAdminPasswordBtn?.addEventListener("click", async () => {
+  async function submitAdminPassword() {
     if (adminPasswordInput?.value === ADMIN_PASSWORD) {
       if (passwordModal) passwordModal.style.display = "none";
       await openAdminRealModal();
     } else if (adminPasswordError) {
       adminPasswordError.textContent = "密码不正确";
     }
+  }
+
+  adminPasswordForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    void submitAdminPassword();
   });
 
   closeAdminBtn?.addEventListener("click", () => {
