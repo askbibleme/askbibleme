@@ -19,6 +19,7 @@ const topFiles = [
   "notebook.html",
   "blank-page.html",
   "styles.css",
+  "promo.css",
   "vision.css",
   "main.js",
   "pwa-install-hint.js",

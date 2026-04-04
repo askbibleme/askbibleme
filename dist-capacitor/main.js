@@ -109,6 +109,9 @@ const state = {
 /** 收藏夹弹层：pages | verses | questions */
 let favoritesPanelActiveTab = "pages";
 
+/** 页面收藏：补全第一小段标题时避免同一 key 并发重复请求 */
+const chapterFavoriteSegmentEnrichLocks = new Set();
+
 const adminState = {
   bootstrap: null,
   currentRuleVersion: "default",
@@ -362,7 +365,9 @@ function loadChapterFavorites() {
       versionId: String(item?.versionId || ""),
       bookId: String(item?.bookId || ""),
       chapter: Number(item?.chapter || 0),
-      themeLine: String(item?.themeLine || ""),
+      contentVersion: String(item?.contentVersion || ""),
+      contentLang: String(item?.contentLang || ""),
+      firstSegmentTitle: String(item?.firstSegmentTitle || ""),
       createdAt: Number(item?.createdAt || Date.now()),
     }))
     .filter((item) => item.key && item.versionId && item.bookId && item.chapter > 0);
@@ -660,6 +665,10 @@ function getLocalizedCopy() {
       prevChapter: "Previous",
       nextChapter: "Next",
       noContent: "No content yet for this chapter in the selected version/language.",
+      promoHelpAria:
+        "About Berean-style reading and AskBible.me (opens in new tab)",
+      bereanPromoLine1: "Berean-style study",
+      bereanPromoLine2: "Guided by questions · opens in new tab",
     };
   }
   if (lang === "es") {
@@ -709,6 +718,9 @@ function getLocalizedCopy() {
       prevChapter: "Anterior",
       nextChapter: "Siguiente",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
+      promoHelpAria: "Sobre el estilo Berea y AskBible.me (nueva pestana)",
+      bereanPromoLine1: "Estudio estilo Berea",
+      bereanPromoLine2: "Guiados por preguntas · se abre en pestana nueva",
     };
   }
   if (lang === "he") {
@@ -758,6 +770,9 @@ function getLocalizedCopy() {
       prevChapter: "הקודם",
       nextChapter: "הבא",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
+      promoHelpAria: "אודות לימוד בסגנון בראיים ו-AskBible.me (בלשונית חדשה)",
+      bereanPromoLine1: "לימוד בסגנון בראיים",
+      bereanPromoLine2: "מונחים בשאלות · נפתח בלשונית חדשה",
     };
   }
   return {
@@ -806,6 +821,9 @@ function getLocalizedCopy() {
     prevChapter: "上一章",
     nextChapter: "下一章",
     noContent: "这一章还没有该版本 / 该语言的内容。",
+    promoHelpAria: "了解庇哩亚式读经与 AskBible.me（新窗口打开）",
+    bereanPromoLine1: "庇哩亚式读经",
+    bereanPromoLine2: "让经文自己发声 · 新窗口打开",
   };
 }
 
@@ -827,6 +845,22 @@ function applyReaderI18n() {
   setText("#contentVersionSectionTitle", copy.triggerVersion || "问题类型");
   setText("#primaryVersionSectionTitle", copy.primaryVersionSingle);
   setText("#compareVersionSectionTitle", copy.compareVersionMulti);
+  const bereanLink = document.getElementById("bereanPromoLink");
+  if (bereanLink) {
+    const main = bereanLink.querySelector(".primary-version-promo-main");
+    const sub = bereanLink.querySelector(".primary-version-promo-sub");
+    if (main) main.textContent = copy.bereanPromoLine1 || "";
+    if (sub) sub.textContent = copy.bereanPromoLine2 || "";
+    bereanLink.setAttribute(
+      "aria-label",
+      `${copy.bereanPromoLine1 || ""}. ${copy.bereanPromoLine2 || ""}`
+    );
+  }
+  const sidePromoHelp = document.getElementById("sidePromoHelpLink");
+  if (sidePromoHelp && copy.promoHelpAria) {
+    sidePromoHelp.setAttribute("aria-label", copy.promoHelpAria);
+    sidePromoHelp.setAttribute("title", copy.promoHelpAria);
+  }
   setText("#exportPrettyPdfBtn", copy.export);
   setText("#favoritesPanelTitle", copy.favoritesTitle);
   setText("#favoritesTabPages", copy.favoritesSectionPageTitle || "");
@@ -1144,6 +1178,70 @@ function initFavoritesPanelTabs() {
   });
 }
 
+function truncateChapterFavoriteSegmentTitle(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  return s.length > 100 ? `${s.slice(0, 97)}…` : s;
+}
+
+async function enrichChapterFavoriteSegmentTitles() {
+  const list = state.chapterFavorites || [];
+  const targets = [];
+  for (const item of list) {
+    if (String(item.firstSegmentTitle || "").trim()) continue;
+    if (chapterFavoriteSegmentEnrichLocks.has(item.key)) continue;
+    chapterFavoriteSegmentEnrichLocks.add(item.key);
+    targets.push(item);
+  }
+  if (!targets.length) return;
+
+  let changed = false;
+  await Promise.all(
+    targets.map(async (item) => {
+      try {
+        const version = String(
+          item.contentVersion || state.frontState.contentVersion || "default"
+        );
+        const lang = String(
+          item.contentLang || state.frontState.contentLang || "zh"
+        );
+        const params = new URLSearchParams({
+          version,
+          lang,
+          bookId: String(item.bookId),
+          chapter: String(item.chapter),
+        });
+        const res = await fetch(`/api/study-content?${params.toString()}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!res.ok || !data || data.missing === true) return;
+        const firstSegmentTitle = truncateChapterFavoriteSegmentTitle(
+          data.segments?.[0]?.title
+        );
+        if (!firstSegmentTitle) return;
+        const idx = (state.chapterFavorites || []).findIndex(
+          (x) => x.key === item.key
+        );
+        if (idx < 0) return;
+        const cur = state.chapterFavorites[idx];
+        if (String(cur.firstSegmentTitle || "").trim()) return;
+        state.chapterFavorites[idx] = { ...cur, firstSegmentTitle };
+        changed = true;
+      } catch {
+        /* 忽略网络错误，下次打开收藏可再试 */
+      } finally {
+        chapterFavoriteSegmentEnrichLocks.delete(item.key);
+      }
+    })
+  );
+
+  if (changed) {
+    saveChapterFavorites();
+    renderFavoritesPanel();
+  }
+}
+
 function renderFavoritesPanel() {
   const pagesList = document.getElementById("favoritesPagesList");
   const versesList = document.getElementById("favoritesVersesList");
@@ -1173,10 +1271,8 @@ function renderFavoritesPanel() {
               getLocalizedBookLabelById(item.bookId),
               item.chapter
             );
-            const themePart = String(item.themeLine || "").trim();
-            const refLine = themePart
-              ? `${titleLine} · ${themePart}`
-              : titleLine;
+            const segPart = String(item.firstSegmentTitle || "").trim();
+            const refLine = segPart ? `${titleLine} · ${segPart}` : titleLine;
             return `<div class="favorite-item favorite-item--chapter favorite-item--page-row">
           <button type="button" class="favorite-jump-btn" data-favorite-jump="${escapeHtml(
             item.key
@@ -1202,8 +1298,8 @@ function renderFavoritesPanel() {
           <button type="button" class="favorite-jump-btn" data-favorite-jump="${escapeHtml(
             item.key
           )}">
-            <div class="favorite-ref">${escapeHtml(title)}</div>
             <div class="favorite-text">${escapeHtml(item.text)}</div>
+            <div class="favorite-ref">${escapeHtml(title)}</div>
           </button>
           <button type="button" class="favorite-remove-btn" data-favorite-remove="${escapeHtml(
             item.key
@@ -1229,13 +1325,15 @@ function renderFavoritesPanel() {
               getLocalizedContentVersionLabel(item.contentVersion) ||
               item.contentVersion ||
               "";
+            const refLineWithVersion = cvLabel
+              ? `${refLine}（${cvLabel}）`
+              : refLine;
             return `<div class="favorite-item favorite-item--question">
           <button type="button" class="favorite-jump-btn" data-question-fav-jump="${escapeHtml(
             item.key
           )}">
-            <div class="favorite-ref">${escapeHtml(refLine)}</div>
             <div class="favorite-text">${escapeHtml(item.question)}</div>
-            <div class="favorite-meta">${escapeHtml(cvLabel)}</div>
+            <div class="favorite-ref">${escapeHtml(refLineWithVersion)}</div>
           </button>
           <button type="button" class="favorite-remove-btn" data-question-favorite-remove="${escapeHtml(
             item.key
@@ -1261,6 +1359,12 @@ function renderFavoritesPanel() {
         state.frontState.bookId = chItem.bookId;
         state.frontState.chapter = chItem.chapter;
         state.frontState.primaryScriptureVersionId = chItem.versionId;
+        if (chItem.contentVersion) {
+          state.frontState.contentVersion = chItem.contentVersion;
+        }
+        if (chItem.contentLang) {
+          state.frontState.contentLang = chItem.contentLang;
+        }
         state.frontState.secondaryScriptureVersionIds = (
           state.frontState.secondaryScriptureVersionIds || []
         ).filter((id) => id !== chItem.versionId);
@@ -1355,6 +1459,8 @@ function renderFavoritesPanel() {
       renderStudyContent();
     });
   });
+
+  void enrichChapterFavoriteSegmentTitles();
 }
 
 function shouldConvertQuestionsToTraditional() {
@@ -2846,9 +2952,9 @@ function openVerseSearchOverlay() {
       : `<p class="verse-search-status">输入关键字开始搜索。</p>`;
   }
   overlay.removeAttribute("hidden");
-  syncToolbarSheetCardTop(overlay);
+  syncVerseSearchCardTop();
   window.requestAnimationFrame(() => {
-    syncToolbarSheetCardTop(overlay);
+    syncVerseSearchCardTop();
   });
   document.body.classList.add("verse-search-open");
   if (openBtn) openBtn.setAttribute("aria-expanded", "true");
@@ -3132,18 +3238,21 @@ function toggleCurrentChapterFavorite() {
       (x) => x.key !== key
     );
   } else {
-    const themeRaw = formatRepeatedWordsThemePlain(
-      state.studyContent?.repeatedWords || []
-    );
-    const themeLine =
-      themeRaw.length > 220 ? `${themeRaw.slice(0, 217)}…` : themeRaw;
+    const seg0Title = String(
+      state.studyContent?.segments?.[0]?.title || ""
+    ).trim();
+    const firstSegmentTitle = truncateChapterFavoriteSegmentTitle(seg0Title);
+    const contentVersion = String(state.frontState.contentVersion || "");
+    const contentLang = String(state.frontState.contentLang || "");
     state.chapterFavorites = [
       {
         key,
         versionId,
         bookId,
         chapter,
-        themeLine,
+        contentVersion,
+        contentLang,
+        firstSegmentTitle,
         createdAt: Date.now(),
       },
       ...(state.chapterFavorites || []),
@@ -3787,6 +3896,7 @@ function renderLevelStars(level) {
   return "★".repeat(starCount);
 }
 
+/** 主题行纯文本（与页面 repeatedWords 一致，用于收藏列表展示） */
 function formatRepeatedWordsThemePlain(items) {
   if (!items || !items.length) return "";
   return [...items]
@@ -3921,7 +4031,7 @@ function renderVerseRangeBlock(start, end) {
         .join(" ")}</div>`;
 
   const secondaryContinuous = secondaryVersions
-    .map((version) => {
+            .map((version) => {
       if (version.lang === "he") {
         const rtlText = renderRtlContinuous(version.id);
         if (!rtlText) return "";
@@ -3942,10 +4052,10 @@ function renderVerseRangeBlock(start, end) {
         .join(" ");
       if (!verseUnits) return "";
       return `<div class="flow-verse-sub flow-verse-continuous">${verseUnits}</div>`;
-    })
-    .join("");
+            })
+            .join("");
 
-  return `
+          return `
     <div class="flow-scripture">
       ${primaryHtml}
       ${secondaryContinuous}
@@ -4459,6 +4569,7 @@ function initAdminModal() {
     await initTestGenerateTab();
     await initPublishedManagerTab();
     await initScriptureVersionManagerTab();
+    await initContentVersionsManagerTab();
     await initDeployManagerTab();
     await initPointsSystemTab();
     initQuestionReviewTab();
@@ -4488,9 +4599,32 @@ function initAdminModal() {
   });
 }
 
+/** Parse JSON from fetch; if body is HTML (SPA/404/login page), throw a clear error. */
+async function parseFetchJsonResponse(res) {
+  const text = await res.text();
+  const head = text.trimStart().slice(0, 64).toLowerCase();
+  if (
+    head.startsWith("<!doctype") ||
+    head.startsWith("<html") ||
+    head.startsWith("<head")
+  ) {
+    throw new Error(
+      "接口返回了网页而不是 JSON。请先在浏览器「网络」里查看该请求的 URL、状态码与响应正文。常见原因：① 本机 3000 端口不是本项目的 node server.js（请 lsof -i :3000 确认并重启 npm start）；② 反代把 /api 指错；③ 会话过期被重定向到登录页；④ 线上未部署含该接口的版本。若刚改过 server.js，务必完全重启 Node 后再试。"
+    );
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    const preview = text.replace(/\s+/g, " ").slice(0, 120);
+    throw new Error(
+      `无效 JSON 响应（HTTP ${res.status}）${preview ? `：${preview}…` : ""}`
+    );
+  }
+}
+
 async function loadAdminBootstrap() {
   const res = await fetch("/api/admin/bootstrap", { cache: "no-store" });
-  const data = await res.json();
+  const data = await parseFetchJsonResponse(res);
 
   if (!res.ok) {
     throw new Error(data.error || "后台初始化失败");
@@ -4504,6 +4638,7 @@ async function loadAdminBootstrap() {
 function bindAdminTabs() {
   ensurePublishedTabExists();
   ensureScriptureVersionManagerTabExists();
+  ensureContentVersionsManagerTabExists();
   ensureDeployTabExists();
   ensurePointsSystemTabExists();
   ensureQuestionReviewTabExists();
@@ -5014,6 +5149,48 @@ function ensurePublishedTabExists() {
     btn.type = "button";
     btn.dataset.adminTab = "published";
     btn.textContent = "已发布内容";
+    tabsWrap.appendChild(btn);
+  }
+}
+
+function ensureContentVersionsManagerTabExists() {
+  if (
+    document.querySelector(
+      '.admin-tab-btn[data-admin-tab="content_versions_menu"]'
+    )
+  ) {
+    return;
+  }
+
+  const tabsWrap = document.querySelector(".admin-tabs");
+  const panel = document.createElement("div");
+  panel.className = "admin-tab-panel";
+  panel.id = "adminTab-content_versions_menu";
+  panel.innerHTML = `
+    <div class="section-title">内容版本 · 前台菜单</div>
+    <p class="admin-hint-muted">
+      仅「启用」且勾选「前台菜单显示」的版本会出现在首页工具栏「版本」面板。关闭「前台菜单显示」后，用户无法在主页切换该类型，后台生成与规则编辑仍可使用该版本。
+    </p>
+    <div id="contentVersionsRows" class="content-versions-rows"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="reloadContentVersionsBtn" class="secondary-btn" type="button">重新载入</button>
+      <button id="saveContentVersionsBtn" class="primary-btn" type="button">保存内容版本</button>
+    </div>
+    <div id="contentVersionsSaveResult" class="admin-preview-box" style="margin-top:12px;">尚未保存。</div>
+  `;
+
+  const modalCard = document.querySelector(".modal-card-admin");
+  const existingPanels = modalCard?.querySelectorAll(".admin-tab-panel");
+  if (existingPanels?.length) {
+    existingPanels[existingPanels.length - 1].after(panel);
+  }
+
+  if (tabsWrap) {
+    const btn = document.createElement("button");
+    btn.className = "admin-tab-btn";
+    btn.type = "button";
+    btn.dataset.adminTab = "content_versions_menu";
+    btn.textContent = "内容版本菜单";
     tabsWrap.appendChild(btn);
   }
 }
@@ -7213,6 +7390,102 @@ async function autoRepublishMissingChapter(bookId, chapter) {
 /* =========================
    圣经版本管理
    ========================= */
+function renderContentVersionsEditorFromBootstrap() {
+  const box = document.getElementById("contentVersionsRows");
+  if (!box) return;
+  const rows = (adminState.bootstrap?.contentVersions || [])
+    .slice()
+    .sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
+  if (!rows.length) {
+    box.innerHTML = `<div class="empty-state">无内容版本数据。</div>`;
+    return;
+  }
+  box.innerHTML = rows
+    .map((item) => {
+      const id = escapeHtml(item.id);
+      const label = escapeHtml(item.label || item.id);
+      const order = Number(item.order) || 0;
+      const en = item.enabled !== false;
+      const menu = item.showInMenu !== false;
+      return `<div class="content-version-row" data-cv-id="${id}">
+        <div class="cv-cell cv-id"><span class="label">ID</span><div class="cv-id-text">${id}</div></div>
+        <div class="cv-cell"><span class="label">显示名称</span><input type="text" class="custom-textarea single-input cv-label" value="${label}" /></div>
+        <div class="cv-cell cv-order"><span class="label">排序</span><input type="number" class="custom-textarea single-input cv-order-input" value="${order}" /></div>
+        <label class="cv-cell cv-check"><input type="checkbox" class="cv-enabled" ${en ? "checked" : ""} /> <span>启用（系统）</span></label>
+        <label class="cv-cell cv-check"><input type="checkbox" class="cv-show-menu" ${menu ? "checked" : ""} /> <span>前台菜单显示</span></label>
+      </div>`;
+    })
+    .join("");
+}
+
+function collectContentVersionsFromEditor() {
+  return Array.from(
+    document.querySelectorAll("#contentVersionsRows .content-version-row")
+  ).map((row) => {
+    const id = String(row.getAttribute("data-cv-id") || "").trim();
+    const label = String(row.querySelector(".cv-label")?.value || "").trim();
+    const order = Number(row.querySelector(".cv-order-input")?.value) || 0;
+    const enabled = row.querySelector(".cv-enabled")?.checked === true;
+    const showInMenu = row.querySelector(".cv-show-menu")?.checked === true;
+    return { id, label: label || id, order, enabled, showInMenu };
+  });
+}
+
+async function initContentVersionsManagerTab() {
+  renderContentVersionsEditorFromBootstrap();
+
+  const resultEl = document.getElementById("contentVersionsSaveResult");
+  const setResult = (text) => {
+    if (resultEl) resultEl.textContent = text;
+  };
+
+  const reloadBtn = document.getElementById("reloadContentVersionsBtn");
+  if (reloadBtn && !reloadBtn.dataset.bound) {
+    reloadBtn.dataset.bound = "1";
+    reloadBtn.addEventListener("click", async () => {
+      try {
+        await loadAdminBootstrap();
+        renderContentVersionsEditorFromBootstrap();
+        await initRuleEditorTab();
+        renderTestVersionOptions();
+        setResult("已从服务器重新载入。");
+      } catch (e) {
+        setResult(e?.message || String(e));
+      }
+    });
+  }
+
+  const saveBtn = document.getElementById("saveContentVersionsBtn");
+  if (!saveBtn || saveBtn.dataset.bound) return;
+  saveBtn.dataset.bound = "1";
+  saveBtn.addEventListener("click", async () => {
+    const list = collectContentVersionsFromEditor();
+    if (!list.length) {
+      alert("没有可保存的数据");
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/content-versions/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentVersions: list }),
+      });
+      const data = await parseFetchJsonResponse(res);
+      if (!res.ok) throw new Error(data.error || "保存失败");
+      adminState.bootstrap = adminState.bootstrap || {};
+      adminState.bootstrap.contentVersions = data.contentVersions || list;
+      renderContentVersionsEditorFromBootstrap();
+      await initRuleEditorTab();
+      renderTestVersionOptions();
+      setResult("已保存。刷新首页后读经菜单将更新。");
+      alert("内容版本已保存。");
+    } catch (e) {
+      alert(e?.message || String(e));
+      setResult(e?.message || String(e));
+    }
+  });
+}
+
 async function initScriptureVersionManagerTab() {
   await refreshScriptureVersionsList();
 
@@ -7874,7 +8147,7 @@ async function initDeployManagerTab() {
     if (systemOpenAiKeyStatusBox) {
       systemOpenAiKeyStatusBox.textContent = error?.message || "读取失败";
     }
-  });
+    });
 }
 
 async function refreshScriptureVersionsList() {
