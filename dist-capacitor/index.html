@@ -73,7 +73,7 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=73" />
+    <link rel="stylesheet" href="/styles.css?v=98" />
   </head>
   <body>
     <div class="page-shell">
@@ -91,6 +91,15 @@
 
       <main class="book-layout">
         <div class="member-bookmark-wrap">
+          <a
+            id="sidePromoHelpLink"
+            class="book-side-promo-help-link member-bookmark-promo-help-link"
+            href="/promo.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span class="book-side-promo-help-glyph" aria-hidden="true">?</span>
+          </a>
           <div class="member-hub member-hub--bookmark" id="memberHub">
             <button
               type="button"
@@ -271,6 +280,19 @@
                 </button>
               </div>
 
+              <div class="title-nav-fav-center" aria-label="收藏本章">
+                <button
+                  type="button"
+                  id="sideFavoritesListBtn"
+                  class="book-side-extend-list-btn title-nav-fav-btn"
+                  aria-pressed="false"
+                >
+                  <span class="book-side-fav-stars" aria-hidden="true">
+                    <span class="book-side-fav-star">★</span>
+                  </span>
+                </button>
+              </div>
+
               <div class="title-nav-side title-nav-side-right">
                 <button type="button" class="title-nav-mini-btn" id="fontIncreaseBtn">
                   +
@@ -286,7 +308,7 @@
               </div>
             </div>
 
-            <div class="book-side-extend-tags book-side-extend-tags--stack" aria-label="收藏">
+            <div class="book-side-extend-tags" aria-label="收藏">
               <a
                 id="sideUserTag"
                 class="book-side-extend-tag book-side-extend-tag--ribbon-no-label"
@@ -297,25 +319,6 @@
                 aria-expanded="false"
                 aria-label="打开收藏列表"
               ></a>
-              <button
-                type="button"
-                id="sideFavoritesListBtn"
-                class="book-side-extend-list-btn"
-                aria-pressed="false"
-              >
-                <span class="book-side-fav-stars" aria-hidden="true">
-                  <span class="book-side-fav-star">★</span>
-                </span>
-              </button>
-              <a
-                id="sidePromoHelpLink"
-                class="book-side-promo-help-link"
-                href="/promo.html"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span class="book-side-promo-help-glyph" aria-hidden="true">?</span>
-              </a>
             </div>
 
             <div class="page-title-block page-title-block-stacked">

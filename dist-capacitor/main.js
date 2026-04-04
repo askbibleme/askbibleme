@@ -2217,6 +2217,7 @@ function renderAuthStatus() {
   if (logoutBtn) logoutBtn.style.display = authed ? "" : "none";
   updateChapterQuestionSubmitButtonLabel();
   renderMemberHub();
+  renderChapterRibbonTag();
   renderStudyContent();
 }
 
@@ -3484,13 +3485,42 @@ function renderChapterRibbonTag() {
   const key = getCurrentChapterFavoriteKey();
   const saved = Boolean(key && state.chapterFavoriteKeys.has(key));
   el.classList.toggle("book-side-extend-tag--chapter-saved", saved);
-  el.innerHTML = "";
-  el.setAttribute(
-    "aria-label",
-    copy.favoritesListOpenAria ||
-      copy.favoritesTitle ||
-      "打开收藏列表"
-  );
+
+  const u = state.currentUser;
+  const accountName = String(u?.name || "").trim();
+  const authed = Boolean(accountName);
+
+  const listAria =
+    copy.favoritesListOpenAria || copy.favoritesTitle || "打开收藏列表";
+
+  el.classList.toggle("book-side-extend-tag--ribbon-user", authed);
+
+  if (authed) {
+    el.classList.remove("book-side-extend-tag--ribbon-no-label");
+    const sensible = getSensibleDisplayName(u);
+    const lvNum = Number(u?.userLevel) || 0;
+    const capped = lvNum > 0 ? Math.min(12, lvNum) : 0;
+    const levelAria = capped > 0 ? `，等级 L${capped}` : "，尚无等级";
+    el.innerHTML = `<span class="ribbon-user-stack">
+      <span class="ribbon-user-name">${escapeHtml(sensible)}</span>
+      ${
+        capped > 0
+          ? `<span class="ribbon-user-lv">L${capped}</span>`
+          : `<span class="ribbon-user-lv ribbon-user-lv--empty" title="尚未形成等级">—</span>`
+      }
+      <span class="ribbon-user-stars-wrap">${renderRibbonLevelStars(
+        lvNum
+      )}</span>
+    </span>`;
+    el.setAttribute(
+      "aria-label",
+      `${listAria}（${sensible}${levelAria}）`
+    );
+  } else {
+    el.classList.add("book-side-extend-tag--ribbon-no-label");
+    el.innerHTML = "";
+    el.setAttribute("aria-label", listAria);
+  }
   el.setAttribute("href", "#");
 }
 
@@ -4175,8 +4205,24 @@ function renderMemberHubBookmarkStars(level) {
     return `<span class="member-hub-star-strip member-hub-star-strip--empty" title="尚未形成等级（尚无已通过审核的贡献）">☆</span>`;
   }
   const capped = Math.max(1, Math.min(12, raw));
-  const starsHtml = renderStars(capped).replace(/\s+title="Learning progress"/, "");
+  const starsHtml = renderStars(capped, `等级 L${capped}`).replace(
+    /\s+title="[^"]*"/,
+    ""
+  );
   return `<span class="member-hub-star-strip" title="等级 L${capped}">${starsHtml}</span>`;
+}
+
+/** 左侧丝带：等级星用 g1–g4 分段金色（与 renderStars / 积分配置一致） */
+function renderRibbonLevelStars(level) {
+  const raw = Number(level) || 0;
+  if (raw <= 0) {
+    return `<span class="member-hub-star-strip member-hub-star-strip--empty" title="尚未形成等级（尚无已通过审核的贡献）">☆</span>`;
+  }
+  const capped = Math.max(1, Math.min(12, raw));
+  return `<span class="member-hub-star-strip">${renderStars(
+    capped,
+    `等级 L${capped}`
+  )}</span>`;
 }
 
 /** 主题行纯文本（与页面 repeatedWords 一致，用于收藏列表展示） */
@@ -7825,18 +7871,37 @@ function getStarDisplay(level) {
   return { group, stars };
 }
 
-function renderStars(level) {
+/** 与 styles.css :root --star-g* 一致；SVG fill 不受链接色 / emoji 字体的 color 影响 */
+const STAR_LEVEL_HEX_BY_GROUP = {
+  1: ["#ede6d8", "#e4d7be", "#dcc8a5"],
+  2: ["#d4b77d", "#c9a863", "#be9a4a"],
+  3: ["#b38b3e", "#a27c34", "#916e2b"],
+  4: ["#7a5c24", "#5f471b", "#453313"],
+};
+
+const STAR_LEVEL_SVG_PATH =
+  "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z";
+
+function renderLevelStarSvgs(count, hexFill) {
+  const n = Math.max(1, Math.min(5, Number(count) || 1));
+  const fill = String(hexFill || "#c9a863");
+  let html = "";
+  for (let i = 0; i < n; i++) {
+    html += `<svg class="star-level-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="${fill}" d="${STAR_LEVEL_SVG_PATH}"/></svg>`;
+  }
+  return html;
+}
+
+function renderStars(level, starTitle) {
   const { group, stars } = getStarDisplay(level);
-  const colorMap = {
-    1: ["var(--star-g1-1)", "var(--star-g1-2)", "var(--star-g1-3)"],
-    2: ["var(--star-g2-1)", "var(--star-g2-2)", "var(--star-g2-3)"],
-    3: ["var(--star-g3-1)", "var(--star-g3-2)", "var(--star-g3-3)"],
-    4: ["var(--star-g4-1)", "var(--star-g4-2)", "var(--star-g4-3)"],
-  };
-  const color = colorMap[group][stars - 1];
-  return `<span class="star-level" style="color:${color}" title="Learning progress">${"★".repeat(
-    stars
-  )}</span>`;
+  const color = STAR_LEVEL_HEX_BY_GROUP[group][stars - 1];
+  const t =
+    starTitle != null && String(starTitle).trim() !== ""
+      ? String(starTitle)
+      : "Learning progress";
+  return `<span class="star-level star-level--svgs" title="${escapeHtml(
+    t
+  )}">${renderLevelStarSvgs(stars, color)}</span>`;
 }
 
 function renderPointsStarPreview() {

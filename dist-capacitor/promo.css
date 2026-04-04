@@ -1,561 +1,617 @@
-/* 宣传页 /promo.html — 分段排版，偏苹果产品页的清晰层级与留白 */
+/* 宣传页：单列 + 仅「左页」纸感（无全局 --book-spread-paper-gradient 的中缝横纹） */
 
-body.promo-page-body {
-  margin: 0;
-  min-height: 100vh;
+.promo-page-body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "SF Pro Text",
-    "PingFang SC",
-    "Hiragino Sans GB",
-    "Microsoft YaHei UI",
-    "Microsoft YaHei",
-    "Helvetica Neue",
-    Helvetica,
-    Arial,
-    sans-serif;
-  background: #f5f5f7;
-  color: #1d1d1f;
+  /* 页面整体（宣传页）；宽度可由自定义 CSS「===layout===」以上段落里写 --promo-shell-max-width 覆盖 */
+  --promo-shell-max-width: 680px;
+  /* 正文区左右留白（书页内边距）；自定义 CSS 里可覆盖 --promo-pad-x */
+  --promo-pad-x: 20px;
+  /* 中间 Markdown 正文最大宽度（居中）；自定义 CSS 可覆盖 */
+  --promo-text-max-width: 500px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #2d2925;
+  /* 由大屏双页左半幅色感拉满整卡，无 50% 书脊色带 */
+  --promo-left-page-paper: linear-gradient(
+    90deg,
+    #faf6ee 0%,
+    #fbf7f0 22%,
+    #fffdf8 52%,
+    #fcf9f4 100%
+  );
 }
 
-.promo-shell.page-shell {
-  max-width: none;
+/* 顶栏 / 页脚与下方书卡同宽居中，logo 与书页一体、宽屏不再错位 */
+.promo-page-body .page-shell > .site-topbar,
+.promo-page-body .page-shell > .site-footer {
+  max-width: min(var(--promo-shell-max-width), calc(100% - 8px));
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.promo-book-layout.book-layout {
+  max-width: min(var(--promo-shell-max-width), calc(100% - 8px));
   margin: 0 auto;
-  padding: 0 0 18px;
-}
-
-.promo-shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 顶栏：浅色毛玻璃 */
-.promo-shell .site-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  padding: 10px 18px;
-  margin-bottom: 0;
-  background: rgba(245, 245, 247, 0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  /* 标准模板：去掉书卡外阴影框感 */
   box-shadow: none;
 }
 
-.promo-shell .site-topbar-title .download-brand-link {
-  font-size: calc(20px * var(--font-scale, 1));
-  font-weight: 600;
-  letter-spacing: -0.02em;
+.promo-book-layout.book-layout::before,
+.promo-book-layout.book-layout::after {
+  display: none;
 }
 
-.promo-shell .brand-ask,
-.promo-shell .brand-me {
-  color: #6e6e73;
+.promo-book-spread.book-spread {
+  grid-template-columns: 1fr;
+  min-height: auto;
+  background-color: var(--paper);
+  /* 左书口晕 + 极淡右缘（靠缝一侧），主纸纹为左页式平滑渐变 */
+  background-image: linear-gradient(
+      to right,
+      rgba(120, 96, 63, 0.14),
+      rgba(120, 96, 63, 0.05),
+      transparent 100%
+    ),
+    linear-gradient(
+      to left,
+      rgba(120, 96, 63, 0.07),
+      rgba(120, 96, 63, 0.02),
+      transparent 55%
+    ),
+    var(--promo-left-page-paper);
+  background-size: 28px 100%, 32px 100%, 100% 100%;
+  background-position: left top, right top, left center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
-.promo-shell .brand-bible {
-  color: var(--brand-bible, #ffb82e);
+/* 避免与 spread 上两层书口叠画；去掉右页外缘那道重阴影（单页不切右书口） */
+.promo-book-page.book-page:first-child::before,
+.promo-book-page.book-page:last-child::after {
+  display: none !important;
 }
 
-.promo-main {
-  flex: 1;
+.promo-book-page.book-page {
+  max-width: none;
+  min-height: 0;
+  padding-top: 28px;
+  padding-bottom: 32px;
+  padding-left: var(--promo-pad-x);
+  padding-right: var(--promo-pad-x);
+  --book-pad-left: var(--promo-pad-x);
 }
 
-/* —— 首屏 —— */
-.promo-hero-panel {
-  padding: clamp(36px, 10vw, 72px) 24px clamp(40px, 8vw, 56px);
-  text-align: center;
-  background: linear-gradient(
-    180deg,
-    #ffffff 0%,
-    #f5f5f7 72%,
-    #f5f5f7 100%
-  );
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
+@media (max-width: 720px) {
+  .promo-page-body {
+    --promo-pad-x: 16px;
+  }
 
-.promo-hero-content {
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.promo-eyebrow {
-  margin: 0 0 12px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #86868b;
-}
-
-.promo-headline {
-  margin: 0;
-  font-size: clamp(1.75rem, 5vw, 2.75rem);
-  font-weight: 600;
-  line-height: 1.12;
-  letter-spacing: -0.03em;
-  color: #1d1d1f;
-}
-
-.promo-tagline-en {
-  margin: 18px 0 0;
-  font-size: clamp(1rem, 2.8vw, 1.25rem);
-  font-weight: 400;
-  line-height: 1.45;
-  color: #6e6e73;
-  letter-spacing: -0.01em;
-}
-
-/* —— 正文流 —— */
-.promo-feed {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 28px 20px 48px;
-}
-
-@media (min-width: 480px) {
-  .promo-feed {
-    padding-left: 28px;
-    padding-right: 28px;
+  .promo-book-page.book-page {
+    padding: 22px var(--promo-pad-x) 26px;
+    --book-pad-left: var(--promo-pad-x);
   }
 }
 
-/* 分段小标题（苹果式章节感） */
-.promo-kicker {
-  margin: 32px 0 12px;
-  text-align: center;
-}
-
-.promo-kicker:first-child {
-  margin-top: 0;
-}
-
-.promo-kicker-text {
-  display: inline-block;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #86868b;
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: 100px;
-}
-
-/* 内容卡片 */
-.promo-block {
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 26px 22px 24px;
-  margin-bottom: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 6px 20px rgba(0, 0, 0, 0.05);
-}
-
-@media (min-width: 600px) {
-  .promo-block {
-    padding: 30px 28px 28px;
-  }
-}
-
-.promo-block:last-of-type {
-  margin-bottom: 0;
-}
-
-.promo-h2 {
-  margin: 0 0 16px;
-  font-size: clamp(1.05rem, 2.4vw, 1.25rem);
-  font-weight: 600;
-  line-height: 1.35;
-  letter-spacing: -0.02em;
-  color: #1d1d1f;
-}
-
-.promo-p {
-  margin: 0 0 12px;
-  font-size: 17px;
-  line-height: 1.588;
-  letter-spacing: -0.01em;
-  color: #1d1d1f;
-}
-
-.promo-p:last-child {
-  margin-bottom: 0;
-}
-
-.promo-p--emph {
-  font-weight: 600;
-  color: #1d1d1f;
-}
-
-.promo-p--en {
-  font-style: normal;
-  font-size: 15px;
-  color: #6e6e73;
-  letter-spacing: -0.01em;
-}
-
-.promo-list {
-  margin: 12px 0 16px;
-  padding: 0;
-  list-style: none;
-}
-
-.promo-list li {
+/* 中间 Markdown 区：无框模板，高度随正文伸缩 */
+.promo-md-shell {
   position: relative;
-  margin-bottom: 10px;
-  padding-left: 1.15em;
-  font-size: 17px;
-  line-height: 1.5;
-  color: #1d1d1f;
-  letter-spacing: -0.01em;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.25rem 0 0;
+  box-shadow: none;
 }
 
-.promo-list li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.55em;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #c9a44a, #a67c2a);
-}
-
-.promo-list li:last-child {
-  margin-bottom: 0;
-}
-
-/* 收束区 */
-.promo-closing {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 8px 20px 0;
-  text-align: center;
-}
-
-@media (min-width: 480px) {
-  .promo-closing {
-    padding-left: 28px;
-    padding-right: 28px;
-  }
-}
-
-.promo-closing-card {
-  background: linear-gradient(145deg, #fafafa 0%, #f0f0f3 100%);
-  border-radius: 18px;
-  padding: 28px 22px 30px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  margin-bottom: 24px;
-}
-
-.promo-footer-brand {
-  margin: 0 0 8px;
-  font-size: 1.35rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #1d1d1f;
-}
-
-.promo-footer-line {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.45;
-  color: #6e6e73;
-}
-
-/* 底部操作 */
-.promo-actions {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 0 20px 40px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 12px;
-  justify-content: center;
-  align-items: center;
-}
-
-@media (min-width: 480px) {
-  .promo-actions {
-    padding-left: 28px;
-    padding-right: 28px;
-  }
-}
-
-.promo-actions .primary-btn,
-.promo-actions .secondary-btn {
-  border-radius: 980px;
-  padding: 11px 22px;
-  font-size: 15px;
-  font-weight: 500;
-  min-height: 44px;
+/* 正文列限宽居中（书卡可仍较宽，阅读列固定 --promo-text-max-width） */
+.promo-md-shell > .promo-md-status,
+.promo-md-shell > .promo-md-error,
+.promo-md-shell > .promo-md-root,
+.promo-md-shell > .promo-md-empty {
+  width: 100%;
+  max-width: var(--promo-text-max-width);
+  margin-left: auto;
+  margin-right: auto;
   box-sizing: border-box;
 }
 
-.promo-shell > .site-footer {
-  margin-top: auto;
-  padding: 12px 18px 20px;
-  background: transparent;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+/* 宣传页底部居中：进入读经首页 */
+.promo-read-bible-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.25rem var(--promo-pad-x) 1.5rem;
+  margin: 0 auto;
+  max-width: var(--promo-text-max-width);
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.promo-shell > .site-footer .site-footer-copy {
-  color: #86868b;
-  font-size: 12px;
+.promo-read-bible-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  min-width: 8.5rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .promo-actions .primary-btn,
-  .promo-actions .secondary-btn {
-    transition: none;
-  }
+/* 管理员：为右下角悬浮操作条留出空间，避免压住末行正文 */
+.promo-md-shell.promo-md-shell--admin {
+  padding-bottom: 3rem;
 }
 
-/* —— Markdown 正文（/api/promo-page + marked） —— */
-.promo-md-status {
+.promo-inline-admin-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  top: auto;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
   margin: 0;
-  padding: 32px 20px 40px;
-  text-align: center;
-  font-size: 15px;
-  color: #86868b;
+  padding: 0;
+  max-width: 100%;
+  pointer-events: none;
+  border: none;
+}
+
+.promo-inline-admin-bar .promo-inline-btn,
+.promo-inline-admin-bar .promo-inline-btns-row {
+  pointer-events: auto;
+}
+
+.promo-inline-btns-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.promo-inline-btn {
+  flex-shrink: 0;
+}
+
+.promo-inline-status {
+  font-size: calc(12px * var(--font-scale));
+  color: var(--muted);
+  line-height: 1.4;
+  text-align: right;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.promo-md-status {
+  margin: 0 0 0.5rem;
+  font-size: calc(14px * var(--font-scale));
+  color: var(--muted);
 }
 
 .promo-md-error {
-  margin: 0 auto;
-  max-width: 720px;
-  padding: 20px 22px;
-  font-size: 15px;
+  margin: 0 0 0.5rem;
+  font-size: calc(14px * var(--font-scale));
+  color: #b42318;
+  line-height: 1.55;
+}
+
+.promo-md-empty {
+  margin: 0;
+  font-size: calc(15px * var(--font-scale));
+  color: var(--muted);
+  text-align: center;
+  padding: 1.25rem var(--promo-pad-x);
+}
+
+.promo-markdown-editor-wrap,
+.promo-css-editor-wrap {
+  margin: 0;
+}
+
+.promo-css-editor-wrap {
+  margin-top: 0.75rem;
+}
+
+.promo-editor-label {
+  display: block;
+  margin: 0 0 0.4rem;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.promo-markdown-editor,
+.promo-custom-css-editor {
+  display: block;
+  width: 100%;
+  min-height: 6rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
   line-height: 1.5;
-  color: #8b2c2c;
-  background: rgba(139, 44, 44, 0.08);
-  border: 1px solid rgba(139, 44, 44, 0.2);
-  border-radius: 14px;
+  padding: 10px var(--promo-pad-x);
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  box-sizing: border-box;
 }
 
-.promo-md-root article.promo-block h2 {
-  margin: 0 0 16px;
-  font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+.promo-custom-css-editor {
+  min-height: 8rem;
+}
+
+.promo-markdown-editor:focus,
+.promo-custom-css-editor:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Markdown 正文区排版（不影响顶栏 Logo 的 h1） */
+.promo-md-root {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #2d2925;
+}
+
+.promo-md-root h1 {
+  font-size: 48px;
+  line-height: 1.2;
+  font-weight: 700;
+  margin: 0 0 24px;
+  color: #2d2925;
+}
+
+.promo-md-root h2 {
+  font-size: 30px;
+  line-height: 1.3;
   font-weight: 600;
-  line-height: 1.35;
-  letter-spacing: -0.02em;
-  color: #1d1d1f;
+  margin: 56px 0 16px;
+  color: #2d2925;
 }
 
-.promo-md-root article.promo-block h3 {
-  margin: 20px 0 10px;
-  font-size: 1.05rem;
+/* 仅全文第一个标题贴顶，后续区块内 h2 仍保留段前距 */
+.promo-md-root > h2:first-child,
+.promo-md-root > .promo-block:first-child > h2:first-child,
+.promo-md-root > .promo-kicker:first-child + .promo-block > h2:first-child {
+  margin-top: 0;
+}
+
+.promo-md-root h3 {
+  font-size: 21px;
+  line-height: 1.4;
   font-weight: 600;
-  color: #1d1d1f;
+  margin: 28px 0 10px;
+  color: #2d2925;
 }
 
-.promo-md-root article.promo-block p {
-  margin: 0 0 12px;
-  font-size: 17px;
-  line-height: 1.588;
-  letter-spacing: -0.01em;
-  color: #1d1d1f;
+.promo-md-root > h3:first-child,
+.promo-md-root > .promo-block:first-child > h3:first-child {
+  margin-top: 0;
 }
 
-.promo-md-root article.promo-block p:last-child {
+.promo-md-root p {
+  margin: 0 0 14px;
+}
+
+.promo-md-root ul,
+.promo-md-root ol {
+  margin: 12px 0 16px 20px;
+  padding: 0;
+}
+
+.promo-md-root li {
+  margin-bottom: 6px;
+}
+
+.promo-md-root li:last-child {
   margin-bottom: 0;
 }
 
-.promo-md-root article.promo-block strong {
+.promo-md-root a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.promo-md-root a:hover {
+  filter: brightness(0.92);
+}
+
+.promo-md-root strong {
   font-weight: 600;
 }
 
-.promo-md-root article.promo-block ul,
-.promo-md-root article.promo-block ol {
-  margin: 12px 0 16px;
-  padding-left: 1.35em;
+.promo-md-root blockquote {
+  border-left: 3px solid #8b6f47;
+  padding-left: 14px;
+  margin: 18px 0;
   font-size: 17px;
-  line-height: 1.5;
-  color: #1d1d1f;
+  line-height: 1.7;
+  color: #5c5348;
+  background: transparent;
+  border-radius: 0;
 }
 
-.promo-md-root article.promo-block li {
-  margin-bottom: 8px;
+.promo-md-root code {
+  font-size: 0.9em;
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  background: rgba(139, 111, 71, 0.12);
+  color: var(--ink);
 }
 
-.promo-md-root article.promo-block li::marker {
-  color: #a67c2a;
-}
-
-.promo-md-root article.promo-block blockquote {
-  margin: 16px 0;
-  padding: 12px 16px;
-  border-left: 4px solid rgba(181, 131, 47, 0.45);
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 0 12px 12px 0;
-  color: #424245;
-}
-
-.promo-md-root article.promo-block pre {
-  margin: 16px 0;
-  padding: 14px 16px;
-  font-size: 14px;
-  line-height: 1.45;
-  overflow-x: auto;
-  border-radius: 12px;
-  background: #1d1d1f;
-  color: #f5f5f7;
-}
-
-.promo-md-root article.promo-block code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.92em;
-}
-
-.promo-md-root article.promo-block pre code {
-  font-size: inherit;
-}
-
-.promo-md-root article.promo-block a {
-  color: #8b6914;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.promo-md-root article.promo-block hr {
-  margin: 28px 0;
+.promo-md-root pre {
+  margin: 0.75rem 0;
+  padding: 0.85rem 0;
+  border-radius: 0;
+  background: rgba(74, 68, 63, 0.04);
   border: none;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  overflow-x: auto;
 }
 
-.promo-md-root article.promo-block img {
+.promo-md-root pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.promo-md-root hr {
+  margin: 40px 0;
+  border: none;
+  border-top: 1px solid rgba(205, 193, 176, 0.5);
+  height: 0;
+  background: none;
+}
+
+.promo-md-root table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(14px * var(--font-scale));
+  margin: 0.75rem 0;
+}
+
+.promo-md-root th,
+.promo-md-root td {
+  border: none;
+  padding: 0.4rem 0.65rem 0.4rem 0;
+  vertical-align: top;
+}
+
+.promo-md-root th {
+  background: rgba(255, 253, 248, 0.85);
+  font-weight: 600;
+}
+
+.promo-md-root img {
   max-width: 100%;
   height: auto;
-  border-radius: 12px;
-  margin: 12px 0;
+  border-radius: 10px;
+  display: block;
+  margin: 0.75rem auto;
 }
 
-.promo-md-root .promo-kicker {
-  margin: 32px 0 12px;
+.promo-kicker {
+  margin: 1.25rem 0 0.35rem;
+  font-size: calc(12px * var(--font-scale));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
   text-align: center;
 }
 
-/* —— 管理页 promo-edit.html —— */
-.promo-edit-app {
-  max-width: 1100px;
+.promo-block {
+  margin: 0 0 1.25rem;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.promo-block:last-child {
+  margin-bottom: 0;
+}
+
+/* 顶栏书签按钮、编辑区次要按钮：去掉描边，保持可点 */
+.promo-page-body .member-hub--bookmark .member-hub-trigger {
+  border: none;
+}
+
+.promo-page-body .secondary-btn {
+  border: none;
+}
+
+.promo-page-body .site-footer {
+  margin-top: 0;
+}
+
+/* —— 后台编辑页（promo-edit.html）沿用 —— */
+.promo-edit-page {
+  min-height: 100vh;
+  background: #f5f5f7;
+  color: #1d1d1f;
+  -webkit-font-smoothing: antialiased;
+}
+
+.promo-edit-shell {
+  max-width: 980px;
   margin: 0 auto;
-  padding: 0 12px 32px;
+  padding: 24px 20px 48px;
 }
 
-.promo-edit-auth-bar {
-  margin: 0 0 16px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(181, 131, 47, 0.12);
-  border: 1px solid rgba(181, 131, 47, 0.28);
-  font-size: 14px;
-  line-height: 1.45;
-  color: #3d3428;
+.promo-edit-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
-.promo-edit-auth-bar a {
-  color: #8b6914;
-  font-weight: 600;
-}
-
-.promo-edit-head {
-  margin: 0 0 8px;
+.promo-edit-title {
+  margin: 0;
   font-size: 1.35rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: #1d1d1f;
 }
 
-.promo-edit-lead {
-  margin: 0 0 20px;
-  font-size: 14px;
-  line-height: 1.5;
+.promo-edit-meta {
+  margin: 4px 0 0;
+  font-size: 13px;
   color: #6e6e73;
-}
-
-.promo-edit-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-
-@media (min-width: 900px) {
-  .promo-edit-grid {
-    grid-template-columns: 1fr 1fr;
-    align-items: stretch;
-  }
-}
-
-.promo-edit-panel {
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 16px 16px 18px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
-}
-
-.promo-edit-label {
-  display: block;
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #424245;
-}
-
-.promo-edit-textarea {
-  width: 100%;
-  min-height: min(52vh, 520px);
-  box-sizing: border-box;
-  padding: 12px 14px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  background: #fafafa;
-  color: #1d1d1f;
-  resize: vertical;
-}
-
-.promo-edit-textarea:focus {
-  outline: none;
-  border-color: rgba(181, 131, 47, 0.55);
-  box-shadow: 0 0 0 3px rgba(181, 131, 47, 0.15);
-}
-
-.promo-edit-preview-wrap {
-  min-height: min(52vh, 520px);
-  max-height: min(70vh, 640px);
-  overflow-y: auto;
-  padding: 8px 4px 12px;
-  border-radius: 12px;
-  border: 1px dashed rgba(0, 0, 0, 0.1);
-  background: #f5f5f7;
-}
-
-.promo-edit-preview-inner.promo-md-root {
-  padding: 4px 10px 12px;
 }
 
 .promo-edit-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 12px;
+  gap: 10px;
   align-items: center;
-  margin-top: 14px;
+}
+
+.promo-edit-btn {
+  appearance: none;
+  border: 1px solid #d2d2d7;
+  background: #fff;
+  color: #1d1d1f;
+  border-radius: 980px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.promo-edit-btn:hover {
+  background: #f5f5f7;
+}
+
+.promo-edit-btn--primary {
+  border-color: #0071e3;
+  background: #0071e3;
+  color: #fff;
+}
+
+.promo-edit-btn--primary:hover {
+  background: #0077ed;
+  border-color: #0077ed;
+}
+
+.promo-edit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .promo-edit-status {
-  flex: 1 1 200px;
-  min-width: min(100%, 220px);
-  font-size: 13px;
-  line-height: 1.45;
+  margin: 0 0 12px;
+  font-size: 14px;
   color: #6e6e73;
+  min-height: 1.2em;
+}
+
+.promo-edit-status--error {
+  color: #b42318;
+}
+
+.promo-edit-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .promo-edit-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.promo-edit-panel {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+}
+
+.promo-edit-panel h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.promo-edit-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #6e6e73;
+  line-height: 1.45;
+}
+
+.promo-edit-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 420px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid #d2d2d7;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1d1d1f;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+.promo-edit-textarea:focus {
+  outline: none;
+  border-color: #0071e3;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+  background: #fff;
+}
+
+.promo-edit-preview {
+  flex: 1;
+  min-height: 420px;
+  border-radius: 12px;
+  border: 1px solid #e5e5ea;
+  padding: 14px 16px;
+  overflow: auto;
+  background: #fbfbfd;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #1d1d1f;
+}
+
+.promo-edit-preview h1,
+.promo-edit-preview h2,
+.promo-edit-preview h3 {
+  margin: 0.8em 0 0.4em;
+  line-height: 1.25;
+}
+
+.promo-edit-preview p {
+  margin: 0.45em 0;
+}
+
+.promo-edit-preview ul,
+.promo-edit-preview ol {
+  margin: 0.45em 0 0.45em 1.2em;
+  padding: 0;
+}
+
+.promo-edit-preview a {
+  color: #0071e3;
 }

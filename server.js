@@ -77,6 +77,7 @@ const COMMUNITY_ARTICLES_FILE = path.join(ADMIN_DIR, "community_articles.json");
 const PROMO_PAGE_FILE = path.join(ADMIN_DIR, "promo_page.json");
 const PROMO_PAGE_BOOTSTRAP_FILE = path.join(ADMIN_DIR, "promo_page.bootstrap.md");
 const PROMO_PAGE_MAX_MARKDOWN = 400000;
+const PROMO_PAGE_MAX_CUSTOM_CSS = 120000;
 const QUESTION_SUBMISSIONS_FILE = path.join(
   ADMIN_DIR,
   "question_submissions.json"
@@ -691,6 +692,8 @@ function loadPromoPagePayload() {
   if (data && typeof data === "object" && typeof data.markdown === "string") {
     return {
       markdown: data.markdown,
+      customCss:
+        typeof data.customCss === "string" ? data.customCss : "",
       updatedAt: safeText(data.updatedAt || ""),
     };
   }
@@ -702,12 +705,16 @@ function loadPromoPagePayload() {
   } catch (error) {
     console.error("读取 promo_page.bootstrap.md 失败:", error);
   }
-  return { markdown: bootstrap, updatedAt: "" };
+  return { markdown: bootstrap, customCss: "", updatedAt: "" };
 }
 
-function savePromoPageMarkdown(markdown) {
+function writePromoPageRecord(record) {
   const payload = {
-    markdown: String(markdown ?? ""),
+    markdown: String(record.markdown ?? "").slice(0, PROMO_PAGE_MAX_MARKDOWN),
+    customCss: String(record.customCss ?? "").slice(
+      0,
+      PROMO_PAGE_MAX_CUSTOM_CSS
+    ),
     updatedAt: nowIso(),
   };
   writeJson(PROMO_PAGE_FILE, payload);
@@ -4062,7 +4069,11 @@ app.get("/api/promo-page", (_req, res) => {
       "private, no-store, no-cache, max-age=0, must-revalidate"
     );
     const p = loadPromoPagePayload();
-    res.json({ markdown: p.markdown, updatedAt: p.updatedAt });
+    res.json({
+      markdown: p.markdown,
+      customCss: p.customCss,
+      updatedAt: p.updatedAt,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "读取宣传页失败" });
@@ -4079,26 +4090,71 @@ app.get("/api/admin/promo-page", (req, res) => {
       "private, no-store, no-cache, max-age=0, must-revalidate"
     );
     const p = loadPromoPagePayload();
-    res.json({ markdown: p.markdown, updatedAt: p.updatedAt });
+    res.json({
+      markdown: p.markdown,
+      customCss: p.customCss,
+      updatedAt: p.updatedAt,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "读取宣传页失败" });
   }
 });
 
-/** 管理员：保存并发布宣传页 Markdown */
+/** 管理员：仅保存中间区自定义 CSS（绝不读取或改写 markdown，避免误清空正文） */
+app.post("/api/admin/promo-page/custom-css", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const prev = loadPromoPagePayload();
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const has = Object.prototype.hasOwnProperty;
+    if (!has.call(body, "customCss") || typeof body.customCss !== "string") {
+      res.status(400).json({ error: "请求体须包含字符串字段 customCss" });
+      return;
+    }
+    let customCss = body.customCss;
+    if (customCss.length > PROMO_PAGE_MAX_CUSTOM_CSS) {
+      customCss = customCss.slice(0, PROMO_PAGE_MAX_CUSTOM_CSS);
+    }
+    const payload = writePromoPageRecord({
+      markdown: prev.markdown,
+      customCss,
+    });
+    appendAdminAudit(req, authed, "promo_page_css_save", {
+      bytes: payload.markdown.length,
+      cssBytes: payload.customCss.length,
+    });
+    res.json({ ok: true, updatedAt: payload.updatedAt });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "保存样式失败" });
+  }
+});
+
+/** 管理员：保存宣传页 Markdown（customCss 保持磁盘原样） */
 app.post("/api/admin/promo-page", (req, res) => {
   try {
     const authed = requireAdminUser(req, res);
     if (!authed) return;
-    let md =
-      typeof req.body?.markdown === "string" ? req.body.markdown : "";
-    if (md.length > PROMO_PAGE_MAX_MARKDOWN) {
-      md = md.slice(0, PROMO_PAGE_MAX_MARKDOWN);
+    const prev = loadPromoPagePayload();
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const has = Object.prototype.hasOwnProperty;
+    if (!has.call(body, "markdown") || typeof body.markdown !== "string") {
+      res.status(400).json({ error: "请求体须包含字符串字段 markdown" });
+      return;
     }
-    const payload = savePromoPageMarkdown(md);
+    let markdown = body.markdown;
+    if (markdown.length > PROMO_PAGE_MAX_MARKDOWN) {
+      markdown = markdown.slice(0, PROMO_PAGE_MAX_MARKDOWN);
+    }
+    const payload = writePromoPageRecord({
+      markdown,
+      customCss: prev.customCss,
+    });
     appendAdminAudit(req, authed, "promo_page_save", {
       bytes: payload.markdown.length,
+      cssBytes: payload.customCss.length,
     });
     res.json({ ok: true, updatedAt: payload.updatedAt });
   } catch (error) {
