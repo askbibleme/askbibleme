@@ -338,8 +338,8 @@ body {
 /* 已登录：书签上显示「某某的圣经」+ 图标 */
 .member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label {
   min-width: 96px;
-  max-width: 172px;
-  padding: 0 8px 0 10px;
+  max-width: 212px;
+  padding: 0 30px;
   gap: 5px;
   font-size: calc(13px * var(--font-scale));
   font-weight: 800;
@@ -1046,18 +1046,223 @@ button.member-hub-link:hover {
   letter-spacing: 0.2px;
   text-align: left;
   cursor: pointer;
-  background: linear-gradient(180deg, #9f8258 0%, #826743 100%);
+  background: #967a54;
   clip-path: polygon(0 0, 84% 0, 100% 50%, 84% 100%, 0 100%);
-  box-shadow: 0 6px 12px rgba(63, 46, 24, 0.26);
+  box-shadow: none;
   display: inline-flex;
   align-items: center;
   text-decoration: none;
   overflow: hidden;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .book-side-extend-tag:hover {
-  filter: brightness(1.04);
+  background: #a88965;
   transform: translateX(1px);
+}
+
+.book-side-extend-tag.book-side-extend-tag--chapter-saved {
+  background: #b3946e;
+}
+
+.book-side-extend-tag.book-side-extend-tag--chapter-saved:hover {
+  background: #c4a97e;
+}
+
+.book-side-extend-tag.book-side-extend-tag--ribbon-no-label {
+  box-sizing: border-box;
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  padding: 0 10px 0 16px;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+}
+
+.book-side-extend-tags--stack {
+  gap: 8px;
+}
+
+.book-page.left-page > .book-side-extend-tags.book-side-extend-tags--stack {
+  flex-direction: row;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+.book-side-extend-list-btn {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(40px * var(--font-scale));
+  min-height: calc(44px * var(--font-scale));
+  padding: 4px 6px;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+  background: transparent;
+  box-shadow: none;
+  transition: transform 0.2s ease, filter 0.2s ease, background 0.2s ease;
+}
+
+.book-side-extend-list-btn:hover {
+  background: rgba(242, 213, 138, 0.12);
+  transform: scale(1.04);
+}
+
+.book-side-extend-list-btn.active {
+  background: rgba(242, 213, 138, 0.18);
+}
+
+.book-side-fav-stars {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.book-side-fav-star {
+  font-size: calc(36px * var(--font-scale));
+  font-weight: 800;
+  color: #8f8f8f;
+  text-shadow: none;
+  letter-spacing: 0;
+  user-select: none;
+  line-height: 1;
+}
+
+.book-side-extend-list-btn--chapter-saved .book-side-fav-star {
+  color: #b3946e;
+}
+
+.book-side-extend-list-btn:hover .book-side-fav-star {
+  color: #a8a8a8;
+}
+
+.book-side-extend-list-btn--chapter-saved:hover .book-side-fav-star {
+  color: #c4a97e;
+}
+
+.book-page.left-page > .book-side-extend-tags--stack .book-side-extend-list-btn {
+  margin-left: 0;
+}
+
+.favorites-panel-book {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.favorites-section-empty {
+  font-size: calc(13px * var(--font-scale));
+  line-height: 1.5;
+  color: var(--muted-soft);
+  padding: 6px 4px 14px;
+}
+
+.favorite-item {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(45, 41, 37, 0.12);
+}
+
+.favorite-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.favorite-item--page-row {
+  align-items: center;
+}
+
+.favorite-item--page-row .favorite-jump-btn {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.favorite-item--page-row .favorite-ref {
+  display: -webkit-box;
+  margin-bottom: 0;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.38;
+}
+
+.favorite-jump-btn {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+  background: rgba(139, 111, 71, 0.1);
+  transition: background 0.15s ease, filter 0.15s ease;
+}
+
+.favorite-jump-btn:hover {
+  background: rgba(139, 111, 71, 0.16);
+  filter: brightness(1.02);
+}
+
+.favorite-ref {
+  font-weight: 700;
+  font-size: calc(14px * var(--font-scale));
+  margin-bottom: 3px;
+  color: var(--ink);
+}
+
+.favorite-text {
+  font-size: calc(12px * var(--font-scale));
+  line-height: 1.45;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.favorite-meta {
+  margin-top: 6px;
+  font-size: calc(12px * var(--font-scale));
+  color: var(--muted-soft);
+}
+
+.favorite-remove-btn {
+  flex-shrink: 0;
+  width: 32px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(90, 70, 50, 0.12);
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.favorite-remove-btn:hover {
+  background: rgba(120, 60, 50, 0.18);
+  color: #6b3a32;
 }
 
 .book-side-tag-inner {
@@ -1772,7 +1977,7 @@ button.member-hub-link:hover {
 
 .reading-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.85fr) minmax(0, 1fr) auto auto auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, auto);
   gap: 8px;
   align-items: center;
   margin-bottom: 14px;
@@ -1790,6 +1995,25 @@ button.member-hub-link:hover {
 
 .reading-toolbar .toolbar-trigger {
   min-width: 0 !important;
+}
+
+/* 书卷 / 选版本 / 搜经文：三格等分内左对齐（与搜经文同一行结构） */
+.reading-toolbar > #bookChapterTrigger,
+.reading-toolbar > #primaryVersionTrigger,
+.reading-toolbar > #verseSearchOpenBtn {
+  justify-content: flex-start;
+  padding-inline: 10px;
+  font-size: calc(13px * var(--font-scale));
+}
+
+.reading-toolbar > #bookChapterTrigger .toolbar-trigger-lead,
+.reading-toolbar > #primaryVersionTrigger .toolbar-trigger-lead,
+.reading-toolbar > #verseSearchOpenBtn .toolbar-trigger-lead {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 100%;
 }
 
 .toolbar-trigger,
@@ -1827,7 +2051,7 @@ button.toolbar-trigger:hover,
 }
 
 .toolbar-trigger-wide {
-  min-width: 230px;
+  min-width: 0;
 }
 
 .inline-display-toggle {
@@ -1951,14 +2175,39 @@ button.toolbar-trigger:hover,
   min-width: 160px;
 }
 
-#primaryVersionTrigger {
-  min-width: 140px;
+.toolbar-trigger-lead {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.toolbar-trigger-lead > span:not(.toolbar-trigger-icon) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-trigger-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  opacity: 0.9;
+}
+
+.toolbar-trigger-icon svg {
+  display: block;
 }
 
 .toolbar-caret {
   font-size: 12px;
   line-height: 1;
   opacity: 0.7;
+  flex-shrink: 0;
 }
 
 /* =========================
@@ -1980,20 +2229,9 @@ button.toolbar-trigger:hover,
   display: none !important;
 }
 
-/* 大面板：书卷章节 */
-#bookChapterPanel {
-  width: 760px !important;
-  max-width: calc(100vw - 140px) !important;
-}
-
-#bookChapterPanel .toolbar-panel-inner {
-  max-height: 49.5vh !important;
-}
-
-/* 小面板：类型 / 版本 / 对照 */
+/* 小面板：类型 / 对照（书卷 / 选版本已改为全屏遮罩 .verse-search-overlay） */
 #contentTypePanel,
-#qaViewPanel,
-#primaryVersionPanel {
+#qaViewPanel {
   width: 460px !important;
   max-width: calc(100vw - 140px) !important;
 }
@@ -2222,7 +2460,7 @@ button.toolbar-trigger:hover,
 .title-nav-side {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
 }
 
 .title-nav-side-right {
@@ -2230,12 +2468,12 @@ button.toolbar-trigger:hover,
 }
 
 .title-nav-btn {
-  width: 36px;
-  height: 36px;
+  width: 72px;
+  height: 72px;
   border: none;
-  border-radius: 10px;
+  border-radius: 20px;
   background: transparent;
-  font-size: 24px;
+  font-size: 48px;
   color: rgba(127, 116, 104, 0.42);
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
@@ -2252,14 +2490,14 @@ button.toolbar-trigger:hover,
 }
 
 .title-nav-mini-btn {
-  height: 30px;
-  min-width: 26px;
-  padding: 0 6px;
-  border-radius: 8px;
+  height: 60px;
+  min-width: 52px;
+  padding: 0 12px;
+  border-radius: 16px;
   border: none;
   background: transparent;
   color: rgba(127, 116, 104, 0.42);
-  font-size: calc(22px * var(--font-scale));
+  font-size: calc(44px * var(--font-scale));
   font-weight: 500;
   line-height: 1;
   cursor: pointer;
@@ -2839,6 +3077,10 @@ body.question-only-mode .plain-list li {
   background: rgba(139, 111, 71, 0.2);
 }
 
+.question-fav-item.favorite-flash {
+  animation: favoriteFlash 0.9s ease;
+}
+
 .preset-qa-inline {
   display: inline-flex;
   align-items: center;
@@ -2955,6 +3197,316 @@ body.question-only-mode .plain-list li {
 .nav-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* =========================
+   搜经文（浮动层）
+   ========================= */
+
+.verse-search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
+  box-sizing: border-box;
+}
+
+.verse-search-overlay[hidden] {
+  display: none !important;
+}
+
+.verse-search-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(3px);
+  cursor: pointer;
+}
+
+.verse-search-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 520px);
+  max-height: min(78vh, 640px);
+  /* 顶缘由 main.js syncVerseSearchCardTop 对齐 .toolbar-panel（与「版本」等下拉同一上沿） */
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #faf7f2;
+  border-radius: 16px;
+  padding: 16px 18px 18px;
+  border: 1px solid rgba(214, 203, 187, 0.85);
+  box-shadow: 0 20px 50px rgba(15, 12, 10, 0.22);
+  overflow: hidden;
+}
+
+.verse-search-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.verse-search-title {
+  margin: 0;
+  font-size: calc(1.05rem * var(--font-scale));
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.verse-search-hint {
+  margin: 0;
+  font-size: calc(13px * var(--font-scale));
+  line-height: 1.5;
+  color: rgba(74, 68, 63, 0.78);
+}
+
+.verse-search-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.verse-search-scope-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(214, 203, 187, 0.95);
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(74, 68, 63, 0.88);
+  font-size: calc(13px * var(--font-scale));
+  cursor: pointer;
+}
+
+.verse-search-scope-btn:hover {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.verse-search-scope-btn.active {
+  background: rgba(232, 220, 204, 0.95);
+  border-color: rgba(180, 160, 138, 0.85);
+  font-weight: 650;
+}
+
+.verse-search-result-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(214, 203, 187, 0.75);
+  background: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  font-size: calc(14px * var(--font-scale));
+  line-height: 1.45;
+  color: rgba(45, 40, 36, 0.92);
+}
+
+.verse-search-result-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(180, 160, 138, 0.65);
+}
+
+.verse-search-result-ref {
+  font-weight: 650;
+  margin-bottom: 4px;
+  color: rgba(74, 68, 63, 0.95);
+}
+
+.verse-search-result-snippet {
+  font-size: calc(13px * var(--font-scale));
+  color: rgba(74, 68, 63, 0.82);
+}
+
+.verse-search-result-snippet mark.verse-search-hit {
+  background: rgba(255, 214, 120, 0.92);
+  color: inherit;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.verse-search-status {
+  margin: 0;
+  font-size: calc(13px * var(--font-scale));
+  color: rgba(74, 68, 63, 0.65);
+}
+
+.verse-search-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.verse-search-results {
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  font-size: calc(14px * var(--font-scale));
+  color: rgba(74, 68, 63, 0.85);
+}
+
+body.verse-search-open,
+body.primary-version-open,
+body.book-chapter-open {
+  overflow: hidden;
+}
+
+/* 选版本：与搜经文同壳（全屏遮罩 + min(100%,520px) 卡片） */
+#primaryVersionPanel.primary-version-overlay {
+  z-index: 218;
+}
+
+#primaryVersionPanel .primary-version-card {
+  overflow: hidden;
+}
+
+#primaryVersionPanel .toolbar-panel-inner {
+  max-height: none !important;
+  height: auto !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+}
+
+#primaryVersionPanel .toolbar-panel-inner::before {
+  display: none !important;
+}
+
+#primaryVersionPanel .toolbar-panel-simple {
+  padding: 10px 12px 14px !important;
+}
+
+/* 书卷：与搜经文 / 选版本同壳 */
+#bookChapterPanel.book-chapter-overlay {
+  z-index: 217;
+}
+
+#bookChapterPanel .book-chapter-card {
+  overflow: hidden;
+}
+
+#bookChapterPanel .toolbar-panel-inner {
+  max-height: none !important;
+  height: auto !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+}
+
+#bookChapterPanel .toolbar-panel-inner::before {
+  display: none !important;
+}
+
+#bookChapterPanel .toolbar-panel-book {
+  padding: 10px 12px 14px !important;
+}
+
+#favoritesPanel.book-chapter-overlay {
+  z-index: 217;
+}
+
+#favoritesPanel .book-chapter-card {
+  overflow: hidden;
+}
+
+#favoritesPanel .toolbar-panel-inner {
+  max-height: none !important;
+  height: auto !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+}
+
+#favoritesPanel .toolbar-panel-inner::before {
+  display: none !important;
+}
+
+#favoritesPanel .toolbar-panel-book {
+  padding: 10px 12px 14px !important;
+}
+
+#favoritesPanel .verse-search-card {
+  width: min(100%, 560px);
+  max-height: min(82vh, 680px);
+}
+
+#favoritesPanel .favorites-tab-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+
+#favoritesPanel .favorites-tab {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 8px 6px;
+  text-align: center;
+  border-radius: 12px;
+  border: 1px solid rgba(193, 166, 124, 0.5);
+  background: rgba(255, 251, 242, 0.78);
+  color: #7a6957;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 800;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+#favoritesPanel .favorites-tab.active {
+  background: rgba(200, 155, 60, 0.22);
+  border-color: rgba(200, 155, 60, 0.62);
+  color: #8f6518;
+}
+
+.favorites-tab-panel.favorites-unified-scroll {
+  min-height: 120px;
+  max-height: min(56vh, 520px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 400px) {
+  #favoritesPanel .favorites-tab {
+    font-size: calc(12px * var(--font-scale));
+    padding: 8px 4px;
+  }
 }
 
 /* =========================
@@ -3411,10 +3963,8 @@ body.question-only-mode .plain-list li {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
-  #bookChapterPanel,
   #contentTypePanel,
-  #qaViewPanel,
-  #primaryVersionPanel {
+  #qaViewPanel {
     width: min(100%, calc(100vw - 48px)) !important;
     max-width: min(100%, calc(100vw - 48px)) !important;
   }
@@ -3443,10 +3993,7 @@ body.question-only-mode .plain-list li {
   }
 
   .reading-toolbar {
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.85fr) minmax(0, 1fr) minmax(
-        0,
-        1.4fr
-      );
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.4fr);
   }
 
   .book-grid {
@@ -3533,9 +4080,9 @@ body.question-only-mode .plain-list li {
   }
 
   .member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label {
-    max-width: 150px;
+    max-width: 190px;
     min-width: 88px;
-    padding: 0 6px 0 8px;
+    padding: 0 30px;
     gap: 4px;
     font-size: calc(12px * var(--font-scale));
   }
@@ -3692,6 +4239,12 @@ body.question-only-mode .plain-list li {
     padding: 8px 5px 12px;
   }
 
+  .site-topbar-title {
+    margin-left: clamp(22px, 6vw, 34px);
+    /* 相对页顶再下移 3px，与书卡区留白对齐 */
+    margin-top: 5px;
+  }
+
   .site-topbar-title h1 {
     font-size: calc(22px * var(--font-scale));
   }
@@ -3752,9 +4305,9 @@ body.question-only-mode .plain-list li {
   }
 
   .member-hub--bookmark .member-hub-trigger.member-hub-trigger--member-label {
-    max-width: 138px;
+    max-width: 178px;
     min-width: 84px;
-    padding: 0 5px 0 6px;
+    padding: 0 30px;
     font-size: calc(11px * var(--font-scale));
   }
 
@@ -3776,11 +4329,6 @@ body.question-only-mode .plain-list li {
 
 .reading-toolbar {
   margin-bottom: 8px !important;
-}
-
-#bookChapterPanel {
-  width: 700px !important;
-  max-width: calc(100vw - 150px) !important;
 }
 
 .toolbar-panel-inner {
@@ -3905,11 +4453,6 @@ button.toolbar-trigger,
   border-radius: 14px !important;
 }
 
-#bookChapterPanel {
-  width: 640px !important;
-  max-width: calc(100vw - 180px) !important;
-}
-
 .toolbar-panel {
   top: calc(100% + 8px) !important;
 }
@@ -3974,10 +4517,6 @@ button.toolbar-trigger,
   padding-top: 12px !important;
 }
 
-#primaryVersionPanel .toolbar-panel-simple {
-  padding: 14px 16px !important;
-}
-
 #primaryVersionPanel .chapter-grid-wrap {
   border-top: 1px solid rgba(193, 166, 124, 0.45) !important;
   margin-top: 12px;
@@ -4008,13 +4547,19 @@ button.toolbar-trigger,
 }
 
 #bookChapterPanel .book-tab-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-bottom: 12px !important;
 }
 
 #bookChapterPanel .book-tab {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   height: 40px;
-  padding: 0 18px;
+  padding: 0 12px;
+  text-align: center;
   border-radius: 12px;
   border: 1px solid rgba(193, 166, 124, 0.5);
   background: rgba(255, 251, 242, 0.78);
@@ -4028,6 +4573,21 @@ button.toolbar-trigger,
   background: rgba(200, 155, 60, 0.22);
   border-color: rgba(200, 155, 60, 0.62);
   color: #8f6518;
+}
+
+.toolbar-primary-version-select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 650;
+  border-radius: 12px;
+  border: 1px solid rgba(190, 170, 140, 0.5);
+  background: rgba(255, 253, 248, 0.95);
+  color: var(--muted);
+  cursor: pointer;
 }
 
 .version-grid {
@@ -4222,6 +4782,10 @@ button.toolbar-trigger,
   animation: favoriteFlash 0.9s ease;
 }
 
+.verse-unit-favorite.verse-search-jump-highlight {
+  animation: verseSearchJumpHighlight 1.35s ease;
+}
+
 @keyframes favoriteFlash {
   0% {
     background: rgba(180, 145, 94, 0.4);
@@ -4231,36 +4795,37 @@ button.toolbar-trigger,
   }
 }
 
-/* 书卷面板：约 4 列宽度 + 屏幕高度自适应 */
-#bookChapterPanel {
-  width: 90% !important;
-  max-width: calc(100vw - 56px) !important;
+@keyframes verseSearchJumpHighlight {
+  0% {
+    background: rgba(255, 220, 130, 0.65);
+    box-shadow: 0 0 0 2px rgba(212, 160, 60, 0.45);
+  }
+  55% {
+    background: rgba(255, 230, 170, 0.4);
+    box-shadow: 0 0 0 1px rgba(212, 160, 60, 0.2);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
 }
 
+/* 书卷面板（全屏卡片内）：书卷网格 + 章节 8 列 */
 #bookChapterPanel .book-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 
-#bookChapterPanel .toolbar-panel-inner {
-  height: 700px !important;
-  max-height: 700px !important;
+/* 书卷面板 ·「章节」数字格固定 8 列（覆盖各断点下 .chapter-grid 的列数） */
+#bookChapterPanel #chapterGrid.chapter-grid {
+  grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
 }
 
-/* ===== FINAL OVERRIDE：统一面板尺寸 ===== */
-#bookChapterPanel {
-  width: 95% !important;
-  max-width: 95% !important;
-}
-
-#primaryVersionPanel,
+/* ===== FINAL OVERRIDE：统一面板尺寸（书卷已改为遮罩卡片，仅内容型面板） ===== */
 #contentTypePanel {
   width: 95% !important;
   max-width: 95% !important;
 }
 
-#bookChapterPanel .toolbar-panel-inner,
-#primaryVersionPanel .toolbar-panel-inner,
-#primaryVersionPanel .toolbar-panel-simple,
 #contentTypePanel .toolbar-panel-inner,
 #contentTypePanel .toolbar-panel-simple {
   height: 700px !important;
@@ -4277,12 +4842,19 @@ button.toolbar-trigger,
     gap: 8px !important;
   }
 
-  #bookChapterTrigger,
-  #primaryVersionTrigger,
-  #contentTypeTrigger {
-    width: 80px !important;
-    min-width: 80px !important;
-    flex: 0 0 80px !important;
+  .reading-toolbar > #bookChapterTrigger,
+  .reading-toolbar > #primaryVersionTrigger,
+  .reading-toolbar > #verseSearchOpenBtn {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .reading-toolbar > #displayModeSwitch {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
   }
 }
 

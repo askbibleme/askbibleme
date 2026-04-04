@@ -1727,6 +1727,106 @@ function getMultiVersionScriptureRows({
 }
 
 /* =========================================================
+   经文全文搜索（单译本，内存索引）
+   ========================================================= */
+const scriptureSearchIndexCache = new Map();
+
+function listSearchableScriptureVersionIds() {
+  return getEnabledScriptureVersions()
+    .filter((x) => x.uiEnabled !== false && x.scriptureEnabled !== false)
+    .map((x) => x.id);
+}
+
+function verseSearchTextMatches(haystack, needle) {
+  const h = String(haystack || "");
+  const n = String(needle || "");
+  if (!n) return false;
+  if (/[^\x00-\x7F]/.test(n)) return h.includes(n);
+  return h.toLowerCase().includes(n.toLowerCase());
+}
+
+function buildScriptureSearchIndex(versionId) {
+  const config = getScriptureVersionConfig(versionId);
+  if (!config || config.enabled === false || config.scriptureEnabled === false) {
+    throw new Error("无效的经文版本");
+  }
+  if (config.sourceType !== "usfx") {
+    throw new Error("该译本暂不支持全文搜索");
+  }
+  const xml = loadXmlFileByPath(config.sourceFile);
+  const rows = [];
+  for (const book of flattenBooks()) {
+    const maxCh = Number(book.chapters || 0);
+    for (let ch = 1; ch <= maxCh; ch++) {
+      const verses = extractChapter(xml, book.bookId, ch);
+      for (const v of verses) {
+        rows.push({
+          bookId: book.bookId,
+          bookCn: book.bookCn,
+          testamentName: book.testamentName,
+          chapter: ch,
+          verse: v.verse,
+          text: v.text,
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+function getScriptureSearchIndex(versionId) {
+  if (scriptureSearchIndexCache.has(versionId)) {
+    return scriptureSearchIndexCache.get(versionId);
+  }
+  const index = buildScriptureSearchIndex(versionId);
+  scriptureSearchIndexCache.set(versionId, index);
+  return index;
+}
+
+function scriptureSearchSnippet(text, needle, maxLen) {
+  const t = String(text || "");
+  const n = String(needle || "");
+  const len = Math.min(120, Math.max(24, Number(maxLen) || 56));
+  if (!n) return t.length > len ? `${t.slice(0, len)}…` : t;
+  let i = -1;
+  if (/[^\x00-\x7F]/.test(n)) {
+    i = t.indexOf(n);
+  } else {
+    const low = t.toLowerCase();
+    const sub = n.toLowerCase();
+    i = low.indexOf(sub);
+  }
+  if (i < 0) return t.length > len ? `${t.slice(0, len)}…` : t;
+  const half = Math.floor(len / 2);
+  let start = Math.max(0, i - half);
+  let end = Math.min(t.length, start + len);
+  if (end - start < len) start = Math.max(0, end - len);
+  let s = t.slice(start, end);
+  if (start > 0) s = `…${s}`;
+  if (end < t.length) s = `${s}…`;
+  return s;
+}
+
+function searchScriptureVersesInIndex(index, needle, scope, limit) {
+  const n = safeText(needle);
+  if (!n) return [];
+  const scopeFilter = (row) => {
+    if (scope === "ot") return row.testamentName === "旧约";
+    if (scope === "nt") return row.testamentName === "新约";
+    return true;
+  };
+  const cap = Math.min(120, Math.max(1, Number(limit) || 40));
+  const out = [];
+  for (const row of index) {
+    if (!scopeFilter(row)) continue;
+    if (!verseSearchTextMatches(row.text, n)) continue;
+    out.push(row);
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
+/* =========================================================
    内容路径
    ========================================================= */
 function getBuildContentFilePath({
@@ -3591,6 +3691,61 @@ app.get("/api/front/bootstrap", (_req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "bootstrap 失败" });
+  }
+});
+
+/* 须注册在 /api/scripture 之前，避免部分环境下路径匹配歧义 */
+app.get("/api/scripture/search", (req, res) => {
+  try {
+    const q = safeText(req.query.q);
+    const versionId = safeText(req.query.versionId);
+    const scopeRaw = safeText(req.query.scope || "all").toLowerCase();
+    let scope = "all";
+    if (scopeRaw === "ot" || scopeRaw === "old") scope = "ot";
+    else if (scopeRaw === "nt" || scopeRaw === "new") scope = "nt";
+    const limit = Math.min(80, Math.max(1, Number(req.query.limit) || 40));
+
+    const allowed = new Set(listSearchableScriptureVersionIds());
+    if (!versionId || !allowed.has(versionId)) {
+      return res.status(400).json({ error: "请选择有效的经文版本" });
+    }
+
+    if (!q || q.length < 1) {
+      return res.json({
+        ok: true,
+        versionId,
+        query: q,
+        scope,
+        matches: [],
+      });
+    }
+
+    if (q.length > 80) {
+      return res.status(400).json({ error: "关键词过长" });
+    }
+
+    const index = getScriptureSearchIndex(versionId);
+    const hits = searchScriptureVersesInIndex(index, q, scope, limit);
+    const matches = hits.map((row) => ({
+      bookId: row.bookId,
+      bookLabel: row.bookCn || row.bookId,
+      chapter: row.chapter,
+      verse: row.verse,
+      snippet: scriptureSearchSnippet(row.text, q, 72),
+    }));
+
+    res.json({
+      ok: true,
+      versionId,
+      query: q,
+      scope,
+      matches,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: error.message || "经文搜索失败",
+    });
   }
 });
 

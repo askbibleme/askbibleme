@@ -4,6 +4,7 @@ const FRONT_STATE_KEY = "bible_front_state_v4";
 const FONT_SCALE_KEY = "bible_font_scale_v1";
 const VIEWPORT_SCROLL_KEY = "bible_viewport_scroll_v1";
 const FAVORITES_KEY = "bible_verse_favorites_v1";
+const CHAPTER_FAVORITES_KEY = "bible_chapter_favorites_v1";
 const QUESTION_FAVORITES_KEY = "bible_question_favorites_v1";
 const PENDING_FAVORITE_FOCUS_KEY = "bible_pending_favorite_focus_v1";
 const PENDING_QUESTION_FOCUS_KEY = "bible_pending_question_focus_v1";
@@ -12,6 +13,9 @@ const GLOBAL_SYNC_QUESTION_KEYS = "bible_global_sync_question_keys_v1";
 const LAST_QUESTION_SUBMIT_AT_KEY = "bible_last_question_submit_at_v1";
 const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
 const QA_INTERACTIONS_KEY = "bible_qa_interactions_v1";
+const VERSE_SEARCH_PREFS_KEY = "bible_verse_search_prefs_v1";
+let verseSearchDebounceTimer = null;
+let verseSearchSeq = 0;
 /** Safari/iOS 将「↩」绘成彩色系统符号；用 currentColor SVG 与 ♥/✎ 同色 */
 const REPLY_ACTION_GLYPH_SVG = `<svg class="qa-reply-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>`;
 const ADMIN_PASSWORD = "0777";
@@ -94,11 +98,16 @@ const state = {
   studyContent: null,
   favorites: loadFavorites(),
   favoriteKeys: new Set(),
+  chapterFavorites: loadChapterFavorites(),
+  chapterFavoriteKeys: new Set(),
   questionFavorites: loadQuestionFavorites(),
   questionFavoriteKeys: new Set(),
   approvedChapterQuestions: [],
   currentUser: null,
 };
+
+/** 收藏夹弹层：pages | verses | questions */
+let favoritesPanelActiveTab = "pages";
 
 const adminState = {
   bootstrap: null,
@@ -271,6 +280,34 @@ function escapeHtml(str) {
     .replaceAll("'", "&#39;");
 }
 
+/** 搜索结果摘要：转义后包裹匹配片段（纯英文关键词不区分大小写，与服务器一致） */
+function highlightVerseSearchSnippet(snippet, query) {
+  const raw = String(snippet ?? "");
+  const q = String(query ?? "").trim();
+  if (!q) return escapeHtml(raw);
+
+  const asciiQuery = !/[^\x00-\x7F]/.test(q);
+  const haystack = asciiQuery ? raw.toLowerCase() : raw;
+  const needle = asciiQuery ? q.toLowerCase() : q;
+  const needleLen = needle.length;
+  if (needleLen < 1) return escapeHtml(raw);
+
+  let out = "";
+  let i = 0;
+  while (i < raw.length) {
+    const idx = haystack.indexOf(needle, i);
+    if (idx < 0) {
+      out += escapeHtml(raw.slice(i));
+      break;
+    }
+    out += escapeHtml(raw.slice(i, idx));
+    const matched = raw.slice(idx, idx + needleLen);
+    out += `<mark class="verse-search-hit">${escapeHtml(matched)}</mark>`;
+    i = idx + needleLen;
+  }
+  return out;
+}
+
 function loadFontScale() {
   const raw = Number(localStorage.getItem(FONT_SCALE_KEY));
   if (Number.isFinite(raw) && raw >= 0.85 && raw <= 1.3) return raw;
@@ -314,6 +351,45 @@ function syncFavoriteKeySet() {
 function saveFavorites() {
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(state.favorites || []));
   syncFavoriteKeySet();
+}
+
+function loadChapterFavorites() {
+  const parsed = safeJsonParse(localStorage.getItem(CHAPTER_FAVORITES_KEY), []);
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map((item) => ({
+      key: String(item?.key || ""),
+      versionId: String(item?.versionId || ""),
+      bookId: String(item?.bookId || ""),
+      chapter: Number(item?.chapter || 0),
+      themeLine: String(item?.themeLine || ""),
+      createdAt: Number(item?.createdAt || Date.now()),
+    }))
+    .filter((item) => item.key && item.versionId && item.bookId && item.chapter > 0);
+}
+
+function syncChapterFavoriteKeySet() {
+  state.chapterFavoriteKeys = new Set((state.chapterFavorites || []).map((x) => x.key));
+}
+
+function saveChapterFavorites() {
+  localStorage.setItem(
+    CHAPTER_FAVORITES_KEY,
+    JSON.stringify(state.chapterFavorites || [])
+  );
+  syncChapterFavoriteKeySet();
+}
+
+function makeChapterFavoriteKey(bookId, chapter, versionId) {
+  return `chapter|${versionId}|${bookId}|${chapter}`;
+}
+
+function getCurrentChapterFavoriteKey() {
+  const versionId = String(state.frontState.primaryScriptureVersionId || "");
+  const bookId = String(state.frontState.bookId || "");
+  const chapter = Number(state.frontState.chapter || 0);
+  if (!versionId || !bookId || !chapter) return "";
+  return makeChapterFavoriteKey(bookId, chapter, versionId);
 }
 
 function loadQuestionFavorites() {
@@ -539,13 +615,14 @@ function getLocalizedCopy() {
   const lang = getPrimaryScriptureLang();
   if (lang === "en") {
     return {
-      triggerBook: "Book",
-      triggerTranslation: "Translation",
-      triggerVersion: "Version",
-      bookChapter: "Book / Chapter",
+      triggerBook: "Select book",
+      triggerTranslation: "Select version",
+      triggerVersion: "Question type",
+      bookChapter: "Select book",
+      searchScripture: "Search",
       display: "Display",
       type: "Type",
-      bibleVersion: "Bible Version",
+      bibleVersion: "Select version",
       close: "Close",
       oldTestament: "Old Testament",
       newTestament: "New Testament",
@@ -565,8 +642,21 @@ function getLocalizedCopy() {
       onlyQuestion: "Questions Only",
       favorites: "Favorites",
       favoritesTitle: "Favorites",
-      clearFavorites: "Clear Favorites",
-      emptyFavorites: "No favorites yet. Double-click a verse to save it.",
+      removeFavoriteAria: "Remove from favorites",
+      emptyFavorites: "No favorites yet. Double-click a verse or use the left ribbon to bookmark a chapter.",
+      favoritesSectionPageTitle: "Page bookmarks",
+      favoritesSectionVerseTitle: "Verse bookmarks",
+      favoritesSectionQuestionTitle: "Question bookmarks",
+      favoritesSectionEmptyPage: "None yet — use the left ribbon to save this page (chapter).",
+      favoritesSectionEmptyVerse: "None yet — double-click a verse to save.",
+      favoritesSectionEmptyQuestion: "None yet — double-click a question to save.",
+      favoritesListRibbon: "Saved list",
+      favoritesListOpenAria: "Open saved list to jump to a bookmark",
+      ribbonChapterSave: "Bookmark chapter",
+      ribbonChapterSaved: "Chapter saved",
+      ribbonChapterSaveAria: "Bookmark this chapter",
+      ribbonChapterSavedAria: "This chapter is bookmarked; click to remove",
+      favoriteChapterHint: "Whole chapter",
       prevChapter: "Previous",
       nextChapter: "Next",
       noContent: "No content yet for this chapter in the selected version/language.",
@@ -574,13 +664,14 @@ function getLocalizedCopy() {
   }
   if (lang === "es") {
     return {
-      triggerBook: "Libro",
-      triggerTranslation: "Traduccion",
-      triggerVersion: "Version",
-      bookChapter: "Libro / Capitulo",
+      triggerBook: "Elegir libro",
+      triggerTranslation: "Elegir version",
+      triggerVersion: "Tipo de preguntas",
+      bookChapter: "Elegir libro",
+      searchScripture: "Buscar",
       display: "Mostrar",
       type: "Tipo",
-      bibleVersion: "Version biblica",
+      bibleVersion: "Elegir version",
       close: "Cerrar",
       oldTestament: "Antiguo Testamento",
       newTestament: "Nuevo Testamento",
@@ -600,8 +691,21 @@ function getLocalizedCopy() {
       onlyQuestion: "Solo preguntas",
       favorites: "Favoritos",
       favoritesTitle: "Favoritos",
-      clearFavorites: "Limpiar favoritos",
-      emptyFavorites: "Aun no hay favoritos. Haz doble clic en un versiculo para guardarlo.",
+      removeFavoriteAria: "Quitar de favoritos",
+      emptyFavorites: "Aun no hay favoritos. Doble clic en un versiculo o la cinta izquierda para guardar un capitulo.",
+      favoritesSectionPageTitle: "Marcadores de pagina",
+      favoritesSectionVerseTitle: "Versiculos",
+      favoritesSectionQuestionTitle: "Preguntas",
+      favoritesSectionEmptyPage: "Ninguno — usa la cinta izquierda para esta pagina (capitulo).",
+      favoritesSectionEmptyVerse: "Ninguno — doble clic en un versiculo.",
+      favoritesSectionEmptyQuestion: "Ninguno — doble clic en una pregunta.",
+      favoritesListRibbon: "Lista guardados",
+      favoritesListOpenAria: "Abrir lista para ir a un favorito",
+      ribbonChapterSave: "Guardar capitulo",
+      ribbonChapterSaved: "Capitulo guardado",
+      ribbonChapterSaveAria: "Guardar este capitulo",
+      ribbonChapterSavedAria: "Capitulo guardado; clic para quitar",
+      favoriteChapterHint: "Capitulo entero",
       prevChapter: "Anterior",
       nextChapter: "Siguiente",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
@@ -609,13 +713,14 @@ function getLocalizedCopy() {
   }
   if (lang === "he") {
     return {
-      triggerBook: "ספר",
-      triggerTranslation: "תרגום",
-      triggerVersion: "גרסה",
-      bookChapter: "ספר / פרק",
+      triggerBook: "בחירת ספר",
+      triggerTranslation: "בחירת גרסה",
+      triggerVersion: "סוג שאלות",
+      bookChapter: "בחירת ספר",
+      searchScripture: "חיפוש",
       display: "תצוגה",
       type: "סוג",
-      bibleVersion: "גרסת מקרא",
+      bibleVersion: "בחירת גרסה",
       close: "סגור",
       oldTestament: "הברית הישנה",
       newTestament: "הברית החדשה",
@@ -635,21 +740,35 @@ function getLocalizedCopy() {
       onlyQuestion: "שאלות בלבד",
       favorites: "מועדפים",
       favoritesTitle: "מועדפים",
-      clearFavorites: "נקה מועדפים",
-      emptyFavorites: "אין עדיין מועדפים. לחיצה כפולה על פסוק תשמור אותו.",
+      removeFavoriteAria: "הסר מהמועדפים",
+      emptyFavorites: "אין עדיין מועדפים. לחיצה כפולה על פסוק או הסרט השמאלי לשמירת פרק.",
+      favoritesSectionPageTitle: "סימניות עמוד",
+      favoritesSectionVerseTitle: "פסוקים שמורים",
+      favoritesSectionQuestionTitle: "שאלות שמורות",
+      favoritesSectionEmptyPage: "אין — השתמש בסרט השמאלי לשמירת העמוד (פרק).",
+      favoritesSectionEmptyVerse: "אין — לחיצה כפולה על פסוק.",
+      favoritesSectionEmptyQuestion: "אין — לחיצה כפולה על שאלה.",
+      favoritesListRibbon: "רשימת שמורים",
+      favoritesListOpenAria: "פתח רשימה לקפיצה לסימנייה",
+      ribbonChapterSave: "שמור פרק",
+      ribbonChapterSaved: "הפרק נשמר",
+      ribbonChapterSaveAria: "שמור את הפרק הנוכחי",
+      ribbonChapterSavedAria: "הפרק נשמר; לחץ להסרה",
+      favoriteChapterHint: "פרק שלם",
       prevChapter: "הקודם",
       nextChapter: "הבא",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
     };
   }
   return {
-    triggerBook: "书卷",
-    triggerTranslation: "译本",
-    triggerVersion: "版本",
-    bookChapter: "书卷章节",
+    triggerBook: "选书卷",
+    triggerTranslation: "选版本",
+    triggerVersion: "问题类型",
+    bookChapter: "选书卷",
+    searchScripture: "搜经文",
     display: "显示",
     type: "类型",
-    bibleVersion: "圣经版本",
+    bibleVersion: "选版本",
     close: "关闭",
     oldTestament: "旧约",
     newTestament: "新约",
@@ -669,8 +788,21 @@ function getLocalizedCopy() {
     onlyQuestion: "只限问题",
     favorites: "收藏",
     favoritesTitle: "收藏夹",
-    clearFavorites: "清空收藏",
-    emptyFavorites: "还没有收藏，双击经文即可收藏。",
+    removeFavoriteAria: "从收藏中移除",
+    emptyFavorites: "还没有收藏：可双击经文，或点左侧丝带收藏整章。",
+    favoritesSectionPageTitle: "页面收藏",
+    favoritesSectionVerseTitle: "经文收藏",
+    favoritesSectionQuestionTitle: "问题收藏",
+    favoritesSectionEmptyPage: "暂无：点左侧丝带可收藏当前页（整章）。",
+    favoritesSectionEmptyVerse: "暂无：双击经文可收藏。",
+    favoritesSectionEmptyQuestion: "暂无：双击问题可收藏。",
+    favoritesListRibbon: "收藏列表",
+    favoritesListOpenAria: "打开收藏列表，跳转到已收藏的经文或章节",
+    ribbonChapterSave: "收藏本章",
+    ribbonChapterSaved: "本页已收藏",
+    ribbonChapterSaveAria: "将当前章加入收藏",
+    ribbonChapterSavedAria: "本页已收藏，点击取消收藏",
+    favoriteChapterHint: "整章书签",
     prevChapter: "上一章",
     nextChapter: "下一章",
     noContent: "这一章还没有该版本 / 该语言的内容。",
@@ -685,23 +817,25 @@ function applyReaderI18n() {
   };
 
   setText("#bookChapterPanel .toolbar-panel-title", copy.bookChapter);
-  setText("#contentTypePanel .toolbar-panel-title", copy.triggerVersion || "版本");
   setText("#qaViewPanel .toolbar-panel-title", copy.displayContent);
   setText("#primaryVersionPanel .toolbar-panel-title", copy.bibleVersion);
+  setText("#verseSearchTitle", copy.searchScripture);
   setText('#bookChapterPanel [data-testament-tab="旧约"]', copy.oldTestament);
   setText('#bookChapterPanel [data-testament-tab="新约"]', copy.newTestament);
   setText("#bookChapterPanel .chapter-grid-title", copy.chapters);
   setText("#qaViewPanel .chapter-grid-title", copy.quickActions);
+  setText("#contentVersionSectionTitle", copy.triggerVersion || "问题类型");
   setText("#primaryVersionSectionTitle", copy.primaryVersionSingle);
   setText("#compareVersionSectionTitle", copy.compareVersionMulti);
   setText("#exportPrettyPdfBtn", copy.export);
-  setText("#exportPrintPdfBtn", copy.print);
   setText("#favoritesPanelTitle", copy.favoritesTitle);
-  setText("#clearFavoritesBtn", copy.clearFavorites);
+  setText("#favoritesTabPages", copy.favoritesSectionPageTitle || "");
+  setText("#favoritesTabVerses", copy.favoritesSectionVerseTitle || "");
+  setText("#favoritesTabQuestions", copy.favoritesSectionQuestionTitle || "");
 
   document
     .querySelectorAll(
-      "#bookChapterPanel .toolbar-panel-close, #contentTypePanel .toolbar-panel-close, #qaViewPanel .toolbar-panel-close, #primaryVersionPanel .toolbar-panel-close, #favoritesPanel .toolbar-panel-close"
+      "#bookChapterPanel .toolbar-panel-close, #qaViewPanel .toolbar-panel-close, #primaryVersionPanel .toolbar-panel-close, #favoritesPanel .toolbar-panel-close"
     )
     .forEach((btn) => {
       btn.textContent = copy.close;
@@ -959,39 +1093,185 @@ function buildFavoriteVerseUnit(
   )}" data-favorite-text="${escapeHtml(rawText)}"><span class="verse-no">${verseNo}</span>${renderedText}</span>`;
 }
 
+function focusQuestionFavoriteInDom(key) {
+  const safeSelectorKey =
+    typeof CSS !== "undefined" && typeof CSS.escape === "function"
+      ? CSS.escape(key)
+      : String(key).replace(/"/g, '\\"');
+  const tryFocus = (retry = 0) => {
+    const el = document.querySelector(`[data-question-fav-key="${safeSelectorKey}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("favorite-flash");
+      window.setTimeout(() => el.classList.remove("favorite-flash"), 900);
+      return;
+    }
+    if (retry < 14) {
+      window.setTimeout(() => tryFocus(retry + 1), 120);
+    }
+  };
+  tryFocus();
+}
+
+function setFavoritesPanelTab(tab) {
+  const allowed = new Set(["pages", "verses", "questions"]);
+  if (!allowed.has(tab)) tab = "pages";
+  favoritesPanelActiveTab = tab;
+
+  document.querySelectorAll("#favoritesPanel [data-favorites-tab]").forEach((btn) => {
+    const t = btn.getAttribute("data-favorites-tab");
+    const on = t === tab;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+    btn.tabIndex = on ? 0 : -1;
+  });
+
+  const pages = document.getElementById("favoritesPagesList");
+  const verses = document.getElementById("favoritesVersesList");
+  const questions = document.getElementById("favoritesQuestionsList");
+  if (pages) pages.hidden = tab !== "pages";
+  if (verses) verses.hidden = tab !== "verses";
+  if (questions) questions.hidden = tab !== "questions";
+}
+
+function initFavoritesPanelTabs() {
+  document.querySelectorAll("#favoritesPanel [data-favorites-tab]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const t = btn.getAttribute("data-favorites-tab");
+      if (t) setFavoritesPanelTab(t);
+    });
+  });
+}
+
 function renderFavoritesPanel() {
-  const list = document.getElementById("favoritesList");
-  if (!list) return;
+  const pagesList = document.getElementById("favoritesPagesList");
+  const versesList = document.getElementById("favoritesVersesList");
+  const questionsList = document.getElementById("favoritesQuestionsList");
+  const panel = document.getElementById("favoritesPanel");
+  if (!pagesList || !versesList || !questionsList || !panel) return;
   const copy = getLocalizedCopy();
-  const items = [...(state.favorites || [])].sort(
+
+  const chapterSorted = [...(state.chapterFavorites || [])].sort(
     (a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
   );
-  if (!items.length) {
-    list.innerHTML = `<div class="empty-state">${escapeHtml(copy.emptyFavorites)}</div>`;
-  } else {
-    list.innerHTML = items
-      .map((item) => {
-        const title = `${getLocalizedBookLabelById(item.bookId)} ${item.chapter}:${item.verse}`;
-        const versionLabel = getScriptureVersionById(item.versionId)?.label || item.versionId;
-        return `<div class="favorite-item">
+  const verseSorted = [...(state.favorites || [])].sort(
+    (a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
+  );
+  const questionSorted = [...(state.questionFavorites || [])].sort(
+    (a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
+  );
+
+  const pageBody =
+    chapterSorted.length === 0
+      ? `<div class="favorites-section-empty">${escapeHtml(
+          copy.favoritesSectionEmptyPage || ""
+        )}</div>`
+      : chapterSorted
+          .map((item) => {
+            const titleLine = formatBookChapterLabel(
+              getLocalizedBookLabelById(item.bookId),
+              item.chapter
+            );
+            const themePart = String(item.themeLine || "").trim();
+            const refLine = themePart
+              ? `${titleLine} · ${themePart}`
+              : titleLine;
+            return `<div class="favorite-item favorite-item--chapter favorite-item--page-row">
+          <button type="button" class="favorite-jump-btn" data-favorite-jump="${escapeHtml(
+            item.key
+          )}">
+            <span class="favorite-ref">${escapeHtml(refLine)}</span>
+          </button>
+          <button type="button" class="favorite-remove-btn" data-favorite-remove="${escapeHtml(
+            item.key
+          )}" aria-label="${escapeHtml(copy.removeFavoriteAria || "移除")}">×</button>
+        </div>`;
+          })
+          .join("");
+
+  const verseBody =
+    verseSorted.length === 0
+      ? `<div class="favorites-section-empty">${escapeHtml(
+          copy.favoritesSectionEmptyVerse || ""
+        )}</div>`
+      : verseSorted
+          .map((item) => {
+            const title = `${getLocalizedBookLabelById(item.bookId)} ${item.chapter}:${item.verse}`;
+            return `<div class="favorite-item favorite-item--verse">
           <button type="button" class="favorite-jump-btn" data-favorite-jump="${escapeHtml(
             item.key
           )}">
             <div class="favorite-ref">${escapeHtml(title)}</div>
             <div class="favorite-text">${escapeHtml(item.text)}</div>
-            <div class="favorite-meta">${escapeHtml(versionLabel)}</div>
           </button>
           <button type="button" class="favorite-remove-btn" data-favorite-remove="${escapeHtml(
             item.key
-          )}">×</button>
+          )}" aria-label="${escapeHtml(copy.removeFavoriteAria || "移除")}">×</button>
         </div>`;
-      })
-      .join("");
-  }
+          })
+          .join("");
 
-  list.querySelectorAll("[data-favorite-jump]").forEach((btn) => {
+  const questionBody =
+    questionSorted.length === 0
+      ? `<div class="favorites-section-empty">${escapeHtml(
+          copy.favoritesSectionEmptyQuestion || ""
+        )}</div>`
+      : questionSorted
+          .map((item) => {
+            const bookLine = formatBookChapterLabel(
+              getLocalizedBookLabelById(item.bookId),
+              item.chapter
+            );
+            const segTitle = String(item.title || "").trim();
+            const refLine = segTitle ? `${bookLine} · ${segTitle}` : bookLine;
+            const cvLabel =
+              getLocalizedContentVersionLabel(item.contentVersion) ||
+              item.contentVersion ||
+              "";
+            return `<div class="favorite-item favorite-item--question">
+          <button type="button" class="favorite-jump-btn" data-question-fav-jump="${escapeHtml(
+            item.key
+          )}">
+            <div class="favorite-ref">${escapeHtml(refLine)}</div>
+            <div class="favorite-text">${escapeHtml(item.question)}</div>
+            <div class="favorite-meta">${escapeHtml(cvLabel)}</div>
+          </button>
+          <button type="button" class="favorite-remove-btn" data-question-favorite-remove="${escapeHtml(
+            item.key
+          )}" aria-label="${escapeHtml(copy.removeFavoriteAria || "移除")}">×</button>
+        </div>`;
+          })
+          .join("");
+
+  pagesList.innerHTML = pageBody;
+  versesList.innerHTML = verseBody;
+  questionsList.innerHTML = questionBody;
+
+  setFavoritesPanelTab(favoritesPanelActiveTab);
+
+  panel.querySelectorAll("[data-favorite-jump]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const key = btn.getAttribute("data-favorite-jump");
+      const chItem = (state.chapterFavorites || []).find((x) => x.key === key);
+      if (chItem) {
+        const book = getBookMetaById(chItem.bookId);
+        if (!book) return;
+        state.frontState.testament = book.testamentName;
+        state.frontState.bookId = chItem.bookId;
+        state.frontState.chapter = chItem.chapter;
+        state.frontState.primaryScriptureVersionId = chItem.versionId;
+        state.frontState.secondaryScriptureVersionIds = (
+          state.frontState.secondaryScriptureVersionIds || []
+        ).filter((id) => id !== chItem.versionId);
+        syncContentLangWithPrimaryVersion();
+        saveFrontState();
+        renderAllSelectors();
+        closeToolbarPanel("favoritesPanel");
+        await refreshCurrentPage();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
       const item = (state.favorites || []).find((x) => x.key === key);
       if (!item) return;
       const book = getBookMetaById(item.bookId);
@@ -1017,15 +1297,62 @@ function renderFavoritesPanel() {
     });
   });
 
-  list.querySelectorAll("[data-favorite-remove]").forEach((btn) => {
+  panel.querySelectorAll("[data-question-fav-jump]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const key = btn.getAttribute("data-question-fav-jump");
+      const qItem = (state.questionFavorites || []).find((x) => x.key === key);
+      if (!qItem) return;
+      const book = getBookMetaById(qItem.bookId);
+      if (!book) return;
+      state.frontState.testament = book.testamentName;
+      state.frontState.bookId = qItem.bookId;
+      state.frontState.chapter = qItem.chapter;
+      if (qItem.contentVersion) {
+        state.frontState.contentVersion = qItem.contentVersion;
+      }
+      if (qItem.contentLang) {
+        state.frontState.contentLang = qItem.contentLang;
+      }
+      state.frontState.showScripture = true;
+      state.frontState.showQuestions = true;
+      saveFrontState();
+      renderAllSelectors();
+      closeToolbarPanel("favoritesPanel");
+      await refreshCurrentPage();
+      focusQuestionFavoriteInDom(key);
+    });
+  });
+
+  panel.querySelectorAll("[data-favorite-remove]").forEach((btn) => {
     btn.addEventListener("click", (event) => {
       event.stopPropagation();
       const key = btn.getAttribute("data-favorite-remove");
       if (!key) return;
-      state.favorites = (state.favorites || []).filter((x) => x.key !== key);
-      saveFavorites();
+      if ((state.chapterFavorites || []).some((x) => x.key === key)) {
+        state.chapterFavorites = (state.chapterFavorites || []).filter((x) => x.key !== key);
+        saveChapterFavorites();
+      } else {
+        state.favorites = (state.favorites || []).filter((x) => x.key !== key);
+        saveFavorites();
+      }
       renderToolbarTriggers();
       renderFavoritesPanel();
+      renderStudyContent();
+    });
+  });
+
+  panel.querySelectorAll("[data-question-favorite-remove]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const key = btn.getAttribute("data-question-favorite-remove");
+      if (!key) return;
+      state.questionFavorites = (state.questionFavorites || []).filter(
+        (x) => x.key !== key
+      );
+      saveQuestionFavorites();
+      renderToolbarTriggers();
+      renderFavoritesPanel();
+      renderStudyContent();
     });
   });
 }
@@ -1057,6 +1384,7 @@ function syncContentLangWithPrimaryVersion() {
 async function init() {
   try {
     syncFavoriteKeySet();
+    syncChapterFavoriteKeySet();
     syncQuestionFavoriteKeySet();
     backfillGlobalFavoritesFromLocal();
     applyFontScale();
@@ -1067,12 +1395,15 @@ async function init() {
     ensureScriptureCompareUI();
     initSelectors();
     initToolbarPanels();
+    initFavoritesPanelTabs();
+    initVerseSearchOverlay();
     initChapterNav();
     initInlineDisplayToggles();
     initChapterQuestionCollector();
     initApprovedQuestionReply();
     initPresetQuestionActions();
     initAuthModal();
+    initChapterRibbonFavorite();
     initMemberHub();
     initOnlinePulseVisibility();
     initAdminModal();
@@ -1531,20 +1862,10 @@ function getSensibleDisplayName(user) {
   return "同路人";
 }
 
-/** 侧标主文案：优先真实称呼，其次邮箱前缀，再退回「文章中心」 */
-function getSideTagDisplayLine(user) {
-  const raw = String(user?.name || "").trim();
-  if (raw && !isGenericUserDisplayName(raw)) return raw;
-  const fromEmail = displayNameFromEmail(user?.email || "");
-  if (fromEmail) return fromEmail;
-  return "文章中心";
-}
-
 function renderAuthStatus() {
   const userNameEl = document.getElementById("authUserName");
   const openBtn = document.getElementById("openAuthBtn");
   const logoutBtn = document.getElementById("logoutAuthBtn");
-  const sideUserTagEl = document.getElementById("sideUserTag");
   const u = state.currentUser;
   const name = String(u?.name || "");
   const authed = Boolean(name);
@@ -1555,33 +1876,6 @@ function renderAuthStatus() {
   }
   if (openBtn) openBtn.style.display = authed ? "none" : "";
   if (logoutBtn) logoutBtn.style.display = authed ? "" : "none";
-  if (sideUserTagEl) {
-    if (authed) {
-      const level = Number(state.currentUser?.userLevel ?? 0);
-      const starLevel = level > 0 ? level : 1;
-      const stars = renderLevelStars(starLevel);
-      const starsHtml = `<span class="book-side-tag-stars" aria-hidden="true">${escapeHtml(
-        stars
-      )}</span>`;
-      const sideLine = getSideTagDisplayLine(u);
-      sideUserTagEl.innerHTML = `<span class="book-side-tag-inner"><span class="book-side-tag-name">${escapeHtml(
-        sideLine
-      )}</span>${starsHtml}</span>`;
-      sideUserTagEl.setAttribute(
-        "aria-label",
-        level > 0
-          ? `文章中心，${showName}，社区等级 L${level}`
-          : `文章中心，${showName}；通过贡献审核后将显示对应星级`
-      );
-    } else {
-      sideUserTagEl.textContent = "登录更精彩";
-      sideUserTagEl.setAttribute(
-        "aria-label",
-        "登录更精彩，打开注册与登录"
-      );
-    }
-    sideUserTagEl.setAttribute("href", authed ? "/notebook.html" : "#");
-  }
   updateChapterQuestionSubmitButtonLabel();
   renderMemberHub();
   renderStudyContent();
@@ -1657,7 +1951,6 @@ function updateChapterQuestionSubmitButtonLabel() {
 function initAuthModal() {
   const modal = document.getElementById("authModal");
   const openBtn = document.getElementById("openAuthBtn");
-  const sideUserTagEl = document.getElementById("sideUserTag");
   const closeBtn = document.getElementById("closeAuthBtn");
   const logoutBtn = document.getElementById("logoutAuthBtn");
   const modeLoginBtn = document.getElementById("authModeLoginBtn");
@@ -1731,15 +2024,6 @@ function initAuthModal() {
   }
 
   openBtn?.addEventListener("click", () => open("login"));
-  sideUserTagEl?.addEventListener("click", (event) => {
-    if (state.currentUser?.name) return;
-    event.preventDefault();
-    if (typeof window.openMemberHub === "function") {
-      window.openMemberHub();
-    } else {
-      open("register");
-    }
-  });
   closeBtn?.addEventListener("click", close);
   modeLoginBtn?.addEventListener("click", () => applyAuthMode("login"));
   modeRegisterBtn?.addEventListener("click", () => applyAuthMode("register"));
@@ -2147,11 +2431,6 @@ function initExportButtons() {
       alert("这一步先保留按钮，后面再接导出新版内容。");
     });
 
-  document
-    .getElementById("exportPrintPdfBtn")
-    ?.addEventListener("click", () => {
-      window.print();
-    });
 }
 
 function initSelectors() {
@@ -2217,9 +2496,9 @@ function initSelectors() {
 function initToolbarPanels() {
   const triggerMap = [
     { triggerId: "bookChapterTrigger", panelId: "bookChapterPanel" },
-    { triggerId: "contentTypeTrigger", panelId: "contentTypePanel" },
     { triggerId: "primaryVersionTrigger", panelId: "primaryVersionPanel" },
     { triggerId: "favoritesTrigger", panelId: "favoritesPanel" },
+    { triggerId: "sideUserTag", panelId: "favoritesPanel" },
   ];
 
   triggerMap.forEach(({ triggerId, panelId }) => {
@@ -2228,6 +2507,7 @@ function initToolbarPanels() {
     if (!trigger || !panel) return;
 
     trigger.addEventListener("click", (event) => {
+      event.preventDefault();
       event.stopPropagation();
       toggleToolbarPanel(panelId);
     });
@@ -2248,6 +2528,33 @@ function initToolbarPanels() {
   document.addEventListener("click", () => {
     closeAllToolbarPanels();
   });
+
+  window.addEventListener("resize", syncVisibleToolbarSheetTops);
+  document.addEventListener("keydown", toolbarSheetsEscHandler);
+}
+
+/** 书卷 / 选版本 全屏卡片：Esc 关闭（搜经文打开时不抢） */
+function toolbarSheetsEscHandler(e) {
+  if (e.key !== "Escape") return;
+  const verse = document.getElementById("verseSearchOverlay");
+  if (verse && !verse.hasAttribute("hidden")) return;
+  const pv = document.getElementById("primaryVersionPanel");
+  if (pv && !pv.hasAttribute("hidden")) {
+    e.preventDefault();
+    closeToolbarPanel("primaryVersionPanel");
+    return;
+  }
+  const bc = document.getElementById("bookChapterPanel");
+  if (bc && !bc.hasAttribute("hidden")) {
+    e.preventDefault();
+    closeToolbarPanel("bookChapterPanel");
+    return;
+  }
+  const fav = document.getElementById("favoritesPanel");
+  if (fav && !fav.hasAttribute("hidden")) {
+    e.preventDefault();
+    closeToolbarPanel("favoritesPanel");
+  }
 }
 
 function toggleToolbarPanel(panelId) {
@@ -2258,38 +2565,357 @@ function toggleToolbarPanel(panelId) {
   closeAllToolbarPanels();
 
   if (willOpen) {
+    closeVerseSearchOverlay();
     panel.removeAttribute("hidden");
     markToolbarTriggerActive(panelId, true);
+    if (panelId === "primaryVersionPanel") {
+      document.body.classList.add("primary-version-open");
+      syncToolbarSheetCardTop(panel);
+      window.requestAnimationFrame(() => {
+        syncToolbarSheetCardTop(panel);
+      });
+    }
+    if (panelId === "bookChapterPanel") {
+      document.body.classList.add("book-chapter-open");
+      syncToolbarSheetCardTop(panel);
+      window.requestAnimationFrame(() => {
+        syncToolbarSheetCardTop(panel);
+      });
+    }
+    if (panelId === "favoritesPanel") {
+      document.body.classList.add("favorites-open");
+      favoritesPanelActiveTab = "pages";
+      renderFavoritesPanel();
+      syncToolbarSheetCardTop(panel);
+      window.requestAnimationFrame(() => {
+        syncToolbarSheetCardTop(panel);
+      });
+    }
   }
 }
 
 function closeToolbarPanel(panelId) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
+  if (
+    panelId === "primaryVersionPanel" ||
+    panelId === "bookChapterPanel" ||
+    panelId === "favoritesPanel"
+  ) {
+    const card = panel.querySelector(".verse-search-card");
+    if (card) card.style.marginTop = "";
+    if (panelId === "primaryVersionPanel") {
+      document.body.classList.remove("primary-version-open");
+    }
+    if (panelId === "bookChapterPanel") {
+      document.body.classList.remove("book-chapter-open");
+    }
+    if (panelId === "favoritesPanel") {
+      document.body.classList.remove("favorites-open");
+      favoritesPanelActiveTab = "pages";
+    }
+  }
   panel.setAttribute("hidden", "");
   markToolbarTriggerActive(panelId, false);
 }
 
 function closeAllToolbarPanels() {
-  ["bookChapterPanel", "contentTypePanel", "primaryVersionPanel", "favoritesPanel"].forEach(
+  ["bookChapterPanel", "primaryVersionPanel", "favoritesPanel"].forEach(
     (panelId) => {
-    const panel = document.getElementById(panelId);
-    if (panel) panel.setAttribute("hidden", "");
-    markToolbarTriggerActive(panelId, false);
+      closeToolbarPanel(panelId);
     }
   );
 }
 
+function verseSearchOverlayEscHandler(e) {
+  if (e.key !== "Escape") return;
+  const overlay = document.getElementById("verseSearchOverlay");
+  if (!overlay || overlay.hasAttribute("hidden")) return;
+  e.preventDefault();
+  closeVerseSearchOverlay();
+}
+
+function loadVerseSearchPrefs() {
+  try {
+    const raw = localStorage.getItem(VERSE_SEARCH_PREFS_KEY);
+    if (!raw) return { scope: "all" };
+    const p = JSON.parse(raw);
+    const scope = p?.scope === "ot" || p?.scope === "nt" ? p.scope : "all";
+    return { scope };
+  } catch {
+    return { scope: "all" };
+  }
+}
+
+function saveVerseSearchPrefs(prefs) {
+  try {
+    localStorage.setItem(VERSE_SEARCH_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* ignore */
+  }
+}
+
+function syncVerseSearchScopeButtons() {
+  const { scope } = loadVerseSearchPrefs();
+  document.querySelectorAll("[data-verse-search-scope]").forEach((btn) => {
+    const v = btn.getAttribute("data-verse-search-scope");
+    btn.classList.toggle("active", v === scope);
+  });
+}
+
+function getVerseSearchScopeFromUI() {
+  const active = document.querySelector("#verseSearchOverlay [data-verse-search-scope].active");
+  const v = active?.getAttribute("data-verse-search-scope") || "all";
+  return v === "ot" || v === "nt" ? v : "all";
+}
+
+function scheduleVerseSearch() {
+  if (verseSearchDebounceTimer) window.clearTimeout(verseSearchDebounceTimer);
+  verseSearchDebounceTimer = window.setTimeout(() => {
+    verseSearchDebounceTimer = null;
+    void runVerseSearchQuery();
+  }, 320);
+}
+
+async function runVerseSearchQuery() {
+  const input = document.getElementById("verseSearchInput");
+  const resultsEl = document.getElementById("verseSearchResults");
+  if (!resultsEl) return;
+  const q = String(input?.value || "").trim();
+  const versionId = state.frontState.primaryScriptureVersionId;
+  if (!versionId) {
+    resultsEl.innerHTML = `<p class="verse-search-status">请先在顶栏选择版本。</p>`;
+    return;
+  }
+  if (!q) {
+    resultsEl.innerHTML = `<p class="verse-search-status">输入关键字开始搜索。</p>`;
+    return;
+  }
+  const scope = getVerseSearchScopeFromUI();
+  const seq = ++verseSearchSeq;
+  resultsEl.innerHTML = `<p class="verse-search-status">搜索中…</p>`;
+  try {
+    const params = new URLSearchParams({ q, versionId, scope, limit: "40" });
+    const res = await fetch(`/api/scripture/search?${params.toString()}`);
+    const data = await parseFetchJsonResponse(res);
+    if (seq !== verseSearchSeq) return;
+    if (!res.ok) throw new Error(data.error || "搜索失败");
+    const matches = data.matches || [];
+    if (!matches.length) {
+      resultsEl.innerHTML = `<p class="verse-search-status">没有匹配的经文。</p>`;
+      return;
+    }
+    const lang = state.frontState.uiLang || "zh";
+    resultsEl.innerHTML = matches
+      .map((m) => {
+        const ref =
+          lang === "en"
+            ? `${escapeHtml(m.bookLabel)} ${m.chapter}:${m.verse}`
+            : `${escapeHtml(m.bookLabel)} ${m.chapter}章${m.verse}节`;
+        return `<button type="button" class="verse-search-result-btn" data-verse-search-jump="1"
+          data-book-id="${escapeHtml(m.bookId)}"
+          data-chapter="${Number(m.chapter)}"
+          data-verse="${Number(m.verse)}"
+          data-version-id="${escapeHtml(versionId)}">
+          <div class="verse-search-result-ref">${ref}</div>
+          <div class="verse-search-result-snippet">${highlightVerseSearchSnippet(
+            m.snippet || "",
+            q
+          )}</div>
+        </button>`;
+      })
+      .join("");
+    resultsEl.querySelectorAll("[data-verse-search-jump]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const bookId = btn.getAttribute("data-book-id");
+        const chapter = Number(btn.getAttribute("data-chapter"));
+        const verse = Number(btn.getAttribute("data-verse"));
+        const vid = btn.getAttribute("data-version-id");
+        void jumpToVerseFromSearch(vid, bookId, chapter, verse);
+      });
+    });
+  } catch (e) {
+    if (seq !== verseSearchSeq) return;
+    resultsEl.innerHTML = `<p class="verse-search-status">${escapeHtml(
+      e?.message || String(e)
+    )}</p>`;
+  }
+}
+
+async function jumpToVerseFromSearch(versionId, bookId, chapter, verse) {
+  const book = getBookMetaById(bookId);
+  if (!book || !versionId) return;
+  closeVerseSearchOverlay();
+  state.frontState.testament = book.testamentName;
+  state.frontState.bookId = bookId;
+  state.frontState.chapter = chapter;
+  state.frontState.primaryScriptureVersionId = versionId;
+  state.frontState.secondaryScriptureVersionIds = (
+    state.frontState.secondaryScriptureVersionIds || []
+  ).filter((id) => id !== versionId);
+  syncContentLangWithPrimaryVersion();
+  saveFrontState();
+  renderAllSelectors();
+  await refreshCurrentPage();
+  const key = `${versionId}|${bookId}|${chapter}|${verse}`;
+  const tryFlash = (retry = 0) => {
+    const safe =
+      typeof CSS !== "undefined" && typeof CSS.escape === "function"
+        ? CSS.escape(key)
+        : key.replace(/"/g, '\\"');
+    const el = document.querySelector(`[data-favorite-key="${safe}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("favorite-flash", "verse-search-jump-highlight");
+      window.setTimeout(() => {
+        el.classList.remove("favorite-flash", "verse-search-jump-highlight");
+      }, 1400);
+      return;
+    }
+    if (retry < 12) {
+      window.setTimeout(() => tryFlash(retry + 1), 100);
+    }
+  };
+  tryFlash();
+}
+
+function closeVerseSearchOverlay() {
+  const overlay = document.getElementById("verseSearchOverlay");
+  const openBtn = document.getElementById("verseSearchOpenBtn");
+  const card = overlay?.querySelector(".verse-search-card");
+  if (card) card.style.marginTop = "";
+  if (overlay) overlay.setAttribute("hidden", "");
+  document.body.classList.remove("verse-search-open");
+  if (openBtn) openBtn.setAttribute("aria-expanded", "false");
+  document.removeEventListener("keydown", verseSearchOverlayEscHandler);
+}
+
+/** 与原先 .toolbar-panel 下拉一致：顶缘 = page-toolbar 底 + gap（搜经文 / 选版本 共用） */
+function syncToolbarSheetCardTop(overlay) {
+  if (!overlay || overlay.hasAttribute("hidden")) return;
+  const card = overlay.querySelector(".verse-search-card");
+  const toolbar = document.querySelector(".page-toolbar");
+  if (!card) return;
+  const gap = window.matchMedia("(max-width: 700px)").matches ? 10 : 12;
+  if (!toolbar) {
+    card.style.marginTop = "";
+    return;
+  }
+  const targetTop = toolbar.getBoundingClientRect().bottom + gap;
+  const padTop = parseFloat(getComputedStyle(overlay).paddingTop) || 12;
+  const contentTop = overlay.getBoundingClientRect().top + padTop;
+  const mt = Math.max(0, Math.round(targetTop - contentTop));
+  card.style.marginTop = `${mt}px`;
+}
+
+function syncVerseSearchCardTop() {
+  syncToolbarSheetCardTop(document.getElementById("verseSearchOverlay"));
+}
+
+function syncVisibleToolbarSheetTops() {
+  const verse = document.getElementById("verseSearchOverlay");
+  if (verse && !verse.hasAttribute("hidden")) {
+    syncToolbarSheetCardTop(verse);
+  }
+  const pv = document.getElementById("primaryVersionPanel");
+  if (pv && !pv.hasAttribute("hidden")) {
+    syncToolbarSheetCardTop(pv);
+  }
+  const bc = document.getElementById("bookChapterPanel");
+  if (bc && !bc.hasAttribute("hidden")) {
+    syncToolbarSheetCardTop(bc);
+  }
+  const fav = document.getElementById("favoritesPanel");
+  if (fav && !fav.hasAttribute("hidden")) {
+    syncToolbarSheetCardTop(fav);
+  }
+}
+
+function openVerseSearchOverlay() {
+  const overlay = document.getElementById("verseSearchOverlay");
+  const openBtn = document.getElementById("verseSearchOpenBtn");
+  const input = document.getElementById("verseSearchInput");
+  const resultsEl = document.getElementById("verseSearchResults");
+  if (!overlay) return;
+  closeAllToolbarPanels();
+  syncVerseSearchScopeButtons();
+  if (resultsEl) {
+    const q = String(input?.value || "").trim();
+    resultsEl.innerHTML = q
+      ? `<p class="verse-search-status">正在更新结果…</p>`
+      : `<p class="verse-search-status">输入关键字开始搜索。</p>`;
+  }
+  overlay.removeAttribute("hidden");
+  syncToolbarSheetCardTop(overlay);
+  window.requestAnimationFrame(() => {
+    syncToolbarSheetCardTop(overlay);
+  });
+  document.body.classList.add("verse-search-open");
+  if (openBtn) openBtn.setAttribute("aria-expanded", "true");
+  document.removeEventListener("keydown", verseSearchOverlayEscHandler);
+  document.addEventListener("keydown", verseSearchOverlayEscHandler);
+  window.requestAnimationFrame(() => {
+    input?.focus();
+    if (input && typeof input.select === "function") input.select();
+    scheduleVerseSearch();
+  });
+}
+
+function initVerseSearchOverlay() {
+  const overlay = document.getElementById("verseSearchOverlay");
+  const openBtn = document.getElementById("verseSearchOpenBtn");
+  if (!overlay || !openBtn) return;
+
+  openBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openVerseSearchOverlay();
+  });
+
+  overlay.querySelectorAll("[data-verse-search-dismiss]").forEach((el) => {
+    el.addEventListener("click", () => closeVerseSearchOverlay());
+  });
+
+  overlay
+    .querySelector(".verse-search-card")
+    ?.addEventListener("click", (e) => e.stopPropagation());
+
+  overlay.querySelectorAll("[data-verse-search-scope]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      overlay.querySelectorAll("[data-verse-search-scope]").forEach((b) => {
+        b.classList.remove("active");
+      });
+      btn.classList.add("active");
+      saveVerseSearchPrefs({ scope: getVerseSearchScopeFromUI() });
+      scheduleVerseSearch();
+    });
+  });
+
+  document.getElementById("verseSearchInput")?.addEventListener("input", () => {
+    scheduleVerseSearch();
+  });
+}
+
 function markToolbarTriggerActive(panelId, active) {
   const mapping = {
-    bookChapterPanel: "bookChapterTrigger",
-    contentTypePanel: "contentTypeTrigger",
-    primaryVersionPanel: "primaryVersionTrigger",
-    favoritesPanel: "favoritesTrigger",
+    bookChapterPanel: ["bookChapterTrigger"],
+    primaryVersionPanel: ["primaryVersionTrigger"],
+    favoritesPanel: ["favoritesTrigger", "sideUserTag"],
   };
 
-  const trigger = document.getElementById(mapping[panelId]);
-  if (trigger) trigger.classList.toggle("active", !!active);
+  const ids = mapping[panelId] || [];
+  for (const id of ids) {
+    const trigger = document.getElementById(id);
+    if (!trigger) continue;
+    trigger.classList.toggle("active", !!active);
+    if (
+      (panelId === "primaryVersionPanel" ||
+        panelId === "bookChapterPanel" ||
+        panelId === "favoritesPanel") &&
+      trigger.hasAttribute("aria-expanded")
+    ) {
+      trigger.setAttribute("aria-expanded", active ? "true" : "false");
+    }
+  }
 }
 
 function renderAllSelectors() {
@@ -2476,12 +3102,71 @@ function renderChapterOptions() {
   el.value = String(state.frontState.chapter);
 }
 
+function renderChapterRibbonTag() {
+  const el = document.getElementById("sideUserTag");
+  if (!el) return;
+  const copy = getLocalizedCopy();
+  const key = getCurrentChapterFavoriteKey();
+  const saved = Boolean(key && state.chapterFavoriteKeys.has(key));
+  el.classList.toggle("book-side-extend-tag--chapter-saved", saved);
+  el.innerHTML = "";
+  el.setAttribute(
+    "aria-label",
+    copy.favoritesListOpenAria ||
+      copy.favoritesTitle ||
+      "打开收藏列表"
+  );
+  el.setAttribute("href", "#");
+}
+
+function toggleCurrentChapterFavorite() {
+  const key = getCurrentChapterFavoriteKey();
+  if (!key) return;
+  const versionId = state.frontState.primaryScriptureVersionId;
+  const bookId = state.frontState.bookId;
+  const chapter = Number(state.frontState.chapter || 0);
+  if (!versionId || !bookId || !chapter) return;
+
+  if (state.chapterFavoriteKeys.has(key)) {
+    state.chapterFavorites = (state.chapterFavorites || []).filter(
+      (x) => x.key !== key
+    );
+  } else {
+    const themeRaw = formatRepeatedWordsThemePlain(
+      state.studyContent?.repeatedWords || []
+    );
+    const themeLine =
+      themeRaw.length > 220 ? `${themeRaw.slice(0, 217)}…` : themeRaw;
+    state.chapterFavorites = [
+      {
+        key,
+        versionId,
+        bookId,
+        chapter,
+        themeLine,
+        createdAt: Date.now(),
+      },
+      ...(state.chapterFavorites || []),
+    ];
+  }
+  saveChapterFavorites();
+  renderToolbarTriggers();
+  renderFavoritesPanel();
+}
+
+function initChapterRibbonFavorite() {
+  const sideStar = document.getElementById("sideFavoritesListBtn");
+  if (sideStar) {
+    sideStar.addEventListener("click", (event) => {
+      event.preventDefault();
+      toggleCurrentChapterFavorite();
+    });
+  }
+}
+
 function renderToolbarTriggers() {
   const bookChapterTriggerText = document.getElementById(
     "bookChapterTriggerText"
-  );
-  const contentTypeTriggerText = document.getElementById(
-    "contentTypeTriggerText"
   );
   const qaViewTriggerText = document.getElementById("qaViewTriggerText");
   const primaryVersionTriggerText = document.getElementById(
@@ -2496,11 +3181,12 @@ function renderToolbarTriggers() {
   const copy = getLocalizedCopy();
 
   if (bookChapterTriggerText) {
-    bookChapterTriggerText.textContent = copy.triggerBook || "书卷";
+    bookChapterTriggerText.textContent = copy.triggerBook || "选书卷";
   }
 
-  if (contentTypeTriggerText) {
-    contentTypeTriggerText.textContent = copy.triggerVersion || "版本";
+  const verseSearchTriggerText = document.getElementById("verseSearchTriggerText");
+  if (verseSearchTriggerText) {
+    verseSearchTriggerText.textContent = copy.searchScripture || "搜经文";
   }
 
   if (qaViewTriggerText) {
@@ -2508,11 +3194,34 @@ function renderToolbarTriggers() {
   }
 
   if (primaryVersionTriggerText) {
-    primaryVersionTriggerText.textContent = copy.triggerTranslation || "译本";
+    primaryVersionTriggerText.textContent = copy.triggerTranslation || "选版本";
   }
   if (favoritesTriggerText) {
-    favoritesTriggerText.textContent = `${copy.favorites} (${(state.favorites || []).length})`;
+    const n =
+      (state.favorites || []).length +
+      (state.chapterFavorites || []).length +
+      (state.questionFavorites || []).length;
+    favoritesTriggerText.textContent = `${copy.favorites} (${n})`;
   }
+
+  const sideFavListBtn = document.getElementById("sideFavoritesListBtn");
+  if (sideFavListBtn) {
+    const key = getCurrentChapterFavoriteKey();
+    const chSaved = Boolean(key && state.chapterFavoriteKeys.has(key));
+    sideFavListBtn.classList.toggle(
+      "book-side-extend-list-btn--chapter-saved",
+      chSaved
+    );
+    sideFavListBtn.setAttribute(
+      "aria-label",
+      chSaved
+        ? copy.ribbonChapterSavedAria || "本页已收藏，点击取消收藏"
+        : copy.ribbonChapterSaveAria || "收藏当前章"
+    );
+    sideFavListBtn.setAttribute("aria-pressed", chSaved ? "true" : "false");
+  }
+
+  renderChapterRibbonTag();
 
   const showQuestions = state.frontState.showQuestions !== false;
   const showScripture = state.frontState.showScripture !== false;
@@ -2538,7 +3247,6 @@ function renderToolbarTriggers() {
 
 function renderToolbarPanels() {
   renderBookChapterPanel();
-  renderContentTypePanel();
   renderPrimaryVersionPanel();
   renderCompareVersionPanel(false);
   renderFavoritesPanel();
@@ -2668,76 +3376,84 @@ function renderBookChapterPanel() {
   });
 }
 
-function renderContentTypePanel() {
-  const list = document.getElementById("contentTypeList");
-  if (!list) return;
-
-  const options = state.bootstrap?.contentVersions || [];
-
-  list.innerHTML = options
-    .map((item) => {
-      const active =
-        item.id === state.frontState.contentVersion ? "active" : "";
-      return `<button type="button" class="option-item ${active}" data-content-type-id="${escapeHtml(
-        item.id
-      )}">${escapeHtml(getLocalizedContentVersionLabel(item))}</button>`;
-    })
-    .join("");
-
-  list.querySelectorAll("[data-content-type-id]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const nextId = btn.getAttribute("data-content-type-id");
-      if (!nextId) return;
-
-      state.frontState.contentVersion = nextId;
-      saveFrontState();
-      renderAllSelectors();
-      closeToolbarPanel("contentTypePanel");
-      await loadStudyContent();
-      renderStudyContent();
-    });
-  });
-
-}
-
 function renderPrimaryVersionPanel() {
-  const list = document.getElementById("primaryVersionList");
-  if (!list) return;
+  const cvSelect = document.getElementById("toolbarContentVersionSelect");
+  if (cvSelect) {
+    const cvOptions = state.bootstrap?.contentVersions || [];
+    cvSelect.innerHTML = cvOptions
+      .map((item) => {
+        return `<option value="${escapeHtml(item.id)}">${escapeHtml(
+          getLocalizedContentVersionLabel(item)
+        )}</option>`;
+      })
+      .join("");
+
+    const curCv = state.frontState.contentVersion;
+    if (cvOptions.some((x) => x.id === curCv)) {
+      cvSelect.value = curCv;
+    } else if (cvOptions[0]) {
+      cvSelect.value = cvOptions[0].id;
+    }
+
+    if (!cvSelect.dataset.toolbarContentVersionBound) {
+      cvSelect.dataset.toolbarContentVersionBound = "1";
+      cvSelect.addEventListener("change", async (e) => {
+        const nextId = e.target.value;
+        if (!nextId) return;
+
+        state.frontState.contentVersion = nextId;
+        saveFrontState();
+        renderAllSelectors();
+        closeToolbarPanel("primaryVersionPanel");
+        await loadStudyContent();
+        renderStudyContent();
+      });
+    }
+  }
+
   const copy = getLocalizedCopy();
   const primaryTitleEl = document.getElementById("primaryVersionSectionTitle");
   const compareTitleEl = document.getElementById("compareVersionSectionTitle");
   if (primaryTitleEl) primaryTitleEl.textContent = copy.primaryVersionSingle;
   if (compareTitleEl) compareTitleEl.textContent = copy.compareVersionMulti;
 
-  const options = getPrimaryVersionCandidates();
+  const primarySelect = document.getElementById("toolbarPrimaryVersionSelect");
+  if (primarySelect) {
+    const options = getPrimaryVersionCandidates();
+    primarySelect.innerHTML = options
+      .map((item) => {
+        const langTag = item.lang ? ` [${item.lang}]` : "";
+        return `<option value="${escapeHtml(item.id)}">${escapeHtml(
+          item.label + langTag
+        )}</option>`;
+      })
+      .join("");
 
-  list.innerHTML = options
-    .map((item) => {
-      const active =
-        item.id === state.frontState.primaryScriptureVersionId ? "active" : "";
-      const langTag = item.lang ? ` [${item.lang}]` : "";
-      return `<button type="button" class="version-item ${active}" data-primary-version-id="${escapeHtml(
-        item.id
-      )}">${escapeHtml(item.label + langTag)}</button>`;
-    })
-    .join("");
+    const cur = state.frontState.primaryScriptureVersionId;
+    if (options.some((x) => x.id === cur)) {
+      primarySelect.value = cur;
+    } else if (options[0]) {
+      primarySelect.value = options[0].id;
+    }
 
-  list.querySelectorAll("[data-primary-version-id]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const nextId = btn.getAttribute("data-primary-version-id");
-      if (!nextId) return;
+    if (!primarySelect.dataset.toolbarPrimaryBound) {
+      primarySelect.dataset.toolbarPrimaryBound = "1";
+      primarySelect.addEventListener("change", async (e) => {
+        const nextId = e.target.value;
+        if (!nextId) return;
 
-      state.frontState.primaryScriptureVersionId = nextId;
-      state.frontState.secondaryScriptureVersionIds = (
-        state.frontState.secondaryScriptureVersionIds || []
-      ).filter((id) => id !== nextId);
+        state.frontState.primaryScriptureVersionId = nextId;
+        state.frontState.secondaryScriptureVersionIds = (
+          state.frontState.secondaryScriptureVersionIds || []
+        ).filter((id) => id !== nextId);
 
-      syncContentLangWithPrimaryVersion();
-      saveFrontState();
-      renderAllSelectors();
-      await refreshCurrentPage();
-    });
-  });
+        syncContentLangWithPrimaryVersion();
+        saveFrontState();
+        renderAllSelectors();
+        await refreshCurrentPage();
+      });
+    }
+  }
 }
 
 function renderCompareVersionPanel(closePanelOnToggle = true) {
@@ -2896,7 +3612,7 @@ function updatePageTitle() {
     );
   }
   if (bookChapterTriggerText) {
-    bookChapterTriggerText.textContent = "书卷";
+    bookChapterTriggerText.textContent = getLocalizedCopy().triggerBook;
   }
   if (prevBottomBtn) prevBottomBtn.textContent = copy.prevChapter;
   if (nextBottomBtn) nextBottomBtn.textContent = copy.nextChapter;
@@ -3069,6 +3785,20 @@ function renderLevelStars(level) {
   const lv = Math.max(1, Math.min(12, Number(level) || 1));
   const starCount = Math.max(1, Math.min(5, Math.ceil(lv / 3)));
   return "★".repeat(starCount);
+}
+
+function formatRepeatedWordsThemePlain(items) {
+  if (!items || !items.length) return "";
+  return [...items]
+    .sort((a, b) => Number(b.count || 0) - Number(a.count || 0))
+    .map((item) => {
+      const word = String(item.word || "").trim();
+      if (!word) return "";
+      const count = Number(item.count || 0);
+      return count > 0 ? `${word} ×${count}` : word;
+    })
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function renderRepeatedWords(items) {
@@ -3476,14 +4206,10 @@ function initFavorites() {
       });
     }
     saveQuestionFavorites();
-  });
-
-  document.getElementById("clearFavoritesBtn")?.addEventListener("click", () => {
-    state.favorites = [];
-    saveFavorites();
     renderToolbarTriggers();
     renderFavoritesPanel();
   });
+
 }
 
 function renderSegmentCard(seg) {
