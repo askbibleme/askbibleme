@@ -665,6 +665,10 @@ function getLocalizedCopy() {
       prevChapter: "Previous",
       nextChapter: "Next",
       noContent: "No content yet for this chapter in the selected version/language.",
+      promoHelpAria:
+        "About Berean-style reading and AskBible.me (opens in new tab)",
+      bereanPromoLine1: "Berean-style study",
+      bereanPromoLine2: "Guided by questions · opens in new tab",
     };
   }
   if (lang === "es") {
@@ -714,6 +718,9 @@ function getLocalizedCopy() {
       prevChapter: "Anterior",
       nextChapter: "Siguiente",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
+      promoHelpAria: "Sobre el estilo Berea y AskBible.me (nueva pestana)",
+      bereanPromoLine1: "Estudio estilo Berea",
+      bereanPromoLine2: "Guiados por preguntas · se abre en pestana nueva",
     };
   }
   if (lang === "he") {
@@ -763,6 +770,9 @@ function getLocalizedCopy() {
       prevChapter: "הקודם",
       nextChapter: "הבא",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
+      promoHelpAria: "אודות לימוד בסגנון בראיים ו-AskBible.me (בלשונית חדשה)",
+      bereanPromoLine1: "לימוד בסגנון בראיים",
+      bereanPromoLine2: "מונחים בשאלות · נפתח בלשונית חדשה",
     };
   }
   return {
@@ -811,6 +821,9 @@ function getLocalizedCopy() {
     prevChapter: "上一章",
     nextChapter: "下一章",
     noContent: "这一章还没有该版本 / 该语言的内容。",
+    promoHelpAria: "了解庇哩亚式读经与 AskBible.me（新窗口打开）",
+    bereanPromoLine1: "庇哩亚式读经",
+    bereanPromoLine2: "让经文自己发声 · 新窗口打开",
   };
 }
 
@@ -832,6 +845,22 @@ function applyReaderI18n() {
   setText("#contentVersionSectionTitle", copy.triggerVersion || "问题类型");
   setText("#primaryVersionSectionTitle", copy.primaryVersionSingle);
   setText("#compareVersionSectionTitle", copy.compareVersionMulti);
+  const bereanLink = document.getElementById("bereanPromoLink");
+  if (bereanLink) {
+    const main = bereanLink.querySelector(".primary-version-promo-main");
+    const sub = bereanLink.querySelector(".primary-version-promo-sub");
+    if (main) main.textContent = copy.bereanPromoLine1 || "";
+    if (sub) sub.textContent = copy.bereanPromoLine2 || "";
+    bereanLink.setAttribute(
+      "aria-label",
+      `${copy.bereanPromoLine1 || ""}. ${copy.bereanPromoLine2 || ""}`
+    );
+  }
+  const sidePromoHelp = document.getElementById("sidePromoHelpLink");
+  if (sidePromoHelp && copy.promoHelpAria) {
+    sidePromoHelp.setAttribute("aria-label", copy.promoHelpAria);
+    sidePromoHelp.setAttribute("title", copy.promoHelpAria);
+  }
   setText("#exportPrettyPdfBtn", copy.export);
   setText("#favoritesPanelTitle", copy.favoritesTitle);
   setText("#favoritesTabPages", copy.favoritesSectionPageTitle || "");

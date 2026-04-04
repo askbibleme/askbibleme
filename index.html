@@ -13,15 +13,19 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=67" />
+    <link rel="stylesheet" href="/styles.css?v=73" />
   </head>
   <body>
     <div class="page-shell">
       <header class="site-topbar">
         <div class="site-topbar-title">
           <h1 id="brandTitle">
-            <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me" id="openAdminBtn">.me</span>
+            <a href="/" class="site-brand-link" title="AskBible.me 首页"
+              ><span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span></a
+            >
           </h1>
+          <!-- 仅供「账户菜单 → 管理后台」程序化触发，勿删 id -->
+          <button type="button" id="openAdminBtn" hidden aria-hidden="true" tabindex="-1"></button>
         </div>
       </header>
 
@@ -228,6 +232,15 @@
                   <span class="book-side-fav-star">★</span>
                 </span>
               </button>
+              <a
+                id="sidePromoHelpLink"
+                class="book-side-promo-help-link"
+                href="/promo.html"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span class="book-side-promo-help-glyph" aria-hidden="true">?</span>
+              </a>
             </div>
 
             <div class="page-title-block page-title-block-stacked">
@@ -399,6 +412,18 @@
             <div id="compareVersionList" class="version-grid version-grid-multi">
               <!-- JS 渲染 -->
             </div>
+          </div>
+          <div class="chapter-grid-wrap primary-version-promo-wrap">
+            <a
+              id="bereanPromoLink"
+              class="primary-version-promo-link"
+              href="/promo.html"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="primary-version-promo-main"></span>
+              <span class="primary-version-promo-sub"></span>
+            </a>
           </div>
         </div>
       </div>

@@ -135,6 +135,15 @@ body {
   letter-spacing: -0.4px;
 }
 
+.site-brand-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.site-brand-link:hover .brand-bible {
+  filter: brightness(1.06);
+}
+
 .brand-ask,
 .brand-me {
   color: #f6efe4;
@@ -142,10 +151,6 @@ body {
 
 .brand-bible {
   color: #f0be62;
-}
-
-.brand-me {
-  cursor: pointer;
 }
 
 .brand-subtitle {
@@ -1172,6 +1177,45 @@ button.member-hub-link:hover {
 
 .book-page.left-page > .book-side-extend-tags--stack .book-side-extend-list-btn {
   margin-left: 0;
+}
+
+/* 收藏星右侧：宣传页大号问号 */
+.book-side-promo-help-link {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 2px;
+  min-width: calc(48px * var(--font-scale));
+  min-height: calc(48px * var(--font-scale));
+  padding: 0 4px;
+  text-decoration: none;
+  border-radius: 14px;
+  color: #8a8a8a;
+  font-weight: 800;
+  font-size: calc(40px * var(--font-scale));
+  line-height: 1;
+  letter-spacing: 0;
+  user-select: none;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    transform 0.12s ease;
+}
+
+.book-side-promo-help-link:hover {
+  color: #6d5238;
+  background: rgba(242, 213, 138, 0.2);
+}
+
+.book-side-promo-help-link:active {
+  transform: scale(0.96);
+}
+
+.book-side-promo-help-glyph {
+  display: block;
+  transform: translateY(-0.04em);
 }
 
 .favorites-panel-book {
@@ -3488,6 +3532,47 @@ body.book-chapter-open {
 
 #primaryVersionPanel .toolbar-panel-simple {
   padding: 10px 12px 14px !important;
+}
+
+.primary-version-promo-wrap {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(190, 170, 140, 0.35);
+}
+
+.primary-version-promo-link {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 111, 71, 0.38);
+  background: rgba(139, 111, 71, 0.1);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease, filter 0.15s ease;
+}
+
+.primary-version-promo-link:hover {
+  background: rgba(139, 111, 71, 0.16);
+  filter: brightness(1.02);
+}
+
+.primary-version-promo-main {
+  display: block;
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.primary-version-promo-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 /* 书卷：与搜经文 / 选版本同壳 */
