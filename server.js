@@ -2399,53 +2399,13 @@ function requireQianfuzhangUser(req, res) {
   return authed;
 }
 
-function escapeHtmlText(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/** 管理后台单页 HTML：禁止未登录或非管理员直接打开（与 /api/admin/* 权限一致；文章发布中心为千夫长） */
-function sendAdminToolHtmlAuthDenied(res, status, message) {
-  const esc = escapeHtmlText(message);
-  const body =
-    "<!DOCTYPE html><html lang=\"zh-Hans\"><head><meta charset=\"utf-8\">" +
-    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    "<title>无权访问</title>" +
-    "<style>body{font-family:system-ui,-apple-system,sans-serif;padding:2rem;max-width:26rem;margin:0 auto;line-height:1.55;color:#3d3428;background:#faf6f0}</style>" +
-    `</head><body><p>${esc}</p><p><a href="/">返回首页</a> · 请登录后从<strong>后台管理</strong>内打开工具页。</p></body></html>`;
-  res.status(status).type("html; charset=utf-8").send(body);
-}
-
-function sendAdminToolHtmlPage(req, res, absolutePath, qianfuzhangOnly) {
-  const authed = getAuthedUserFromReq(req);
-  if (!authed) {
-    sendAdminToolHtmlAuthDenied(
-      res,
-      401,
-      "请先登录后再打开此管理页面。"
-    );
-    return;
-  }
-  if (qianfuzhangOnly) {
-    if (normalizeAdminRole(authed.adminRole || "") !== "qianfuzhang") {
-      sendAdminToolHtmlAuthDenied(
-        res,
-        403,
-        "需要千夫长权限才能使用文章发布中心。"
-      );
-      return;
-    }
-  } else if (!authedUserHasAdminAccess(authed)) {
-    sendAdminToolHtmlAuthDenied(
-      res,
-      403,
-      "需要管理员权限。请使用管理员账号从后台管理进入。"
-    );
-    return;
-  }
+/**
+ * 管理后台单页 HTML：直接 GET 即可返回静态文件（200），便于收藏链接与分享路径。
+ * 写操作仍走 /api/admin/*，由接口层校验登录、管理员或千夫长权限；勿在 HTML 层挡 401，否则易被误认为「页面未部署」。
+ */
+function sendAdminToolHtmlPage(req, res, absolutePath, _qianfuzhangOnly) {
+  void _qianfuzhangOnly;
+  void req;
   res.sendFile(path.resolve(absolutePath), (err) => {
     if (err) {
       console.warn("[admin-tool-html]", err.message);
