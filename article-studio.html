@@ -14,22 +14,12 @@
     <title>AskBible.me - 文章发布中心</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=26" />
+    <link rel="stylesheet" href="/styles.css?v=106" />
+    <link rel="stylesheet" href="/admin-shell.css?v=1" />
+    <script src="/theme-apply.js?v=2"></script>
   </head>
-  <body>
+  <body class="admin-shell-page" data-admin-current="/article-studio.html">
     <div class="page-shell">
-      <header class="site-topbar">
-        <div class="site-topbar-title">
-          <h1>
-            <span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>
-          </h1>
-        </div>
-        <div class="site-topbar-actions">
-          <a href="/notebook.html" class="site-topbar-link">文章中心</a>
-          <a href="/" class="site-topbar-link">读经</a>
-        </div>
-      </header>
-
       <main class="book-layout notebook-layout article-studio-app">
         <div class="book-spread notebook-article-spread">
           <section class="book-page article-studio-page">
@@ -80,10 +70,6 @@
           </section>
         </div>
       </main>
-      <footer class="site-footer">
-        <span class="site-footer-version">文章发布中心</span>
-        <span class="site-footer-copy">© 2026 AskBible.me</span>
-      </footer>
     </div>
 
     <script>
@@ -225,6 +211,17 @@
             cache: "no-store",
           });
           if (!res.ok) throw new Error();
+          const me = await res.json();
+          const role = String(me?.user?.adminRole || "").toLowerCase();
+          if (role !== "qianfuzhang") {
+            authBar.hidden = false;
+            authBar.innerHTML =
+              '文章发布中心仅限千夫长使用。请 <a href="/">返回首页</a> 从账户菜单进入（需具备相应权限）。';
+            sendBtn.disabled = true;
+            draftBtn.disabled = true;
+            publishBtn.disabled = true;
+            return false;
+          }
           authBar.hidden = true;
           sendBtn.disabled = false;
           return true;
@@ -331,5 +328,6 @@
       syncDraftButton();
       syncPublishButton();
     </script>
+    <script src="/admin-shell.js?v=1" defer></script>
   </body>
 </html>

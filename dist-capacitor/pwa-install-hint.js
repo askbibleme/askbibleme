@@ -1,5 +1,5 @@
 /**
- * 添加到主屏幕 / PWA 安装引导（index.html、notebook.html 共用）
+ * 添加到主屏幕 / PWA 安装引导（index.html 等页面共用）
  */
 (function () {
   const STORAGE_SNOOZE = "askbible_pwa_hint_snooze_until";

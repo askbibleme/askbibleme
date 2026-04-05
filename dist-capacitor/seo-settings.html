@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>SEO 设置 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=106" />
+    <link rel="stylesheet" href="/admin-shell.css?v=1" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .seo-page {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 20px 14px 48px;
+        box-sizing: border-box;
+      }
+      .seo-doc {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        padding: 22px 18px 28px;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.12);
+      }
+      .seo-doc h1 {
+        margin: 0 0 10px;
+        font-size: calc(22px * var(--font-scale));
+        color: var(--ink);
+      }
+      .seo-lead {
+        margin: 0 0 18px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+      .seo-field {
+        margin-bottom: 14px;
+      }
+      .seo-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .seo-field input[type="text"],
+      .seo-field textarea {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+      }
+      .seo-field textarea {
+        min-height: 72px;
+        resize: vertical;
+      }
+      .seo-hint {
+        margin: 6px 0 0;
+        font-size: 11px;
+        color: var(--muted-soft);
+        line-height: 1.45;
+      }
+      .seo-block {
+        margin-bottom: 26px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--line);
+      }
+      .seo-block:last-of-type {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+      .seo-block-title {
+        margin: 0 0 8px;
+        font-size: calc(16px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .seo-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .seo-status {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .seo-status.err {
+        color: #9a2c2c;
+        font-weight: 600;
+      }
+      .seo-auth {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #fff0ee;
+        border: 1px solid rgba(180, 35, 24, 0.35);
+        color: #7a1510;
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/seo-settings.html">
+    <div class="page-shell seo-page">
+      <main class="seo-doc">
+        <h1>SEO 设置</h1>
+        <p class="seo-lead">
+          管理浏览器标签标题、搜索引擎摘要、Open Graph / Twitter 卡片文案，以及 JSON-LD 中的描述字段。配置写入
+          <code>admin_data/site_seo.json</code>；读经首页与宣传页分别保存。静态 HTML 中的 canonical、og:url 等链接仍须自行部署时替换域名。
+        </p>
+        <p id="seoAuth" class="seo-auth" hidden></p>
+
+        <section class="seo-block" aria-labelledby="seoIdxHeading">
+          <h2 id="seoIdxHeading" class="seo-block-title">读经首页（index）</h2>
+          <p class="seo-hint" style="margin-bottom: 14px">
+            对应根路径 <code>/</code>。JSON-LD 无独立 WebPage 节点，仅可改 WebSite / SoftwareApplication 描述。
+          </p>
+          <div class="seo-field">
+            <label for="seoIdx_documentTitle">文档标题（浏览器标签）</label>
+            <input type="text" id="seoIdx_documentTitle" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_metaDescription">meta description</label>
+            <textarea id="seoIdx_metaDescription" rows="3"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_metaKeywords">meta keywords（逗号分隔）</label>
+            <input type="text" id="seoIdx_metaKeywords" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_ogTitle">og:title</label>
+            <input type="text" id="seoIdx_ogTitle" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_ogDescription">og:description</label>
+            <textarea id="seoIdx_ogDescription" rows="2"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_twitterTitle">twitter:title</label>
+            <input type="text" id="seoIdx_twitterTitle" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_twitterDescription">twitter:description</label>
+            <textarea id="seoIdx_twitterDescription" rows="2"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_appleMobileWebAppTitle">apple-mobile-web-app-title</label>
+            <input type="text" id="seoIdx_appleMobileWebAppTitle" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_ogSiteName">og:site_name</label>
+            <input type="text" id="seoIdx_ogSiteName" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_jsonLdWebsiteDescription">JSON-LD WebSite.description</label>
+            <textarea id="seoIdx_jsonLdWebsiteDescription" rows="2"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoIdx_jsonLdSoftwareDescription">JSON-LD SoftwareApplication.description</label>
+            <textarea id="seoIdx_jsonLdSoftwareDescription" rows="2"></textarea>
+          </div>
+        </section>
+
+        <section class="seo-block" aria-labelledby="seoProHeading">
+          <h2 id="seoProHeading" class="seo-block-title">宣传页（promo.html）</h2>
+          <div class="seo-field">
+            <label for="seoPro_documentTitle">文档标题（浏览器标签）</label>
+            <input type="text" id="seoPro_documentTitle" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_metaDescription">meta description</label>
+            <textarea id="seoPro_metaDescription" rows="3"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_metaKeywords">meta keywords（逗号分隔）</label>
+            <input type="text" id="seoPro_metaKeywords" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_ogTitle">og:title</label>
+            <input type="text" id="seoPro_ogTitle" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_ogDescription">og:description</label>
+            <textarea id="seoPro_ogDescription" rows="2"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_twitterTitle">twitter:title</label>
+            <input type="text" id="seoPro_twitterTitle" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_twitterDescription">twitter:description</label>
+            <textarea id="seoPro_twitterDescription" rows="2"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_appleMobileWebAppTitle">apple-mobile-web-app-title</label>
+            <input type="text" id="seoPro_appleMobileWebAppTitle" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_ogSiteName">og:site_name</label>
+            <input type="text" id="seoPro_ogSiteName" autocomplete="off" />
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_jsonLdWebsiteDescription">JSON-LD WebSite.description</label>
+            <textarea id="seoPro_jsonLdWebsiteDescription" rows="2"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_jsonLdSoftwareDescription">JSON-LD SoftwareApplication.description</label>
+            <textarea id="seoPro_jsonLdSoftwareDescription" rows="2"></textarea>
+          </div>
+          <div class="seo-field">
+            <label for="seoPro_jsonLdWebPageDescription">JSON-LD WebPage.description</label>
+            <textarea id="seoPro_jsonLdWebPageDescription" rows="2"></textarea>
+          </div>
+        </section>
+
+        <div class="seo-actions">
+          <button type="button" id="seoReloadBtn" class="secondary-btn">重新加载</button>
+          <button type="button" id="seoSaveBtn" class="primary-btn">保存到服务器</button>
+        </div>
+        <p id="seoStatus" class="seo-status" role="status"></p>
+      </main>
+    </div>
+
+    <script>
+      const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+      const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+      const SEO_IDX_FIELDS = [
+        "documentTitle",
+        "metaDescription",
+        "metaKeywords",
+        "ogTitle",
+        "ogDescription",
+        "twitterTitle",
+        "twitterDescription",
+        "appleMobileWebAppTitle",
+        "ogSiteName",
+        "jsonLdWebsiteDescription",
+        "jsonLdSoftwareDescription",
+      ];
+      const SEO_PRO_FIELDS = SEO_IDX_FIELDS.concat(["jsonLdWebPageDescription"]);
+
+      function getToken() {
+        return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+      }
+
+      function normalizeApiOrigin(raw) {
+        let s = String(raw || "").trim();
+        if (!s) return "";
+        s = s.replace(/\/+$/, "");
+        if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+        return s.replace(/\/+$/, "");
+      }
+
+      function isLikelyStaticDevServerPort(port) {
+        const p = String(port || "").trim();
+        if (!p) return false;
+        if (p === "5173" || p === "4173" || p === "8081") return true;
+        if (/^55\d{2}$/.test(p)) return true;
+        return false;
+      }
+
+      function getApiBase() {
+        const m = document.querySelector('meta[name="askbible-api-base"]');
+        const fromMeta = m && String(m.getAttribute("content") || "").trim();
+        if (fromMeta) return normalizeApiOrigin(fromMeta);
+        if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+          return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+        }
+        try {
+          const proto = window.location.protocol || "";
+          if (proto === "capacitor:" || proto === "file:") return DEFAULT_PRODUCTION_ORIGIN;
+          const h = window.location.hostname || "";
+          const port = window.location.port || "";
+          if (
+            (h === "localhost" || h === "127.0.0.1") &&
+            proto === "http:" &&
+            isLikelyStaticDevServerPort(port)
+          ) {
+            return "http://127.0.0.1:3000";
+          }
+        } catch (_) {}
+        return "";
+      }
+
+      function apiOriginRootFromNormalizedBase(normalized) {
+        if (!normalized) return "";
+        try {
+          const href = normalized.includes("://") ? normalized : "http://" + normalized;
+          const u = new URL(href);
+          return u.origin + "/";
+        } catch {
+          return "";
+        }
+      }
+
+      function apiUrl(path) {
+        const p = path.startsWith("/") ? path : "/" + path;
+        const base = getApiBase();
+        if (!base) return p;
+        const normalized = normalizeApiOrigin(base);
+        const root = apiOriginRootFromNormalizedBase(normalized);
+        if (root) {
+          try {
+            return new URL(p, root).href;
+          } catch {
+            /* fall through */
+          }
+        }
+        try {
+          const origin = normalized.endsWith("/") ? normalized : normalized + "/";
+          return new URL(p, origin).href;
+        } catch {
+          return String(base).replace(/\/$/, "") + p;
+        }
+      }
+
+      async function fetchSeoAdminJson(init) {
+        const res = await fetch(apiUrl("/api/admin/site-seo"), init);
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw.trim() ? JSON.parse(raw) : {};
+        } catch {
+          data = {};
+        }
+        if (!res.ok) {
+          throw new Error(data.error || "请求失败 " + res.status);
+        }
+        return data;
+      }
+
+      function setStatus(text, isErr) {
+        const el = document.getElementById("seoStatus");
+        el.textContent = text || "";
+        el.classList.toggle("err", Boolean(isErr));
+      }
+
+      function readPage(prefix, fields) {
+        const o = {};
+        for (let i = 0; i < fields.length; i++) {
+          const k = fields[i];
+          const el = document.getElementById(prefix + "_" + k);
+          if (el) o[k] = el.value;
+        }
+        return o;
+      }
+
+      function applyPage(prefix, fields, page) {
+        if (!page || typeof page !== "object") return;
+        for (let i = 0; i < fields.length; i++) {
+          const k = fields[i];
+          const el = document.getElementById(prefix + "_" + k);
+          if (el) el.value = page[k] != null ? String(page[k]) : "";
+        }
+      }
+
+      function applyForm(data) {
+        applyPage("seoIdx", SEO_IDX_FIELDS, data.index);
+        applyPage("seoPro", SEO_PRO_FIELDS, data.promo);
+      }
+
+      function collectPayload() {
+        return {
+          index: readPage("seoIdx", SEO_IDX_FIELDS),
+          promo: readPage("seoPro", SEO_PRO_FIELDS),
+        };
+      }
+
+      document.getElementById("seoReloadBtn").addEventListener("click", async function () {
+        if (!getToken()) {
+          setStatus("请先登录。", true);
+          return;
+        }
+        setStatus("加载中…", false);
+        try {
+          const data = await fetchSeoAdminJson({
+            headers: { Authorization: "Bearer " + getToken() },
+          });
+          applyForm(data);
+          setStatus("已加载。更新于 " + (data.updatedAt || "—"), false);
+        } catch (e) {
+          setStatus(String(e.message || e), true);
+        }
+      });
+
+      document.getElementById("seoSaveBtn").addEventListener("click", async function () {
+        if (!getToken()) {
+          setStatus("请先登录。", true);
+          return;
+        }
+        setStatus("保存中…", false);
+        try {
+          const body = collectPayload();
+          const saved = await fetchSeoAdminJson({
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getToken(),
+            },
+            body: JSON.stringify(body),
+          });
+          applyForm(saved);
+          setStatus("已保存。访客页会在下次打开时通过 seo-apply.js 拉取新文案。", false);
+        } catch (e) {
+          setStatus(String(e.message || e), true);
+        }
+      });
+
+      (async function init() {
+        const auth = document.getElementById("seoAuth");
+        if (!getToken()) {
+          auth.hidden = false;
+          auth.textContent = "请先在读经页登录管理员帐号。";
+          setStatus("未登录，无法加载或保存配置。", true);
+          return;
+        }
+        auth.hidden = true;
+        document.getElementById("seoReloadBtn").click();
+      })();
+    </script>
+    <script src="/admin-shell.js?v=1" defer></script>
+  </body>
+</html>

@@ -1,31 +1,22 @@
-/* 宣传页：单列 + 仅「左页」纸感（无全局 --book-spread-paper-gradient 的中缝横纹） */
+/*
+ * 宣传页 intro（promo.html）：单列 + 左页纸感。
+ * 中间 Markdown 区为「文章标准模板」：色、字号、列表圆点、引用竖线、分割线等
+ * 一律用 var(--promo-*)，默认值在 src/color-themes-builtin.js，配色管理页集中可调。
+ * 本文件只保留布局结构与少量媒体查询覆盖。
+ */
 
 .promo-page-body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* 页面整体（宣传页）；宽度可由自定义 CSS「===layout===」以上段落里写 --promo-shell-max-width 覆盖 */
-  --promo-shell-max-width: 680px;
-  /* 正文区左右留白（书页内边距）；自定义 CSS 里可覆盖 --promo-pad-x */
-  --promo-pad-x: 20px;
-  /* 中间 Markdown 正文最大宽度（居中）；自定义 CSS 可覆盖 */
-  --promo-text-max-width: 500px;
-  font-size: 16px;
-  line-height: 1.7;
-  color: #2d2925;
-  /* 由大屏双页左半幅色感拉满整卡，无 50% 书脊色带 */
-  --promo-left-page-paper: linear-gradient(
-    90deg,
-    #faf6ee 0%,
-    #fbf7f0 22%,
-    #fffdf8 52%,
-    #fcf9f4 100%
-  );
+  font-size: var(--promo-md-font-size, 16px);
+  line-height: var(--promo-md-line-height, 1.7);
+  color: var(--promo-md-text, var(--ink, #2d2925));
 }
 
 /* 顶栏 / 页脚与下方书卡同宽居中，logo 与书页一体、宽屏不再错位 */
 .promo-page-body .page-shell > .site-topbar,
 .promo-page-body .page-shell > .site-footer {
-  max-width: min(var(--promo-shell-max-width), calc(100% - 8px));
+  max-width: min(var(--promo-shell-max-width, 680px), calc(100% - 8px));
   margin-left: auto;
   margin-right: auto;
   width: 100%;
@@ -33,7 +24,7 @@
 }
 
 .promo-book-layout.book-layout {
-  max-width: min(var(--promo-shell-max-width), calc(100% - 8px));
+  max-width: min(var(--promo-shell-max-width, 680px), calc(100% - 8px));
   margin: 0 auto;
   /* 标准模板：去掉书卡外阴影框感 */
   box-shadow: none;
@@ -61,7 +52,10 @@
       rgba(120, 96, 63, 0.02),
       transparent 55%
     ),
-    var(--promo-left-page-paper);
+    var(
+      --promo-left-page-paper,
+      linear-gradient(90deg, #faf6ee 0%, #fbf7f0 22%, #fffdf8 52%, #fcf9f4 100%)
+    );
   background-size: 28px 100%, 32px 100%, 100% 100%;
   background-position: left top, right top, left center;
   background-repeat: no-repeat, no-repeat, no-repeat;
@@ -80,9 +74,9 @@
   min-height: 0;
   padding-top: 28px;
   padding-bottom: 32px;
-  padding-left: var(--promo-pad-x);
-  padding-right: var(--promo-pad-x);
-  --book-pad-left: var(--promo-pad-x);
+  padding-left: var(--promo-pad-x, 20px);
+  padding-right: var(--promo-pad-x, 20px);
+  --book-pad-left: var(--promo-pad-x, 20px);
 }
 
 @media (max-width: 720px) {
@@ -91,8 +85,8 @@
   }
 
   .promo-book-page.book-page {
-    padding: 22px var(--promo-pad-x) 26px;
-    --book-pad-left: var(--promo-pad-x);
+    padding: 22px var(--promo-pad-x, 16px) 26px;
+    --book-pad-left: var(--promo-pad-x, 16px);
   }
 }
 
@@ -112,7 +106,7 @@
 .promo-md-shell > .promo-md-root,
 .promo-md-shell > .promo-md-empty {
   width: 100%;
-  max-width: var(--promo-text-max-width);
+  max-width: var(--promo-text-max-width, 500px);
   margin-left: auto;
   margin-right: auto;
   box-sizing: border-box;
@@ -123,9 +117,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1.25rem var(--promo-pad-x) 1.5rem;
+  padding: 1.25rem var(--promo-pad-x, 20px) 1.5rem;
   margin: 0 auto;
-  max-width: var(--promo-text-max-width);
+  max-width: var(--promo-text-max-width, 500px);
   width: 100%;
   box-sizing: border-box;
 }
@@ -206,7 +200,7 @@
   font-size: calc(15px * var(--font-scale));
   color: var(--muted);
   text-align: center;
-  padding: 1.25rem var(--promo-pad-x);
+  padding: 1.25rem var(--promo-pad-x, 20px);
 }
 
 .promo-markdown-editor-wrap,
@@ -239,7 +233,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.5;
-  padding: 10px var(--promo-pad-x);
+  padding: 10px var(--promo-pad-x, 20px);
   border-radius: 0;
   border: none;
   background: transparent;
@@ -259,25 +253,28 @@
 
 /* Markdown 正文区排版（不影响顶栏 Logo 的 h1） */
 .promo-md-root {
-  font-size: 16px;
-  line-height: 1.7;
-  color: #2d2925;
+  font-family: var(--promo-font-body, inherit);
+  font-size: var(--promo-md-font-size, 16px);
+  line-height: var(--promo-md-line-height, 1.7);
+  color: var(--promo-md-text, var(--ink, #2d2925));
 }
 
 .promo-md-root h1 {
-  font-size: 48px;
-  line-height: 1.2;
-  font-weight: 700;
-  margin: 0 0 24px;
-  color: #2d2925;
+  font-family: var(--promo-font-heading, var(--promo-font-body, inherit));
+  font-size: var(--promo-h1-font-size, 48px);
+  line-height: var(--promo-h1-line-height, 1.2);
+  font-weight: var(--promo-h1-font-weight, 700);
+  margin: 0 0 var(--promo-h1-margin-bottom, 24px);
+  color: var(--promo-h1-color, var(--ink, #2d2925));
 }
 
 .promo-md-root h2 {
-  font-size: 30px;
-  line-height: 1.3;
-  font-weight: 600;
-  margin: 56px 0 16px;
-  color: #2d2925;
+  font-family: var(--promo-font-heading, var(--promo-font-body, inherit));
+  font-size: var(--promo-h2-font-size, 30px);
+  line-height: var(--promo-h2-line-height, 1.3);
+  font-weight: var(--promo-h2-font-weight, 600);
+  margin: var(--promo-h2-margin-top, 56px) 0 var(--promo-h2-margin-bottom, 16px);
+  color: var(--promo-h2-color, var(--ink, #2d2925));
 }
 
 /* 仅全文第一个标题贴顶，后续区块内 h2 仍保留段前距 */
@@ -288,11 +285,12 @@
 }
 
 .promo-md-root h3 {
-  font-size: 21px;
-  line-height: 1.4;
-  font-weight: 600;
-  margin: 28px 0 10px;
-  color: #2d2925;
+  font-family: var(--promo-font-heading, var(--promo-font-body, inherit));
+  font-size: var(--promo-h3-font-size, 21px);
+  line-height: var(--promo-h3-line-height, 1.4);
+  font-weight: var(--promo-h3-font-weight, 600);
+  margin: var(--promo-h3-margin-top, 28px) 0 var(--promo-h3-margin-bottom, 10px);
+  color: var(--promo-h3-color, var(--ink, #2d2925));
 }
 
 .promo-md-root > h3:first-child,
@@ -301,17 +299,26 @@
 }
 
 .promo-md-root p {
-  margin: 0 0 14px;
+  margin: 0 0 var(--promo-p-margin-bottom, 14px);
 }
 
 .promo-md-root ul,
 .promo-md-root ol {
-  margin: 12px 0 16px 20px;
+  margin: var(--promo-list-margin-top, 12px) 0 var(--promo-list-margin-bottom, 16px)
+    var(--promo-list-margin-left, 20px);
   padding: 0;
 }
 
+.promo-md-root ul > li::marker {
+  color: var(--promo-list-marker, var(--accent, #8b6f47));
+}
+
+.promo-md-root ol > li::marker {
+  color: var(--promo-list-marker, var(--accent, #8b6f47));
+}
+
 .promo-md-root li {
-  margin-bottom: 6px;
+  margin-bottom: var(--promo-li-margin-bottom, 6px);
 }
 
 .promo-md-root li:last-child {
@@ -319,7 +326,7 @@
 }
 
 .promo-md-root a {
-  color: var(--accent);
+  color: var(--promo-md-link-color, var(--accent));
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -329,16 +336,17 @@
 }
 
 .promo-md-root strong {
-  font-weight: 600;
+  font-weight: var(--promo-strong-font-weight, 600);
 }
 
 .promo-md-root blockquote {
-  border-left: 3px solid #8b6f47;
-  padding-left: 14px;
-  margin: 18px 0;
-  font-size: 17px;
-  line-height: 1.7;
-  color: #5c5348;
+  border-left: var(--promo-blockquote-border-width, 3px) solid
+    var(--promo-blockquote-border, var(--accent, #8b6f47));
+  padding-left: var(--promo-blockquote-padding-left, 14px);
+  margin: var(--promo-blockquote-margin-vertical, 18px) 0;
+  font-size: var(--promo-blockquote-font-size, 17px);
+  line-height: var(--promo-blockquote-line-height, 1.7);
+  color: var(--promo-blockquote-text, var(--muted, #5c5348));
   background: transparent;
   border-radius: 0;
 }
@@ -347,7 +355,7 @@
   font-size: 0.9em;
   padding: 0.12em 0.35em;
   border-radius: 4px;
-  background: rgba(139, 111, 71, 0.12);
+  background: var(--promo-code-bg, var(--accent-soft, rgba(139, 111, 71, 0.12)));
   color: var(--ink);
 }
 
@@ -355,7 +363,7 @@
   margin: 0.75rem 0;
   padding: 0.85rem 0;
   border-radius: 0;
-  background: rgba(74, 68, 63, 0.04);
+  background: var(--promo-pre-bg, rgba(74, 68, 63, 0.04));
   border: none;
   overflow-x: auto;
 }
@@ -366,9 +374,12 @@
 }
 
 .promo-md-root hr {
-  margin: 40px 0;
+  margin: var(--promo-hr-margin-vertical, 40px) 0;
   border: none;
-  border-top: 1px solid rgba(205, 193, 176, 0.5);
+  border-top: var(
+    --promo-md-hr-border,
+    1px solid var(--line, rgba(205, 193, 176, 0.5))
+  );
   height: 0;
   background: none;
 }
@@ -402,10 +413,10 @@
 
 .promo-kicker {
   margin: 1.25rem 0 0.35rem;
-  font-size: calc(12px * var(--font-scale));
-  letter-spacing: 0.14em;
+  font-size: var(--promo-kicker-font-size, calc(12px * var(--font-scale, 1)));
+  letter-spacing: var(--promo-kicker-letter-spacing, 0.14em);
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--promo-kicker-color, var(--muted));
   text-align: center;
 }
 

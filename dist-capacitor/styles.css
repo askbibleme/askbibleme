@@ -10,6 +10,22 @@
     #fffdf8 53%,
     #faf6ee 100%
   );
+  /* 弹层用纸：与单栏 .book-spread 一致，整卡≈左半页（横纹拉宽 200%，书脊在右缘） */
+  --modal-half-book-paper-image: linear-gradient(
+      to right,
+      rgba(120, 96, 63, 0.12),
+      rgba(120, 96, 63, 0.04),
+      transparent 100%
+    ),
+    linear-gradient(
+      to left,
+      rgba(120, 96, 63, 0.12),
+      rgba(120, 96, 63, 0.04),
+      transparent 100%
+    ),
+    var(--book-spread-paper-gradient);
+  --modal-half-book-paper-size: 24px 100%, 24px 100%, 200% 100%;
+  --modal-half-book-paper-position: left top, right top, left center;
   --paper-soft: #f8f2e8;
   --paper-edge: #eadcc8;
   --ink: #2d2925;
@@ -59,6 +75,20 @@
   --ui-seg-pill-bg: #f8f4ec;
   --ui-seg-pill-shadow: 0 1px 2px rgba(76, 62, 42, 0.2);
   --ui-seg-hover-fill: rgba(248, 244, 236, 0.4);
+  /* 顶栏拉丁字标（Ask / Bible / .me）：与正文中文栈分离，跨 iOS / Android 一致 */
+  --font-brand-logo: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Inter 可变字体 · Latin 子集自托管（SIL Open Font License 1.1）— 仅用于顶栏 h1 字标 */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 * {
@@ -117,20 +147,55 @@ body {
   margin-bottom: 8px;
 }
 
+/* 读经页 / 宣传页等：顶栏与下方书卡衔接；右侧（导航 pill + 会员书签）整体左移 30px */
+.page-shell > .site-topbar:has(+ .book-layout) {
+  margin-bottom: 0;
+}
+
+/* 有顶栏副标题时：与下方纸张（书卡）之间增加 5px 竖直间距 */
+.page-shell
+  > .site-topbar:has(+ .book-layout):has(
+    .askbible-chrome-brand-subline-row:not([hidden])
+  ) {
+  padding-bottom: 5px;
+  box-sizing: border-box;
+}
+
+.page-shell > .site-topbar:has(+ .book-layout) .site-topbar-title {
+  margin-top: -5px;
+}
+
+.page-shell > .site-topbar:has(+ .book-layout) .site-topbar-actions {
+  margin-right: 30px;
+}
+
+/* 会员面板在 header 内、main 书卡在 DOM 后；抬高顶栏叠层，避免下拉被书卡盖住 */
+.page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
+  position: relative;
+  z-index: 250;
+}
+
+@media (min-width: 1101px) {
+  .page-shell > .site-topbar:has(+ .book-layout) {
+    align-items: flex-end;
+  }
+}
+
 .site-topbar-title {
   min-width: 0;
-  /* 固定内边距：与书页左内边距一致，宽屏不随 vw 漂移 */
-  margin-left: 34px;
-  margin-top: 4px;
+  /* 固定内边距：与书页左内边距一致，宽屏不随 vw 漂移（较书页左 pad 少 10px） */
+  margin-left: 24px;
+  margin-top: -1px;
 }
 
 .notebook-topbar .site-topbar-title {
   margin-left: 0;
-  margin-top: 0;
+  margin-top: -5px;
 }
 
 .site-topbar-title h1 {
   margin: 0;
+  font-family: var(--font-brand-logo);
   font-size: calc(32px * var(--font-scale));
   line-height: 1.05;
   font-weight: 800;
@@ -196,6 +261,228 @@ body {
 .site-topbar-link:hover {
   color: var(--ui-text-hover);
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* 后台配置的顶栏导航：深色上圆角标签（与全站顶栏槽位内链接一致） */
+.askbible-chrome-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.askbible-chrome-nav .askbible-chrome-nav-pill {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 8px;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  padding: 5px 18px 7px;
+  background-color: #2b2823;
+  border: none;
+  border-radius: 14px 14px 0 0;
+  white-space: nowrap;
+  line-height: 1.2;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.askbible-chrome-nav .askbible-chrome-nav-pill:hover {
+  color: #fff;
+  background-color: #36332d;
+}
+
+.askbible-chrome-nav .askbible-chrome-nav-pill:focus-visible {
+  outline: 2px solid var(--brand-bible);
+  outline-offset: 2px;
+}
+
+.askbible-chrome-nav-pill-text {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.askbible-chrome-nav-pill-icon {
+  flex-shrink: 0;
+  opacity: 0.95;
+  display: block;
+  transform: translateY(2px);
+}
+
+.askbible-chrome-nav-pill--icon-only {
+  position: relative;
+  justify-content: center;
+  padding-left: 12px;
+  padding-right: 12px;
+  gap: 0;
+}
+
+.askbible-chrome-nav-pill--icon-only .askbible-chrome-nav-pill-icon {
+  margin: 0;
+}
+
+/* 仅图标模式：文案仅供读屏，不占版面 */
+.askbible-chrome-nav-pill-text--sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  max-width: 1px;
+  max-height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.askbible-chrome-brand-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px 10px;
+  flex-wrap: wrap;
+}
+
+.askbible-chrome-brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+/* 网页介绍：与主标题同一行，竖线分隔（如 AskBible.me | 读经平台 · 在线查经） */
+.askbible-chrome-brand-text.askbible-chrome-brand-text--inline {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 100%;
+}
+
+.askbible-chrome-brand-head-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.askbible-chrome-brand-text--inline .askbible-chrome-brand-head-row h1 {
+  margin: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.askbible-chrome-brand-inline-sep {
+  flex-shrink: 0;
+  color: var(--ui-text);
+  opacity: 0.72;
+  font-weight: 700;
+  font-size: calc(15px * var(--font-scale));
+  user-select: none;
+  line-height: 1;
+}
+
+.askbible-chrome-brand-subline-row--inline-tail {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  flex: 1 1 120px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
+.askbible-chrome-brand-subline-row--inline-tail .askbible-chrome-brand-inline-sep {
+  flex-shrink: 0;
+}
+
+.askbible-chrome-brand-subline--inline {
+  flex: 1 1 120px;
+  min-width: 0;
+  margin: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.askbible-chrome-brand-subline-row--inline-tail .askbible-chrome-brand-subline-dismiss {
+  flex-shrink: 0;
+}
+
+.askbible-chrome-brand-subline-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* 副标题单独在主标题下方时：与主标题（品牌字）间距（内联一行模式不加） */
+.askbible-chrome-brand-text:not(.askbible-chrome-brand-text--inline)
+  .askbible-chrome-brand-subline-row:not([hidden]):not(
+    .askbible-chrome-brand-subline-row--inline-tail
+  ) {
+  margin-top: 3px;
+}
+
+.askbible-chrome-brand-subline-row[hidden] {
+  display: none !important;
+}
+
+.askbible-chrome-brand-text .askbible-chrome-brand-subline {
+  display: block;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--muted-soft);
+  font-size: calc(13px * var(--font-scale));
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+.askbible-chrome-brand-subline-dismiss {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 5px;
+  min-width: 28px;
+  height: 24px;
+  line-height: 22px;
+  border-radius: 8px;
+  border: 1px solid rgba(216, 201, 178, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted-soft);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.askbible-chrome-brand-subline-dismiss:hover {
+  color: var(--ui-text-hover);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.askbible-chrome-brand-plain {
+  color: #f6efe4;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.site-footer-line {
+  margin: 0;
+  text-align: center;
+}
+
+.vision-global-topbar {
+  margin-bottom: 10px;
 }
 
 /* 顶栏会员入口 */
@@ -350,34 +637,10 @@ body {
   pointer-events: auto;
 }
 
-.member-bookmark-wrap .member-bookmark-promo-help-link {
-  pointer-events: auto;
-  margin-left: 0;
-  min-width: calc(36px * var(--font-scale));
-  min-height: calc(36px * var(--font-scale));
-  font-size: calc(28px * var(--font-scale));
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: 0;
-  border-radius: 12px;
-  /* 无底色，仅「?」用 Logo 金黄（与顶栏 Bible 同色） */
-  color: var(--brand-bible);
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  text-shadow: none;
-  filter: none;
-}
-
-.member-bookmark-wrap .member-bookmark-promo-help-link:hover {
-  color: #ffc85c;
-  background: transparent;
-  filter: brightness(1.06);
-}
-
-.member-bookmark-wrap .member-bookmark-promo-help-link:active {
-  filter: brightness(0.94);
-  transform: scale(0.96);
+/* 读经首页书卡不应含宣传页的 .member-bookmark-wrap；若误插入或旧壳残留，会在书页右上缘出现多余控件。宣传页 .promo-book-layout 保留书签式会员条。 */
+.page-shell > .book-layout:not(.promo-book-layout) .member-bookmark-wrap {
+  display: none !important;
+  pointer-events: none !important;
 }
 
 .member-hub--bookmark.member-hub {
@@ -504,7 +767,7 @@ body {
   border-radius: 18px 18px 0 0;
   /* 无浅色描边/顶内高光，避免默认「白边」；仅底边与书卡分界 */
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.38);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.22);
   background: linear-gradient(180deg, #423c36 0%, #35302b 42%, #2d2925 100%);
   color: #efe8dc;
   font-size: calc(13px * var(--font-scale));
@@ -516,7 +779,7 @@ body {
 }
 
 .member-hub--bookmark .member-hub-trigger:hover {
-  border-bottom-color: rgba(0, 0, 0, 0.48);
+  border-bottom-color: rgba(0, 0, 0, 0.3);
   filter: brightness(1.08);
   color: #fffdf8;
 }
@@ -527,59 +790,359 @@ body {
 }
 
 .member-hub--bookmark .member-hub-trigger[aria-expanded="true"] {
-  border-bottom-color: rgba(0, 0, 0, 0.5);
+  border-bottom-color: rgba(0, 0, 0, 0.34);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(0, 0, 0, 0.28),
     0 4px 14px rgba(0, 0, 0, 0.32);
 }
 
-.member-hub--bookmark .member-hub-panel {
-  top: calc(100% + 12px);
-  /* 与顶栏同系深色，登入/未登入一致 */
-  background: linear-gradient(180deg, #3a3530 0%, #2a2622 100%);
-  border: 1px solid rgba(216, 201, 178, 0.28);
-  box-shadow:
-    0 16px 44px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+/* 读经首页：无可见会员按钮，仅保留锚点供「会员」导航链接触发面板 */
+.member-hub--anchor-only.member-hub {
+  position: relative;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  align-self: flex-end;
+  overflow: visible;
+  filter: none;
 }
 
-.member-hub--bookmark .member-hub-panel::before {
-  right: 50%;
-  transform: translateX(50%) rotate(45deg);
-  background: #3a3530;
-  border-left-color: rgba(216, 201, 178, 0.26);
-  border-top-color: rgba(216, 201, 178, 0.26);
+/* 顶栏锚点模式：按钮仅作编程入口，不得露出；避免 .member-hub-trigger 的 display 压过 [hidden] 或溢出 0×0 容器时在书卡右缘出现「免费注册」残字 */
+.member-hub--anchor-only #memberHubTrigger {
+  display: none !important;
 }
 
-.member-hub-panel {
-  position: absolute;
-  right: 0;
-  left: auto;
-  top: calc(100% + 10px);
-  z-index: 400;
+/* 账户菜单：壳与内层分区同「选版本」#primaryVersionPanel（toolbar-panel-inner + chapter-grid-wrap） */
+#memberHubPanel.member-hub-overlay {
+  z-index: 222;
+  align-items: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: max(12px, env(safe-area-inset-top))
+    max(14px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+}
+
+#memberHubPanel .member-hub-modal-card {
+  width: min(100%, 520px);
+  max-height: min(82vh, 680px);
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--paper);
+  background-image: var(--modal-half-book-paper-image);
+  background-size: var(--modal-half-book-paper-size);
+  background-position: var(--modal-half-book-paper-position);
+  background-repeat: no-repeat;
+  border: 1px solid var(--panel-line);
+  box-shadow: var(--shadow-md);
+  border-radius: 18px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#memberHubPanel .toolbar-panel-inner.toolbar-panel-simple {
+  max-height: none !important;
+  height: auto !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  padding: 10px 12px 14px !important;
+}
+
+#memberHubPanel .toolbar-panel-inner::before {
+  display: none !important;
+}
+
+#memberHubPanel .toolbar-panel-head {
+  flex-shrink: 0;
+  margin-bottom: 0 !important;
+}
+
+#memberHubPanel .toolbar-panel-title {
+  color: var(--ink);
+  font-weight: 800 !important;
+  letter-spacing: 0.02em;
+}
+
+#memberHubPanel .toolbar-panel-close {
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
+#memberHubPanel .chapter-grid-wrap {
+  border-top: none !important;
+  margin-top: 12px;
+  padding: 8px 0 6px !important;
+  border-radius: 0;
+  background: transparent !important;
+}
+
+#memberHubPanel .chapter-grid-wrap:first-of-type {
+  margin-top: 6px;
+}
+
+#memberHubPanel .chapter-grid-wrap + .chapter-grid-wrap {
+  margin-top: 14px;
+}
+
+#memberHubPanel .chapter-grid-title {
+  font-size: calc(18px * var(--font-scale));
+  font-weight: 900;
+  color: #8f6518;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+#memberHubPanel .member-hub-guest-hint {
+  margin: 0;
+  font-size: calc(14px * var(--font-scale));
+  line-height: 1.65;
+  font-weight: 600;
+  color: rgba(74, 68, 63, 0.92);
+}
+
+#memberHubPanel .member-hub-link-grid.version-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* 普通用户菜单：偏白底，与下方千夫长区块对比 */
+#memberHubPanel .member-hub-link-grid--user .member-hub-menu-item {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(175, 158, 132, 0.38);
+}
+
+#memberHubPanel .member-hub-link-grid--user .member-hub-menu-item:hover {
+  background: #fff;
+  border-color: rgba(130, 115, 92, 0.55);
+}
+
+/* 千夫长站点管理：整块暖色底 + 顶部分隔，与普通功能区明显区分 */
+#memberHubPanel .member-hub-qian-section {
+  margin-top: 18px;
+  padding: 14px 12px 12px !important;
+  border-radius: 14px;
+  border: 1px solid rgba(200, 155, 72, 0.42);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 214, 150, 0.2) 0%,
+    rgba(255, 244, 220, 0.55) 48%,
+    rgba(255, 250, 242, 0.75) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+#memberHubPanel .member-hub-qian-section .member-hub-qian-section__title,
+#memberHubPanel .member-hub-qian-section__title {
+  color: #9a6a10;
+  margin-bottom: 10px;
+  font-size: calc(16px * var(--font-scale));
+  letter-spacing: 0.03em;
+}
+
+#memberHubPanel .member-hub-link-grid--qian #memberHubAdminBtn {
+  grid-column: 1 / -1;
+}
+
+#memberHubPanel .member-hub-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 44px;
+  padding: 10px 12px;
+  margin: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(190, 170, 140, 0.4);
+  background: rgba(255, 253, 248, 0.66);
+  color: var(--muted);
+  font: inherit;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   box-sizing: border-box;
-  width: min(340px, calc(100vw - 24px));
-  min-width: 0;
-  padding: 16px 16px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(216, 201, 178, 0.28);
-  background: linear-gradient(180deg, #3a3530 0%, #2a2622 100%);
-  box-shadow:
-    0 16px 44px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.member-hub-panel::before {
-  content: "";
-  position: absolute;
-  top: -6px;
-  right: 18px;
-  width: 12px;
-  height: 12px;
-  background: #3a3530;
-  border-left: 1px solid rgba(216, 201, 178, 0.26);
-  border-top: 1px solid rgba(216, 201, 178, 0.26);
-  transform: rotate(45deg);
+#memberHubPanel .member-hub-menu-item:hover {
+  background: #fffdf8;
+  border-color: rgba(150, 130, 100, 0.7);
+  color: var(--ink);
+}
+
+#memberHubPanel .member-hub-menu-item--admin {
+  color: #7a5a24;
+  background: rgba(255, 184, 46, 0.1);
+  border-color: rgba(200, 155, 60, 0.38);
+}
+
+#memberHubPanel .member-hub-menu-item--admin:hover {
+  color: #5c4318;
+  background: rgba(255, 184, 46, 0.18);
+}
+
+#memberHubPanel .member-hub-logout-wrap {
+  margin-top: 4px;
+  padding-top: 4px !important;
+}
+
+#memberHubPanel .member-hub-logout-wrap .member-hub-menu-item--danger {
+  width: 100%;
+  justify-content: center;
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.28);
+  background: rgba(255, 253, 248, 0.75);
+}
+
+#memberHubPanel .member-hub-logout-wrap .member-hub-menu-item--danger:hover {
+  background: rgba(180, 35, 24, 0.08);
+  color: #8a1c14;
+  border-color: rgba(180, 35, 24, 0.4);
+}
+
+#memberHubPanel .member-hub-identity {
+  padding: 12px 14px;
+  border: 1px solid rgba(190, 170, 140, 0.45);
+  border-radius: 12px;
+  background: rgba(255, 253, 248, 0.85);
+}
+
+/* 已登录：资料 + 快捷入口合并为一张卡片，避免单按钮落在双列网格留白 */
+#memberHubPanel .member-hub-member-sheet {
+  margin-top: 0;
+  padding: 16px 14px 14px !important;
+  border-radius: 16px;
+  border: 1px solid rgba(190, 170, 140, 0.34);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.94) 0%,
+    rgba(255, 252, 246, 0.9) 55%,
+    rgba(255, 249, 240, 0.88) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 10px 28px rgba(74, 56, 38, 0.07);
+}
+
+#memberHubPanel .member-hub-member-sheet__label {
+  margin: 0 0 12px;
+  font-size: calc(11px * var(--font-scale));
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(143, 101, 24, 0.78);
+}
+
+#memberHubPanel .member-hub-identity--in-sheet {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  gap: 14px;
+}
+
+#memberHubPanel .member-hub-member-sheet .member-hub-avatar {
+  width: 52px;
+  height: 52px;
+  font-size: calc(20px * var(--font-scale));
+  box-shadow: 0 2px 10px rgba(80, 60, 40, 0.1);
+}
+
+#memberHubPanel .member-hub-sheet-divider {
+  height: 1px;
+  margin: 16px 0 10px;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(190, 170, 140, 0.38) 50%,
+    transparent 100%
+  );
+}
+
+#memberHubPanel .member-hub-sheet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+#memberHubPanel .member-hub-row-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 10px 10px 8px;
+  margin: 0;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#memberHubPanel .member-hub-row-link:hover {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(190, 170, 140, 0.28);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+
+#memberHubPanel .member-hub-row-link:focus-visible {
+  outline: 2px solid rgba(200, 155, 60, 0.5);
+  outline-offset: 2px;
+}
+
+#memberHubPanel .member-hub-row-link__main {
+  min-width: 0;
+  flex: 1;
+}
+
+#memberHubPanel .member-hub-row-link__title {
+  display: block;
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+#memberHubPanel .member-hub-row-link__hint {
+  display: block;
+  margin-top: 3px;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(106, 96, 86, 0.88);
+}
+
+#memberHubPanel .member-hub-row-link__chev {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 2px solid rgba(120, 100, 80, 0.42);
+  border-bottom: 2px solid rgba(120, 100, 80, 0.42);
+  transform: rotate(-45deg);
 }
 
 .member-hub-state--guest,
@@ -589,38 +1152,32 @@ body {
   gap: 0;
 }
 
-/* 未登录：面板收窄，含说明 + 登录 / 免费注册 */
-.member-hub-panel:has(#memberHubGuest:not([hidden])) {
-  width: min(320px, calc(100vw - 24px));
-  padding: 14px 14px 12px;
-}
-
 .member-hub-guest-hint {
   margin: 0 0 12px;
-  font-size: calc(16px * var(--font-scale));
-  line-height: 1.58;
+  font-size: calc(15px * var(--font-scale));
+  line-height: 1.6;
   font-weight: 600;
-  color: #e8dfd0;
+  color: var(--ink);
 }
 
 .member-hub-add-app-link {
   display: inline;
   margin-left: 2px;
   font-weight: 700;
-  color: #f0be62;
+  color: var(--accent);
   text-decoration: underline;
-  text-decoration-color: rgba(240, 190, 98, 0.45);
+  text-decoration-color: rgba(139, 111, 71, 0.45);
   text-underline-offset: 3px;
   cursor: pointer;
 }
 
 .member-hub-add-app-link:hover {
-  color: #ffd88a;
-  text-decoration-color: rgba(255, 216, 138, 0.65);
+  color: #6f5a3d;
+  text-decoration-color: rgba(111, 90, 61, 0.55);
 }
 
 .member-hub-add-app-link:focus-visible {
-  outline: 2px solid rgba(240, 190, 98, 0.55);
+  outline: 2px solid rgba(200, 155, 60, 0.55);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -640,44 +1197,55 @@ body {
 .member-hub-secondary {
   flex: 1 1 0;
   min-width: 0;
-  height: 40px;
-  border-radius: 11px;
-  font-size: calc(14px * var(--font-scale));
+  min-height: 44px;
+  height: auto;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: calc(15px * var(--font-scale));
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease,
+    transform 0.12s ease;
 }
 
 .member-hub-primary {
-  border: 1px solid rgba(180, 130, 45, 0.55);
-  background: linear-gradient(180deg, #e8b85c, #c8942e);
-  color: #fffdf5;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset,
+    0 2px 8px rgba(80, 50, 20, 0.15);
 }
 
 .member-hub-primary:hover {
-  filter: brightness(1.04);
+  filter: brightness(0.98);
+}
+
+.member-hub-primary:active {
+  transform: scale(0.98);
 }
 
 .member-hub-secondary {
-  border: 1px solid rgba(216, 201, 178, 0.35);
-  background: rgba(255, 255, 255, 0.08);
-  color: #efe4d5;
+  border: 1px solid rgba(214, 203, 187, 0.85);
+  background: rgba(255, 253, 248, 0.92);
+  color: var(--muted);
 }
 
 .member-hub-secondary:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(216, 201, 178, 0.48);
-  color: #fffdf8;
+  filter: brightness(0.98);
+  border-color: rgba(193, 166, 124, 0.85);
+  color: var(--ink);
+  background: #fffdf8;
+}
+
+.member-hub-secondary:active {
+  transform: scale(0.98);
 }
 
 .member-hub-identity {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 0;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0;
 }
 
 .member-hub-avatar {
@@ -689,9 +1257,9 @@ body {
   justify-content: center;
   font-size: calc(18px * var(--font-scale));
   font-weight: 800;
-  color: #fff9ef;
-  background: linear-gradient(145deg, #5c4a38, #3d3228);
-  border: 1px solid rgba(240, 190, 98, 0.42);
+  color: #5a4a3a;
+  background: linear-gradient(165deg, rgba(255, 252, 245, 0.98), rgba(232, 220, 200, 0.85));
+  border: 1px solid rgba(200, 155, 60, 0.42);
   flex-shrink: 0;
 }
 
@@ -703,7 +1271,7 @@ body {
 .member-hub-display-name {
   font-size: calc(16px * var(--font-scale));
   font-weight: 800;
-  color: #f6efe4;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -712,7 +1280,7 @@ body {
 .member-hub-email {
   margin-top: 2px;
   font-size: calc(12px * var(--font-scale));
-  color: rgba(230, 218, 200, 0.78);
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -722,7 +1290,44 @@ body {
   margin-top: 4px;
   font-size: calc(11px * var(--font-scale));
   font-weight: 600;
-  color: rgba(220, 208, 188, 0.72);
+  color: var(--muted-soft);
+}
+
+.member-hub-theme-block {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--panel-line);
+}
+
+.member-hub-theme-label {
+  display: block;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.member-hub-theme-select {
+  width: 100%;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(214, 203, 187, 0.95);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink);
+  font-size: calc(14px * var(--font-scale));
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.member-hub-theme-select:focus-visible {
+  outline: 2px solid rgba(200, 155, 60, 0.45);
+  outline-offset: 1px;
+}
+
+.member-hub-theme-hint {
+  margin: 6px 0 0;
+  font-size: calc(11px * var(--font-scale));
+  color: rgba(74, 68, 63, 0.72);
+  line-height: 1.35;
 }
 
 .notebook-online-total {
@@ -734,53 +1339,65 @@ body {
   color: #5a4a3a;
 }
 
-.member-hub-links {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 2px;
-}
+@media (max-width: 520px) {
+  #memberHubPanel .member-hub-modal-card {
+    width: 100%;
+    max-width: none;
+    max-height: min(92vh, 100dvh);
+    border-radius: 20px;
+  }
 
-a.member-hub-link,
-button.member-hub-link {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 10px 10px;
-  margin: 0;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  font: inherit;
-  font-size: calc(14px * var(--font-scale));
-  font-weight: 600;
-  color: #d8c9b2;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
+  .member-hub-actions-row--solo {
+    flex-direction: column;
+    gap: 12px;
+  }
 
-a.member-hub-link:hover,
-button.member-hub-link:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fffdf8;
-}
+  .member-hub-primary,
+  .member-hub-secondary {
+    flex: none;
+    width: 100%;
+    min-height: 48px;
+  }
 
-.member-hub-link-admin {
-  color: #f0be62;
-}
+  .member-hub-identity {
+    align-items: flex-start;
+    gap: 14px;
+    padding-bottom: 16px;
+  }
 
-.member-hub-link-danger {
-  color: #e8a090;
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0 0 10px 10px;
-}
+  #memberHubPanel .member-hub-identity--in-sheet {
+    padding-bottom: 0;
+  }
 
-.member-hub-link-danger:hover {
-  background: rgba(220, 100, 80, 0.15);
-  color: #ffc9bc;
+  #memberHubPanel .member-hub-member-sheet {
+    padding: 14px 12px 12px !important;
+  }
+
+  .member-hub-avatar {
+    width: 52px;
+    height: 52px;
+    font-size: calc(20px * var(--font-scale));
+  }
+
+  .member-hub-display-name {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.35;
+  }
+
+  .member-hub-email {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    word-break: break-word;
+    line-height: 1.4;
+    margin-top: 4px;
+    font-size: calc(13px * var(--font-scale));
+  }
+
+  .member-hub-guest-hint {
+    font-size: calc(15px * var(--font-scale));
+  }
 }
 
 /* 添加到主屏幕 / PWA 引导条 */
@@ -1128,6 +1745,99 @@ button.member-hub-link:hover {
   align-self: flex-start;
   justify-content: flex-start;
   align-items: flex-start;
+  gap: 0;
+}
+
+@keyframes favoritesListPulseRibbon {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  45% {
+    transform: scale(1.035);
+    filter: brightness(1.1);
+  }
+}
+
+.book-side-extend-tag.favorites-list-saved-pulse {
+  animation: favoritesListPulseRibbon 0.62s ease;
+}
+
+@keyframes favoritesListPulseStar {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.title-nav-fav-center .book-side-extend-list-btn.favorites-list-saved-pulse {
+  animation: favoritesListPulseStar 0.62s ease;
+}
+
+/* 内层单独做 transform，外层仅 translateX(-50%)；明显「自下而上」飘走 */
+@keyframes sideFavoritesPlusOneInner {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.78);
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(0) scale(1.12);
+  }
+  24% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1);
+  }
+  72% {
+    opacity: 0.95;
+    transform: translateY(-56px) scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-102px) scale(0.86);
+  }
+}
+
+.side-favorites-plus-one-anchor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 200000;
+  pointer-events: none;
+  display: inline-block;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.side-favorites-plus-one-anchor .side-favorites-plus-one-float {
+  position: relative;
+  display: block;
+  font-size: calc(18px * var(--font-scale));
+  font-weight: 800;
+  color: #ffd54a;
+  letter-spacing: 0.04em;
+  text-shadow:
+    0 0 3px rgba(8, 6, 2, 1),
+    0 2px 6px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  animation: sideFavoritesPlusOneInner 1.4s cubic-bezier(0.22, 0.72, 0.28, 1) forwards;
+}
+
+/* 丝带下方：累计在线（相对丝带右移、上移），浅色字 */
+.book-side-ribbon-online-line {
+  margin-top: 10px;
+  margin-left: 30px;
+  align-self: flex-start;
+  max-width: min(220px, 92vw);
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  color: rgba(154, 144, 132, 0.95);
 }
 
 /* 丝带正下方独立三角：8×8，直角在右上 */
@@ -1185,23 +1895,24 @@ button.member-hub-link:hover {
   background: #c4a97e;
 }
 
-/* 无文案丝带：仅色块，点击打开收藏列表；固定宽度 100px */
-.book-side-extend-tag.book-side-extend-tag--ribbon-no-label {
+/* 未登录：丝带显示「收藏夹」等（与收藏面板标题同源 i18n） */
+.book-side-extend-tag.book-side-extend-tag--ribbon-guest {
   box-sizing: border-box;
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
-  padding: 0 10px 0 16px;
-  font-size: 0;
-  line-height: 0;
-  color: transparent;
+  min-width: 118px;
+  justify-content: center;
+  padding: 0 16px 0 26px;
 }
 
-/* 已登录有文案：略加宽，容纳更大字号 + 等级色星 */
-.book-side-extend-tag.book-side-extend-tag--ribbon-user:not(
-    .book-side-extend-tag--ribbon-no-label
-  ) {
-  min-width: 164px;
+.book-side-extend-tag .ribbon-guest-label {
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* 已登录：「昵称的圣经」+ 等级星 */
+.book-side-extend-tag.book-side-extend-tag--ribbon-user {
+  min-width: 188px;
 }
 
 .book-side-extend-tag .ribbon-user-stack {
@@ -1216,28 +1927,19 @@ button.member-hub-link:hover {
   line-height: 1;
 }
 
-.book-side-extend-tag .ribbon-user-name {
-  flex: 1 1 0;
+.book-side-extend-tag .ribbon-user-stack--bible-line {
+  gap: 6px;
+}
+
+.book-side-extend-tag .ribbon-bible-line-text {
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 88px;
-  font-size: calc(14px * var(--font-scale));
+  max-width: 148px;
+  font-size: calc(13px * var(--font-scale));
   font-weight: 800;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.book-side-extend-tag .ribbon-user-lv {
-  flex-shrink: 0;
-  font-size: calc(13px * var(--font-scale));
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  opacity: 0.95;
-}
-
-.book-side-extend-tag .ribbon-user-lv--empty {
-  opacity: 0.55;
-  font-weight: 700;
 }
 
 .book-side-extend-tag .ribbon-user-stars-wrap {
@@ -1331,45 +2033,6 @@ button.member-hub-link:hover {
 
 .book-side-extend-list-btn--chapter-saved:hover .book-side-fav-star {
   color: #c4a97e;
-}
-
-/* 宣传页入口「?」：原在收藏星右侧，现多在顶栏会员书签左侧（.member-bookmark-promo-help-link 覆盖尺寸） */
-.book-side-promo-help-link {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-left: 2px;
-  min-width: calc(48px * var(--font-scale));
-  min-height: calc(48px * var(--font-scale));
-  padding: 0 4px;
-  text-decoration: none;
-  border-radius: 14px;
-  color: #8a8a8a;
-  font-weight: 800;
-  font-size: calc(40px * var(--font-scale));
-  line-height: 1;
-  letter-spacing: 0;
-  user-select: none;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease,
-    transform 0.12s ease;
-}
-
-.book-side-promo-help-link:hover {
-  color: #6d5238;
-  background: rgba(242, 213, 138, 0.2);
-}
-
-.book-side-promo-help-link:active {
-  transform: scale(0.96);
-}
-
-.book-side-promo-help-glyph {
-  display: block;
-  transform: translateY(-0.04em);
 }
 
 .favorites-panel-book {
@@ -2674,7 +3337,7 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-grid-wrap {
-  border-top: 1px solid var(--line-soft);
+  border-top: 1px solid rgba(205, 193, 176, 0.16);
   padding-top: 14px;
 }
 
@@ -2921,6 +3584,35 @@ button.toolbar-trigger:hover,
   white-space: nowrap;
 }
 
+.chapter-art-slot:empty {
+  display: none;
+}
+
+.chapter-art-slot:not(:empty) {
+  margin: 0 auto 20px;
+  max-width: 100%;
+}
+
+.chapter-art-figure {
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.chapter-art-img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(76, 62, 42, 0.12);
+  background: rgba(255, 252, 245, 0.6);
+}
+
+.chapter-art-slot:not(:empty) + .blocks-stack .flow-card:first-child h3 {
+  margin-top: 8px;
+}
+
 /* =========================
    内容
    ========================= */
@@ -2986,22 +3678,39 @@ button.toolbar-trigger:hover,
   gap: 10px;
 }
 
+/* 与顶栏 Logo「Bible」同色：扁平实底，无金属渐变 */
 .chapter-feedback-btn {
-  height: 38px;
-  border: none;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--star-g2-2) 0%, var(--star-g3-2) 100%);
-  color: #fffef8;
+  height: 40px;
+  border: 1px solid rgba(200, 130, 25, 0.68);
+  border-radius: 12px;
+  background: var(--brand-bible);
+  color: var(--ink);
   font-size: calc(16px * var(--font-scale));
   font-weight: 800;
   padding: 0 18px;
   cursor: pointer;
   margin-left: auto;
-  box-shadow: 0 3px 10px rgba(133, 100, 40, 0.22);
+  box-shadow: none;
+  font-family: inherit;
+  transition:
+    filter 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .chapter-feedback-btn:hover {
   filter: brightness(1.05);
+  border-color: rgba(160, 100, 18, 0.88);
+}
+
+.chapter-feedback-btn:active {
+  transform: translateY(1px);
+  filter: brightness(0.97);
+}
+
+.chapter-feedback-btn:focus-visible {
+  outline: 2px solid rgba(200, 155, 60, 0.55);
+  outline-offset: 2px;
 }
 
 .chapter-feedback-status {
@@ -3309,6 +4018,7 @@ button.toolbar-trigger:hover,
   line-height: 1.28;
   color: var(--muted-soft);
   font-weight: 800;
+  text-align: center;
 }
 
 .blocks-stack .flow-card:first-child h3 {
@@ -3741,7 +4451,8 @@ body.question-only-mode .plain-list li {
 
 body.verse-search-open,
 body.primary-version-open,
-body.book-chapter-open {
+body.book-chapter-open,
+body.member-hub-open {
   overflow: hidden;
 }
 
@@ -4185,6 +4896,26 @@ body.book-chapter-open {
   max-width: 1280px;
 }
 
+/* 后台管理：全屏蒙层从顶栏下缘开始，不遮盖顶栏；高度由 --admin-modal-inset-top 同步（main.js 测量 .site-topbar） */
+#adminModal.modal-mask {
+  top: var(--admin-modal-inset-top, calc(56px + env(safe-area-inset-top, 0px)));
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: auto;
+  box-sizing: border-box;
+}
+
+#adminModal .modal-card.modal-card-admin {
+  max-height: calc(100vh - var(--admin-modal-inset-top, 72px) - 40px);
+}
+
+@supports (height: 100dvh) {
+  #adminModal .modal-card.modal-card-admin {
+    max-height: calc(100dvh - var(--admin-modal-inset-top, 72px) - 40px);
+  }
+}
+
 .modal-head {
   display: flex;
   justify-content: space-between;
@@ -4199,22 +4930,46 @@ body.book-chapter-open {
   color: var(--muted);
 }
 
-.admin-modal-util-bar {
-  margin: 0 0 10px;
-  padding: 0;
+/* 读经页后台弹层顶部：跳转独立「管理后台」总览（不再内嵌 iframe） */
+.admin-modal-landing {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(190, 170, 140, 0.38);
+  background: rgba(255, 252, 246, 0.92);
+  box-sizing: border-box;
+}
+
+.admin-modal-landing-lead {
+  margin: 0;
   font-size: calc(13px * var(--font-scale));
-  line-height: 1.4;
+  line-height: 1.55;
+  color: var(--ink);
 }
 
-.admin-util-link {
-  color: #8b6914;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.admin-modal-landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 14px 0 10px;
 }
 
-.admin-util-link:hover {
-  color: #6b5010;
+a.admin-modal-hub-link.primary-btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 18px;
+  box-sizing: border-box;
+}
+
+.admin-modal-landing-hint {
+  margin: 0;
+  font-size: calc(12px * var(--font-scale));
+  line-height: 1.5;
+  color: var(--muted-soft);
 }
 
 .modal-dark-btn {
@@ -4339,7 +5094,11 @@ body.book-chapter-open {
   padding: 22px 22px 20px;
   border-radius: 22px;
   border: 1px solid rgba(205, 188, 162, 0.55);
-  background: var(--book-spread-paper-gradient);
+  background-color: var(--paper);
+  background-image: var(--modal-half-book-paper-image);
+  background-size: var(--modal-half-book-paper-size);
+  background-position: var(--modal-half-book-paper-position);
+  background-repeat: no-repeat;
   box-shadow:
     var(--shadow-lg),
     inset 0 1px 0 rgba(255, 255, 255, 0.65);
@@ -4714,6 +5473,11 @@ body.book-chapter-open {
    ========================= */
 
 @media (max-width: 1100px) {
+  /* 小屏：LOGO 与页顶间距略增（相对原 13px 再 +3px） */
+  .page-shell {
+    padding-top: 16px;
+  }
+
   /* 单栏：与大屏同一套纸色底纹（.book-spread 90deg 渐变）+ 同大屏左页书口晕叠在两侧 */
   .book-spread {
     grid-template-columns: 1fr;
@@ -4756,6 +5520,132 @@ body.book-chapter-open {
     justify-content: flex-end;
     flex-wrap: wrap;
     overflow: visible;
+  }
+
+  /* 单栏小屏：顶栏「栏目」pill 区相对右对齐基准微调 */
+  .askbible-chrome-nav {
+    transform: translateX(10px);
+    /* 禁止 pill 竖排换行盖住 Logo：单行 + 横向滑动 */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .askbible-chrome-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 小屏顶栏：菜单仅图标、无底纹边框（链接仍有 title；有 aria-label 的项读屏正常） */
+  .askbible-chrome-nav .askbible-chrome-nav-pill {
+    flex-shrink: 0;
+    padding: 6px;
+    border-radius: 0;
+    gap: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--ui-text);
+    align-items: center;
+    justify-content: center;
+  }
+
+  .askbible-chrome-nav .askbible-chrome-nav-pill:hover {
+    background: rgba(255, 255, 255, 0.07) !important;
+    color: var(--ui-text-hover);
+  }
+
+  .askbible-chrome-nav .askbible-chrome-nav-pill:has(.askbible-chrome-nav-pill-icon) {
+    position: relative;
+  }
+
+  .askbible-chrome-nav
+    .askbible-chrome-nav-pill:has(.askbible-chrome-nav-pill-icon)
+    .askbible-chrome-nav-pill-text:not(.askbible-chrome-nav-pill-text--sr) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    max-width: 1px;
+    max-height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .askbible-chrome-nav .askbible-chrome-nav-pill--icon-only {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .askbible-chrome-nav .askbible-chrome-nav-pill:has(.askbible-chrome-nav-pill-icon) .askbible-chrome-nav-pill-icon {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* 读经单栏：顶栏与双页大屏一致 — Logo 与菜单同一行、底对齐（笔记本页仍用纵向顶栏） */
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
+    margin-left: 24px;
+    margin-top: -5px;
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title h1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    /* 省略号跟随 currentColor；设为金后须把各段 LOGO 字色写回（否则 h1 优先级会盖过 .brand-*） */
+    color: var(--brand-bible);
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title h1 .brand-ask,
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title h1 .brand-me {
+    color: #f6efe4;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title h1 .brand-bible {
+    color: var(--brand-bible);
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title .brand-subtitle {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    margin-left: 0;
+    margin-top: 0;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
+    width: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    /* 勿 overflow:hidden：会裁切顶栏内其它浮层 */
+    overflow: visible;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .askbible-chrome-nav {
+    transform: translateX(25px);
+    max-width: 100%;
+    min-width: 0;
   }
 
   .page-chapter-number {
@@ -4826,7 +5716,7 @@ body.book-chapter-open {
 
 @media (max-width: 700px) {
   .page-shell {
-    padding: 10px 12px 16px;
+    padding: 16px 12px 16px;
   }
 
   .site-topbar {
@@ -4835,9 +5725,23 @@ body.book-chapter-open {
     margin-bottom: 10px;
   }
 
+  .page-shell > .site-topbar:has(+ .book-layout) {
+    margin-bottom: 0;
+  }
+
   .site-topbar-title {
-    margin-left: 28px;
-    margin-top: 10px;
+    margin-left: 18px;
+    margin-top: 5px;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
+    margin-left: 24px;
+    margin-top: -5px;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
+    width: auto;
+    overflow: visible;
   }
 
   .site-topbar-title h1 {
@@ -4848,7 +5752,7 @@ body.book-chapter-open {
   .brand-subtitle {
     display: block;
     margin-left: 0;
-    margin-top: 6px;
+    margin-top: 0;
     max-width: min(92vw, 520px);
     white-space: nowrap;
     overflow: hidden;
@@ -4863,20 +5767,19 @@ body.book-chapter-open {
     justify-content: flex-end;
   }
 
+  .askbible-chrome-nav .askbible-chrome-nav-pill {
+    font-size: calc(13px * var(--font-scale));
+  }
+
+  .askbible-chrome-nav-pill-icon {
+    width: 16px;
+    height: 16px;
+  }
+
   .top-action-btn {
     height: 30px;
     padding: 0 10px;
     font-size: calc(12px * var(--font-scale));
-  }
-
-  .member-hub-panel {
-    width: min(340px, calc(100vw - 20px));
-    padding: 14px 14px 12px;
-  }
-
-  .member-hub-panel:has(#memberHubGuest:not([hidden])) {
-    width: min(320px, calc(100vw - 20px));
-    padding: 12px 12px 10px;
   }
 
   .member-bookmark-wrap {
@@ -5112,13 +6015,22 @@ body.book-chapter-open {
   }
 
   .page-shell {
-    padding: 5px 5px 12px;
+    padding: 11px 5px 12px;
   }
 
   .site-topbar-title {
-    margin-left: 22px;
-    /* 相对页顶再下移 3px，与书卡区留白对齐 */
-    margin-top: 5px;
+    margin-left: 12px;
+    margin-top: 0;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
+    margin-left: 24px;
+    margin-top: -5px;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
+    width: auto;
+    overflow: visible;
   }
 
   .site-topbar-title h1 {
@@ -5694,6 +6606,35 @@ button.toolbar-trigger,
     outline: none;
     filter: none;
   }
+}
+
+/* 读经页底部 Toast（双点收藏经文等） */
+.reader-app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, calc(12px + env(safe-area-inset-bottom, 0px)));
+  z-index: 12000;
+  max-width: min(92vw, 380px);
+  padding: 10px 18px;
+  border-radius: 14px;
+  background: rgba(48, 42, 36, 0.92);
+  color: #fdf9f3;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(-50%, 10px, 0);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.reader-app-toast.reader-app-toast--visible {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0);
 }
 
 /* 选书卷三栏内列数由 .book-grid--ot / --nt、.book-chapter-chapter-grid 定义（见上） */

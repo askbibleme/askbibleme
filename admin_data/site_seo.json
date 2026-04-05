@@ -1,0 +1,31 @@
+{
+  "updatedAt": "",
+  "index": {
+    "documentTitle": "AskBible.me｜读经平台 · 在线查经 · 小组聚会与笔记",
+    "metaDescription": "AskBible.me 是在线读经与查经工具：书页式阅读、问题式查经与章节收藏，适合个人灵修、预备讲道与小组聚会共用经文与讨论。",
+    "metaKeywords": "读经平台,查经软件,查经工具,在线圣经,圣经阅读,小组聚会,小组查经,灵修笔记,AskBible",
+    "ogTitle": "AskBible.me｜读经平台 · 在线查经 · 小组聚会与笔记",
+    "ogDescription": "在线读经与查经工具：书页式阅读、问题式查经与社区互动，适合灵修与小组聚会。",
+    "twitterTitle": "AskBible.me｜读经与查经平台",
+    "twitterDescription": "在线读经、查经与笔记，适合灵修与小组聚会。",
+    "appleMobileWebAppTitle": "AskBible",
+    "ogSiteName": "AskBible.me",
+    "jsonLdWebsiteDescription": "在线读经平台与查经工具，支持书页式阅读、问题式查经与小组聚会场景下的经文讨论。",
+    "jsonLdSoftwareDescription": "读经平台、查经软件与小组聚会可用的在线圣经阅读与笔记工具。",
+    "jsonLdWebPageDescription": ""
+  },
+  "promo": {
+    "documentTitle": "AskBible.me｜宣传页",
+    "metaDescription": "AskBible.me 宣传页。",
+    "metaKeywords": "读经平台,查经软件,查经工具,在线圣经,圣经阅读,小组聚会,小组查经,灵修笔记,AskBible",
+    "ogTitle": "AskBible.me｜宣传页",
+    "ogDescription": "AskBible.me 宣传页。",
+    "twitterTitle": "AskBible.me｜宣传页",
+    "twitterDescription": "AskBible.me 宣传页。",
+    "appleMobileWebAppTitle": "AskBible",
+    "ogSiteName": "AskBible.me",
+    "jsonLdWebsiteDescription": "在线读经平台与查经工具，支持书页式阅读、问题式查经与小组聚会场景下的经文讨论。",
+    "jsonLdSoftwareDescription": "读经平台、查经软件与小组聚会可用的在线圣经阅读工具。",
+    "jsonLdWebPageDescription": "AskBible.me 宣传页。"
+  }
+}

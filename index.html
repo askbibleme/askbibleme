@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-askbible-seo-page="index">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,7 +12,7 @@
     <title>AskBible.me｜读经平台 · 在线查经 · 小组聚会与笔记</title>
     <meta
       name="description"
-      content="AskBible.me 是在线读经与查经工具：书页式阅读、问题式查经、章节收藏与笔记本，适合个人灵修、预备讲道与小组聚会共用经文与讨论。"
+      content="AskBible.me 是在线读经与查经工具：书页式阅读、问题式查经与章节收藏，适合个人灵修、预备讲道与小组聚会共用经文与讨论。"
     />
     <meta
       name="keywords"
@@ -24,7 +24,7 @@
     <meta property="og:title" content="AskBible.me｜读经平台 · 在线查经 · 小组聚会与笔记" />
     <meta
       property="og:description"
-      content="在线读经与查经工具：书页式阅读、问题式查经、笔记本与社区互动，适合灵修与小组聚会。"
+      content="在线读经与查经工具：书页式阅读、问题式查经与社区互动，适合灵修与小组聚会。"
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://askbible.me/" />
@@ -36,7 +36,7 @@
       name="twitter:description"
       content="在线读经、查经与笔记，适合灵修与小组聚会。"
     />
-    <script type="application/ld+json">
+    <script type="application/ld+json" id="askbibleSeoJsonLd">
       {
         "@context": "https://schema.org",
         "@graph": [
@@ -46,7 +46,7 @@
             "url": "https://askbible.me/",
             "name": "AskBible.me",
             "alternateName": ["Ask Bible", "AskBible 查经"],
-            "description": "在线读经平台与查经工具，支持书页式阅读、问题式查经、笔记本与小组聚会场景下的经文讨论。",
+            "description": "在线读经平台与查经工具，支持书页式阅读、问题式查经与小组聚会场景下的经文讨论。",
             "inLanguage": "zh-CN",
             "publisher": { "@id": "https://askbible.me/#org" }
           },
@@ -73,38 +73,30 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=98" />
+    <link rel="stylesheet" href="/styles.css?v=129" />
+    <script src="/theme-apply.js?v=2"></script>
+    <script src="/site-chrome.js?v=8" defer></script>
+    <script src="/seo-apply.js?v=1" defer></script>
   </head>
   <body>
     <div class="page-shell">
       <header class="site-topbar">
         <div class="site-topbar-title">
-          <h1 id="brandTitle">
-            <a href="/" class="site-brand-link" title="AskBible.me 首页"
-              ><span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span></a
-            >
-          </h1>
+          <div class="askbible-chrome-brand-slot"></div>
           <!-- 仅供「账户菜单 → 管理后台」程序化触发，勿删 id -->
           <button type="button" id="openAdminBtn" hidden aria-hidden="true" tabindex="-1"></button>
         </div>
-      </header>
-
-      <main class="book-layout">
-        <div class="member-bookmark-wrap">
-          <a
-            id="sidePromoHelpLink"
-            class="book-side-promo-help-link member-bookmark-promo-help-link"
-            href="/promo.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span class="book-side-promo-help-glyph" aria-hidden="true">?</span>
-          </a>
-          <div class="member-hub member-hub--bookmark" id="memberHub">
+        <div class="site-topbar-actions">
+          <div class="askbible-chrome-nav-slot"></div>
+          <!-- 仅作下拉锚点：可见入口为顶栏「会员」链接（/#openMemberHub），勿删 id -->
+          <div class="member-hub member-hub--anchor-only" id="memberHub">
             <button
               type="button"
               id="memberHubTrigger"
               class="member-hub-trigger member-hub-trigger--guest-label"
+              hidden
+              aria-hidden="true"
+              tabindex="-1"
               aria-expanded="false"
               aria-controls="memberHubPanel"
               aria-haspopup="true"
@@ -118,71 +110,11 @@
                 aria-hidden="true"
               ></span>
             </button>
-            <div
-              id="memberHubPanel"
-              class="member-hub-panel"
-              role="dialog"
-              aria-label="账户菜单"
-              hidden
-            >
-              <div id="memberHubGuest" class="member-hub-state member-hub-state--guest">
-                <p class="member-hub-guest-hint">
-                  登录后可提交问题、同步笔记本、收藏与社区互动。
-                  <a
-                    href="/download.html"
-                    class="member-hub-add-app-link"
-                    title="浏览器添加到主屏幕说明"
-                    >如何添加到主屏幕</a>
-                </p>
-                <div class="member-hub-actions-row member-hub-actions-row--solo">
-                  <button type="button" class="member-hub-primary" data-member-action="login">
-                    登录
-                  </button>
-                  <button type="button" class="member-hub-secondary" data-member-action="register">
-                    免费注册
-                  </button>
-                </div>
-              </div>
-              <div id="memberHubMember" class="member-hub-state member-hub-state--member" hidden>
-                <div class="member-hub-identity">
-                  <div class="member-hub-avatar" id="memberHubAvatar" aria-hidden="true">?</div>
-                  <div class="member-hub-identity-text">
-                    <div class="member-hub-display-name" id="memberHubDisplayName">—</div>
-                    <div class="member-hub-email" id="memberHubEmail">—</div>
-                    <div class="member-hub-online-total" id="memberHubOnlineTotal">累计在线 —</div>
-                  </div>
-                </div>
-                <nav class="member-hub-links" aria-label="账户功能">
-                  <a class="member-hub-link" href="notebook.html?openSettings=1#settings">帐号资料</a>
-                  <a class="member-hub-link" href="/article-studio.html">文章发布中心</a>
-                  <a
-                    class="member-hub-link member-hub-link-admin"
-                    href="/promo-edit.html"
-                    id="memberHubPromoEditLink"
-                    hidden
-                    >宣传页 Markdown</a
-                  >
-                  <button
-                    type="button"
-                    class="member-hub-link member-hub-link-admin"
-                    data-member-action="admin"
-                    id="memberHubAdminBtn"
-                    hidden
-                  >
-                    后台管理
-                  </button>
-                  <button
-                    type="button"
-                    class="member-hub-link member-hub-link-danger"
-                    data-member-action="logout"
-                  >
-                    退出登录
-                  </button>
-                </nav>
-              </div>
-            </div>
           </div>
         </div>
+      </header>
+
+      <main class="book-layout">
         <div class="book-spread">
           <section class="book-page left-page">
             <div class="page-toolbar">
@@ -311,7 +243,7 @@
             <div class="book-side-extend-tags" aria-label="收藏">
               <a
                 id="sideUserTag"
-                class="book-side-extend-tag book-side-extend-tag--ribbon-no-label"
+                class="book-side-extend-tag book-side-extend-tag--ribbon-guest"
                 href="#"
                 role="button"
                 aria-haspopup="dialog"
@@ -319,6 +251,14 @@
                 aria-expanded="false"
                 aria-label="打开收藏列表"
               ></a>
+              <div
+                id="sideRibbonOnlineLine"
+                class="book-side-ribbon-online-line"
+                aria-live="polite"
+                aria-label="累计在线，未登录"
+              >
+                0
+              </div>
             </div>
 
             <div class="page-title-block page-title-block-stacked">
@@ -329,6 +269,8 @@
             <div class="repeated-words-wrap">
               <div id="repeatedWordsLine" class="repeated-words-line">—</div>
             </div>
+
+            <div id="chapterArtSlot" class="chapter-art-slot" aria-live="polite"></div>
 
             <div id="leftBlocks" class="blocks-stack"></div>
           </section>
@@ -369,10 +311,111 @@
           </section>
         </div>
       </main>
-      <footer class="site-footer">
-        <span class="site-footer-version">v13.0.1</span>
-        <span class="site-footer-copy">© 2026 AskBible.me. All rights reserved.</span>
-      </footer>
+      <footer class="site-footer askbible-chrome-footer-slot" hidden></footer>
+    </div>
+
+    <!-- 账户菜单：壳与内层分区同「选版本」primaryVersionPanel -->
+    <div
+      id="memberHubPanel"
+      class="verse-search-overlay member-hub-overlay"
+      hidden
+      role="presentation"
+    >
+      <button
+        type="button"
+        class="verse-search-backdrop"
+        tabindex="-1"
+        aria-label="关闭账户菜单"
+        id="memberHubBackdropBtn"
+        data-close-panel="memberHubPanel"
+      ></button>
+      <div
+        class="verse-search-card member-hub-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="memberHubModalTitle"
+      >
+        <div class="toolbar-panel-inner toolbar-panel-simple">
+          <div class="toolbar-panel-head">
+            <div class="toolbar-panel-title" id="memberHubModalTitle">账户</div>
+            <button
+              type="button"
+              class="toolbar-panel-close"
+              id="memberHubCloseBtn"
+              data-close-panel="memberHubPanel"
+            >
+              关闭
+            </button>
+          </div>
+
+          <div id="memberHubGuest" class="member-hub-state member-hub-state--guest">
+            <div class="chapter-grid-wrap">
+              <div class="chapter-grid-title">登录后可使用</div>
+              <p class="member-hub-guest-hint">
+                登录后可提交问题、收藏与社区互动。
+                <a
+                  href="/download.html"
+                  class="member-hub-add-app-link"
+                  title="浏览器添加到主屏幕说明"
+                  >如何添加到主屏幕</a
+                >
+              </p>
+            </div>
+            <div class="chapter-grid-wrap">
+              <div class="chapter-grid-title">进入账户</div>
+              <div class="member-hub-actions-row member-hub-actions-row--solo">
+                <button type="button" class="member-hub-primary" data-member-action="login">登录</button>
+                <button type="button" class="member-hub-secondary" data-member-action="register">
+                  免费注册
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="memberHubMember" class="member-hub-state member-hub-state--member" hidden>
+            <div class="chapter-grid-wrap member-hub-member-sheet">
+              <div class="member-hub-member-sheet__label">当前账户</div>
+              <div class="member-hub-identity member-hub-identity--in-sheet">
+                <div class="member-hub-avatar" id="memberHubAvatar" aria-hidden="true">?</div>
+                <div class="member-hub-identity-text">
+                  <div class="member-hub-display-name" id="memberHubDisplayName">—</div>
+                  <div class="member-hub-email" id="memberHubEmail">—</div>
+                  <div class="member-hub-online-total" id="memberHubOnlineTotal">累计在线 —</div>
+                </div>
+              </div>
+            </div>
+            <div
+              id="memberHubQianfuzhangSection"
+              class="chapter-grid-wrap member-hub-qian-section"
+              hidden
+            >
+              <div class="chapter-grid-title member-hub-qian-section__title">站点管理（千夫长）</div>
+              <nav
+                class="version-grid member-hub-link-grid member-hub-link-grid--qian"
+                aria-label="站点管理"
+              >
+                <button
+                  type="button"
+                  class="member-hub-menu-item member-hub-menu-item--admin"
+                  data-member-action="admin"
+                  id="memberHubAdminBtn"
+                >
+                  管理后台
+                </button>
+              </nav>
+            </div>
+            <div class="chapter-grid-wrap member-hub-logout-wrap">
+              <button
+                type="button"
+                class="member-hub-menu-item member-hub-menu-item--danger"
+                data-member-action="logout"
+              >
+                退出登录
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 书卷：全屏遮罩 + 卡片，与搜经文 / 选版本同尺寸 -->
@@ -662,39 +705,6 @@
       </div>
     </div>
 
-    <div id="adminPasswordModal" class="modal-mask" style="display: none">
-      <div class="modal-card modal-card-sm">
-        <div class="modal-head">
-          <h2>管理员验证</h2>
-          <button
-            id="closeAdminPasswordBtn"
-            class="top-action-btn modal-dark-btn"
-            type="button"
-          >
-            关闭
-          </button>
-        </div>
-
-        <form id="adminPasswordForm" class="admin-password-form" novalidate>
-          <div class="section-title">请输入管理员密码</div>
-          <input
-            id="adminPasswordInput"
-            class="custom-textarea single-input"
-            type="password"
-            placeholder="请输入密码"
-            autocomplete="current-password"
-          />
-          <div id="adminPasswordError" class="error-text"></div>
-
-          <div class="modal-actions">
-            <button id="submitAdminPasswordBtn" class="primary-btn" type="submit">
-              进入管理
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
     <div id="authModal" class="modal-mask auth-modal-mask" style="display: none">
       <div
         class="modal-card modal-card-sm modal-card-auth"
@@ -762,15 +772,17 @@
           </button>
         </div>
 
-        <p class="admin-modal-util-bar">
-          <a
-            href="/promo-edit.html"
-            class="admin-util-link"
-            target="_blank"
-            rel="noopener noreferrer"
-            >宣传页 Markdown</a
-          >
-        </p>
+        <div class="admin-modal-landing">
+          <p class="admin-modal-landing-lead">
+            站点外观、SEO、配色、宣传页、文章与配图等已迁至<strong>独立管理页</strong>（全屏、左侧目录，无内嵌框架）。
+          </p>
+          <div class="admin-modal-landing-actions">
+            <a href="/admin-hub.html" class="primary-btn admin-modal-hub-link">打开管理后台</a>
+          </div>
+          <p class="admin-modal-landing-hint">
+            下方标签页仍在本窗口：<strong>规则编辑、测试生成、发布与任务队列</strong>等读经内容流水线。
+          </p>
+        </div>
 
         <div class="admin-tabs">
           <button
@@ -1062,17 +1074,23 @@
 
     <script defer src="/pwa-install-hint.js"></script>
     <script type="module" src="/main.js"></script>
-    <!-- 仅 localhost:3000 + npm run dev 时加载，保存文件后自动刷新（等同点浏览器刷新） -->
+    <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>
       (function () {
         var host = location.hostname;
         if (host !== "localhost" && host !== "127.0.0.1") return;
-        if (String(location.port || "") !== "3000") return;
-        var s = document.createElement("script");
-        s.src = "http://" + host + ":35729/livereload.js?snipver=1";
-        s.async = true;
-        s.onerror = function () {};
-        document.body.appendChild(s);
+        fetch("/api/dev/livereload-status", { credentials: "same-origin", cache: "no-store" })
+          .then(function (r) {
+            return r.ok ? r.json() : { enabled: false };
+          })
+          .then(function (j) {
+            if (!j || !j.enabled) return;
+            var s = document.createElement("script");
+            s.src = "http://" + host + ":35729/livereload.js?snipver=1";
+            s.async = true;
+            document.body.appendChild(s);
+          })
+          .catch(function () {});
       })();
     </script>
   </body>

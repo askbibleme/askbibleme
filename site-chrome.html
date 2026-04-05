@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>顶栏与底栏 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=106" />
+    <link rel="stylesheet" href="/admin-shell.css?v=1" />
+    <script src="/theme-apply.js?v=2"></script>
+    <!-- 不用 defer：保证内联脚本执行前已注册 ASKBIBLE_CHROME_NAV_ICON_OPTIONS（顶栏图标下拉） -->
+    <script src="/site-chrome.js?v=8"></script>
+    <style>
+      .sc-page {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 20px 14px 48px;
+        box-sizing: border-box;
+      }
+      .sc-doc {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        padding: 22px 18px 28px;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.12);
+      }
+      .sc-doc h1 {
+        margin: 0 0 10px;
+        font-size: calc(22px * var(--font-scale));
+        color: var(--ink);
+      }
+      .sc-lead {
+        margin: 0 0 18px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+      .sc-field {
+        margin-bottom: 14px;
+      }
+      .sc-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .sc-field input[type="text"],
+      .sc-field input[type="number"],
+      .sc-field input[type="url"],
+      .sc-field textarea {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+      }
+      .sc-field textarea {
+        min-height: 100px;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 12px;
+      }
+      .sc-hint {
+        margin: 6px 0 0;
+        font-size: 11px;
+        color: var(--muted-soft);
+        line-height: 1.45;
+      }
+      .sc-row2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 640px) {
+        .sc-row2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .sc-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .sc-status {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .sc-status.err {
+        color: #9a2c2c;
+        font-weight: 600;
+      }
+      .sc-auth {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #fff0ee;
+        border: 1px solid rgba(180, 35, 24, 0.35);
+        color: #7a1510;
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+      .sc-block {
+        margin-bottom: 26px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--line);
+      }
+      .sc-block:last-of-type {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+      .sc-block-title {
+        margin: 0 0 8px;
+        font-size: calc(16px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .sc-block-lead {
+        margin: 0 0 16px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted-soft);
+      }
+      .sc-subblock {
+        margin: 18px 0 8px;
+        padding: 14px 14px 4px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: rgba(255, 252, 246, 0.72);
+        box-sizing: border-box;
+      }
+      .sc-subblock-title {
+        margin: 0 0 8px;
+        font-size: calc(14px * var(--font-scale));
+        font-weight: 800;
+        color: #8f6518;
+        letter-spacing: 0.02em;
+      }
+      .sc-subblock-lead {
+        margin: 0 0 12px !important;
+      }
+      .sc-nav-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .sc-nav-row {
+        display: grid;
+        grid-template-columns: auto auto 1fr 1fr minmax(200px, 1fr) minmax(88px, 100px) auto;
+        gap: 10px;
+        align-items: start;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .sc-nav-row:last-of-type {
+        border-bottom: none;
+      }
+      .sc-nav-row--dragging {
+        opacity: 0.55;
+      }
+      .sc-nav-row-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding-top: 22px;
+      }
+      .sc-nav-drag-handle {
+        cursor: grab;
+        user-select: none;
+        color: var(--muted-soft);
+        font-size: 14px;
+        line-height: 1;
+        letter-spacing: -2px;
+      }
+      .sc-nav-drag-handle:active {
+        cursor: grabbing;
+      }
+      .sc-nav-order-btns {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .sc-nav-order-btns .secondary-btn {
+        min-width: 32px;
+        padding: 2px 6px;
+        font-size: 12px;
+        line-height: 1.2;
+      }
+      .sc-nav-icon-only-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+        margin-top: 4px;
+      }
+      .sc-nav-icon-only-wrap:has(.sc-nav-icon-only:disabled) {
+        opacity: 0.48;
+        cursor: not-allowed;
+      }
+      .sc-nav-icon-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 2px;
+      }
+      .sc-nav-icon-choice {
+        box-sizing: border-box;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        margin: 0;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      }
+      .sc-nav-icon-choice:hover {
+        border-color: rgba(200, 155, 60, 0.55);
+        background: rgba(248, 241, 229, 0.65);
+      }
+      .sc-nav-icon-choice.is-selected {
+        border-color: rgba(200, 155, 60, 0.85);
+        box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.22);
+        background: rgba(255, 251, 242, 0.95);
+      }
+      .sc-nav-icon-choice .askbible-chrome-nav-pill-icon {
+        width: 20px;
+        height: 20px;
+        transform: none;
+      }
+      .sc-nav-icon-choice-none {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--muted);
+        line-height: 1;
+      }
+      .sc-nav-cell--icon-only .sc-nav-cell-label {
+        margin-bottom: 2px;
+      }
+      @media (max-width: 900px) {
+        .sc-nav-row {
+          grid-template-columns: 1fr;
+        }
+        .sc-nav-row-meta {
+          flex-direction: row;
+          justify-content: flex-start;
+          padding-top: 0;
+        }
+        .sc-nav-remove {
+          justify-self: start;
+        }
+      }
+      .sc-nav-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+      }
+      .sc-nav-cell-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .sc-nav-cell input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+      }
+      .sc-nav-remove {
+        padding-inline: 14px;
+        white-space: nowrap;
+        height: fit-content;
+        align-self: end;
+        margin-bottom: 2px;
+      }
+      .sc-nav-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/site-chrome.html">
+    <div class="page-shell sc-page">
+      <main class="sc-doc">
+        <h1>顶栏与底栏</h1>
+        <p class="sc-lead">
+          配置写入 <code>admin_data/site_chrome.json</code>，全站通过 <code>site-chrome.js</code> 统一渲染。LOGO 可用本站路径（如
+          <code>/assets/icons/icon.svg</code>）或 https 地址。
+        </p>
+        <p id="scAuth" class="sc-auth" hidden></p>
+
+        <section class="sc-block" aria-labelledby="scTopbarHeading">
+          <h2 id="scTopbarHeading" class="sc-block-title">顶栏设置</h2>
+          <p class="sc-block-lead">
+            左侧为品牌区（LOGO 与主标题），其旁可配置<strong>网页一句话介绍</strong>（顶栏标语，如「读经平台 · 在线查经 · 小组聚会」）；右侧导航在下方「顶栏导航链接」中逐项填写。保存后全站顶栏一致。
+          </p>
+
+        <div class="sc-field">
+          <label for="scLogoUrl">LOGO 图片地址（可留空则只显示文字品牌）</label>
+          <input type="text" id="scLogoUrl" placeholder="/assets/icons/icon.svg" autocomplete="off" />
+        </div>
+        <div class="sc-row2">
+          <div class="sc-field">
+            <label for="scLogoHeight">LOGO 高度（px，20–80）</label>
+            <input type="number" id="scLogoHeight" min="20" max="80" value="36" />
+          </div>
+          <div class="sc-field">
+            <label for="scHomeHref">品牌链接指向</label>
+            <input type="text" id="scHomeHref" value="/" autocomplete="off" />
+          </div>
+        </div>
+        <div class="sc-field">
+          <label for="scBrandTitleAttr">品牌链接 title（鼠标提示）</label>
+          <input type="text" id="scBrandTitleAttr" autocomplete="off" />
+        </div>
+        <div class="sc-field">
+          <label><input type="checkbox" id="scShowSplit" checked /> 使用三色分词品牌（Ask / Bible / .me）</label>
+        </div>
+        <div id="scSplitBrand" class="sc-row2">
+          <div class="sc-field">
+            <label for="scBrandAsk">第一段</label>
+            <input type="text" id="scBrandAsk" autocomplete="off" />
+          </div>
+          <div class="sc-field">
+            <label for="scBrandBible">第二段（金黄）</label>
+            <input type="text" id="scBrandBible" autocomplete="off" />
+          </div>
+          <div class="sc-field">
+            <label for="scBrandMe">第三段</label>
+            <input type="text" id="scBrandMe" autocomplete="off" />
+          </div>
+        </div>
+        <div id="scPlainBrand" class="sc-field" hidden>
+          <label for="scBrandPlain">单行品牌文字</label>
+          <input type="text" id="scBrandPlain" autocomplete="off" />
+        </div>
+        <div class="sc-subblock" aria-labelledby="scSiteIntroHeading">
+          <h3 id="scSiteIntroHeading" class="sc-subblock-title">网页介绍（顶栏标语）</h3>
+          <p class="sc-hint sc-subblock-lead">
+            访客在顶栏看到的站点说明，与品牌名并列或位于其下；用于一句话概括本站（纯文本，勿填 HTML）。
+          </p>
+        <div class="sc-field">
+          <label for="scBrandSubtitle">一句话介绍 / 标语</label>
+          <input
+            type="text"
+            id="scBrandSubtitle"
+            maxlength="120"
+            autocomplete="off"
+            placeholder="例：读经平台 · 在线查经 · 小组聚会"
+          />
+          <p class="sc-hint">最多 120 字。勾选「显示」后，读经主页等所有带顶栏的页面都会载入该文案。</p>
+        </div>
+        <div class="sc-field">
+          <label><input type="checkbox" id="scBrandSubtitleShow" checked /> 在全站顶栏显示该介绍（含主页）</label>
+        </div>
+        <div class="sc-field">
+          <label
+            ><input type="checkbox" id="scBrandSubtitleInline" /> 与主标题<strong>同一行</strong>显示，中间用竖线
+            <strong>|</strong> 分隔（适合桌面顶栏；窄屏会自动换行）</label
+          >
+        </div>
+        <div class="sc-field">
+          <label><input type="checkbox" id="scBrandSubtitleDismissible" /> 显示关闭按钮（访客可点 × 隐藏该介绍，仅本机记录；本页顶部预览始终显示且不写入该记录）</label>
+        </div>
+        </div>
+        <div class="sc-field">
+          <span class="sc-nav-cell-label" style="display: block; margin-bottom: 8px">顶栏导航链接</span>
+          <div id="scNavList" class="sc-nav-list" aria-label="顶栏导航链接列表"></div>
+          <div class="sc-nav-toolbar">
+            <button type="button" id="scNavAddBtn" class="secondary-btn">添加链接</button>
+          </div>
+          <p class="sc-hint">
+            每一项对应顶栏右侧一个深色圆角标签。左侧可拖动 <strong>⋮⋮</strong> 或按 <strong>↑↓</strong> 调整顺序。「图标」在网格中点选（图形即所选）；勾选 <strong>仅图标</strong> 后顶栏只显示图标（须先选图标，读屏仍朗读显示文字）。链接须以 <code>/</code> 或 <code>https://</code> 开头；最多 16 条。
+            <strong>会员书签（「昵称的圣经」下拉菜单）</strong>本身不是普通超链接；若要在顶栏加一项同样效果，请填链接地址
+            <code>/#openMemberHub</code>（进入读经首页并自动打开会员面板）。宣传页等同理可用
+            <code>/promo.html#openMemberHub</code>。账户与登录相关请使用会员面板。
+          </p>
+        </div>
+        </section>
+
+        <section class="sc-block" aria-labelledby="scFooterHeading">
+          <h2 id="scFooterHeading" class="sc-block-title">底栏设置</h2>
+          <p class="sc-block-lead">可选全站底部说明文字，纯文本、按行分段居中，不支持 HTML。</p>
+        <div class="sc-field">
+          <label><input type="checkbox" id="scFooterOn" /> 显示全站底栏</label>
+        </div>
+        <div class="sc-field">
+          <label for="scFooterText">底栏纯文本（多行将分成多段居中）</label>
+          <textarea id="scFooterText" rows="4" placeholder="每行一段，不支持 HTML"></textarea>
+        </div>
+        </section>
+        <div class="sc-actions">
+          <button type="button" id="scReloadBtn" class="secondary-btn">重新加载</button>
+          <button type="button" id="scSaveBtn" class="primary-btn">保存到服务器</button>
+        </div>
+        <p id="scStatus" class="sc-status" role="status"></p>
+      </main>
+    </div>
+
+    <script>
+      const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+      const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+      /** 按顺序尝试，规避反代/旧部署对个别 path 返回 404 */
+      const SITE_CHROME_ADMIN_PATHS = [
+        "/api/admin/site-chrome-config",
+        "/api/admin/site-chrome",
+        "/api/admin/sitechrome",
+      ];
+      /** 与 server.js SITE_CHROME_MAX_NAV 一致 */
+      const SITE_CHROME_NAV_MAX = 16;
+
+      function getToken() {
+        return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+      }
+
+      function normalizeApiOrigin(raw) {
+        let s = String(raw || "").trim();
+        if (!s) return "";
+        s = s.replace(/\/+$/, "");
+        if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+        return s.replace(/\/+$/, "");
+      }
+
+      function isLikelyStaticDevServerPort(port) {
+        const p = String(port || "").trim();
+        if (!p) return false;
+        if (p === "5173" || p === "4173" || p === "8081") return true;
+        if (/^55\d{2}$/.test(p)) return true;
+        return false;
+      }
+
+      function getApiBase() {
+        const m = document.querySelector('meta[name="askbible-api-base"]');
+        const fromMeta = m && String(m.getAttribute("content") || "").trim();
+        if (fromMeta) return normalizeApiOrigin(fromMeta);
+        if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+          return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+        }
+        try {
+          const proto = window.location.protocol || "";
+          if (proto === "capacitor:" || proto === "file:") return DEFAULT_PRODUCTION_ORIGIN;
+          const h = window.location.hostname || "";
+          const port = window.location.port || "";
+          if (
+            (h === "localhost" || h === "127.0.0.1") &&
+            proto === "http:" &&
+            isLikelyStaticDevServerPort(port)
+          ) {
+            return "http://127.0.0.1:3000";
+          }
+        } catch (_) {}
+        return "";
+      }
+
+      function apiOriginRootFromNormalizedBase(normalized) {
+        if (!normalized) return "";
+        try {
+          const href = normalized.includes("://") ? normalized : "http://" + normalized;
+          const u = new URL(href);
+          return u.origin + "/";
+        } catch {
+          return "";
+        }
+      }
+
+      function apiUrl(path) {
+        const p = path.startsWith("/") ? path : "/" + path;
+        const base = getApiBase();
+        if (!base) return p;
+        const normalized = normalizeApiOrigin(base);
+        const root = apiOriginRootFromNormalizedBase(normalized);
+        if (root) {
+          try {
+            return new URL(p, root).href;
+          } catch {
+            /* fall through */
+          }
+        }
+        try {
+          const origin = normalized.endsWith("/") ? normalized : normalized + "/";
+          return new URL(p, origin).href;
+        } catch {
+          return String(base).replace(/\/$/, "") + p;
+        }
+      }
+
+      async function fetchApiJson(path, init) {
+        const res = await fetch(apiUrl(path), init);
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw.trim() ? JSON.parse(raw) : {};
+        } catch {
+          data = {};
+        }
+        if (!res.ok) {
+          throw new Error(data.error || "请求失败 " + res.status);
+        }
+        return data;
+      }
+
+      async function fetchSiteChromeAdminJson(init) {
+        let last404Msg = "";
+        for (let i = 0; i < SITE_CHROME_ADMIN_PATHS.length; i++) {
+          const path = SITE_CHROME_ADMIN_PATHS[i];
+          const res = await fetch(apiUrl(path), init);
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch {
+            data = {};
+          }
+          if (res.status === 404) {
+            last404Msg = data.error || "请求失败 404";
+            continue;
+          }
+          if (!res.ok) {
+            throw new Error(data.error || "请求失败 " + res.status);
+          }
+          return data;
+        }
+        throw new Error(
+          last404Msg ||
+            "顶栏底栏接口均为 404。请在服务器上部署并重启含 site-chrome 路由的最新 server.js（路径示例：/api/admin/sitechrome）。"
+        );
+      }
+
+      function setStatus(text, isErr) {
+        const el = document.getElementById("scStatus");
+        el.textContent = text || "";
+        el.classList.toggle("err", Boolean(isErr));
+      }
+
+      function normalizeScNavIconId(raw) {
+        return String(raw || "")
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9_]/g, "");
+      }
+
+      function readIconOnlyFromSavedLink(link) {
+        if (!link) return false;
+        const v = link.iconOnly != null ? link.iconOnly : link.icon_only;
+        if (v === true || v === 1) return true;
+        const s = String(v ?? "")
+          .trim()
+          .toLowerCase();
+        return s === "true" || s === "1" || s === "yes" || s === "on";
+      }
+
+      function updateScNavRowIconSelection(row, iconId) {
+        const hid = row.querySelector(".sc-nav-icon-value");
+        if (hid) hid.value = iconId;
+        const grid = row.querySelector(".sc-nav-icon-grid");
+        if (grid) {
+          grid.querySelectorAll(".sc-nav-icon-choice").forEach(function (b) {
+            b.classList.toggle("is-selected", b.getAttribute("data-icon") === iconId);
+          });
+        }
+        const cb = row.querySelector(".sc-nav-icon-only");
+        const hidOnly = row.querySelector(".sc-nav-icon-only-value");
+        if (cb) {
+          cb.disabled = !iconId;
+          if (!iconId) {
+            cb.checked = false;
+            if (hidOnly) hidOnly.value = "0";
+          }
+        } else if (hidOnly && !iconId) {
+          hidOnly.value = "0";
+        }
+      }
+
+      function appendNavRow(link) {
+        const list = document.getElementById("scNavList");
+        const row = document.createElement("div");
+        row.className = "sc-nav-row";
+        row.setAttribute("data-sc-nav-row", "");
+
+        const meta = document.createElement("div");
+        meta.className = "sc-nav-row-meta";
+        const handle = document.createElement("span");
+        handle.className = "sc-nav-drag-handle";
+        handle.setAttribute("draggable", "true");
+        handle.setAttribute("title", "拖动排序");
+        handle.setAttribute("aria-hidden", "true");
+        handle.textContent = "⋮⋮";
+        const orderWrap = document.createElement("div");
+        orderWrap.className = "sc-nav-order-btns";
+        const btnUp = document.createElement("button");
+        btnUp.type = "button";
+        btnUp.className = "secondary-btn sc-nav-move-up";
+        btnUp.setAttribute("aria-label", "上移");
+        btnUp.textContent = "↑";
+        const btnDown = document.createElement("button");
+        btnDown.type = "button";
+        btnDown.className = "secondary-btn sc-nav-move-down";
+        btnDown.setAttribute("aria-label", "下移");
+        btnDown.textContent = "↓";
+        orderWrap.append(btnUp, btnDown);
+        meta.append(handle, orderWrap);
+
+        const cellLabel = document.createElement("div");
+        cellLabel.className = "sc-nav-cell";
+        const sl = document.createElement("span");
+        sl.className = "sc-nav-cell-label";
+        sl.textContent = "显示文字";
+        const il = document.createElement("input");
+        il.type = "text";
+        il.className = "sc-nav-label";
+        il.autocomplete = "off";
+        il.value = String(link?.label ?? "");
+        cellLabel.append(sl, il);
+
+        const cellHref = document.createElement("div");
+        cellHref.className = "sc-nav-cell";
+        const sh = document.createElement("span");
+        sh.className = "sc-nav-cell-label";
+        sh.textContent = "链接地址";
+        const ih = document.createElement("input");
+        ih.type = "text";
+        ih.className = "sc-nav-href";
+        ih.autocomplete = "off";
+        ih.placeholder = "/ 或 https://…";
+        ih.value = String(link?.href ?? "");
+        cellHref.append(sh, ih);
+
+        const cellIcon = document.createElement("div");
+        cellIcon.className = "sc-nav-cell";
+        const si = document.createElement("span");
+        si.className = "sc-nav-cell-label";
+        si.textContent = "图标";
+        const hid = document.createElement("input");
+        hid.type = "hidden";
+        hid.className = "sc-nav-icon-value";
+        const iconOpts = Array.isArray(window.ASKBIBLE_CHROME_NAV_ICON_OPTIONS)
+          ? window.ASKBIBLE_CHROME_NAV_ICON_OPTIONS
+          : [
+              { id: "", labelZh: "无" },
+              { id: "user", labelZh: "人物" },
+            ];
+        const allowed = new Set(iconOpts.map((o) => o.id));
+        let want = normalizeScNavIconId(link?.icon);
+        if (!allowed.has(want)) want = "";
+        hid.value = want;
+        const grid = document.createElement("div");
+        grid.className = "sc-nav-icon-grid";
+        const htmlFn = typeof window.askBibleChromeNavIconHtml === "function" ? window.askBibleChromeNavIconHtml : null;
+        iconOpts.forEach(function (o) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "sc-nav-icon-choice";
+          b.setAttribute("data-icon", o.id);
+          b.setAttribute("title", o.id === "" ? "无" : o.labelZh || o.id);
+          b.setAttribute("aria-label", o.id === "" ? "无图标" : String(o.labelZh || o.id));
+          if (o.id === "") {
+            const sp = document.createElement("span");
+            sp.className = "sc-nav-icon-choice-none";
+            sp.textContent = "—";
+            b.appendChild(sp);
+          } else if (htmlFn) {
+            b.innerHTML = htmlFn(o.id);
+          }
+          if (want === o.id) b.classList.add("is-selected");
+          grid.appendChild(b);
+        });
+        cellIcon.append(si, hid, grid);
+
+        const cellIconOnly = document.createElement("div");
+        cellIconOnly.className = "sc-nav-cell sc-nav-cell--icon-only";
+        const slo = document.createElement("span");
+        slo.className = "sc-nav-cell-label";
+        slo.textContent = "顶栏";
+        const lab = document.createElement("label");
+        lab.className = "sc-nav-icon-only-wrap";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.className = "sc-nav-icon-only";
+        cb.checked = readIconOnlyFromSavedLink(link) && want !== "";
+        cb.disabled = want === "";
+        const spTxt = document.createElement("span");
+        spTxt.className = "sc-nav-icon-only-txt";
+        spTxt.textContent = "仅图标";
+        lab.append(cb, spTxt);
+        const hidOnly = document.createElement("input");
+        hidOnly.type = "hidden";
+        hidOnly.className = "sc-nav-icon-only-value";
+        hidOnly.value = cb.checked ? "1" : "0";
+        cb.addEventListener("change", function () {
+          if (cb.disabled) return;
+          hidOnly.value = cb.checked ? "1" : "0";
+        });
+        cellIconOnly.append(slo, lab, hidOnly);
+
+        const rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "secondary-btn sc-nav-remove";
+        rm.textContent = "删除";
+
+        row.append(meta, cellLabel, cellHref, cellIcon, cellIconOnly, rm);
+        list.appendChild(row);
+      }
+
+      function renderNavRows(links) {
+        const list = document.getElementById("scNavList");
+        list.replaceChildren();
+        const arr = Array.isArray(links) ? links : [];
+        if (!arr.length) {
+          appendNavRow({ href: "", label: "", icon: "", iconOnly: false });
+          return;
+        }
+        arr.forEach(function (x) {
+          appendNavRow(x && typeof x === "object" ? x : {});
+        });
+      }
+
+      function collectNavLinksFromDom() {
+        const rows = document.querySelectorAll("#scNavList [data-sc-nav-row]");
+        const out = [];
+        rows.forEach(function (row) {
+          const il = row.querySelector(".sc-nav-label");
+          const ih = row.querySelector(".sc-nav-href");
+          const hid = row.querySelector(".sc-nav-icon-value");
+          const cb = row.querySelector(".sc-nav-icon-only");
+          const hidOnly = row.querySelector(".sc-nav-icon-only-value");
+          const label = (il && il.value.trim()) || "";
+          const href = (ih && ih.value.trim()) || "";
+          const icon = normalizeScNavIconId(hid && hid.value);
+          let iconOnly = false;
+          if (icon) {
+            if (hidOnly) iconOnly = hidOnly.value === "1";
+            else iconOnly = !!(cb && cb.checked);
+          }
+          if (label || href) out.push({ href, label, icon, iconOnly });
+        });
+        return out;
+      }
+
+      function applyForm(data) {
+        const raw = data && typeof data === "object" ? data : {};
+        const t = raw.topbar && typeof raw.topbar === "object" ? raw.topbar : {};
+        const f = raw.footer && typeof raw.footer === "object" ? raw.footer : {};
+        const setVal = (id, v) => {
+          const el = document.getElementById(id);
+          if (el) el.value = v;
+        };
+        const setChecked = (id, v) => {
+          const el = document.getElementById(id);
+          if (el) el.checked = v;
+        };
+        setVal("scLogoUrl", t.logoUrl || "");
+        setVal("scLogoHeight", String(t.logoHeight || 36));
+        setVal("scHomeHref", t.homeHref || "/");
+        setVal("scBrandTitleAttr", t.brandTitleAttr || "AskBible.me 首页");
+        setChecked("scShowSplit", t.showSplitBrand !== false);
+        setVal("scBrandAsk", t.brandAsk || "Ask");
+        setVal("scBrandBible", t.brandBible || "Bible");
+        setVal("scBrandMe", t.brandMe || ".me");
+        setVal("scBrandPlain", t.brandPlainTitle || "");
+        setVal("scBrandSubtitle", t.brandSubtitle || "");
+        setChecked("scBrandSubtitleShow", t.brandSubtitleShow !== false);
+        setChecked("scBrandSubtitleInline", t.brandSubtitleInline === true);
+        setChecked("scBrandSubtitleDismissible", t.brandSubtitleDismissible === true);
+        renderNavRows(t.navLinks || []);
+        setChecked("scFooterOn", f.enabled === true);
+        setVal("scFooterText", f.text || "");
+        toggleSplit();
+      }
+
+      function toggleSplit() {
+        const split = document.getElementById("scShowSplit").checked;
+        document.getElementById("scSplitBrand").hidden = !split;
+        document.getElementById("scPlainBrand").hidden = split;
+      }
+
+      function collectPayload() {
+        const navLinks = collectNavLinksFromDom();
+        if (navLinks.length > SITE_CHROME_NAV_MAX) {
+          throw new Error("顶栏导航最多 " + SITE_CHROME_NAV_MAX + " 条，请删除多余项。");
+        }
+        const $ = (id) => document.getElementById(id);
+        const tv = (id) => ($(id) ? String($(id).value).trim() : "");
+        const tc = (id, fallback) => ($(id) ? $(id).checked : fallback);
+        const tn = (id, fallback) => {
+          const el = $(id);
+          const n = el ? Number(el.value) : NaN;
+          return Number.isFinite(n) ? n : fallback;
+        };
+        return {
+          topbar: {
+            logoUrl: tv("scLogoUrl"),
+            logoHeight: tn("scLogoHeight", 36),
+            homeHref: tv("scHomeHref") || "/",
+            brandTitleAttr: tv("scBrandTitleAttr"),
+            showSplitBrand: tc("scShowSplit", true),
+            brandAsk: $("scBrandAsk") ? $("scBrandAsk").value : "",
+            brandBible: $("scBrandBible") ? $("scBrandBible").value : "",
+            brandMe: $("scBrandMe") ? $("scBrandMe").value : "",
+            brandPlainTitle: tv("scBrandPlain"),
+            brandSubtitle: tv("scBrandSubtitle"),
+            brandSubtitleShow: tc("scBrandSubtitleShow", true),
+            brandSubtitleInline: tc("scBrandSubtitleInline", false),
+            brandSubtitleDismissible: tc("scBrandSubtitleDismissible", false),
+            navLinks,
+          },
+          footer: {
+            enabled: tc("scFooterOn", false),
+            text: $("scFooterText") ? $("scFooterText").value : "",
+          },
+        };
+      }
+
+      document.getElementById("scShowSplit").addEventListener("change", toggleSplit);
+
+      document.getElementById("scNavAddBtn").addEventListener("click", function () {
+        const n = document.querySelectorAll("#scNavList [data-sc-nav-row]").length;
+        if (n >= SITE_CHROME_NAV_MAX) {
+          setStatus("顶栏导航最多 " + SITE_CHROME_NAV_MAX + " 条。", true);
+          return;
+        }
+        appendNavRow({ href: "", label: "", icon: "", iconOnly: false });
+      });
+
+      function getScNavDragAfter(container, y) {
+        const rows = [...container.querySelectorAll("[data-sc-nav-row]:not(.sc-nav-row--dragging)")];
+        let best = { offset: Number.NEGATIVE_INFINITY, element: null };
+        rows.forEach(function (child) {
+          const box = child.getBoundingClientRect();
+          const offset = y - box.top - box.height / 2;
+          if (offset < 0 && offset > best.offset) {
+            best = { offset, element: child };
+          }
+        });
+        return best.element;
+      }
+
+      function moveScNavRow(row, delta) {
+        const list = document.getElementById("scNavList");
+        if (!list || !row) return;
+        if (delta < 0 && row.previousElementSibling) {
+          list.insertBefore(row, row.previousElementSibling);
+        } else if (delta > 0 && row.nextElementSibling) {
+          list.insertBefore(row.nextElementSibling, row);
+        }
+      }
+
+      (function initScNavListInteractions() {
+        const list = document.getElementById("scNavList");
+        if (!list || list.dataset.scNavBound === "1") return;
+        list.dataset.scNavBound = "1";
+        let dragRow = null;
+        list.addEventListener("dragstart", function (e) {
+          const h = e.target.closest(".sc-nav-drag-handle");
+          if (!h) return;
+          dragRow = h.closest("[data-sc-nav-row]");
+          if (!dragRow) return;
+          dragRow.classList.add("sc-nav-row--dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", "sc-nav");
+        });
+        list.addEventListener("dragend", function () {
+          if (dragRow) dragRow.classList.remove("sc-nav-row--dragging");
+          dragRow = null;
+        });
+        list.addEventListener("dragover", function (e) {
+          if (!dragRow) return;
+          e.preventDefault();
+          const after = getScNavDragAfter(list, e.clientY);
+          if (after == null) list.appendChild(dragRow);
+          else list.insertBefore(dragRow, after);
+        });
+        list.addEventListener("click", function (e) {
+          const up = e.target.closest(".sc-nav-move-up");
+          const down = e.target.closest(".sc-nav-move-down");
+          if (up || down) {
+            const row = (up || down).closest("[data-sc-nav-row]");
+            if (row) moveScNavRow(row, up ? -1 : 1);
+            return;
+          }
+          const choice = e.target.closest(".sc-nav-icon-choice");
+          if (choice) {
+            const row = choice.closest("[data-sc-nav-row]");
+            if (row) updateScNavRowIconSelection(row, choice.getAttribute("data-icon") || "");
+            return;
+          }
+          const btn = e.target.closest(".sc-nav-remove");
+          if (!btn) return;
+          const row = btn.closest("[data-sc-nav-row]");
+          if (row) row.remove();
+          if (!document.querySelector("#scNavList [data-sc-nav-row]")) {
+            appendNavRow({ href: "", label: "", icon: "", iconOnly: false });
+          }
+        });
+      })();
+
+      document.getElementById("scReloadBtn").addEventListener("click", async function () {
+        if (!getToken()) {
+          setStatus("请先登录。", true);
+          return;
+        }
+        setStatus("加载中…", false);
+        try {
+          const data = await fetchSiteChromeAdminJson({
+            headers: { Authorization: "Bearer " + getToken() },
+          });
+          applyForm(data);
+          setStatus("已加载。更新于 " + (data.updatedAt || "—"), false);
+          window.dispatchEvent(new Event("askbible-site-chrome-reload"));
+        } catch (e) {
+          setStatus(String(e.message || e), true);
+        }
+      });
+
+      document.getElementById("scSaveBtn").addEventListener("click", async function () {
+        if (!getToken()) {
+          setStatus("请先登录。", true);
+          return;
+        }
+        setStatus("保存中…", false);
+        try {
+          const body = collectPayload();
+          const saved = await fetchSiteChromeAdminJson({
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getToken(),
+            },
+            body: JSON.stringify(body),
+          });
+          applyForm(saved);
+          if (typeof window.__applyAskBibleSiteChrome === "function") {
+            window.__applyAskBibleSiteChrome(saved);
+          }
+          setStatus("已保存。其他已打开页面刷新后即可同步。", false);
+        } catch (e) {
+          setStatus(String(e.message || e), true);
+        }
+      });
+
+      (async function init() {
+        const auth = document.getElementById("scAuth");
+        if (!getToken()) {
+          auth.hidden = false;
+          auth.textContent = "请先在读经页登录管理员帐号。";
+          setStatus("未登录，无法加载或保存配置。", true);
+          renderNavRows([]);
+          return;
+        }
+        auth.hidden = true;
+        document.getElementById("scReloadBtn").click();
+      })();
+    </script>
+    <script src="/admin-shell.js?v=1" defer></script>
+  </body>
+</html>

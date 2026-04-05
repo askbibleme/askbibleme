@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>管理后台 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=106" />
+    <link rel="stylesheet" href="/admin-shell.css?v=1" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .admin-hub-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 28px 18px 56px;
+        box-sizing: border-box;
+      }
+      .admin-hub-hero {
+        margin-bottom: 28px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--line);
+      }
+      .admin-hub-hero h1 {
+        margin: 0 0 10px;
+        font-size: calc(26px * var(--font-scale));
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+      .admin-hub-hero p {
+        margin: 0;
+        font-size: calc(14px * var(--font-scale));
+        line-height: 1.65;
+        color: var(--muted-soft);
+        max-width: 52em;
+      }
+      .admin-hub-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+        gap: 16px;
+      }
+      .admin-hub-card {
+        display: flex;
+        flex-direction: column;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        padding: 18px 16px 16px;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.08);
+        box-sizing: border-box;
+        min-height: 132px;
+        text-decoration: none;
+        color: inherit;
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease,
+          transform 0.15s ease;
+      }
+      a.admin-hub-card:hover {
+        border-color: rgba(200, 155, 60, 0.45);
+        box-shadow: 0 14px 44px rgba(80, 60, 30, 0.12);
+        transform: translateY(-1px);
+      }
+      .admin-hub-card h2 {
+        margin: 0 0 8px;
+        font-size: calc(16px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .admin-hub-card p {
+        margin: 0;
+        flex: 1;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+      .admin-hub-card .admin-hub-go {
+        margin-top: 14px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #8b6914;
+      }
+      a.admin-hub-card .admin-hub-go {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .admin-hub-section-title {
+        margin: 32px 0 12px;
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .admin-hub-section-title:first-of-type {
+        margin-top: 0;
+      }
+      .admin-hub-note {
+        margin-top: 28px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        background: rgba(255, 251, 242, 0.85);
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+      .admin-hub-note strong {
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/admin-hub.html">
+    <div class="admin-hub-inner">
+      <header class="admin-hub-hero">
+        <h1>管理后台</h1>
+        <p>
+          以下为全站配置与运营工具入口，版式与读经站一致（纸质底、金棕强调）。左侧可随时切换模块；「读经页内」一项会打开首页并弹出<strong>规则编辑、测试生成、发布与任务</strong>等大面板。
+        </p>
+      </header>
+
+      <div class="admin-hub-section-title">站点与展示</div>
+      <div class="admin-hub-grid">
+        <a class="admin-hub-card" href="/site-chrome.html">
+          <h2>顶栏与底栏</h2>
+          <p>品牌、一句话介绍、顶栏导航链接与全站底栏文案。</p>
+          <span class="admin-hub-go">进入</span>
+        </a>
+        <a class="admin-hub-card" href="/seo-settings.html">
+          <h2>SEO 设置</h2>
+          <p>首页与宣传页的标题、摘要、Open Graph、Twitter 与 JSON-LD 描述。</p>
+          <span class="admin-hub-go">进入</span>
+        </a>
+        <a class="admin-hub-card" href="/color-themes.html">
+          <h2>全局配色</h2>
+          <p>设计令牌与主题变量，全站 <code>var(--…)</code> 引用。</p>
+          <span class="admin-hub-go">进入</span>
+        </a>
+        <a class="admin-hub-card" href="/promo-edit.html">
+          <h2>宣传页正文</h2>
+          <p>Markdown 与自定义 CSS，接口加载到宣传页。</p>
+          <span class="admin-hub-go">进入</span>
+        </a>
+      </div>
+
+      <div class="admin-hub-section-title">内容与媒体</div>
+      <div class="admin-hub-grid">
+        <a class="admin-hub-card" href="/article-studio.html">
+          <h2>文章发布中心</h2>
+          <p>社区文章撰写、与 AI 整理草稿并发布。</p>
+          <span class="admin-hub-go">进入</span>
+        </a>
+        <a class="admin-hub-card" href="/chapter-illustration.html">
+          <h2>章节配图</h2>
+          <p>配图规则、试生成、发布到读经左页与批量任务。</p>
+          <span class="admin-hub-go">进入</span>
+        </a>
+      </div>
+
+      <div class="admin-hub-section-title">数据</div>
+      <div class="admin-hub-grid">
+        <a class="admin-hub-card" href="/admin-analytics.html">
+          <h2>访问统计</h2>
+          <p>按日汇总访客、浏览与估算在线时长。</p>
+          <span class="admin-hub-go">进入</span>
+        </a>
+      </div>
+
+      <div class="admin-hub-section-title">读经页内</div>
+      <div class="admin-hub-grid">
+        <a class="admin-hub-card" href="/#openAdmin">
+          <h2>规则 · 任务 · 发布</h2>
+          <p>内容版本规则、测试生成、已发布管理、部署与积分等（读经首页大面板）。</p>
+          <span class="admin-hub-go">打开读经首页</span>
+        </a>
+      </div>
+
+      <p class="admin-hub-note">
+        <strong>提示：</strong>各页需在浏览器中已登录管理员账号（与读经页同一令牌）。若从静态端口打开，请确认
+        <code>meta[name=askbible-api-base]</code> 指向运行 <code>server.js</code> 的地址。
+      </p>
+    </div>
+
+    <script src="/admin-shell.js?v=1" defer></script>
+  </body>
+</html>

@@ -7,22 +7,19 @@
     <meta name="askbible-api-base" content="" />
     <title>宣传页 Markdown · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=75" />
+    <link rel="stylesheet" href="/styles.css?v=106" />
+    <link rel="stylesheet" href="/admin-shell.css?v=1" />
+    <script src="/theme-apply.js?v=2"></script>
     <link rel="stylesheet" href="/promo.css?v=23" />
   </head>
   <body class="promo-page-body">
     <div class="page-shell promo-shell">
       <header class="site-topbar">
         <div class="site-topbar-title">
-          <a href="/promo.html" class="download-brand-link" title="宣传页"
-            ><span class="brand-ask">Ask</span><span class="brand-bible">Bible</span
-            ><span class="brand-me">.me</span></a
-          >
+          <div class="askbible-chrome-brand-slot"></div>
         </div>
         <div class="site-topbar-actions">
-          <a href="/promo.html" class="site-topbar-link">查看宣传页</a>
-          <a href="/article-studio.html" class="site-topbar-link">文章发布中心</a>
-          <a href="/" class="site-topbar-link">读经首页</a>
+          <div class="askbible-chrome-nav-slot"></div>
         </div>
       </header>
 
@@ -63,10 +60,6 @@
           </div>
         </div>
       </main>
-
-      <footer class="site-footer">
-        <span class="site-footer-copy">© 2026 AskBible.me</span>
-      </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -404,5 +397,6 @@
         }
       });
     </script>
+    <script src="/admin-shell.js?v=1" defer></script>
   </body>
 </html>

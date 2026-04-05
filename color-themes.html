@@ -1,0 +1,3663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2c2824" />
+    <!-- 只填「协议+域名+端口」站点根，如 http://127.0.0.1:3000 ；不要填路径（勿填 /api、勿填 /color-themes.html） -->
+    <meta name="askbible-api-base" content="" />
+    <title>配色管理 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=106" />
+    <link rel="stylesheet" href="/admin-shell.css?v=1" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      body.ct-color-themes-body {
+        overflow-x: hidden;
+      }
+      /* 外层居中；点选模式 70/30 分栏需要略宽版面 */
+      .ct-page {
+        max-width: min(1080px, 100%);
+        width: 100%;
+        margin: 0 auto;
+        padding: 20px 14px 48px;
+        box-sizing: border-box;
+      }
+      .ct-doc {
+        max-width: 100%;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        box-shadow: 0 14px 48px rgba(0, 0, 0, 0.22);
+        padding: 20px 16px 22px;
+        box-sizing: border-box;
+      }
+      .ct-doc .ct-head {
+        margin-bottom: 18px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .ct-doc .ct-head h1 {
+        margin: 0 0 10px;
+        font-size: calc(26px * var(--font-scale));
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+      .ct-doc .ct-lead {
+        margin: 0;
+        max-width: none;
+        font-size: calc(14px * var(--font-scale));
+        color: var(--muted-soft);
+        line-height: 1.6;
+      }
+      .ct-doc .ct-lead code {
+        display: inline-block;
+        margin: 0 1px;
+        padding: 2px 7px;
+        border-radius: 6px;
+        font-size: 0.88em;
+        background: rgba(139, 111, 71, 0.12);
+        border: 1px solid var(--line-soft);
+        color: var(--ink);
+      }
+      .ct-toolbar {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 14px 14px;
+        margin-bottom: 12px;
+        border-radius: 14px;
+        border: 1px solid var(--line-soft);
+        background: var(--paper);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+      }
+      .ct-toolbar-cluster {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 10px 12px;
+      }
+      .ct-toolbar > .ct-toolbar-cluster:first-child {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .ct-toolbar > .ct-toolbar-cluster:first-child .ct-btn-row {
+        width: 100%;
+      }
+      .ct-toolbar-cluster--actions {
+        align-items: center;
+        padding-top: 4px;
+        border-top: 1px solid var(--line-soft);
+      }
+      .ct-toolbar-cluster--actions .ct-btn-row {
+        width: 100%;
+      }
+      .ct-field-inline {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+        min-width: 0;
+      }
+      .ct-label {
+        font-size: calc(11px * var(--font-scale));
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .ct-input {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: 38px;
+        padding: 0 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        box-sizing: border-box;
+      }
+      .ct-select {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: 38px;
+        padding: 0 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        box-sizing: border-box;
+      }
+      .ct-btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .ct-doc p.ct-status {
+        margin: 0 0 12px;
+        padding: 10px 14px;
+        min-height: 0;
+        font-size: calc(13px * var(--font-scale));
+        line-height: 1.45;
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+      }
+      .ct-doc p.ct-status:empty {
+        display: none;
+        margin: 0;
+        padding: 0;
+        border: none;
+      }
+      .ct-doc p.ct-status.ct-error {
+        color: #7a1510;
+        background: #fff0ee;
+        border-color: rgba(180, 35, 24, 0.45);
+        box-shadow: none;
+      }
+      .ct-error {
+        color: inherit;
+      }
+      .ct-workbench {
+        border-radius: 16px;
+        border: 1px solid var(--line-soft);
+        background: rgba(139, 111, 71, 0.05);
+        overflow: hidden;
+        min-width: 0;
+      }
+      .ct-theme-strip {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line-soft);
+        background: var(--paper-soft);
+      }
+      .ct-theme-strip-label {
+        font-size: calc(12px * var(--font-scale));
+        font-weight: 700;
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+      .ct-theme-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+      }
+      .ct-tab {
+        padding: 9px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: calc(13px * var(--font-scale));
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .ct-tab:hover {
+        border-color: var(--accent);
+      }
+      .ct-tab.is-active {
+        border-color: var(--accent);
+        background: rgba(139, 111, 71, 0.2);
+        font-weight: 700;
+        box-shadow: 0 0 0 1px rgba(139, 111, 71, 0.15);
+      }
+      /* 每组一行：左 50% 预览、右 50% 调整；每项内再分「色/字示意」与表单项 */
+      .ct-pairs-hint {
+        margin: 0;
+        padding: 8px 14px;
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.45;
+        background: rgba(139, 111, 71, 0.06);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .ct-pair {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: start;
+        gap: 0;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      @media (max-width: 720px) {
+        .ct-pair {
+          grid-template-columns: 1fr;
+        }
+        .ct-pair-preview {
+          border-right: none !important;
+          border-bottom: 1px solid var(--line-soft);
+        }
+      }
+      .ct-pair-heading {
+        grid-column: 1 / -1;
+        margin: 0;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--ink);
+        background: rgba(139, 111, 71, 0.1);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .ct-pair-preview {
+        padding: 12px 14px;
+        border-right: 1px solid var(--line-soft);
+        min-width: 0;
+        min-height: 200px;
+        background: var(--paper);
+      }
+      .ct-pair-editor {
+        padding: 6px 6px 10px 8px;
+        min-width: 0;
+        background: rgba(0, 0, 0, 0.02);
+      }
+      .ct-preview-mock {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      }
+      .ct-preview-mock-top {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        background: var(--bg);
+        color: var(--ui-text);
+        font-size: 13px;
+      }
+      .ct-preview-mock-brand {
+        font-weight: 700;
+      }
+      .ct-preview-mock-brand .b {
+        color: var(--brand-bible);
+      }
+      .ct-preview-mock-accent {
+        margin-top: 14px;
+        display: inline-block;
+        padding: 8px 14px;
+        border-radius: 10px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      /* 预览区内组件：一律使用主题变量，随 applyPreview 更新 */
+      .ct-preview-var-root .pv-strip {
+        padding: 14px 14px 16px;
+        border-top: 1px solid var(--line-soft);
+      }
+      .ct-preview-var-root .pv-strip--paper {
+        background: var(--book-spread-paper-gradient, var(--paper));
+        color: var(--ink);
+      }
+      .ct-preview-var-root .pv-strip--soft {
+        background: var(--paper-soft);
+      }
+      .ct-preview-var-root .pv-strip--edge {
+        background: var(--paper-edge);
+        padding: 10px 14px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ct-preview-var-root .pv-h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .ct-preview-var-root .pv-p {
+        margin: 0 0 8px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+      .ct-preview-var-root .pv-verse {
+        margin: 0 0 10px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--scripture-verse-color);
+      }
+      .ct-preview-var-root .pv-divine {
+        color: var(--scripture-divine-color);
+        font-weight: 700;
+      }
+      .ct-preview-var-root .pv-repeat {
+        color: var(--verse-repeat-yellow);
+        font-weight: 800;
+        margin-left: 4px;
+      }
+      .ct-preview-var-root .pv-hr {
+        height: 0;
+        margin: 12px 0;
+        border: 0;
+        border-top: 1px solid var(--line);
+      }
+      .ct-preview-var-root .pv-hr-soft {
+        border-top-color: var(--line-soft);
+      }
+      .ct-preview-var-root .pv-muted {
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ct-preview-var-root .pv-muted-soft {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted-soft);
+      }
+      .ct-preview-var-root .pv-promo-mock {
+        text-align: left;
+        font-family: var(--promo-font-body, inherit);
+      }
+      .ct-preview-var-root .pv-promo-h1 {
+        margin: 0 0 8px;
+        font-family: var(--promo-font-heading, var(--promo-font-body, inherit));
+        font-size: var(--promo-h1-font-size);
+        font-weight: var(--promo-h1-font-weight);
+        line-height: var(--promo-h1-line-height);
+        color: var(--promo-h1-color);
+      }
+      .ct-preview-var-root .pv-promo-h2 {
+        margin: 0 0 6px;
+        font-family: var(--promo-font-heading, var(--promo-font-body, inherit));
+        font-size: var(--promo-h2-font-size);
+        font-weight: var(--promo-h2-font-weight);
+        line-height: var(--promo-h2-line-height);
+        color: var(--promo-h2-color);
+      }
+      .ct-preview-var-root .pv-promo-body {
+        margin: 0 0 8px;
+        font-size: var(--promo-md-font-size);
+        line-height: var(--promo-md-line-height);
+        color: var(--promo-md-text);
+      }
+      .ct-preview-var-root .pv-promo-ul {
+        margin: 6px 0 10px 18px;
+        padding: 0;
+        font-size: var(--promo-md-font-size);
+        color: var(--promo-md-text);
+      }
+      .ct-preview-var-root .pv-promo-ul li::marker {
+        color: var(--promo-list-marker);
+      }
+      .ct-preview-var-root .pv-promo-bq {
+        margin: 6px 0 0;
+        padding-left: var(--promo-blockquote-padding-left);
+        border-left: var(--promo-blockquote-border-width) solid var(--promo-blockquote-border);
+        font-size: var(--promo-blockquote-font-size);
+        line-height: var(--promo-blockquote-line-height);
+        color: var(--promo-blockquote-text);
+      }
+      .ct-preview-var-root .pv-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .ct-preview-var-root .pv-btn-primary {
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: default;
+      }
+      .ct-preview-var-root .pv-btn-secondary {
+        border: 1px solid var(--panel-line);
+        background: var(--paper);
+        color: var(--muted);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: default;
+      }
+      .ct-preview-var-root .pv-link {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: default;
+      }
+      .ct-preview-var-root .pv-card {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 11px;
+        border: 1px solid var(--panel-line);
+        background: var(--paper);
+        box-shadow: var(--shadow-md);
+      }
+      .ct-preview-var-root .pv-card-title {
+        margin: 0 0 6px;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .ct-preview-var-root .pv-label {
+        margin: 14px 0 6px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .ct-preview-var-root .pv-label:first-child {
+        margin-top: 0;
+      }
+      .ct-preview-var-root .pv-seg {
+        display: inline-flex;
+        align-items: center;
+        min-height: 38px;
+        border-radius: var(--ui-seg-track-radius);
+        padding: var(--ui-seg-track-pad-y) var(--ui-seg-track-pad-x);
+        background: var(--ui-seg-track-bg);
+        gap: var(--ui-seg-gap);
+        max-width: 100%;
+        flex-wrap: wrap;
+      }
+      .ct-preview-var-root .pv-seg-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: var(--ui-seg-btn-height);
+        padding: 0 12px;
+        border: 0;
+        border-radius: var(--ui-seg-btn-radius);
+        background: transparent;
+        color: var(--ui-seg-label);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .ct-preview-var-root .pv-seg-btn:hover {
+        color: var(--ui-seg-label-hover);
+        background: var(--ui-seg-hover-fill);
+      }
+      .ct-preview-var-root .pv-seg-btn.pv-seg-btn--on {
+        background: var(--ui-seg-pill-bg);
+        color: var(--ui-seg-label-active);
+        font-weight: 800;
+        box-shadow: var(--ui-seg-pill-shadow);
+      }
+      .ct-preview-var-root .pv-stars {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      .ct-preview-var-root .pv-star-bar {
+        width: 40px;
+        height: 11px;
+        border-radius: 5px;
+        border: 1px solid var(--line-soft);
+      }
+      .ct-preview-var-root .pv-star-bar--g1 {
+        background: linear-gradient(90deg, var(--star-g1-1), var(--star-g1-3));
+      }
+      .ct-preview-var-root .pv-star-bar--g2 {
+        background: linear-gradient(90deg, var(--star-g2-1), var(--star-g2-3));
+      }
+      .ct-preview-var-root .pv-star-bar--g3 {
+        background: linear-gradient(90deg, var(--star-g3-1), var(--star-g3-3));
+      }
+      .ct-preview-var-root .pv-star-bar--g4 {
+        background: linear-gradient(90deg, var(--star-g4-1), var(--star-g4-3));
+      }
+      .ct-preview-var-root .pv-star-btn {
+        height: 28px;
+        border: none;
+        border-radius: 999px;
+        padding: 0 12px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #fffef8;
+        cursor: default;
+        background: linear-gradient(180deg, var(--star-g2-2) 0%, var(--star-g3-2) 100%);
+        box-shadow: 0 2px 8px rgba(133, 100, 40, 0.2);
+      }
+      .ct-preview-var-root .pv-input {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 6px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 12px;
+      }
+      .ct-preview-var-root .pv-topbar-muted {
+        color: var(--ui-text);
+        opacity: 0.9;
+        font-size: 12px;
+      }
+      .ct-preview-var-root .pv-topbar-hover-hint {
+        color: var(--ui-text-hover);
+        font-size: 11px;
+        margin-left: 6px;
+        opacity: 0.95;
+      }
+      .ct-preview-var-root .pv-shadow-lg {
+        margin-top: 10px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--paper-soft);
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .ct-editor-head {
+        padding: 10px 10px 8px;
+        border-bottom: 1px solid var(--line-soft);
+        background: var(--paper-soft);
+        flex-shrink: 0;
+      }
+      .ct-editor-head-title {
+        margin: 0 0 8px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .ct-meta-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .ct-meta-field label {
+        display: block;
+        font-size: calc(12px * var(--font-scale));
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      /* 每行右侧参数区：压缩排版 */
+      .ct-pair-editor .ct-row {
+        padding: 8px 2px;
+        gap: 6px;
+        margin: 2px 0;
+      }
+      .ct-pair-editor .ct-row-key code {
+        font-size: 9px;
+      }
+      .ct-pair-editor .ct-row-label {
+        font-size: 10px;
+      }
+      .ct-pair-editor .ct-row-override label {
+        font-size: 10px;
+      }
+      .ct-pair-editor .ct-inherit-hint {
+        font-size: 10px;
+      }
+      .ct-pair-editor .ct-inherit-val {
+        font-size: 9px;
+        line-height: 1.35;
+      }
+      .ct-pair-editor .ct-row-value input[type="text"] {
+        height: 30px;
+        font-size: 10px;
+        padding: 0 6px;
+      }
+      .ct-pair-editor .ct-row-value input[type="color"] {
+        width: 44px;
+        height: 40px;
+      }
+      .ct-pair-editor .ct-row-visual-caption {
+        font-size: 8px;
+      }
+      .ct-pair-editor .ct-visual-swatch-live {
+        height: 44px;
+      }
+      .ct-pair-editor .ct-row-save-item {
+        height: 30px;
+        padding: 0 8px;
+        font-size: 10px;
+      }
+      .ct-pair-editor .ct-swatch-readonly {
+        width: 24px;
+        height: 24px;
+      }
+      .ct-group-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .ct-jump-btn {
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--muted);
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.3;
+        cursor: pointer;
+      }
+      .ct-jump-btn:hover {
+        border-color: var(--accent);
+        color: var(--ink);
+      }
+      .ct-group {
+        margin-bottom: 14px;
+        padding: 0;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        background: var(--paper-soft);
+        overflow: hidden;
+      }
+      .ct-group h3 {
+        margin: 0;
+        padding: 10px 14px;
+        font-size: calc(13px * var(--font-scale));
+        font-weight: 700;
+        color: var(--ink);
+        background: rgba(139, 111, 71, 0.08);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .ct-group-body {
+        padding: 4px 10px 8px;
+      }
+      .ct-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 12px 8px;
+        border-bottom: 1px solid var(--line-soft);
+        font-size: calc(12px * var(--font-scale));
+        border-radius: 10px;
+        margin: 6px 0;
+        transition: background 0.12s;
+        border: 1px solid var(--line-soft);
+        background: var(--paper);
+      }
+      .ct-row:hover {
+        background: rgba(139, 111, 71, 0.04);
+      }
+      .ct-row:last-child {
+        border-bottom: none;
+      }
+      .ct-row-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px 12px;
+      }
+      .ct-row-top .ct-row-key {
+        flex: 1;
+        min-width: 0;
+      }
+      .ct-row-key {
+        color: var(--muted);
+        word-break: break-all;
+      }
+      .ct-row-key code {
+        font-size: 11px;
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .ct-row-label {
+        font-size: 11px;
+        color: var(--muted-soft);
+        margin-top: 2px;
+      }
+      .ct-row-override {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        justify-content: flex-end;
+        flex-shrink: 0;
+      }
+      .ct-row-override input {
+        width: auto;
+      }
+      .ct-row-override label {
+        font-size: 11px;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .ct-row-body {
+        display: grid;
+        grid-template-columns: minmax(108px, 132px) minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        width: 100%;
+      }
+      @media (max-width: 480px) {
+        .ct-row-body {
+          grid-template-columns: 1fr;
+        }
+      }
+      .ct-row-visual {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+      .ct-row-visual-caption {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted-soft);
+      }
+      .ct-visual-swatch-live {
+        width: 100%;
+        height: 52px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+        background: var(--paper-soft);
+      }
+      .ct-visual-border-preview {
+        width: 100%;
+        min-height: 48px;
+        border-radius: 0 10px 10px 0;
+        border: 1px solid var(--line-soft);
+        border-left-width: 10px;
+        border-left-style: solid;
+        border-left-color: var(--paper);
+        background: var(--paper-soft);
+      }
+      .ct-visual-hline {
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--line);
+      }
+      .ct-visual-type-sample {
+        font-family: inherit;
+        line-height: 1.35;
+        word-break: break-word;
+        padding: 6px 8px;
+        border-radius: 8px;
+        background: rgba(139, 111, 71, 0.06);
+        border: 1px dashed var(--line-soft);
+      }
+      .ct-visual-marker-ul {
+        margin: 0;
+        padding-left: 1.15rem;
+        font-size: 12px;
+        color: var(--ink);
+      }
+      .ct-visual-marker-ul li::marker {
+        color: var(--promo-list-marker);
+      }
+      .ct-visual-dim-box {
+        padding: 8px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.04);
+        border: 1px solid var(--line-soft);
+        min-height: 52px;
+        box-sizing: border-box;
+      }
+      .ct-visual-dim-pre {
+        margin: 4px 0 0;
+        font-size: 9px;
+        line-height: 1.35;
+        color: var(--muted);
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 72px;
+        overflow: auto;
+        font-family: ui-monospace, monospace;
+      }
+      .ct-row-value {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        width: 100%;
+        min-width: 0;
+      }
+      .ct-row-value input[type="text"] {
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 36px;
+        padding: 0 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .ct-row-value input[type="color"] {
+        width: 52px;
+        height: 42px;
+        padding: 2px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        cursor: pointer;
+        background: var(--paper);
+      }
+      .ct-row-save-item {
+        flex-shrink: 0;
+        height: 36px;
+        padding: 0 12px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 8px;
+      }
+      .ct-swatch-readonly {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+      }
+      .ct-inherit-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        flex: 1;
+      }
+      .ct-inherit-hint {
+        font-size: 11px;
+        color: var(--muted-soft);
+        line-height: 1.4;
+        word-break: break-word;
+      }
+      .ct-inherit-val {
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        color: var(--muted);
+        opacity: 0.95;
+      }
+      .ct-advanced {
+        margin-top: 12px;
+        margin-bottom: 14px;
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        background: var(--paper);
+      }
+      .ct-advanced summary {
+        cursor: pointer;
+        font-weight: 700;
+        color: var(--ink);
+        font-size: calc(13px * var(--font-scale));
+      }
+      .ct-actions-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+        align-items: center;
+      }
+      .ct-textarea {
+        width: 100%;
+        min-height: 200px;
+        margin-top: 10px;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 11px;
+        line-height: 1.45;
+        resize: vertical;
+        box-sizing: border-box;
+      }
+      .ct-visual[hidden] {
+        display: none !important;
+      }
+      .ct-doc .ct-foot-link {
+        margin-top: 20px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line-soft);
+        color: var(--muted-soft);
+      }
+      .ct-doc .ct-foot-link .site-topbar-link {
+        color: var(--accent);
+        border-color: var(--line);
+      }
+      .ct-doc .ct-foot-link .site-topbar-link:hover {
+        color: var(--ink);
+        background: rgba(139, 111, 71, 0.1);
+      }
+      .ct-advanced .ct-lead {
+        color: var(--muted-soft);
+      }
+      .ct-advanced .ct-lead code {
+        background: rgba(139, 111, 71, 0.12);
+        border: 1px solid var(--line-soft);
+        color: var(--ink);
+      }
+
+      /* —— 点选预览模式 —— */
+      .ct-mode-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line-soft);
+        background: rgba(139, 111, 71, 0.05);
+      }
+      .ct-mode-tab {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--muted);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .ct-mode-tab:hover {
+        border-color: var(--accent);
+        color: var(--ink);
+      }
+      .ct-mode-tab.is-active {
+        border-color: var(--accent);
+        background: rgba(139, 111, 71, 0.18);
+        color: var(--ink);
+      }
+      .ct-mode-panel {
+        padding: 0;
+      }
+      .ct-dirty-hint {
+        margin: 0;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #8a4b12;
+        background: rgba(255, 183, 46, 0.18);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .primary-btn.ct-save--dirty {
+        box-shadow: 0 0 0 2px rgba(255, 183, 46, 0.65);
+      }
+      .ct-visual-intro {
+        margin: 0;
+        padding: 10px 14px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .ct-visual-split {
+        display: grid;
+        grid-template-columns: minmax(0, 6fr) minmax(280px, 4fr);
+        gap: 14px;
+        align-items: start;
+        padding: 0 14px 16px;
+        box-sizing: border-box;
+      }
+      @media (max-width: 820px) {
+        .ct-visual-split {
+          grid-template-columns: 1fr;
+        }
+        .ct-visual-split-code {
+          position: static !important;
+          max-height: none;
+        }
+      }
+      .ct-visual-split-preview {
+        min-width: 0;
+      }
+      .ct-visual-split-code {
+        position: sticky;
+        top: 10px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        background: var(--paper);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        max-height: calc(100vh - 120px);
+      }
+      .ct-visual-code-head {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .ct-visual-code-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .ct-visual-code-sub {
+        font-size: 10px;
+        line-height: 1.4;
+        color: var(--muted);
+      }
+      .ct-visual-code-sub code {
+        font-size: 10px;
+        background: rgba(139, 111, 71, 0.1);
+        padding: 1px 4px;
+        border-radius: 4px;
+      }
+      .ct-visual-vars-scroll {
+        flex: 1;
+        min-height: 220px;
+        max-height: min(62vh, 620px);
+        overflow: auto;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: rgba(0, 0, 0, 0.02);
+      }
+      .ct-visual-vars-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 11px;
+      }
+      .ct-visual-vars-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        padding: 8px 8px;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 800;
+        color: var(--ink);
+        background: var(--paper-soft);
+        border-bottom: 2px solid var(--line);
+        box-shadow: 0 1px 0 var(--line-soft);
+      }
+      .ct-visual-vars-table th:nth-child(1) {
+        width: 30%;
+      }
+      .ct-visual-vars-table th:nth-child(2) {
+        width: 28%;
+      }
+      .ct-visual-vars-table th:nth-child(3) {
+        width: 42%;
+      }
+      .ct-visual-vars-table tbody td {
+        padding: 7px 8px;
+        border-bottom: 1px solid var(--line-soft);
+        vertical-align: top;
+        word-break: break-word;
+      }
+      .ct-var-group-row td {
+        font-size: 11px;
+        font-weight: 800;
+        padding: 10px 8px 6px;
+        background: rgba(139, 111, 71, 0.12);
+        color: var(--ink);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .ct-var-col-name code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .ct-var-col-label {
+        font-size: 10px;
+        line-height: 1.4;
+        color: var(--muted);
+      }
+      .ct-var-col-value .ct-var-row-tools {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .ct-var-col-value .ct-input {
+        flex: 1;
+        min-width: 0;
+        font-size: 10px;
+        padding: 5px 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .ct-var-col-value input[type="color"] {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+      .ct-var-restore {
+        font-size: 10px;
+        padding: 4px 8px;
+        flex-shrink: 0;
+      }
+      .ct-var-restore[hidden] {
+        display: none !important;
+      }
+      .ct-live-wrap {
+        padding: 12px 0 0;
+        overflow: visible;
+      }
+      .ct-live-preview-root {
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        overflow: hidden;
+        box-shadow: 0 6px 28px rgba(0, 0, 0, 0.08);
+      }
+      .ct-hotspot {
+        position: relative;
+        cursor: pointer;
+        transition: box-shadow 0.12s, outline 0.12s;
+      }
+      .ct-hotspot:hover {
+        box-shadow: inset 0 0 0 2px var(--accent);
+        z-index: 1;
+      }
+      .ct-live-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 16px;
+        background: var(--bg);
+        color: var(--ui-text);
+        font-size: 13px;
+      }
+      .ct-live-brand {
+        font-weight: 800;
+      }
+      .ct-live-brand .b {
+        color: var(--brand-bible);
+      }
+      .ct-live-meta {
+        font-size: 11px;
+        opacity: 0.85;
+      }
+      .ct-live-paper {
+        background: var(--paper);
+        padding: 18px 16px 20px;
+      }
+      .ct-live-paper-inner {
+        max-width: var(--promo-text-max-width, 500px);
+        margin: 0 auto;
+      }
+      .ct-live-h1 {
+        margin: 0 0 12px;
+        font-family: var(--promo-font-heading, var(--promo-font-body, inherit));
+        font-size: var(--promo-h1-font-size);
+        font-weight: var(--promo-h1-font-weight);
+        line-height: var(--promo-h1-line-height);
+        color: var(--promo-h1-color);
+      }
+      .ct-live-h2 {
+        margin: 0 0 10px;
+        font-family: var(--promo-font-heading, var(--promo-font-body, inherit));
+        font-size: var(--promo-h2-font-size);
+        font-weight: var(--promo-h2-font-weight);
+        line-height: var(--promo-h2-line-height);
+        color: var(--promo-h2-color);
+      }
+      .ct-live-para {
+        margin: 0 0 12px;
+        font-family: var(--promo-font-body, inherit);
+        font-size: var(--promo-md-font-size);
+        line-height: var(--promo-md-line-height);
+        color: var(--promo-md-text);
+      }
+      .ct-live-ul {
+        margin: 0 0 14px 20px;
+        padding: 0;
+        font-family: var(--promo-font-body, inherit);
+        font-size: var(--promo-md-font-size);
+        color: var(--promo-md-text);
+      }
+      .ct-live-ul li::marker {
+        color: var(--promo-list-marker);
+      }
+      .ct-live-bq {
+        margin: 0;
+        padding-left: var(--promo-blockquote-padding-left);
+        border-left: var(--promo-blockquote-border-width) solid var(--promo-blockquote-border);
+        font-size: var(--promo-blockquote-font-size);
+        line-height: var(--promo-blockquote-line-height);
+        color: var(--promo-blockquote-text);
+      }
+      .ct-live-seg {
+        padding: 14px 16px;
+        background: var(--paper-soft);
+        border-top: 1px solid var(--line-soft);
+      }
+      .ct-live-seg-inner {
+        display: inline-flex;
+        gap: var(--ui-seg-gap);
+        padding: var(--ui-seg-track-pad-y) var(--ui-seg-track-pad-x);
+        border-radius: var(--ui-seg-track-radius);
+        background: var(--ui-seg-track-bg);
+      }
+      .ct-live-seg-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: var(--ui-seg-btn-height);
+        padding: 0 12px;
+        border-radius: var(--ui-seg-btn-radius);
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--ui-seg-label);
+      }
+      .ct-live-seg-btn.is-on {
+        background: var(--ui-seg-pill-bg);
+        color: var(--ui-seg-label-active);
+        box-shadow: var(--ui-seg-pill-shadow);
+      }
+      .ct-live-accent {
+        margin: 0;
+        padding: 12px 16px;
+        font-size: 12px;
+        font-weight: 700;
+        border-top: 1px solid var(--line-soft);
+        background: var(--book-spread-paper-gradient, var(--paper));
+        color: var(--scripture-verse-color);
+      }
+      .ct-hotspot-tooltip {
+        position: fixed;
+        z-index: 9000;
+        max-width: min(92vw, 280px);
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        line-height: 1.45;
+        font-weight: 600;
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+        pointer-events: none;
+      }
+      .ct-hotspot-tooltip kbd {
+        font-size: 10px;
+        opacity: 0.85;
+      }
+      .ct-popover-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9100;
+        background: rgba(0, 0, 0, 0.35);
+      }
+      .ct-popover {
+        position: fixed;
+        z-index: 9200;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: min(92vw, 400px);
+        max-height: min(82vh, 520px);
+        display: flex;
+        flex-direction: column;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+      }
+      /* display:flex 会盖掉 [hidden] 的 display:none，未点开时必须强制隐藏 */
+      .ct-popover-backdrop[hidden],
+      .ct-popover[hidden],
+      .ct-hotspot-tooltip[hidden] {
+        display: none !important;
+      }
+      .ct-popover-hd {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line-soft);
+        background: var(--paper);
+        border-radius: 14px 14px 0 0;
+      }
+      .ct-popover-hd h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--ink);
+        line-height: 1.35;
+      }
+      .ct-popover-close {
+        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(139, 111, 71, 0.12);
+        color: var(--ink);
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .ct-popover-close:hover {
+        background: rgba(139, 111, 71, 0.22);
+      }
+      .ct-popover-body {
+        flex: 1;
+        overflow: auto;
+        padding: 10px 12px;
+      }
+      .ct-pop-var-block {
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .ct-pop-var-block:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      .ct-pop-var-head code {
+        font-size: 10px;
+        color: var(--ink);
+        font-weight: 700;
+      }
+      .ct-pop-var-label {
+        margin-top: 2px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .ct-pop-var-value {
+        margin-top: 8px;
+      }
+      .ct-popover-foot {
+        margin: 0;
+        padding: 8px 14px 12px;
+        font-size: 11px;
+        color: var(--muted);
+        border-top: 1px solid var(--line-soft);
+        background: var(--paper);
+        border-radius: 0 0 14px 14px;
+      }
+    </style>
+  </head>
+  <body class="ct-color-themes-body admin-shell-page" data-admin-current="/color-themes.html">
+    <div class="ct-page">
+      <div class="ct-doc">
+      <header class="ct-head">
+        <h1>全局配色管理</h1>
+        <p class="ct-lead">
+          此处为全站<strong>设计令牌主表</strong>（色、字号、间距等）：子页应使用 <code>var(--变量名)</code> 引用，避免各页各写一套。其中<strong>文章标准模板</strong>指
+          <code>promo.html</code> 中间 Markdown 区（<code>.promo-md-root</code>）：列表圆点、引用竖线、分割线、副标题 kicker、版心宽度等均在分组「文章标准模板」中可调。勾选「覆盖」可改该项。保存写入
+          <code>admin_data/color_themes.json</code>，前台切换主题后生效（宣传页请强刷）。
+        </p>
+      </header>
+
+      <p id="ctAuth" class="ct-status ct-error"></p>
+
+      <div class="ct-toolbar">
+        <div class="ct-toolbar-cluster">
+          <div class="ct-field-inline">
+            <span class="ct-label" id="ctDefaultSelectLabel">默认主题</span>
+            <select id="ctDefaultSelect" class="ct-select" aria-labelledby="ctDefaultSelectLabel"></select>
+          </div>
+          <div class="ct-btn-row">
+            <button type="button" id="ctReloadBtn" class="secondary-btn">重新加载</button>
+            <button type="button" id="ctSaveBtn" class="primary-btn">保存到服务器</button>
+          </div>
+        </div>
+        <div class="ct-toolbar-cluster ct-toolbar-cluster--actions">
+          <div class="ct-btn-row">
+            <button type="button" id="ctAddThemeBtn" class="secondary-btn">新增主题</button>
+            <button type="button" id="ctDupThemeBtn" class="secondary-btn">复制当前</button>
+            <button type="button" id="ctDelThemeBtn" class="secondary-btn">删除当前</button>
+          </div>
+        </div>
+      </div>
+
+      <p id="ctStatus" class="ct-status" role="status"></p>
+
+      <details class="ct-advanced" id="ctAdvanced">
+        <summary>高级：查看 / 粘贴 JSON</summary>
+        <p class="ct-lead" style="margin-top: 8px">
+          可视化与 JSON 二选一为主数据源；若修改 JSON，请点击「从 JSON 应用」再保存。
+        </p>
+        <textarea id="ctJson" class="ct-textarea" spellcheck="false"></textarea>
+        <div class="ct-actions-row">
+          <button type="button" id="ctApplyJsonBtn" class="secondary-btn">从 JSON 应用</button>
+          <button type="button" id="ctRefreshJsonBtn" class="secondary-btn">用当前表单刷新 JSON</button>
+        </div>
+      </details>
+
+      <div id="ctVisual" class="ct-visual" hidden>
+        <div class="ct-workbench">
+          <div class="ct-theme-strip">
+            <span class="ct-theme-strip-label">编辑主题</span>
+            <div class="ct-theme-tabs" id="ctThemeTabs" role="tablist" aria-label="主题列表"></div>
+          </div>
+          <div class="ct-editor-head">
+            <p class="ct-editor-head-title">当前主题</p>
+            <div class="ct-meta-grid">
+              <div class="ct-meta-field">
+                <label for="ctThemeId">主题 id（英文、数字、连字符）</label>
+                <input type="text" id="ctThemeId" class="ct-input" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="ct-meta-field">
+                <label for="ctThemeLabel">前台显示名称</label>
+                <input type="text" id="ctThemeLabel" class="ct-input" maxlength="80" />
+              </div>
+            </div>
+          </div>
+          <div class="ct-mode-bar" role="tablist" aria-label="编辑方式">
+            <button type="button" class="ct-mode-tab is-active" id="ctModeTabVisual" data-ct-mode="visual" role="tab" aria-selected="true">
+              点选预览
+            </button>
+            <button type="button" class="ct-mode-tab" id="ctModeTabList" data-ct-mode="list" role="tab" aria-selected="false">分组列表</button>
+          </div>
+          <p id="ctDirtyHint" class="ct-dirty-hint" hidden>当前有未保存的修改，完成后请点击顶部「保存到服务器」写入文件。</p>
+
+          <div id="ctModeVisual" class="ct-mode-panel">
+            <p class="ct-visual-intro">
+              左侧<strong>预览</strong>：悬浮看变量名，点击改参；右侧<strong>全部变量表</strong>：按分组列出「变量名、中文说明、当前有效值」，与弹层、分组列表同一数据源；改值即写入覆盖，「恢复内置」可取消单项覆盖。满意后点顶部「<strong>保存到服务器</strong>」落盘。
+            </p>
+            <div class="ct-visual-split">
+              <div class="ct-visual-split-preview">
+                <div class="ct-live-wrap">
+                  <div id="ctLivePreviewRoot" class="ct-live-preview-root" aria-label="可视化点选预览"></div>
+                </div>
+              </div>
+              <aside class="ct-visual-split-code" aria-label="当前主题全部变量">
+                <div class="ct-visual-code-head">
+                  <span class="ct-visual-code-title">全部变量（分栏）</span>
+                  <span class="ct-visual-code-sub">三列：变量名、说明、有效值。内置表中的<strong>全部</strong>键都会列出，顺序与「分组列表」一致（含「其他变量」分组）。</span>
+                </div>
+                <div class="ct-visual-vars-scroll">
+                  <table class="ct-visual-vars-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">变量</th>
+                        <th scope="col">说明</th>
+                        <th scope="col">值</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ctVisualVarsTableBody"></tbody>
+                  </table>
+                </div>
+              </aside>
+            </div>
+          </div>
+
+          <div id="ctModeList" class="ct-mode-panel" hidden>
+            <p class="ct-pairs-hint">
+              每组<strong>左半屏</strong>为整组示意、<strong>右半屏</strong>为变量；每项内再分「色/字示意」与表单项。可点标签跳转分组。
+              勾选「覆盖」后，可点该行「<strong>保存此项</strong>」只写入这一条变量；或点顶部「<strong>保存到服务器</strong>」一次保存当前主题全部改动。
+              新主题请至少先整体保存一次，再使用「保存此项」。读经页需<strong>强刷或重新打开</strong>（Ctrl/Cmd+Shift+R）才会拉取最新配色。
+            </p>
+            <nav class="ct-group-nav" id="ctGroupNav" aria-label="分组跳转"></nav>
+            <div id="ctPairs" class="ct-pairs"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="ctHotspotTooltip" class="ct-hotspot-tooltip" hidden role="tooltip"></div>
+      <div id="ctPopoverBackdrop" class="ct-popover-backdrop" hidden aria-hidden="true"></div>
+      <div id="ctPopover" class="ct-popover" hidden role="dialog" aria-modal="true" aria-labelledby="ctPopoverTitle">
+        <div class="ct-popover-hd">
+          <h3 id="ctPopoverTitle">参数</h3>
+          <button type="button" class="ct-popover-close" id="ctPopoverCloseBtn" aria-label="关闭">×</button>
+        </div>
+        <div id="ctPopoverBody" class="ct-popover-body"></div>
+        <p class="ct-popover-foot">关闭面板后可在「分组列表」中核对；务必点击顶部「保存到服务器」才会写入服务器。</p>
+      </div>
+
+      <p class="ct-lead ct-foot-link">
+        <a href="/" class="site-topbar-link" style="display: inline-block">← 返回读经首页</a>
+      </p>
+      </div>
+    </div>
+
+    <script>
+      const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+      const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+
+      /** 与内置 color-themes-builtin.js 分组一致，便于逐项编辑 */
+      const VAR_GROUPS = [
+        {
+          title: "页面与书页",
+          keys: [
+            "--bg",
+            "--paper",
+            "--book-spread-paper-gradient",
+            "--paper-soft",
+            "--paper-edge",
+          ],
+        },
+        {
+          title: "正文与界面文字",
+          keys: [
+            "--ink",
+            "--muted",
+            "--muted-soft",
+            "--ui-text",
+            "--ui-text-hover",
+          ],
+        },
+        {
+          title: "强调、品牌与经文色",
+          keys: [
+            "--accent",
+            "--accent-soft",
+            "--brand-bible",
+            "--scripture-verse-color",
+            "--verse-repeat-yellow",
+            "--scripture-divine-color",
+          ],
+        },
+        {
+          title: "分割线、面板与阴影",
+          keys: ["--line", "--line-soft", "--panel-line", "--shadow-lg", "--shadow-md"],
+        },
+        {
+          title: "收藏星级渐变",
+          keys: [
+            "--star-g1-1",
+            "--star-g1-2",
+            "--star-g1-3",
+            "--star-g2-1",
+            "--star-g2-2",
+            "--star-g2-3",
+            "--star-g3-1",
+            "--star-g3-2",
+            "--star-g3-3",
+            "--star-g4-1",
+            "--star-g4-2",
+            "--star-g4-3",
+          ],
+        },
+        {
+          title: "分段控件（尺寸与颜色）",
+          keys: [
+            "--ui-seg-track-bg",
+            "--ui-seg-track-radius",
+            "--ui-seg-track-pad-y",
+            "--ui-seg-track-pad-x",
+            "--ui-seg-gap",
+            "--ui-seg-btn-height",
+            "--ui-seg-btn-radius",
+            "--ui-seg-label",
+            "--ui-seg-label-hover",
+            "--ui-seg-label-active",
+            "--ui-seg-pill-bg",
+            "--ui-seg-pill-shadow",
+            "--ui-seg-hover-fill",
+          ],
+        },
+        {
+          title: "文章标准模板（intro / 宣传页 Markdown，promo.css）",
+          keys: [
+            "--promo-left-page-paper",
+            "--promo-shell-max-width",
+            "--promo-pad-x",
+            "--promo-text-max-width",
+            "--promo-font-body",
+            "--promo-font-heading",
+            "--promo-md-font-size",
+            "--promo-md-line-height",
+            "--promo-md-text",
+            "--promo-md-link-color",
+            "--promo-md-hr-border",
+            "--promo-p-margin-bottom",
+            "--promo-h1-font-size",
+            "--promo-h1-font-weight",
+            "--promo-h1-line-height",
+            "--promo-h1-margin-bottom",
+            "--promo-h1-color",
+            "--promo-h2-font-size",
+            "--promo-h2-font-weight",
+            "--promo-h2-line-height",
+            "--promo-h2-margin-top",
+            "--promo-h2-margin-bottom",
+            "--promo-h2-color",
+            "--promo-h3-font-size",
+            "--promo-h3-font-weight",
+            "--promo-h3-line-height",
+            "--promo-h3-margin-top",
+            "--promo-h3-margin-bottom",
+            "--promo-h3-color",
+            "--promo-kicker-font-size",
+            "--promo-kicker-color",
+            "--promo-kicker-letter-spacing",
+            "--promo-list-margin-top",
+            "--promo-list-margin-bottom",
+            "--promo-list-margin-left",
+            "--promo-li-margin-bottom",
+            "--promo-list-marker",
+            "--promo-blockquote-font-size",
+            "--promo-blockquote-line-height",
+            "--promo-blockquote-border-width",
+            "--promo-blockquote-padding-left",
+            "--promo-blockquote-margin-vertical",
+            "--promo-blockquote-border",
+            "--promo-blockquote-text",
+            "--promo-hr-margin-vertical",
+            "--promo-code-bg",
+            "--promo-pre-bg",
+            "--promo-strong-font-weight",
+          ],
+        },
+      ];
+
+      const VAR_LABELS = {
+        "--bg": "主背景",
+        "--paper": "主纸色",
+        "--book-spread-paper-gradient": "书页渐变",
+        "--paper-soft": "柔和纸色",
+        "--paper-edge": "纸边色",
+        "--ink": "正文色",
+        "--muted": "次要文字",
+        "--muted-soft": "更淡辅助文字",
+        "--ui-text": "顶栏文字",
+        "--ui-text-hover": "顶栏悬停",
+        "--accent": "强调色",
+        "--accent-soft": "强调浅底",
+        "--brand-bible": "Bible 品牌色",
+        "--scripture-verse-color": "经文默认色",
+        "--verse-repeat-yellow": "重复经文高亮",
+        "--scripture-divine-color": "神字色",
+        "--line": "分割线",
+        "--line-soft": "淡分割线",
+        "--panel-line": "面板线",
+        "--shadow-lg": "大阴影",
+        "--shadow-md": "中阴影",
+        "--star-g1-1": "星标 G1-1",
+        "--star-g1-2": "星标 G1-2",
+        "--star-g1-3": "星标 G1-3",
+        "--star-g2-1": "星标 G2-1",
+        "--star-g2-2": "星标 G2-2",
+        "--star-g2-3": "星标 G2-3",
+        "--star-g3-1": "星标 G3-1",
+        "--star-g3-2": "星标 G3-2",
+        "--star-g3-3": "星标 G3-3",
+        "--star-g4-1": "星标 G4-1",
+        "--star-g4-2": "星标 G4-2",
+        "--star-g4-3": "星标 G4-3",
+        "--ui-seg-track-bg": "分段轨道背景",
+        "--ui-seg-track-radius": "轨道圆角",
+        "--ui-seg-track-pad-y": "轨道上下内边距",
+        "--ui-seg-track-pad-x": "轨道左右内边距",
+        "--ui-seg-gap": "分段间距",
+        "--ui-seg-btn-height": "按钮高度",
+        "--ui-seg-btn-radius": "按钮圆角",
+        "--ui-seg-label": "标签色",
+        "--ui-seg-label-hover": "标签悬停",
+        "--ui-seg-label-active": "标签选中",
+        "--ui-seg-pill-bg": "滑块背景",
+        "--ui-seg-pill-shadow": "滑块阴影",
+        "--ui-seg-hover-fill": "悬停填充",
+        "--promo-left-page-paper": "文章模板 · 宣传页单卡纸面渐变（整段 linear-gradient…）",
+        "--promo-shell-max-width": "文章模板 · 整卡（含顶栏对齐）最大宽度",
+        "--promo-pad-x": "文章模板 · 书页左右内边距",
+        "--promo-text-max-width": "文章模板 · 正文阅读列最大宽度",
+        "--promo-font-body": "文章模板 · 正文 font-family（inherit 或字体栈）",
+        "--promo-font-heading": "文章模板 · 标题 font-family（空则用正文）",
+        "--promo-md-font-size": "文章模板 · 正文字号",
+        "--promo-md-line-height": "文章模板 · 正文行高（倍数或带单位）",
+        "--promo-md-text": "文章模板 · 正文主字色",
+        "--promo-md-link-color": "文章模板 · 正文内链接色",
+        "--promo-md-hr-border": "文章模板 · 分割线（整条 border-top，如 1px solid …）",
+        "--promo-p-margin-bottom": "文章模板 · 段落下边距",
+        "--promo-h1-font-size": "文章模板 · h1 字号",
+        "--promo-h1-font-weight": "文章模板 · h1 字重",
+        "--promo-h1-line-height": "文章模板 · h1 行高",
+        "--promo-h1-margin-bottom": "文章模板 · h1 下边距",
+        "--promo-h1-color": "文章模板 · h1 字色",
+        "--promo-h2-font-size": "文章模板 · h2 字号",
+        "--promo-h2-font-weight": "文章模板 · h2 字重",
+        "--promo-h2-line-height": "文章模板 · h2 行高",
+        "--promo-h2-margin-top": "文章模板 · h2 上边距",
+        "--promo-h2-margin-bottom": "文章模板 · h2 下边距",
+        "--promo-h2-color": "文章模板 · h2 字色",
+        "--promo-h3-font-size": "文章模板 · h3 字号",
+        "--promo-h3-font-weight": "文章模板 · h3 字重",
+        "--promo-h3-line-height": "文章模板 · h3 行高",
+        "--promo-h3-margin-top": "文章模板 · h3 上边距",
+        "--promo-h3-margin-bottom": "文章模板 · h3 下边距",
+        "--promo-h3-color": "文章模板 · h3 字色",
+        "--promo-kicker-font-size": "文章模板 · 副标题/英文 kicker 字号",
+        "--promo-kicker-color": "文章模板 · kicker 字色",
+        "--promo-kicker-letter-spacing": "文章模板 · kicker 字间距",
+        "--promo-list-margin-top": "文章模板 · 列表上外边距",
+        "--promo-list-margin-bottom": "文章模板 · 列表下外边距",
+        "--promo-list-margin-left": "文章模板 · 列表左缩进（含符号）",
+        "--promo-li-margin-bottom": "文章模板 · 列表项间距",
+        "--promo-list-marker": "文章模板 · 列表符号/序号色（圆点、数字）",
+        "--promo-blockquote-font-size": "文章模板 · 引用块字号",
+        "--promo-blockquote-line-height": "文章模板 · 引用块行高",
+        "--promo-blockquote-border-width": "文章模板 · 引用左侧竖线宽度",
+        "--promo-blockquote-padding-left": "文章模板 · 引用块左内边距（文字离竖线）",
+        "--promo-blockquote-margin-vertical": "文章模板 · 引用块上下外边距",
+        "--promo-blockquote-border": "文章模板 · 引用竖线颜色",
+        "--promo-blockquote-text": "文章模板 · 引用块字色",
+        "--promo-hr-margin-vertical": "文章模板 · 分割线上下留白",
+        "--promo-code-bg": "文章模板 · 行内 code 背景",
+        "--promo-pre-bg": "文章模板 · 代码块 pre 背景",
+        "--promo-strong-font-weight": "文章模板 · strong 字重",
+      };
+
+      let BUILTIN_BASE = {};
+      let ALL_KEYS = [];
+      let editorState = {
+        config: null,
+        activeIndex: 0,
+        /** 弹层内改值时不整表重绘，避免打断输入 */
+        suppressListRender: false,
+        liveUiBound: false,
+      };
+
+      function getToken() {
+        return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+      }
+
+      function normalizeApiOrigin(raw) {
+        let s = String(raw || "").trim();
+        if (!s) return "";
+        s = s.replace(/\/+$/, "");
+        if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+        return s.replace(/\/+$/, "");
+      }
+
+      function isLikelyStaticDevServerPort(port) {
+        const p = String(port || "").trim();
+        if (!p) return false;
+        if (p === "5173" || p === "4173" || p === "8081") return true;
+        if (/^55\d{2}$/.test(p)) return true;
+        return false;
+      }
+
+      function getApiBase() {
+        const m = document.querySelector('meta[name="askbible-api-base"]');
+        const fromMeta = m && String(m.getAttribute("content") || "").trim();
+        if (fromMeta) return normalizeApiOrigin(fromMeta);
+        if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+          return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+        }
+        try {
+          const proto = window.location.protocol || "";
+          if (proto === "capacitor:" || proto === "file:") {
+            return DEFAULT_PRODUCTION_ORIGIN;
+          }
+          const h = window.location.hostname || "";
+          const port = window.location.port || "";
+          if (
+            (h === "localhost" || h === "127.0.0.1") &&
+            proto === "http:" &&
+            isLikelyStaticDevServerPort(port)
+          ) {
+            return "http://127.0.0.1:3000";
+          }
+        } catch (_) {}
+        return "";
+      }
+
+      /** 只用协议+主机+端口拼 API，忽略 meta 里误填的路径，避免请求落到 /api */
+      function apiOriginRootFromNormalizedBase(normalized) {
+        if (!normalized) return "";
+        try {
+          const href = normalized.includes("://")
+            ? normalized
+            : `http://${normalized}`;
+          const u = new URL(href);
+          return `${u.origin}/`;
+        } catch {
+          return "";
+        }
+      }
+
+      function apiUrl(path) {
+        const p = path.startsWith("/") ? path : `/${path}`;
+        const base = getApiBase();
+        if (!base) return p;
+        const normalized = normalizeApiOrigin(base);
+        const root = apiOriginRootFromNormalizedBase(normalized);
+        if (root) {
+          try {
+            return new URL(p, root).href;
+          } catch {
+            /* fall through */
+          }
+        }
+        try {
+          const origin = normalized.endsWith("/") ? normalized : `${normalized}/`;
+          return new URL(p, origin).href;
+        } catch {
+          return `${String(base).replace(/\/$/, "")}${p}`;
+        }
+      }
+
+      function absolutizeUrlForDisplay(url) {
+        if (!url) return "";
+        if (/^https?:\/\//i.test(url)) return url;
+        try {
+          return new URL(url, window.location.href).href;
+        } catch {
+          return url;
+        }
+      }
+
+      function extractExpressHtmlErrorMessage(rawText) {
+        const m = String(rawText || "").match(/<pre[^>]*>([^<]*)<\/pre>/i);
+        return m ? m[1].trim().replace(/\s+/g, " ") : "";
+      }
+
+      function formatFetchError(res, data, rawText, requestUrl) {
+        const detail = (data && (data.error || data.message)) || "";
+        const expressLine = extractExpressHtmlErrorMessage(rawText);
+        const snippet = String(rawText || "")
+          .replace(/\s+/g, " ")
+          .slice(0, 220);
+        const absUrl = absolutizeUrlForDisplay(requestUrl);
+        const urlHint = absUrl ? ` 本次请求（完整地址）：${absUrl}` : "";
+        const serverLine = expressLine || (snippet ? snippet.slice(0, 120) : "");
+        if (res.status === 404) {
+          let extra = "";
+          const onlyApiRoot =
+            /^Cannot POST \/api$/i.test(expressLine) || /^Cannot GET \/api$/i.test(expressLine);
+          if (onlyApiRoot) {
+            extra =
+              " 提示：服务端只收到「/api」、路径可能被 nginx 截断；请检查 location /api/ 与 proxy_pass 是否均带尾斜杠。";
+          } else if (/Cannot POST \/api\/admin\/color-themes/i.test(expressLine)) {
+            extra =
+              " 提示：当前 Node 进程里没有该配色接口，请使用含 variable/save 的 server.js 并重启。";
+          }
+          return (
+            "接口返回 404。① 在运行 Node 的目录执行最新 server.js（含配色保存接口）并重启；② 若本页用 Live Server / Vite 等打开，已自动把 API 指到 http://127.0.0.1:3000；若你的 Node 不在 3000，请设置 meta askbible-api-base 为实际根地址。" +
+            urlHint +
+            extra +
+            (detail ? ` 详情：${detail}` : serverLine ? ` 服务端返回：${serverLine}` : "")
+          );
+        }
+        return (
+          (detail || serverLine || snippet || `请求失败（HTTP ${res.status}）`) + urlHint
+        );
+      }
+
+      function setStatus(el, text, isErr) {
+        if (!el) return;
+        el.textContent = text || "";
+        el.classList.toggle("ct-error", Boolean(isErr));
+      }
+
+      async function apiGet(path) {
+        const token = getToken();
+        const url = apiUrl(path);
+        const res = await fetch(url, {
+          headers: token ? { Authorization: "Bearer " + token } : {},
+          cache: "no-store",
+        });
+        const rawText = await res.text();
+        let data = {};
+        if (rawText.trim()) {
+          try {
+            data = JSON.parse(rawText);
+          } catch {
+            data = {};
+          }
+        }
+        if (!res.ok) throw new Error(formatFetchError(res, data, rawText, url));
+        return data;
+      }
+
+      async function apiPost(path, body) {
+        const token = getToken();
+        const url = apiUrl(path);
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: "Bearer " + token } : {}),
+          },
+          body: JSON.stringify(body || {}),
+          cache: "no-store",
+        });
+        const rawText = await res.text();
+        let data = {};
+        if (rawText.trim()) {
+          try {
+            data = JSON.parse(rawText);
+          } catch {
+            data = {};
+          }
+        }
+        if (!res.ok) throw new Error(formatFetchError(res, data, rawText, url));
+        return data;
+      }
+
+      async function loadBuiltinBase() {
+        const data = await apiGet("/api/color-themes/variables?themeId=classic");
+        BUILTIN_BASE = data.variables || {};
+        ALL_KEYS = Object.keys(BUILTIN_BASE);
+      }
+
+      function slugColorThemeId(s) {
+        return String(s || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 64);
+      }
+
+      function effectiveValue(theme, key) {
+        if (theme.variables && Object.prototype.hasOwnProperty.call(theme.variables, key)) {
+          return theme.variables[key];
+        }
+        return BUILTIN_BASE[key];
+      }
+
+      /** 与内置相同且尚未覆盖时不写入，避免误增覆盖；已覆盖时与当前存值相同则跳过 */
+      function commitVariableIfChanged(theme, key, raw) {
+        const t = String(raw ?? "").trim();
+        const hasKey = theme.variables && Object.prototype.hasOwnProperty.call(theme.variables, key);
+        if (hasKey) {
+          if (String(theme.variables[key] ?? "").trim() === t) return;
+        } else {
+          const bi = BUILTIN_BASE[key];
+          const bs = bi == null ? "" : String(bi).trim();
+          if (t === bs) return;
+        }
+        patchVariable(theme, key, t);
+      }
+
+      function isSimpleHex(v) {
+        if (typeof v !== "string") return false;
+        const s = v.trim();
+        return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s);
+      }
+
+      function hexForColorInput(v) {
+        if (!isSimpleHex(v)) return "#000000";
+        let h = v.trim().slice(1);
+        if (h.length === 3) {
+          h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        }
+        if (h.length === 8) h = h.slice(0, 6);
+        return "#" + h.toLowerCase();
+      }
+
+      /** 尺寸/阴影等不走取色器；其余变量按 getVariableVisualMode 用边框或背景解析颜色 */
+      function colorProbeKindForKey(key) {
+        const mode = getVariableVisualMode(key);
+        if (mode === "dimension") return null;
+        if (mode === "borderLeft") return "borderLeft";
+        if (mode === "hline") return "hline";
+        return "background";
+      }
+
+      function rgbCssToHex(rgb) {
+        const m = String(rgb || "").match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+        if (!m) return "";
+        const r = Math.max(0, Math.min(255, Math.round(Number(m[1]))));
+        const g = Math.max(0, Math.min(255, Math.round(Number(m[2]))));
+        const b = Math.max(0, Math.min(255, Math.round(Number(m[3]))));
+        return (
+          "#" +
+          [r, g, b]
+            .map(function (x) {
+              return x.toString(16).padStart(2, "0");
+            })
+            .join("")
+        );
+      }
+
+      /** 将 var()/rgba/色名 等解析为 #rrggbb，供 type=color 使用（依赖当前预览已写入 :root 变量） */
+      function resolveCssColorSampleToHex(raw, kind) {
+        const v = String(raw || "").trim();
+        if (!v) return "";
+        if (isSimpleHex(v)) return hexForColorInput(v);
+        const probe = document.createElement("div");
+        probe.setAttribute("data-ct-color-probe", "1");
+        probe.style.cssText =
+          "position:absolute;left:-9999px;top:0;width:4px;height:4px;visibility:hidden;pointer-events:none;border:0;margin:0;padding:0;";
+        try {
+          if (kind === "borderLeft") {
+            probe.style.borderLeftWidth = "4px";
+            probe.style.borderLeftStyle = "solid";
+            probe.style.setProperty("border-left-color", v);
+          } else if (kind === "hline") {
+            probe.style.borderTopWidth = "1px";
+            probe.style.borderTopStyle = "solid";
+            probe.style.setProperty("border-top-color", v);
+          } else {
+            probe.style.setProperty("background-color", v);
+          }
+          document.body.appendChild(probe);
+          const cs = getComputedStyle(probe);
+          const src =
+            kind === "borderLeft" ? cs.borderLeftColor : kind === "hline" ? cs.borderTopColor : cs.backgroundColor;
+          return rgbCssToHex(src) || "";
+        } catch (_) {
+          return "";
+        } finally {
+          if (probe.parentNode) probe.parentNode.removeChild(probe);
+        }
+      }
+
+      function colorPickerInitialHex(valStr, probeKind) {
+        if (!probeKind) return "#000000";
+        const s = valStr == null ? "" : String(valStr).trim();
+        if (isSimpleHex(s)) return hexForColorInput(s);
+        return resolveCssColorSampleToHex(s, probeKind) || "#000000";
+      }
+
+      function groupedKeys() {
+        const used = new Set();
+        const groups = VAR_GROUPS.map((g) => {
+          const keys = g.keys.filter((k) => ALL_KEYS.includes(k));
+          keys.forEach((k) => used.add(k));
+          return { title: g.title, keys };
+        }).filter((g) => g.keys.length);
+        const rest = ALL_KEYS.filter((k) => !used.has(k));
+        if (rest.length) {
+          groups.push({ title: "其他变量", keys: rest.sort() });
+        }
+        return groups;
+      }
+
+      function slugGroupId(title) {
+        return (
+          String(title || "g")
+            .replace(/\s+/g, "-")
+            .replace(/[^a-zA-Z0-9\u4e00-\u9fff-]/g, "")
+            .replace(/^-|-$/g, "")
+            .slice(0, 40) || "grp"
+        );
+      }
+
+      function groupSectionId(index, title) {
+        return "ct-sec-" + index + "-" + slugGroupId(title);
+      }
+
+      /** 与 VAR_GROUPS 的 title 一致；左侧仅展示该组相关示意 */
+      const PREVIEW_HTML_BY_TITLE = {
+        页面与书页:
+          '<div class="ct-preview-mock-top">' +
+          '<span class="ct-preview-mock-brand">Ask<span class="b">Bible</span>.me</span>' +
+          '<span class="pv-topbar-muted">主背景 <code style="font-size:10px;opacity:.85">--bg</code></span></div>' +
+          '<div class="pv-strip pv-strip--paper">' +
+          '<div class="pv-h3">书页与纸色</div>' +
+          '<p class="pv-p">整页底、读经纸色、书页横纹渐变、柔和纸色（本组右侧变量）。</p></div>' +
+          '<div class="pv-strip pv-strip--edge">纸边色示意（--paper-edge）</div>',
+        正文与界面文字:
+          '<div class="pv-strip pv-strip--soft">' +
+          '<div class="pv-h3">正文与顶栏字色</div>' +
+          '<p style="margin:0 0 6px;font-size:13px;font-weight:800;color:var(--ink)">--ink 正文主色</p>' +
+          '<p class="pv-muted">--muted 次要说明</p>' +
+          '<p class="pv-muted-soft">--muted-soft 更淡辅助</p>' +
+          '<div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--bg);color:var(--ui-text);font-size:12px">' +
+          "顶栏字色 <span style=\"color:var(--ui-text-hover)\">悬停 --ui-text-hover</span></div></div>",
+        "强调、品牌与经文色":
+          '<div class="pv-strip pv-strip--paper">' +
+          '<span class="ct-preview-mock-accent">强调 chip（accent / accent-soft）</span>' +
+          '<p class="pv-verse">经文默认色 <span class="pv-divine">神名色</span><span class="pv-repeat">×2 重复高亮</span></p>' +
+          '<p style="margin:10px 0 0;font-size:14px;font-weight:800" class="ct-preview-mock-brand">品牌 Ask<span class="b">Bible</span></p></div>',
+        "分割线、面板与阴影":
+          '<div class="pv-strip pv-strip--soft">' +
+          '<div class="pv-h3">线、卡片与阴影</div>' +
+          '<hr class="pv-hr" /><hr class="pv-hr pv-hr-soft" />' +
+          '<div class="pv-card"><div class="pv-card-title">面板线 + 中阴影</div><p class="pv-muted-soft">--panel-line · --shadow-md</p></div>' +
+          '<div class="pv-shadow-lg">大阴影 --shadow-lg</div></div>',
+        收藏星级渐变:
+          '<div class="pv-strip pv-strip--soft">' +
+          '<div class="pv-h3">收藏星级渐变条</div>' +
+          '<div class="pv-stars">' +
+          '<span class="pv-star-bar pv-star-bar--g1"></span>' +
+          '<span class="pv-star-bar pv-star-bar--g2"></span>' +
+          '<span class="pv-star-bar pv-star-bar--g3"></span>' +
+          '<span class="pv-star-bar pv-star-bar--g4"></span>' +
+          "</div>" +
+          '<button type="button" class="pv-star-btn" tabindex="-1">星级主按钮渐变</button></div>',
+        "分段控件（尺寸与颜色）":
+          '<div class="pv-strip pv-strip--soft">' +
+          '<div class="pv-h3">读经工具条 · 分段槽</div>' +
+          '<div class="pv-seg" role="presentation">' +
+          '<span class="pv-seg-btn">经文</span>' +
+          '<span class="pv-seg-btn pv-seg-btn--on">全显</span>' +
+          '<span class="pv-seg-btn">问题</span></div>' +
+          '<div class="pv-label">输入框（线色 / 纸底）</div>' +
+          '<input type="text" readonly class="pv-input" value="边框与底色" tabindex="-1" /></div>',
+        "宣传页 Markdown（promo）":
+          '<div class="pv-strip pv-strip--paper">' +
+          '<div class="pv-promo-mock">' +
+          '<p class="pv-promo-h1">大标题 h1</p>' +
+          '<p class="pv-promo-h2">二级标题 h2</p>' +
+          '<p class="pv-promo-body">正文段落</p>' +
+          '<ul class="pv-promo-ul"><li>列表</li><li>符号</li></ul>' +
+          '<blockquote class="pv-promo-bq">引用块 · 重点</blockquote>' +
+          "</div></div>",
+        其他变量:
+          '<div class="pv-strip pv-strip--soft">' +
+          '<div class="pv-h3">其余变量</div>' +
+          '<p class="pv-muted-soft">未列入上表的键仅在此组右侧出现；配色仍与全站主题变量一致。</p></div>',
+      };
+
+      function createPreviewRootForGroupTitle(groupTitle) {
+        const html =
+          PREVIEW_HTML_BY_TITLE[groupTitle] || PREVIEW_HTML_BY_TITLE["其他变量"];
+        const root = document.createElement("div");
+        root.className = "ct-preview-var-root";
+        const mock = document.createElement("div");
+        mock.className = "ct-preview-mock";
+        mock.setAttribute("aria-hidden", "true");
+        mock.innerHTML = html;
+        root.appendChild(mock);
+        return root;
+      }
+
+      /** 从该行输入框写回 theme.variables（避免未 blur 时点保存丢字） */
+      function flushVariableRowToTheme(theme, key, right) {
+        const cp = right.querySelector('input[type="color"]');
+        const txList = right.querySelectorAll('input[type="text"]');
+        if (cp && txList.length) {
+          const tx = txList[0];
+          let t = tx.value.trim();
+          if (isSimpleHex(t)) {
+            cp.value = hexForColorInput(t);
+          }
+          patchVariable(theme, key, t || cp.value);
+        } else if (txList.length) {
+          patchVariable(theme, key, txList[0].value.trim());
+        }
+      }
+
+      const VAR_TYPE_SAMPLES = {
+        "--promo-h1-color": "大标题 · 也许不是我们学得不够多",
+        "--promo-h2-color": "二级标题 · 而在于——",
+        "--promo-h3-color": "三级小标题示例",
+        "--promo-md-text": "正文：我们活在一个信息极其丰富的时代。",
+        "--promo-blockquote-text": "引用块：熟悉内容，却没有进入经文。",
+        "--ink": "Aa 正文主色 · 中文读经",
+        "--muted": "次要说明与辅助文案",
+        "--muted-soft": "更淡的一层说明文字",
+        "--ui-text": "顶栏在深底上的主字色",
+        "--ui-text-hover": "顶栏悬停时略亮",
+        "--accent": "强调按钮与可点击元素",
+        "--brand-bible": "品牌 Bible 金色字样",
+        "--scripture-verse-color": "经文默认显示颜色",
+        "--scripture-divine-color": "神言 / 金句强调色",
+        "--verse-repeat-yellow": "重复经文高亮颜色",
+      };
+
+      function isTextColorVariable(key) {
+        return (
+          key === "--promo-md-text" ||
+          key === "--promo-md-link-color" ||
+          key === "--promo-kicker-color" ||
+          key === "--promo-blockquote-text" ||
+          key === "--ink" ||
+          key === "--muted" ||
+          key === "--muted-soft" ||
+          key === "--ui-text" ||
+          key === "--ui-text-hover" ||
+          key === "--scripture-verse-color" ||
+          key === "--scripture-divine-color" ||
+          key === "--verse-repeat-yellow"
+        );
+      }
+
+      function getVariableVisualMode(key) {
+        if (
+          /--promo-shell-max-width|--promo-pad-x|--promo-text-max-width|--promo-font-body|--promo-font-heading|--promo-md-font-size|--promo-md-line-height|--promo-md-hr-border|--promo-p-margin-bottom|--promo-h[123]-font-size|--promo-h[123]-font-weight|--promo-h[123]-line-height|--promo-h[123]-margin-(top|bottom)|--promo-list-margin-|--promo-li-margin-bottom|--promo-blockquote-font-size|--promo-blockquote-line-height|--promo-blockquote-border-width|--promo-blockquote-padding-left|--promo-blockquote-margin-vertical|--promo-hr-margin-vertical|--promo-kicker-font-size|--promo-kicker-letter-spacing|--promo-code-bg|--promo-pre-bg|--promo-strong-font-weight|--promo-left-page-paper/i.test(
+            key
+          )
+        ) {
+          return "dimension";
+        }
+        if (
+          /--shadow-lg|--shadow-md|--book-spread-paper-gradient|--ui-seg-track-radius|--ui-seg-btn-height|--ui-seg-gap|--ui-seg-track-pad-x|--ui-seg-track-pad-y|--ui-seg-btn-radius/i.test(
+            key
+          )
+        ) {
+          return "dimension";
+        }
+        if (/--promo-blockquote-border$/i.test(key)) return "borderLeft";
+        if (/--line$/i.test(key) || /--line-soft$/i.test(key) || key === "--panel-line") {
+          return "hline";
+        }
+        return "colorFill";
+      }
+
+      function buildRowVisualColumn(theme, key, eff) {
+        const mode = getVariableVisualMode(key);
+        const wrap = document.createElement("div");
+        wrap.className = "ct-row-visual";
+
+        const cap = document.createElement("div");
+        cap.className = "ct-row-visual-caption";
+
+        if (mode === "dimension") {
+          cap.textContent = /^--promo-/i.test(key)
+            ? "排版 / 尺寸值"
+            : "尺寸 / 渐变 / 阴影";
+          wrap.appendChild(cap);
+          const box = document.createElement("div");
+          box.className = "ct-visual-dim-box";
+          const pre = document.createElement("pre");
+          pre.className = "ct-visual-dim-pre";
+          const es = String(eff);
+          pre.textContent = es.length > 240 ? es.slice(0, 240) + "…" : es;
+          box.appendChild(pre);
+          wrap.appendChild(box);
+          return wrap;
+        }
+
+        if (mode === "borderLeft") {
+          cap.textContent = "边线色";
+          wrap.appendChild(cap);
+          const b = document.createElement("div");
+          b.className = "ct-visual-border-preview";
+          b.style.border = "1px solid var(--line-soft)";
+          b.style.borderLeft = "10px solid var(" + key + ")";
+          b.style.background = "var(--paper-soft)";
+          wrap.appendChild(b);
+          const note = document.createElement("div");
+          note.className = "ct-visual-type-sample";
+          note.style.fontSize = "11px";
+          note.style.fontWeight = "600";
+          note.style.color = "var(--muted)";
+          note.style.borderStyle = "solid";
+          note.textContent = "左侧竖线（引用块）";
+          wrap.appendChild(note);
+          return wrap;
+        }
+
+        if (mode === "hline") {
+          cap.textContent = "分割线色";
+          wrap.appendChild(cap);
+          const h = document.createElement("div");
+          h.className = "ct-visual-hline";
+          h.style.background = "var(" + key + ")";
+          wrap.appendChild(h);
+          return wrap;
+        }
+
+        if (key === "--promo-list-marker") {
+          cap.textContent = "列表符号色";
+          wrap.appendChild(cap);
+          const sw = document.createElement("div");
+          sw.className = "ct-visual-swatch-live";
+          sw.style.background = "var(" + key + ")";
+          wrap.appendChild(sw);
+          const ul = document.createElement("ul");
+          ul.className = "ct-visual-marker-ul";
+          const li = document.createElement("li");
+          li.textContent = "无序列表圆点";
+          ul.appendChild(li);
+          wrap.appendChild(ul);
+          return wrap;
+        }
+
+        if (key === "--bg" || key === "--paper" || key === "--paper-soft" || key === "--paper-edge") {
+          cap.textContent = "大面积底色";
+          wrap.appendChild(cap);
+          const sw = document.createElement("div");
+          sw.className = "ct-visual-swatch-live";
+          sw.style.height = "64px";
+          sw.style.background = "var(" + key + ")";
+          wrap.appendChild(sw);
+          const hint = document.createElement("div");
+          hint.className = "ct-visual-type-sample";
+          hint.style.fontSize = "11px";
+          hint.style.color = "var(--muted)";
+          hint.style.borderStyle = "dashed";
+          hint.textContent = "用于页面或卡片铺色；字色请改「正文与界面文字」组。";
+          wrap.appendChild(hint);
+          return wrap;
+        }
+
+        if (isTextColorVariable(key)) {
+          cap.textContent = "字色 + 样文";
+          wrap.appendChild(cap);
+          const row = document.createElement("div");
+          row.style.display = "flex";
+          row.style.gap = "10px";
+          row.style.alignItems = "stretch";
+          const sq = document.createElement("div");
+          sq.style.width = "42px";
+          sq.style.minHeight = "48px";
+          sq.style.borderRadius = "8px";
+          sq.style.border = "1px solid var(--line)";
+          sq.style.background = "var(" + key + ")";
+          sq.style.flexShrink = "0";
+          const sample = document.createElement("div");
+          sample.className = "ct-visual-type-sample";
+          sample.style.flex = "1";
+          sample.style.margin = "0";
+          sample.style.background = "var(--paper)";
+          sample.textContent = VAR_TYPE_SAMPLES[key] || "Aa 示例 · 读经";
+          sample.style.color = "var(" + key + ")";
+          if (key === "--promo-md-text") {
+            sample.style.fontSize = "0.92rem";
+            sample.style.lineHeight = "1.5";
+          } else {
+            sample.style.fontSize = "0.88rem";
+            sample.style.fontWeight = "600";
+          }
+          row.appendChild(sq);
+          row.appendChild(sample);
+          wrap.appendChild(row);
+          return wrap;
+        }
+
+        cap.textContent = "色块 + 字样";
+        wrap.appendChild(cap);
+        const sw = document.createElement("div");
+        sw.className = "ct-visual-swatch-live";
+        sw.style.background = "var(" + key + ")";
+        wrap.appendChild(sw);
+        const sample = document.createElement("div");
+        sample.className = "ct-visual-type-sample";
+        sample.textContent = VAR_TYPE_SAMPLES[key] || "Aa 示例 · 配色";
+        sample.style.color = "var(" + key + ")";
+        if (/--promo-h1-color$/i.test(key)) {
+          sample.style.fontSize = "1.2rem";
+          sample.style.fontWeight = "800";
+        } else if (/--promo-h2-color$/i.test(key)) {
+          sample.style.fontSize = "1.05rem";
+          sample.style.fontWeight = "700";
+        } else if (/--promo-h3-color$/i.test(key)) {
+          sample.style.fontSize = "0.98rem";
+          sample.style.fontWeight = "600";
+        } else {
+          sample.style.fontSize = "0.88rem";
+          sample.style.fontWeight = "700";
+        }
+        wrap.appendChild(sample);
+        return wrap;
+      }
+
+      async function saveSingleVariable(theme, key, btn) {
+        const st = document.getElementById("ctStatus");
+        const tid = slugColorThemeId(theme.id) || theme.id;
+        btn.disabled = true;
+        try {
+          flushVariableRowToTheme(theme, key, btn.closest(".ct-row-value") || btn.parentElement);
+          const val = theme.variables && theme.variables[key];
+          if (val === undefined || val === null || String(val).trim() === "") {
+            throw new Error("请先填写有效的变量值");
+          }
+          setStatus(st, "正在保存 " + key + " …", false);
+          const data = await apiPost("/api/admin/color-themes/variable", {
+            themeId: tid,
+            key,
+            value: String(val).trim(),
+          });
+          editorState.config = JSON.parse(JSON.stringify(data.config));
+          await loadBuiltinBase();
+          renderAll();
+          setStatus(st, "已保存此项：" + key + "。刷新读经页后可见。", false);
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      function appendVariableRow(body, theme, key) {
+        const eff = effectiveValue(theme, key);
+        const has = theme.variables && Object.prototype.hasOwnProperty.call(theme.variables, key);
+        const labelZh = VAR_LABELS[key] || "";
+        const row = document.createElement("div");
+        row.className = "ct-row";
+
+        const left = document.createElement("div");
+        left.className = "ct-row-key";
+        left.innerHTML = "<code>" + key.replace(/</g, "") + "</code>";
+        if (labelZh) {
+          const span = document.createElement("div");
+          span.className = "ct-row-label";
+          span.textContent = labelZh;
+          left.appendChild(span);
+        }
+
+        const mid = document.createElement("div");
+        mid.className = "ct-row-override";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = has;
+        cb.id = "ov-" + key.replace(/^--/, "").replace(/[^a-z0-9-]/gi, "-");
+        const lbl = document.createElement("label");
+        lbl.htmlFor = cb.id;
+        lbl.textContent = "覆盖";
+        cb.addEventListener("change", () => setOverride(theme, key, cb.checked));
+        mid.appendChild(cb);
+        mid.appendChild(lbl);
+
+        const right = document.createElement("div");
+        right.className = "ct-row-value";
+        const visual = buildRowVisualColumn(theme, key, eff);
+
+        if (!has && isSimpleHex(eff)) {
+          const sw = document.createElement("span");
+          sw.className = "ct-swatch-readonly";
+          sw.style.background = eff;
+          sw.title = String(eff);
+          right.appendChild(sw);
+        }
+        if (!has) {
+          const hint = document.createElement("div");
+          hint.className = "ct-inherit-hint";
+          hint.style.marginBottom = "6px";
+          hint.textContent =
+            "未覆盖也可直接改下列值（字号、行高等）；与内置相同时不会写入覆盖。取消覆盖请去掉「覆盖」勾选。";
+          right.appendChild(hint);
+        }
+
+        const valStr = eff == null ? "" : String(eff).trim();
+        const probeKind = colorProbeKindForKey(key);
+        if (probeKind) {
+          const cp = document.createElement("input");
+          cp.type = "color";
+          cp.value = colorPickerInitialHex(valStr, probeKind);
+          cp.title = "取色器（可解析 var/rgba；点选后存为 #hex，右侧仍可手写 var）";
+          const tx = document.createElement("input");
+          tx.type = "text";
+          tx.value = valStr;
+          tx.spellcheck = false;
+          tx.placeholder = "#hex、var(--x)、rgba() 等";
+          const syncFromCp = () => {
+            tx.value = cp.value;
+            commitVariableIfChanged(theme, key, cp.value);
+          };
+          const syncFromTx = () => {
+            const t = tx.value.trim();
+            if (isSimpleHex(t)) {
+              cp.value = hexForColorInput(t);
+            } else {
+              cp.value = colorPickerInitialHex(t, probeKind);
+            }
+            commitVariableIfChanged(theme, key, t);
+          };
+          cp.addEventListener("input", syncFromCp);
+          tx.addEventListener("change", syncFromTx);
+          tx.addEventListener("blur", syncFromTx);
+          right.appendChild(cp);
+          right.appendChild(tx);
+        } else {
+          const tx = document.createElement("input");
+          tx.type = "text";
+          tx.value = valStr;
+          tx.spellcheck = false;
+          tx.placeholder = "如 linear-gradient、rgba、var、16px 等";
+          tx.addEventListener("change", () => commitVariableIfChanged(theme, key, tx.value.trim()));
+          tx.addEventListener("blur", () => commitVariableIfChanged(theme, key, tx.value.trim()));
+          right.appendChild(tx);
+        }
+        const saveOne = document.createElement("button");
+        saveOne.type = "button";
+        saveOne.className = "secondary-btn ct-row-save-item";
+        saveOne.textContent = "保存此项";
+        saveOne.title =
+          "仅把这一条变量写入服务器；新主题需先用顶部「保存到服务器」保存过一次";
+        saveOne.addEventListener("click", async () => {
+          await saveSingleVariable(theme, key, saveOne);
+        });
+        right.appendChild(saveOne);
+        const rowTop = document.createElement("div");
+        rowTop.className = "ct-row-top";
+        rowTop.appendChild(left);
+        rowTop.appendChild(mid);
+        const rowBody = document.createElement("div");
+        rowBody.className = "ct-row-body";
+        rowBody.appendChild(visual);
+        rowBody.appendChild(right);
+        row.appendChild(rowTop);
+        row.appendChild(rowBody);
+        body.appendChild(row);
+      }
+
+      function getCurrentTheme() {
+        const c = editorState.config;
+        if (!c || !c.themes || !c.themes.length) return null;
+        const i = Math.min(editorState.activeIndex, c.themes.length - 1);
+        return c.themes[i];
+      }
+
+      function applyPreview() {
+        const theme = getCurrentTheme();
+        if (!theme) return;
+        const roots = [
+          ...document.querySelectorAll(".ct-preview-var-root"),
+          document.documentElement,
+        ];
+        roots.forEach((el) => {
+          for (const k of ALL_KEYS) {
+            const val = effectiveValue(theme, k);
+            if (val != null && val !== "") {
+              try {
+                el.style.setProperty(k, String(val));
+              } catch (_) {}
+            }
+          }
+        });
+      }
+
+      function syncDefaultSelect() {
+        const sel = document.getElementById("ctDefaultSelect");
+        const c = editorState.config;
+        if (!sel || !c) return;
+        const cur = String(c.defaultThemeId || "");
+        sel.innerHTML = "";
+        for (const t of c.themes) {
+          const opt = document.createElement("option");
+          opt.value = t.id;
+          opt.textContent = `${t.label} (${t.id})`;
+          sel.appendChild(opt);
+        }
+        sel.value = c.themes.some((x) => x.id === cur) ? cur : c.themes[0].id;
+      }
+
+      function syncJsonTextarea() {
+        const ta = document.getElementById("ctJson");
+        if (!ta || !editorState.config) return;
+        ta.value = JSON.stringify(buildConfigFromState(), null, 2);
+      }
+
+      function buildVisualVarRow(theme, k) {
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-ct-var", k);
+        const eff = effectiveValue(theme, k);
+        const has = theme.variables && Object.prototype.hasOwnProperty.call(theme.variables, k);
+
+        const tdName = document.createElement("td");
+        tdName.className = "ct-var-col-name";
+        const code = document.createElement("code");
+        code.textContent = k;
+        tdName.appendChild(code);
+
+        const tdLabel = document.createElement("td");
+        tdLabel.className = "ct-var-col-label";
+        tdLabel.textContent = VAR_LABELS[k] || "（无说明）";
+
+        const tdVal = document.createElement("td");
+        tdVal.className = "ct-var-col-value";
+        const tools = document.createElement("div");
+        tools.className = "ct-var-row-tools";
+
+        const tx = document.createElement("input");
+        tx.type = "text";
+        tx.className = "ct-input";
+        tx.spellcheck = false;
+        tx.autocomplete = "off";
+        tx.value = eff == null ? "" : String(eff).trim();
+        tx.placeholder = "颜色、渐变、尺寸等";
+        const applyVal = () => commitVariableIfChanged(theme, k, tx.value.trim());
+        tx.addEventListener("change", applyVal);
+        tx.addEventListener("blur", applyVal);
+        tools.appendChild(tx);
+
+        const tableProbeKind = colorProbeKindForKey(k);
+        if (tableProbeKind) {
+          const cp = document.createElement("input");
+          cp.type = "color";
+          cp.title = "取色（var/rgba 会按当前预览解析）";
+          cp.value = colorPickerInitialHex(eff == null ? "" : String(eff).trim(), tableProbeKind);
+          const fromCp = () => {
+            tx.value = cp.value;
+            commitVariableIfChanged(theme, k, cp.value);
+          };
+          cp.addEventListener("input", fromCp);
+          tools.insertBefore(cp, tx);
+        }
+
+        const restore = document.createElement("button");
+        restore.type = "button";
+        restore.className = "ct-var-restore secondary-btn";
+        restore.textContent = "恢复内置";
+        restore.title = "取消本项覆盖，改回内置默认";
+        if (!has) restore.setAttribute("hidden", "");
+        restore.addEventListener("click", (e) => {
+          e.preventDefault();
+          setOverride(theme, k, false);
+          renderVisualVarsTable();
+        });
+
+        tdVal.appendChild(tools);
+        tdVal.appendChild(restore);
+        tr.appendChild(tdName);
+        tr.appendChild(tdLabel);
+        tr.appendChild(tdVal);
+        return tr;
+      }
+
+      function renderVisualVarsTable() {
+        const tb = document.getElementById("ctVisualVarsTableBody");
+        const theme = getCurrentTheme();
+        if (!tb || !theme || !ALL_KEYS.length) {
+          if (tb) tb.innerHTML = "";
+          return;
+        }
+        tb.innerHTML = "";
+
+        function appendGroupTitle(title) {
+          const tr = document.createElement("tr");
+          tr.className = "ct-var-group-row";
+          const td = document.createElement("td");
+          td.colSpan = 3;
+          td.textContent = title;
+          tr.appendChild(td);
+          tb.appendChild(tr);
+        }
+
+        for (const g of groupedKeys()) {
+          appendGroupTitle(g.title);
+          for (const k of g.keys) {
+            tb.appendChild(buildVisualVarRow(theme, k));
+          }
+        }
+      }
+
+      function syncVisualVarsTableValues() {
+        const tb = document.getElementById("ctVisualVarsTableBody");
+        const theme = getCurrentTheme();
+        if (!tb || !theme) return;
+        let rebuild = false;
+        tb.querySelectorAll("tr[data-ct-var]").forEach((row) => {
+          const k = row.getAttribute("data-ct-var");
+          if (!k) return;
+          const eff = effectiveValue(theme, k);
+          const cp = row.querySelector('input[type="color"]');
+          if (Boolean(cp) !== Boolean(colorProbeKindForKey(k))) rebuild = true;
+        });
+        if (rebuild) {
+          renderVisualVarsTable();
+          return;
+        }
+        tb.querySelectorAll("tr[data-ct-var]").forEach((row) => {
+          if (row.contains(document.activeElement)) return;
+          const k = row.getAttribute("data-ct-var");
+          if (!k) return;
+          const eff = effectiveValue(theme, k);
+          const has = theme.variables && Object.prototype.hasOwnProperty.call(theme.variables, k);
+          const cp = row.querySelector('input[type="color"]');
+          const tx = row.querySelector(".ct-var-row-tools .ct-input");
+          if (!tx) return;
+          tx.value = eff == null ? "" : String(eff).trim();
+          const tblKind = colorProbeKindForKey(k);
+          if (cp && tblKind) {
+            cp.value = colorPickerInitialHex(tx.value, tblKind);
+          }
+          const restore = row.querySelector(".ct-var-restore");
+          if (restore) {
+            if (has) restore.removeAttribute("hidden");
+            else restore.setAttribute("hidden", "");
+          }
+        });
+      }
+
+      function buildConfigFromState() {
+        const c = editorState.config;
+        if (!c) return {};
+        const defaultThemeId =
+          document.getElementById("ctDefaultSelect")?.value?.trim() ||
+          c.defaultThemeId ||
+          c.themes[0]?.id;
+        return {
+          version: c.version || 1,
+          defaultThemeId: slugColorThemeId(defaultThemeId) || c.themes[0].id,
+          themes: c.themes.map((t) => ({
+            id: slugColorThemeId(t.id) || t.id,
+            label: String(t.label || "").trim().slice(0, 80),
+            variables: { ...(t.variables || {}) },
+          })),
+        };
+      }
+
+      function bindMetaFields() {
+        const idEl = document.getElementById("ctThemeId");
+        const labelEl = document.getElementById("ctThemeLabel");
+        const theme = getCurrentTheme();
+        if (!idEl || !labelEl || !theme) return;
+        idEl.value = theme.id;
+        labelEl.value = theme.label || "";
+        idEl.onchange = () => {
+          const next = slugColorThemeId(idEl.value);
+          if (next) theme.id = next;
+          idEl.value = theme.id;
+          renderTabs();
+          syncDefaultSelect();
+        };
+        labelEl.oninput = () => {
+          theme.label = labelEl.value;
+          renderTabs();
+        };
+      }
+
+      function markEditorDirty() {
+        const hint = document.getElementById("ctDirtyHint");
+        const saveBtn = document.getElementById("ctSaveBtn");
+        if (hint) hint.hidden = false;
+        if (saveBtn) saveBtn.classList.add("ct-save--dirty");
+      }
+
+      function clearEditorDirty() {
+        const hint = document.getElementById("ctDirtyHint");
+        const saveBtn = document.getElementById("ctSaveBtn");
+        if (hint) hint.hidden = true;
+        if (saveBtn) saveBtn.classList.remove("ct-save--dirty");
+      }
+
+      function setOverride(theme, key, on) {
+        if (!theme.variables) theme.variables = {};
+        if (on) {
+          if (!Object.prototype.hasOwnProperty.call(theme.variables, key)) {
+            theme.variables[key] = effectiveValue(theme, key);
+          }
+        } else {
+          delete theme.variables[key];
+        }
+        markEditorDirty();
+        applyPreview();
+        syncJsonTextarea();
+        if (!editorState.suppressListRender) renderGroups();
+        tryRefreshPopoverIfOpen();
+        syncVisualVarsTableValues();
+      }
+
+      function patchVariable(theme, key, value) {
+        if (!theme.variables) theme.variables = {};
+        theme.variables[key] = value;
+        markEditorDirty();
+        applyPreview();
+        syncJsonTextarea();
+        if (!editorState.suppressListRender) renderGroups();
+        syncVisualVarsTableValues();
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      let ctPopoverHotspotKeys = null;
+
+      function refreshCtPopoverBody() {
+        const body = document.getElementById("ctPopoverBody");
+        const theme = getCurrentTheme();
+        const keys = ctPopoverHotspotKeys;
+        if (!body || !keys || !theme) return;
+        body.innerHTML = "";
+        for (const k of keys) {
+          if (ALL_KEYS.includes(k)) mountPopoverVariableBlock(theme, k, body);
+        }
+      }
+
+      function tryRefreshPopoverIfOpen() {
+        const pop = document.getElementById("ctPopover");
+        if (editorState.suppressListRender && pop && !pop.hidden) {
+          refreshCtPopoverBody();
+        }
+      }
+
+      function mountPopoverVariableBlock(theme, key, container) {
+        const eff = effectiveValue(theme, key);
+        const has = theme.variables && Object.prototype.hasOwnProperty.call(theme.variables, key);
+        const block = document.createElement("div");
+        block.className = "ct-pop-var-block";
+        const head = document.createElement("div");
+        head.className = "ct-pop-var-head";
+        const codeEl = document.createElement("code");
+        codeEl.textContent = key;
+        head.appendChild(codeEl);
+        const labelZh = VAR_LABELS[key];
+        if (labelZh) {
+          const lb = document.createElement("div");
+          lb.className = "ct-pop-var-label";
+          lb.textContent = labelZh;
+          head.appendChild(lb);
+        }
+        const valWrap = document.createElement("div");
+        valWrap.className = "ct-pop-var-value";
+
+        const mid = document.createElement("div");
+        mid.className = "ct-row-override";
+        mid.style.marginBottom = "8px";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = has;
+        cb.id = "pop-ov-" + key.replace(/^--/, "").replace(/[^a-z0-9-]/gi, "-");
+        const lbl = document.createElement("label");
+        lbl.htmlFor = cb.id;
+        lbl.textContent = "覆盖";
+        cb.addEventListener("change", () => {
+          setOverride(theme, key, cb.checked);
+        });
+        mid.appendChild(cb);
+        mid.appendChild(lbl);
+        valWrap.appendChild(mid);
+
+        if (!has && isSimpleHex(eff)) {
+          const sw = document.createElement("span");
+          sw.className = "ct-swatch-readonly";
+          sw.style.background = eff;
+          sw.title = String(eff);
+          valWrap.appendChild(sw);
+        }
+        if (!has) {
+          const ph = document.createElement("p");
+          ph.className = "ct-inherit-hint";
+          ph.style.margin = "0 0 8px";
+          ph.style.fontSize = "11px";
+          ph.textContent = "可直接修改下列值（含字号、行高、字重等）；与内置相同则不会写入覆盖。";
+          valWrap.appendChild(ph);
+        }
+
+        const popValStr = eff == null ? "" : String(eff).trim();
+        const popProbeKind = colorProbeKindForKey(key);
+        if (popProbeKind) {
+          const cp = document.createElement("input");
+          cp.type = "color";
+          cp.value = colorPickerInitialHex(popValStr, popProbeKind);
+          cp.title = "取色器（可解析 var/rgba；点选后存为 #hex，右侧仍可手写 var）";
+          const tx = document.createElement("input");
+          tx.type = "text";
+          tx.className = "ct-input";
+          tx.value = popValStr;
+          tx.spellcheck = false;
+          tx.placeholder = "#hex、var(--x)、rgba() 等";
+          const syncFromCp = () => {
+            tx.value = cp.value;
+            commitVariableIfChanged(theme, key, cp.value);
+          };
+          const syncFromTx = () => {
+            const t = tx.value.trim();
+            if (isSimpleHex(t)) {
+              cp.value = hexForColorInput(t);
+            } else {
+              cp.value = colorPickerInitialHex(t, popProbeKind);
+            }
+            commitVariableIfChanged(theme, key, t);
+          };
+          cp.addEventListener("input", syncFromCp);
+          tx.addEventListener("change", syncFromTx);
+          tx.addEventListener("blur", syncFromTx);
+          valWrap.appendChild(cp);
+          valWrap.appendChild(tx);
+        } else {
+          const tx = document.createElement("input");
+          tx.type = "text";
+          tx.className = "ct-input";
+          tx.value = popValStr;
+          tx.spellcheck = false;
+          tx.placeholder = "如 linear-gradient、rgba、var、16px、700 等";
+          tx.addEventListener("change", () => commitVariableIfChanged(theme, key, tx.value.trim()));
+          tx.addEventListener("blur", () => commitVariableIfChanged(theme, key, tx.value.trim()));
+          valWrap.appendChild(tx);
+        }
+
+        block.appendChild(head);
+        block.appendChild(valWrap);
+        container.appendChild(block);
+      }
+
+      function openCtPopover(hotspot) {
+        const label = hotspot.dataset.ctLabel || "参数";
+        let keys = [];
+        try {
+          keys = JSON.parse(hotspot.dataset.ctKeys || "[]");
+        } catch (_) {
+          keys = [];
+        }
+        keys = keys.filter((k) => typeof k === "string" && ALL_KEYS.includes(k));
+        if (!keys.length) return;
+        const theme = getCurrentTheme();
+        if (!theme) return;
+        editorState.suppressListRender = true;
+        ctPopoverHotspotKeys = keys;
+        const title = document.getElementById("ctPopoverTitle");
+        const body = document.getElementById("ctPopoverBody");
+        const bd = document.getElementById("ctPopoverBackdrop");
+        const pop = document.getElementById("ctPopover");
+        if (!title || !body || !bd || !pop) return;
+        title.textContent = label;
+        body.innerHTML = "";
+        keys.forEach((k) => mountPopoverVariableBlock(theme, k, body));
+        bd.hidden = false;
+        pop.hidden = false;
+      }
+
+      function dismissCtPopoverUi() {
+        const bd = document.getElementById("ctPopoverBackdrop");
+        const pop = document.getElementById("ctPopover");
+        if (bd) bd.hidden = true;
+        if (pop) pop.hidden = true;
+        ctPopoverHotspotKeys = null;
+        editorState.suppressListRender = false;
+      }
+
+      function closeCtPopover() {
+        const pop = document.getElementById("ctPopover");
+        const wasOpen = pop && !pop.hidden;
+        dismissCtPopoverUi();
+        if (wasOpen) renderGroups();
+      }
+
+      function renderLiveInteractivePreview() {
+        const host = document.getElementById("ctLivePreviewRoot");
+        if (!host) return;
+        const theme = getCurrentTheme();
+        if (!theme || !ALL_KEYS.length) {
+          host.innerHTML = "";
+          host.className = "ct-live-preview-root";
+          return;
+        }
+        host.className = "ct-live-preview-root ct-preview-var-root";
+        host.innerHTML = "";
+
+        function addHotspot(tag, cls, label, keys, parent) {
+          const el = document.createElement(tag);
+          el.className = cls + " ct-hotspot";
+          el.dataset.ctLabel = label;
+          el.dataset.ctKeys = JSON.stringify(keys);
+          parent.appendChild(el);
+          return el;
+        }
+
+        const top = addHotspot(
+          "div",
+          "ct-live-topbar",
+          "顶栏与主背景",
+          ["--bg", "--ui-text", "--ui-text-hover", "--brand-bible"],
+          host
+        );
+        const brand = document.createElement("span");
+        brand.className = "ct-live-brand";
+        brand.innerHTML = "Ask<span class=\"b\">Bible</span>.me";
+        const meta = document.createElement("span");
+        meta.className = "ct-live-meta";
+        meta.textContent = "顶栏字色 · 主背景";
+        top.appendChild(brand);
+        top.appendChild(meta);
+
+        const paper = addHotspot(
+          "div",
+          "ct-live-paper",
+          "书页与纸色",
+          ["--paper", "--book-spread-paper-gradient", "--paper-soft", "--paper-edge"],
+          host
+        );
+        const inner = document.createElement("div");
+        inner.className = "ct-live-paper-inner";
+
+        const inkP = addHotspot(
+          "p",
+          "",
+          "读经正文色",
+          ["--ink"],
+          inner
+        );
+        inkP.style.margin = "0 0 8px";
+        inkP.style.fontSize = "14px";
+        inkP.style.fontWeight = "800";
+        inkP.style.lineHeight = "1.5";
+        inkP.style.color = "var(--ink)";
+        inkP.textContent = "读经正文主色（--ink）";
+
+        const mutedP = addHotspot(
+          "p",
+          "",
+          "次要说明字色",
+          ["--muted", "--muted-soft"],
+          inner
+        );
+        mutedP.style.margin = "0 0 12px";
+        mutedP.style.fontSize = "12px";
+        mutedP.style.lineHeight = "1.45";
+        mutedP.style.color = "var(--muted)";
+        mutedP.textContent = "次要说明（--muted）· 更淡辅助（--muted-soft）";
+
+        const h1 = addHotspot(
+          "h2",
+          "ct-live-h1",
+          "文章模板大标题（h1）",
+          [
+            "--promo-h1-color",
+            "--promo-h1-font-size",
+            "--promo-h1-font-weight",
+            "--promo-h1-line-height",
+            "--promo-h1-margin-bottom",
+            "--promo-font-heading",
+          ],
+          inner
+        );
+        h1.textContent = "文章模板大标题 h1";
+
+        const h2 = addHotspot(
+          "h3",
+          "ct-live-h2",
+          "文章模板二级标题（h2）",
+          [
+            "--promo-h2-color",
+            "--promo-h2-font-size",
+            "--promo-h2-font-weight",
+            "--promo-h2-line-height",
+            "--promo-h2-margin-top",
+            "--promo-h2-margin-bottom",
+            "--promo-font-heading",
+          ],
+          inner
+        );
+        h2.textContent = "二级标题 h2";
+
+        const h3 = addHotspot(
+          "h4",
+          "",
+          "文章模板三级标题（h3）",
+          [
+            "--promo-h3-color",
+            "--promo-h3-font-size",
+            "--promo-h3-font-weight",
+            "--promo-h3-line-height",
+            "--promo-h3-margin-top",
+            "--promo-h3-margin-bottom",
+            "--promo-font-heading",
+          ],
+          inner
+        );
+        h3.style.margin = "0 0 8px";
+        h3.style.fontFamily = "var(--promo-font-heading, var(--promo-font-body, inherit))";
+        h3.style.fontSize = "var(--promo-h3-font-size)";
+        h3.style.fontWeight = "var(--promo-h3-font-weight)";
+        h3.style.lineHeight = "var(--promo-h3-line-height)";
+        h3.style.color = "var(--promo-h3-color)";
+        h3.textContent = "三级标题 h3";
+
+        const para = addHotspot(
+          "p",
+          "ct-live-para",
+          "文章模板正文",
+          [
+            "--promo-md-text",
+            "--promo-md-font-size",
+            "--promo-md-line-height",
+            "--promo-p-margin-bottom",
+            "--promo-md-link-color",
+            "--promo-font-body",
+            "--promo-text-max-width",
+          ],
+          inner
+        );
+        para.textContent = "正文：我们活在一个信息极其丰富的时代，更需要安静读经的样式。";
+
+        const ul = addHotspot(
+          "ul",
+          "ct-live-ul",
+          "列表符号、缩进与正文色",
+          [
+            "--promo-list-marker",
+            "--promo-md-text",
+            "--promo-list-margin-top",
+            "--promo-list-margin-bottom",
+            "--promo-list-margin-left",
+            "--promo-li-margin-bottom",
+          ],
+          inner
+        );
+        const li1 = document.createElement("li");
+        li1.textContent = "无序列表第一项";
+        const li2 = document.createElement("li");
+        li2.textContent = "无序列表第二项";
+        ul.appendChild(li1);
+        ul.appendChild(li2);
+
+        const bq = addHotspot(
+          "blockquote",
+          "ct-live-bq",
+          "引用块",
+          [
+            "--promo-blockquote-text",
+            "--promo-blockquote-border",
+            "--promo-blockquote-border-width",
+            "--promo-blockquote-padding-left",
+            "--promo-blockquote-margin-vertical",
+            "--promo-blockquote-font-size",
+            "--promo-blockquote-line-height",
+          ],
+          inner
+        );
+        bq.textContent = "引用块：熟悉内容，却没有进入经文。";
+
+        const hrLive = addHotspot(
+          "hr",
+          "ct-live-promo-hr",
+          "文章模板分割线（hr）",
+          ["--promo-md-hr-border", "--promo-hr-margin-vertical"],
+          inner
+        );
+        hrLive.style.border = "none";
+        hrLive.style.borderTop = "var(--promo-md-hr-border)";
+        hrLive.style.margin = "var(--promo-hr-margin-vertical) 0";
+
+        const promoMeta = addHotspot(
+          "div",
+          "",
+          "文章模板版心与纸面",
+          [
+            "--promo-shell-max-width",
+            "--promo-pad-x",
+            "--promo-text-max-width",
+            "--promo-left-page-paper",
+          ],
+          inner
+        );
+        promoMeta.style.marginTop = "12px";
+        promoMeta.style.padding = "8px 10px";
+        promoMeta.style.borderRadius = "8px";
+        promoMeta.style.border = "1px dashed var(--line)";
+        promoMeta.style.fontSize = "11px";
+        promoMeta.style.fontWeight = "700";
+        promoMeta.style.color = "var(--muted)";
+        promoMeta.textContent =
+          "整卡宽度、内边距、正文列宽；纸面渐变见 --promo-left-page-paper";
+
+        const typo = addHotspot(
+          "div",
+          "",
+          "文章模板排版（字号 / 行高 / 间距）",
+          [
+            "--promo-strong-font-weight",
+            "--promo-kicker-font-size",
+            "--promo-kicker-color",
+            "--promo-kicker-letter-spacing",
+            "--promo-md-font-size",
+            "--promo-md-line-height",
+            "--promo-h1-font-size",
+            "--promo-h1-font-weight",
+            "--promo-h1-line-height",
+            "--promo-h1-margin-bottom",
+            "--promo-h2-font-size",
+            "--promo-h2-font-weight",
+            "--promo-h2-line-height",
+            "--promo-h2-margin-top",
+            "--promo-h2-margin-bottom",
+            "--promo-h3-font-size",
+            "--promo-h3-font-weight",
+            "--promo-h3-line-height",
+            "--promo-h3-margin-top",
+            "--promo-h3-margin-bottom",
+            "--promo-blockquote-font-size",
+            "--promo-blockquote-line-height",
+            "--promo-blockquote-border-width",
+            "--promo-blockquote-padding-left",
+            "--promo-blockquote-margin-vertical",
+            "--promo-code-bg",
+            "--promo-pre-bg",
+          ],
+          inner
+        );
+        typo.style.marginTop = "8px";
+        typo.style.padding = "8px 10px";
+        typo.style.borderRadius = "8px";
+        typo.style.background = "var(--paper-soft)";
+        typo.style.fontSize = "11px";
+        typo.style.color = "var(--muted)";
+        typo.textContent =
+          "kicker 副标题、各级标题边距、引用与代码块背景等（与配色分组表一致）";
+
+        paper.appendChild(inner);
+
+        const divi = addHotspot(
+          "div",
+          "",
+          "分割线、面板与阴影",
+          ["--line", "--line-soft", "--panel-line", "--shadow-lg", "--shadow-md"],
+          host
+        );
+        divi.style.padding = "12px 16px";
+        divi.style.background = "var(--paper-soft)";
+        divi.style.borderTop = "1px solid var(--line-soft)";
+        const hr1 = document.createElement("hr");
+        hr1.style.border = "none";
+        hr1.style.height = "1px";
+        hr1.style.background = "var(--line)";
+        hr1.style.margin = "0 0 6px";
+        const hr2 = document.createElement("hr");
+        hr2.style.border = "none";
+        hr2.style.height = "1px";
+        hr2.style.background = "var(--line-soft)";
+        hr2.style.margin = "0 0 10px";
+        const card = document.createElement("div");
+        card.style.padding = "10px 12px";
+        card.style.borderRadius = "10px";
+        card.style.border = "1px solid var(--panel-line)";
+        card.style.boxShadow = "var(--shadow-md)";
+        card.style.fontSize = "12px";
+        card.style.color = "var(--muted)";
+        card.textContent = "卡片线色与中阴影；大阴影用于浮层等";
+        divi.appendChild(hr1);
+        divi.appendChild(hr2);
+        divi.appendChild(card);
+
+        const seg = addHotspot(
+          "div",
+          "ct-live-seg",
+          "读经工具条 · 分段控件",
+          [
+            "--ui-seg-track-bg",
+            "--ui-seg-track-radius",
+            "--ui-seg-track-pad-y",
+            "--ui-seg-track-pad-x",
+            "--ui-seg-gap",
+            "--ui-seg-btn-height",
+            "--ui-seg-btn-radius",
+            "--ui-seg-label",
+            "--ui-seg-label-hover",
+            "--ui-seg-label-active",
+            "--ui-seg-pill-bg",
+            "--ui-seg-pill-shadow",
+            "--ui-seg-hover-fill",
+          ],
+          host
+        );
+        const segInner = document.createElement("div");
+        segInner.className = "ct-live-seg-inner";
+        const b1 = document.createElement("span");
+        b1.className = "ct-live-seg-btn";
+        b1.textContent = "经文";
+        const b2 = document.createElement("span");
+        b2.className = "ct-live-seg-btn is-on";
+        b2.textContent = "全显";
+        const b3 = document.createElement("span");
+        b3.className = "ct-live-seg-btn";
+        b3.textContent = "问题";
+        segInner.appendChild(b1);
+        segInner.appendChild(b2);
+        segInner.appendChild(b3);
+        seg.appendChild(segInner);
+
+        const verse = addHotspot(
+          "p",
+          "ct-live-accent",
+          "强调、经文与重复高亮",
+          [
+            "--scripture-verse-color",
+            "--scripture-divine-color",
+            "--verse-repeat-yellow",
+            "--accent",
+            "--accent-soft",
+          ],
+          host
+        );
+        verse.innerHTML =
+          "经文行默认色 · <span style=\"color:var(--scripture-divine-color);font-weight:800\">神言强调</span> · " +
+          "<span style=\"color:var(--verse-repeat-yellow)\">×2 重复</span> · " +
+          "<span style=\"color:var(--accent)\">强调链接</span>";
+
+        const starBox = addHotspot(
+          "div",
+          "",
+          "收藏星级渐变",
+          [
+            "--star-g1-1",
+            "--star-g1-2",
+            "--star-g1-3",
+            "--star-g2-1",
+            "--star-g2-2",
+            "--star-g2-3",
+            "--star-g3-1",
+            "--star-g3-2",
+            "--star-g3-3",
+            "--star-g4-1",
+            "--star-g4-2",
+            "--star-g4-3",
+          ],
+          host
+        );
+        starBox.style.padding = "12px 16px";
+        starBox.style.background = "var(--paper-soft)";
+        starBox.style.borderTop = "1px solid var(--line-soft)";
+        starBox.innerHTML =
+          '<div class="pv-stars">' +
+          '<span class="pv-star-bar pv-star-bar--g1"></span>' +
+          '<span class="pv-star-bar pv-star-bar--g2"></span>' +
+          '<span class="pv-star-bar pv-star-bar--g3"></span>' +
+          '<span class="pv-star-bar pv-star-bar--g4"></span>' +
+          "</div>" +
+          '<button type="button" class="pv-star-btn" tabindex="-1">星级主按钮渐变</button>';
+      }
+
+      function switchCtMode(mode) {
+        const vis = document.getElementById("ctModeVisual");
+        const list = document.getElementById("ctModeList");
+        const tabV = document.getElementById("ctModeTabVisual");
+        const tabL = document.getElementById("ctModeTabList");
+        if (!vis || !list || !tabV || !tabL) return;
+        const isVisual = mode === "visual";
+        vis.hidden = !isVisual;
+        list.hidden = isVisual;
+        tabV.classList.toggle("is-active", isVisual);
+        tabL.classList.toggle("is-active", !isVisual);
+        tabV.setAttribute("aria-selected", isVisual ? "true" : "false");
+        tabL.setAttribute("aria-selected", !isVisual ? "true" : "false");
+      }
+
+      function ensureLivePreviewInteractions() {
+        if (editorState.liveUiBound) return;
+        editorState.liveUiBound = true;
+        const tip = document.getElementById("ctHotspotTooltip");
+        document.addEventListener("mousemove", (e) => {
+          const pop = document.getElementById("ctPopover");
+          if (tip && pop && !pop.hidden) {
+            tip.hidden = true;
+            return;
+          }
+          const root = document.getElementById("ctLivePreviewRoot");
+          const t = e.target && e.target.closest && e.target.closest(".ct-hotspot");
+          if (!tip || !root || !t || !root.contains(t)) {
+            if (tip) tip.hidden = true;
+            return;
+          }
+          let keys = [];
+          try {
+            keys = JSON.parse(t.dataset.ctKeys || "[]");
+          } catch (_) {
+            keys = [];
+          }
+          const label = t.dataset.ctLabel || "";
+          tip.innerHTML =
+            "<strong>" +
+            escapeHtml(label) +
+            "</strong><br>" +
+            keys.map((k) => "<kbd>" + escapeHtml(String(k)) + "</kbd>").join(" · ");
+          tip.hidden = false;
+          tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + "px";
+          tip.style.top = Math.min(e.clientY + 14, window.innerHeight - 120) + "px";
+        });
+        document.addEventListener(
+          "click",
+          (e) => {
+            const root = document.getElementById("ctLivePreviewRoot");
+            const t = e.target && e.target.closest && e.target.closest(".ct-hotspot");
+            if (!root || !t || !root.contains(t)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            openCtPopover(t);
+          },
+          true
+        );
+        const bd = document.getElementById("ctPopoverBackdrop");
+        const closeBtn = document.getElementById("ctPopoverCloseBtn");
+        if (bd) {
+          bd.addEventListener("click", () => closeCtPopover());
+        }
+        if (closeBtn) {
+          closeBtn.addEventListener("click", () => closeCtPopover());
+        }
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") closeCtPopover();
+        });
+        const tabV = document.getElementById("ctModeTabVisual");
+        const tabL = document.getElementById("ctModeTabList");
+        if (tabV) {
+          tabV.addEventListener("click", () => {
+            closeCtPopover();
+            switchCtMode("visual");
+            renderVisualVarsTable();
+          });
+        }
+        if (tabL) {
+          tabL.addEventListener("click", () => {
+            closeCtPopover();
+            switchCtMode("list");
+          });
+        }
+      }
+
+      function renderGroups() {
+        const host = document.getElementById("ctPairs");
+        const theme = getCurrentTheme();
+        if (!host || !theme) return;
+        const groups = groupedKeys();
+        const nav = document.getElementById("ctGroupNav");
+        if (nav) {
+          nav.innerHTML = "";
+          if (!groups.length) {
+            nav.hidden = true;
+          } else {
+            nav.hidden = false;
+            groups.forEach((g, i) => {
+              const sid = groupSectionId(i, g.title);
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "ct-jump-btn";
+              btn.textContent = g.title;
+              btn.addEventListener("click", () => {
+                const target = document.getElementById(sid);
+                if (target) {
+                  target.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              });
+              nav.appendChild(btn);
+            });
+          }
+        }
+        host.innerHTML = "";
+        for (let gi = 0; gi < groups.length; gi++) {
+          const g = groups[gi];
+          const pair = document.createElement("section");
+          pair.className = "ct-pair";
+          pair.id = groupSectionId(gi, g.title);
+
+          const h = document.createElement("h3");
+          h.className = "ct-pair-heading";
+          h.textContent = g.title;
+          pair.appendChild(h);
+
+          const prevCol = document.createElement("div");
+          prevCol.className = "ct-pair-preview";
+          prevCol.appendChild(createPreviewRootForGroupTitle(g.title));
+          pair.appendChild(prevCol);
+
+          const edCol = document.createElement("div");
+          edCol.className = "ct-pair-editor";
+          const body = document.createElement("div");
+          body.className = "ct-group-body";
+          for (const key of g.keys) {
+            appendVariableRow(body, theme, key);
+          }
+          edCol.appendChild(body);
+          pair.appendChild(edCol);
+
+          host.appendChild(pair);
+        }
+        applyPreview();
+      }
+
+      function renderTabs() {
+        const tabs = document.getElementById("ctThemeTabs");
+        const c = editorState.config;
+        if (!tabs || !c || !c.themes.length) return;
+        tabs.innerHTML = "";
+        c.themes.forEach((t, i) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "ct-tab" + (i === editorState.activeIndex ? " is-active" : "");
+          b.textContent = t.label || t.id;
+          b.setAttribute("role", "tab");
+          b.setAttribute("aria-selected", i === editorState.activeIndex ? "true" : "false");
+          b.addEventListener("click", () => {
+            dismissCtPopoverUi();
+            editorState.activeIndex = i;
+            renderTabs();
+            bindMetaFields();
+            renderGroups();
+            renderLiveInteractivePreview();
+            syncJsonTextarea();
+            applyPreview();
+            renderVisualVarsTable();
+          });
+          tabs.appendChild(b);
+        });
+      }
+
+      function renderAll() {
+        dismissCtPopoverUi();
+        renderTabs();
+        syncDefaultSelect();
+        bindMetaFields();
+        renderGroups();
+        renderLiveInteractivePreview();
+        syncJsonTextarea();
+        applyPreview();
+        renderVisualVarsTable();
+        ensureLivePreviewInteractions();
+        document.getElementById("ctVisual").hidden = false;
+      }
+
+      async function loadConfig() {
+        const authEl = document.getElementById("ctAuth");
+        const st = document.getElementById("ctStatus");
+        if (!getToken()) {
+          setStatus(authEl, "请先在本站读经页登录管理员帐号（需要 Bearer token）。", true);
+          document.getElementById("ctVisual").hidden = true;
+          return;
+        }
+        setStatus(authEl, "");
+        setStatus(st, "加载中…", false);
+        try {
+          await loadBuiltinBase();
+          const cfg = await apiGet("/api/admin/color-themes");
+          editorState.config = JSON.parse(JSON.stringify(cfg));
+          editorState.activeIndex = 0;
+          clearEditorDirty();
+          renderAll();
+          setStatus(st, "已加载。", false);
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+          document.getElementById("ctVisual").hidden = true;
+        }
+      }
+
+      async function saveConfig() {
+        const st = document.getElementById("ctStatus");
+        setStatus(st, "保存中…", false);
+        try {
+          const body = buildConfigFromState();
+          if (!body.themes || !body.themes.length) {
+            throw new Error("至少保留一套主题");
+          }
+          await apiPost("/api/admin/color-themes/save", {
+            defaultThemeId: body.defaultThemeId,
+            themes: body.themes,
+          });
+          editorState.config = JSON.parse(JSON.stringify(body));
+          syncDefaultSelect();
+          await loadBuiltinBase();
+          clearEditorDirty();
+          renderAll();
+          setStatus(st, "已保存。用户刷新页面后可见新配色。", false);
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+        }
+      }
+
+      function applyJsonFromTextarea() {
+        const st = document.getElementById("ctStatus");
+        try {
+          const parsed = JSON.parse(document.getElementById("ctJson").value || "{}");
+          const themes = Array.isArray(parsed.themes) ? parsed.themes : null;
+          if (!themes || !themes.length) throw new Error("JSON 中 themes 无效");
+          editorState.config = {
+            version: parsed.version || 1,
+            defaultThemeId: String(parsed.defaultThemeId || themes[0].id || "").trim(),
+            themes: themes.map((t) => ({
+              id: slugColorThemeId(t.id) || "theme",
+              label: String(t.label || "").trim().slice(0, 80) || t.id,
+              variables: typeof t.variables === "object" && t.variables ? { ...t.variables } : {},
+            })),
+          };
+          editorState.activeIndex = 0;
+          renderAll();
+          setStatus(st, "已从 JSON 应用到表单。", false);
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+        }
+      }
+
+      document.getElementById("ctDefaultSelect").addEventListener("change", () => {
+        if (editorState.config) {
+          editorState.config.defaultThemeId = document.getElementById("ctDefaultSelect").value;
+          syncJsonTextarea();
+        }
+      });
+
+      document.getElementById("ctReloadBtn").addEventListener("click", loadConfig);
+      document.getElementById("ctSaveBtn").addEventListener("click", saveConfig);
+      document.getElementById("ctApplyJsonBtn").addEventListener("click", applyJsonFromTextarea);
+      document.getElementById("ctRefreshJsonBtn").addEventListener("click", () => {
+        syncJsonTextarea();
+        setStatus(document.getElementById("ctStatus"), "已刷新 JSON 文本。", false);
+      });
+
+      document.getElementById("ctAddThemeBtn").addEventListener("click", () => {
+        if (!editorState.config) return;
+        const id = "theme-" + Date.now();
+        editorState.config.themes.push({
+          id,
+          label: "新主题",
+          variables: {},
+        });
+        editorState.activeIndex = editorState.config.themes.length - 1;
+        renderAll();
+      });
+
+      document.getElementById("ctDupThemeBtn").addEventListener("click", () => {
+        const c = editorState.config;
+        const t = getCurrentTheme();
+        if (!c || !t) return;
+        const copy = {
+          id: t.id + "-copy-" + Date.now().toString(36),
+          label: (t.label || t.id) + " 副本",
+          variables: JSON.parse(JSON.stringify(t.variables || {})),
+        };
+        c.themes.splice(editorState.activeIndex + 1, 0, copy);
+        editorState.activeIndex += 1;
+        renderAll();
+      });
+
+      document.getElementById("ctDelThemeBtn").addEventListener("click", () => {
+        const c = editorState.config;
+        if (!c || c.themes.length < 2) {
+          setStatus(document.getElementById("ctStatus"), "至少保留一套主题。", true);
+          return;
+        }
+        c.themes.splice(editorState.activeIndex, 1);
+        editorState.activeIndex = Math.min(editorState.activeIndex, c.themes.length - 1);
+        if (!c.themes.find((x) => x.id === c.defaultThemeId)) {
+          c.defaultThemeId = c.themes[0].id;
+        }
+        renderAll();
+      });
+
+      loadConfig();
+    </script>
+    <script src="/admin-shell.js?v=1" defer></script>
+  </body>
+</html>

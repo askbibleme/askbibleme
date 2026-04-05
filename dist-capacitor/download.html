@@ -11,18 +11,18 @@
     <link rel="canonical" href="https://askbible.me/download.html" />
     <title>添加到主屏幕 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=23" />
+    <link rel="stylesheet" href="/styles.css?v=106" />
+    <script src="/theme-apply.js?v=2"></script>
+    <script src="/site-chrome.js?v=8" defer></script>
   </head>
   <body>
     <div class="page-shell">
       <header class="site-topbar">
         <div class="site-topbar-title">
-          <h1>
-            <a href="/" class="download-brand-link" title="返回首页"
-              ><span class="brand-ask">Ask</span><span class="brand-bible">Bible</span
-              ><span class="brand-me">.me</span></a
-            >
-          </h1>
+          <div class="askbible-chrome-brand-slot"></div>
+        </div>
+        <div class="site-topbar-actions">
+          <div class="askbible-chrome-nav-slot"></div>
         </div>
       </header>
 
@@ -51,10 +51,7 @@
           </div>
         </div>
       </main>
-
-      <footer class="site-footer">
-        <span class="site-footer-copy">© 2026 AskBible.me</span>
-      </footer>
+      <footer class="site-footer askbible-chrome-footer-slot" hidden></footer>
     </div>
   </body>
 </html>

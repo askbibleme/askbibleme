@@ -1,0 +1,207 @@
+/**
+ * 管理后台统一外壳：左侧导航 + 主内容区（与读经站纸质/金棕变量一致）
+ */
+body.admin-shell-page {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--paper, #faf8f5);
+}
+
+.admin-shell-root {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-shell-aside {
+  box-sizing: border-box;
+  width: 232px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line, rgba(120, 100, 80, 0.22));
+  background: var(--paper-soft, rgba(255, 252, 246, 0.96));
+  padding: 22px 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 210;
+}
+
+.admin-shell-brand {
+  display: block;
+  font-weight: 800;
+  font-size: calc(15px * var(--font-scale, 1));
+  color: var(--ink, #2c2824);
+  text-decoration: none;
+  margin: 0 4px 14px;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.admin-shell-brand em {
+  font-style: normal;
+  color: #b8891c;
+}
+
+.admin-shell-nav-sub {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted, #6f655a);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 16px 8px 6px;
+}
+
+.admin-shell-nav-sub:first-of-type {
+  margin-top: 4px;
+}
+
+.admin-shell-nav-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--ink, #2c2824);
+  text-decoration: none;
+  font-size: calc(13px * var(--font-scale, 1));
+  font-weight: 600;
+  border: 1px solid transparent;
+  line-height: 1.35;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.admin-shell-nav-link:hover {
+  background: rgba(201, 162, 39, 0.12);
+  border-color: rgba(190, 170, 140, 0.35);
+}
+
+.admin-shell-nav-link.is-current {
+  background: rgba(201, 162, 39, 0.22);
+  border-color: rgba(180, 140, 60, 0.42);
+  color: #5c4810;
+}
+
+.admin-shell-spacer {
+  flex: 1;
+  min-height: 20px;
+}
+
+.admin-shell-back {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8b6914;
+  text-decoration: none;
+  border: 1px solid rgba(190, 170, 140, 0.45);
+  background: rgba(255, 251, 242, 0.9);
+  text-align: center;
+}
+
+.admin-shell-back:hover {
+  background: rgba(255, 248, 232, 0.98);
+  color: #6b5010;
+}
+
+.admin-shell-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--paper, #faf8f5);
+}
+
+.admin-shell-mobile-bar {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--line, rgba(120, 100, 80, 0.18));
+  background: var(--paper-soft, rgba(255, 252, 246, 0.98));
+  position: sticky;
+  top: 0;
+  z-index: 120;
+}
+
+.admin-shell-menu-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line, rgba(120, 100, 80, 0.28));
+  background: var(--paper, #faf8f5);
+  color: var(--ink, #2c2824);
+  cursor: pointer;
+}
+
+.admin-shell-menu-btn:active {
+  transform: scale(0.98);
+}
+
+.admin-shell-mobile-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted, #6f655a);
+  letter-spacing: 0.02em;
+}
+
+.admin-shell-main-inner {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-shell-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(40, 32, 24, 0.38);
+  z-index: 205;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.admin-shell-backdrop.is-visible {
+  display: block;
+}
+
+@media (max-width: 900px) {
+  .admin-shell-aside {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    max-width: min(288px, 88vw);
+    transform: translateX(-102%);
+    transition: transform 0.22s ease;
+    box-shadow: none;
+  }
+
+  .admin-shell-aside.is-open {
+    transform: translateX(0);
+    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.18);
+  }
+
+  .admin-shell-mobile-bar {
+    display: flex;
+  }
+}
+
+@media (min-width: 901px) {
+  .admin-shell-backdrop {
+    display: none !important;
+  }
+}

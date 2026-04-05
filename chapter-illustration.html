@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <meta
+      name="description"
+      content="AskBible.me 管理员：配图规则（描述词）、试生成、发布到读经左页。"
+    />
+    <title>章节配图 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=106" />
+    <link rel="stylesheet" href="/admin-shell.css?v=1" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .ci2-page {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 20px 14px 48px;
+        box-sizing: border-box;
+      }
+      .ci2-doc {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        padding: 22px 18px 28px;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.12);
+      }
+      .ci2-head h1 {
+        margin: 0 0 10px;
+        font-size: calc(22px * var(--font-scale));
+        color: var(--ink);
+      }
+      .ci2-lead {
+        margin: 0;
+        font-size: calc(13px * var(--font-scale));
+        line-height: 1.6;
+        color: var(--muted-soft);
+      }
+      .ci2-section {
+        margin-top: 22px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line-soft);
+      }
+      .ci2-section h2 {
+        margin: 0 0 10px;
+        font-size: calc(16px * var(--font-scale));
+        color: var(--ink);
+      }
+      .ci2-auth {
+        margin: 12px 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #fff0ee;
+        border: 1px solid rgba(180, 35, 24, 0.35);
+        color: #7a1510;
+        font-size: 13px;
+      }
+      .ci2-rules-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+        gap: 16px;
+        margin-top: 12px;
+        align-items: start;
+      }
+      @media (max-width: 720px) {
+        .ci2-rules-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+      .ci2-rule-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .ci2-rule-tab {
+        width: 100%;
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .ci2-rule-tab.is-active {
+        border-color: var(--accent, #6b5b4f);
+        box-shadow: 0 0 0 2px var(--accent-soft, rgba(107, 91, 79, 0.2));
+      }
+      .ci2-rule-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .ci2-field {
+        margin-bottom: 12px;
+      }
+      .ci2-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .ci2-field input,
+      .ci2-field textarea,
+      .ci2-field select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+      }
+      .ci2-field textarea {
+        min-height: 220px;
+        line-height: 1.5;
+        resize: vertical;
+      }
+      .ci2-hint {
+        margin: 8px 0 0;
+        font-size: 11px;
+        color: var(--muted-soft);
+        line-height: 1.5;
+      }
+      .ci2-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: flex-end;
+        margin-top: 8px;
+      }
+      .ci2-toolbar .ci2-field {
+        flex: 1 1 160px;
+        margin-bottom: 0;
+        min-width: 0;
+      }
+      .ci2-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+        align-items: center;
+      }
+      .ci2-status {
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .ci2-status.ci2-err {
+        color: #9a2c2c;
+        font-weight: 600;
+      }
+      .ci2-out {
+        margin-top: 16px;
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        background: rgba(0, 0, 0, 0.02);
+      }
+      .ci2-img-wrap {
+        margin-top: 10px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        padding: 12px;
+        text-align: center;
+        background: repeating-conic-gradient(#e8e4df 0% 25%, #f5f2ed 0% 50%) 50% /
+          20px 20px;
+      }
+      .ci2-img-wrap img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        vertical-align: middle;
+      }
+      .ci2-batch details {
+        margin-top: 8px;
+      }
+      .ci2-batch summary {
+        cursor: pointer;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .ci2-btn-danger {
+        border-color: rgba(180, 50, 40, 0.55);
+        color: #8f2a22;
+        background: rgba(255, 240, 238, 0.95);
+      }
+      .ci2-btn-danger:hover {
+        background: rgba(255, 220, 216, 0.98);
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/chapter-illustration.html">
+    <div class="page-shell ci2-page">
+      <main class="ci2-doc">
+        <header class="ci2-head">
+          <h1>章节配图</h1>
+          <p class="ci2-lead">
+            <strong>规则</strong>即一段可编辑的<strong>英文风格描述词</strong>（服务器会自动拼上书卷、章数与经文节选占位）。可新增多条规则、切换编辑、保存到服务器。
+            <strong>试生成</strong>只出图并写入 PNG；<strong>发布到读经页</strong>把该图登记进已发布查经 JSON，读经主页左页顺序为：
+            <strong>章号 → 书卷名 → 重复词 → 插图 → 正文</strong>（插图在章节开头与查经正文之间）。
+          </p>
+        </header>
+
+        <p id="ciAuth" class="ci2-auth" hidden></p>
+
+        <section class="ci2-section">
+          <h2>配图规则</h2>
+          <div class="ci2-field" style="max-width: 320px">
+            <label for="ciRulesDefault">默认规则（试生成与新建任务）</label>
+            <select id="ciRulesDefault"></select>
+          </div>
+          <div class="ci2-rules-layout">
+            <div>
+              <div class="ci2-rule-toolbar">
+                <button type="button" id="ciRulesAddBtn" class="secondary-btn">新增规则</button>
+                <button type="button" id="ciRulesReloadBtn" class="secondary-btn">重新加载</button>
+                <button type="button" id="ciRulesSaveBtn" class="primary-btn">保存全部规则</button>
+              </div>
+              <ul id="ciRuleNameList" class="ci2-rule-list" aria-label="规则列表"></ul>
+              <p id="ciRulesStatus" class="ci2-status" style="margin-top: 10px"></p>
+            </div>
+            <div id="ciRuleEditorPanel">
+              <p class="ci2-hint" style="margin-top: 0">
+                选中左侧规则后在此编辑。<strong>描述词</strong>用英文写画风、构图禁忌等；无需手写
+                <code>{{SCRIPTURE}}</code> 等占位符。
+              </p>
+              <div class="ci2-field">
+                <label for="ciEditLabel">规则名称</label>
+                <input type="text" id="ciEditLabel" autocomplete="off" />
+              </div>
+              <div class="ci2-field">
+                <label for="ciEditId">规则 id（英文、数字、下划线）</label>
+                <input type="text" id="ciEditId" spellcheck="false" autocomplete="off" />
+              </div>
+              <div class="ci2-field">
+                <label for="ciEditDesc">风格描述词（英文）</label>
+                <textarea id="ciEditDesc" spellcheck="false"></textarea>
+              </div>
+              <button type="button" id="ciRuleDeleteBtn" class="secondary-btn">删除当前规则</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="ci2-section">
+          <h2>试生成与发布</h2>
+          <div class="ci2-toolbar">
+            <div class="ci2-field">
+              <label for="ciStudyVersion">查经内容版本</label>
+              <select id="ciStudyVersion"></select>
+            </div>
+            <div class="ci2-field">
+              <label for="ciStudyLang">语言</label>
+              <select id="ciStudyLang"></select>
+            </div>
+            <div class="ci2-field">
+              <label for="ciBook">书卷</label>
+              <select id="ciBook"></select>
+            </div>
+            <div class="ci2-field" style="flex: 0 0 88px">
+              <label for="ciChapter">章</label>
+              <input type="number" id="ciChapter" min="1" value="1" />
+            </div>
+            <div class="ci2-field">
+              <label for="ciScripture">USFX 经文版本</label>
+              <select id="ciScripture"></select>
+            </div>
+            <div class="ci2-field">
+              <label for="ciRule">使用的规则</label>
+              <select id="ciRule"></select>
+            </div>
+          </div>
+          <div class="ci2-field">
+            <label for="ciPaste">可选：粘贴本章经文（填写则不用 USFX）</label>
+            <textarea id="ciPaste" rows="4" spellcheck="false" style="width: 100%; box-sizing: border-box"></textarea>
+          </div>
+          <div class="ci2-actions">
+            <button type="button" id="ciTryBtn" class="primary-btn">试生成一章</button>
+            <button type="button" id="ciPublishBtn" class="primary-btn">发布到读经页</button>
+            <button type="button" id="ciDeleteArtBtn" class="secondary-btn ci2-btn-danger">
+              删除本章配图
+            </button>
+          </div>
+          <p class="ci2-hint" style="margin-top: 6px">
+            「删除本章配图」会去掉已发布 JSON 中的插图字段，并删除服务器上的 PNG（与上方书卷、章、版本、语言一致）。操作前会再确认一次。
+          </p>
+          <p id="ciStatus" class="ci2-status" role="status"></p>
+          <div id="ciOutput" class="ci2-out" hidden>
+            <p id="ciMetaSource" class="ci2-hint"></p>
+            <div id="ciImageWrap" class="ci2-img-wrap" hidden></div>
+            <div class="ci2-actions" style="margin-top: 10px">
+              <button type="button" class="secondary-btn" id="ciDownloadPng" hidden>下载 PNG</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="ci2-section ci2-batch">
+          <h2>批量任务</h2>
+          <p class="ci2-hint">
+            仍使用任务队列逐章生成；默认自动发布。细节见折叠说明。
+          </p>
+          <details>
+            <summary>展开批量与任务列表</summary>
+            <div class="ci-scope-row" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 12px">
+              <label><input type="radio" name="ciJobScope" value="chapter" checked /> 当前书卷 · 当前章</label>
+              <label><input type="radio" name="ciJobScope" value="book" /> 当前书卷 · 章节范围</label>
+            </div>
+            <div id="ciBookRange" class="ci-range-row" style="display: none; margin: 10px 0; gap: 12px">
+              <label>从 <input type="number" id="ciJobStart" min="1" value="1" style="width: 72px" /> 章</label>
+              <label>到 <input type="number" id="ciJobEnd" min="1" value="1" style="width: 72px" /> 章</label>
+            </div>
+            <label style="display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px">
+              <input type="checkbox" id="ciSkipOverwrite" />
+              已有配图则跳过
+            </label>
+            <div class="ci2-actions">
+              <button type="button" id="ciCreateJobBtn" class="primary-btn">创建批量配图任务</button>
+              <button type="button" id="ciRefreshJobsBtn" class="secondary-btn">刷新任务列表</button>
+            </div>
+            <p id="ciJobStatus" class="ci2-status"></p>
+            <div id="ciJobsBox" style="margin-top: 10px; max-height: 200px; overflow: auto; font-size: 12px; border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px"></div>
+          </details>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+      const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+      const CHAPTER_ART_RULES_CONFIG_API = "/api/admin/chapter-art-rules-config";
+      /** 扁平路径，与 server.js 中 chapter-art-delete-one 一致（避免多级 /chapter-art/... 被反代误配为 404） */
+      const CHAPTER_ART_DELETE_ONE_API = "/api/admin/chapter-art-delete-one";
+
+      let ciRulesEditor = { defaultRuleId: "", builtinTemplateKeys: [], rules: [] };
+      let ciActiveRuleIdx = 0;
+      let lastDownloadHandler = null;
+
+      function getToken() {
+        return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+      }
+
+      function normalizeApiOrigin(raw) {
+        let s = String(raw || "").trim();
+        if (!s) return "";
+        s = s.replace(/\/+$/, "");
+        if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+        return s.replace(/\/+$/, "");
+      }
+
+      function isLikelyStaticDevServerPort(port) {
+        const p = String(port || "").trim();
+        if (!p) return false;
+        if (p === "5173" || p === "4173" || p === "8081") return true;
+        if (/^55\d{2}$/.test(p)) return true;
+        return false;
+      }
+
+      function getApiBase() {
+        const m = document.querySelector('meta[name="askbible-api-base"]');
+        const fromMeta = m && String(m.getAttribute("content") || "").trim();
+        if (fromMeta) return normalizeApiOrigin(fromMeta);
+        if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+          return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+        }
+        try {
+          const proto = window.location.protocol || "";
+          if (proto === "capacitor:" || proto === "file:") return DEFAULT_PRODUCTION_ORIGIN;
+          const h = window.location.hostname || "";
+          const port = window.location.port || "";
+          if (
+            (h === "localhost" || h === "127.0.0.1") &&
+            proto === "http:" &&
+            isLikelyStaticDevServerPort(port)
+          ) {
+            return "http://127.0.0.1:3000";
+          }
+        } catch (_) {}
+        return "";
+      }
+
+      function apiOriginRootFromNormalizedBase(normalized) {
+        if (!normalized) return "";
+        try {
+          const href = normalized.includes("://") ? normalized : "http://" + normalized;
+          const u = new URL(href);
+          return u.origin + "/";
+        } catch {
+          return "";
+        }
+      }
+
+      function apiUrl(path) {
+        const p = path.startsWith("/") ? path : "/" + path;
+        const base = getApiBase();
+        if (!base) return p;
+        const normalized = normalizeApiOrigin(base);
+        const root = apiOriginRootFromNormalizedBase(normalized);
+        if (root) {
+          try {
+            return new URL(p, root).href;
+          } catch {
+            /* fall through */
+          }
+        }
+        try {
+          const origin = normalized.endsWith("/") ? normalized : normalized + "/";
+          return new URL(p, origin).href;
+        } catch {
+          return String(base).replace(/\/$/, "") + p;
+        }
+      }
+
+      function formatApiError(res, data, path) {
+        const detail = (data && (data.error || data.message)) || "";
+        const abs = (function () {
+          try {
+            return apiUrl(path);
+          } catch {
+            return path;
+          }
+        })();
+        if (res.status === 404) {
+          return (
+            (detail || "HTTP 404") +
+            " 请重启 Node 并确认 server.js 含章节配图接口。URL：" +
+            abs
+          );
+        }
+        return detail || "请求失败（HTTP " + res.status + "） " + abs;
+      }
+
+      async function fetchApiJson(path, init) {
+        const url = apiUrl(path);
+        const res = await fetch(url, init);
+        const raw = await res.text();
+        let data = {};
+        if (raw.trim()) {
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = {};
+          }
+        }
+        if (!res.ok) {
+          throw new Error(formatApiError(res, data, path));
+        }
+        return data;
+      }
+
+      function setStatus(el, text, isErr) {
+        if (!el) return;
+        el.textContent = text || "";
+        el.classList.toggle("ci2-err", Boolean(isErr));
+      }
+
+      function normalizeRuleIdClient(raw) {
+        return String(raw || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]+/g, "_")
+          .replace(/^_+|_+$/g, "")
+          .slice(0, 64);
+      }
+
+      function syncRuleFromEditor() {
+        const r = ciRulesEditor.rules[ciActiveRuleIdx];
+        if (!r) return;
+        r.label = String(document.getElementById("ciEditLabel").value || "").trim() || r.label;
+        const nid = normalizeRuleIdClient(document.getElementById("ciEditId").value);
+        if (nid) r.id = nid;
+        const ta = document.getElementById("ciEditDesc");
+        r.styleDescription = ta ? ta.value : r.styleDescription;
+      }
+
+      function loadRuleIntoEditor() {
+        const r = ciRulesEditor.rules[ciActiveRuleIdx];
+        const panel = document.getElementById("ciRuleEditorPanel");
+        if (!r) {
+          if (panel) panel.style.opacity = "0.5";
+          return;
+        }
+        if (panel) panel.style.opacity = "1";
+        document.getElementById("ciEditLabel").value = r.label || "";
+        document.getElementById("ciEditId").value = r.id || "";
+        document.getElementById("ciEditDesc").value = r.styleDescription || "";
+      }
+
+      function renderRuleNameList() {
+        const ul = document.getElementById("ciRuleNameList");
+        const defSel = document.getElementById("ciRulesDefault");
+        if (!ul || !defSel) return;
+        ul.innerHTML = "";
+        defSel.innerHTML = "";
+
+        if (ciRulesEditor.rules.length) {
+          ciActiveRuleIdx = Math.max(
+            0,
+            Math.min(ciActiveRuleIdx, ciRulesEditor.rules.length - 1)
+          );
+        } else {
+          ciActiveRuleIdx = 0;
+        }
+
+        ciRulesEditor.rules.forEach(function (r, idx) {
+          const o = document.createElement("option");
+          o.value = r.id;
+          o.textContent = (r.label || r.id) + " (" + r.id + ")";
+          defSel.appendChild(o);
+
+          const li = document.createElement("li");
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "ci2-rule-tab" + (idx === ciActiveRuleIdx ? " is-active" : "");
+          btn.textContent = r.label || r.id;
+          btn.addEventListener("click", function () {
+            syncRuleFromEditor();
+            ciActiveRuleIdx = idx;
+            renderRuleNameList();
+            loadRuleIntoEditor();
+          });
+          li.appendChild(btn);
+          ul.appendChild(li);
+        });
+
+        if (ciRulesEditor.rules.some(function (x) {
+          return x.id === ciRulesEditor.defaultRuleId;
+        })) {
+          defSel.value = ciRulesEditor.defaultRuleId;
+        } else if (ciRulesEditor.rules[0]) {
+          defSel.value = ciRulesEditor.rules[0].id;
+          ciRulesEditor.defaultRuleId = ciRulesEditor.rules[0].id;
+        }
+
+        loadRuleIntoEditor();
+      }
+
+      function applyChapterArtRulesEditorPayload(ed) {
+        if (!ed || typeof ed !== "object") return false;
+        ciRulesEditor.defaultRuleId = ed.defaultRuleId || "";
+        ciRulesEditor.builtinTemplateKeys = ed.builtinTemplateKeys || [];
+        ciRulesEditor.rules = Array.isArray(ed.rules)
+          ? ed.rules.map(function (r) {
+              return {
+                id: r.id,
+                label: r.label || r.id,
+                audience: r.audience || "",
+                templateFile: r.templateFile || "",
+                fallbackBuiltinKey: r.fallbackBuiltinKey || "ancient_lineart",
+                styleDescription: r.styleDescription || "",
+                templateBody: r.templateBody || "",
+              };
+            })
+          : [];
+        if (!ciRulesEditor.rules.length) return false;
+        ciActiveRuleIdx = 0;
+        renderRuleNameList();
+        return true;
+      }
+
+      function collectRulesForSave() {
+        syncRuleFromEditor();
+        const ta = document.getElementById("ciEditDesc");
+        if (ta && ciRulesEditor.rules[ciActiveRuleIdx]) {
+          ciRulesEditor.rules[ciActiveRuleIdx].styleDescription = ta.value;
+        }
+        for (let i = 0; i < ciRulesEditor.rules.length; i++) {
+          const r = ciRulesEditor.rules[i];
+          const sd = String(r.styleDescription || "").trim();
+          const tb = String(r.templateBody || "").trim();
+          if (!sd && !tb) {
+            throw new Error(
+              "规则「" + (r.label || r.id) + "」须填写风格描述词（或保留服务器返回的完整模板）。"
+            );
+          }
+        }
+        const defaultRuleId = document.getElementById("ciRulesDefault").value;
+        return {
+          defaultRuleId: defaultRuleId,
+          rules: ciRulesEditor.rules.map(function (r) {
+            const sd = String(r.styleDescription || "").trim();
+            const row = {
+              id: r.id,
+              label: r.label,
+              audience: r.audience || "",
+              templateFile: r.templateFile || "",
+              fallbackBuiltinKey: r.fallbackBuiltinKey || "ancient_lineart",
+            };
+            if (sd) row.styleDescription = r.styleDescription;
+            else row.templateBody = r.templateBody || "";
+            return row;
+          }),
+        };
+      }
+
+      function fillCiRuleDropdown(artRules) {
+        artRules = artRules || {};
+        const ruleList = artRules.rules || [];
+        const ruleSel = document.getElementById("ciRule");
+        const prev = ruleSel.value;
+        ruleSel.innerHTML = "";
+        ruleList.forEach(function (r) {
+          const o = document.createElement("option");
+          o.value = r.id;
+          o.textContent = (r.label || r.id) + (r.audience ? " — " + r.audience : "");
+          ruleSel.appendChild(o);
+        });
+        if (artRules.defaultRuleId && ruleList.some(function (x) {
+          return x.id === artRules.defaultRuleId;
+        })) {
+          ruleSel.value = artRules.defaultRuleId;
+        }
+        if (prev && ruleList.some(function (x) {
+          return x.id === prev;
+        })) {
+          ruleSel.value = prev;
+        }
+      }
+
+      function showTryResult(data, bookId, chapter) {
+        const out = document.getElementById("ciOutput");
+        const meta = document.getElementById("ciMetaSource");
+        const imgWrap = document.getElementById("ciImageWrap");
+        const dlBtn = document.getElementById("ciDownloadPng");
+        out.hidden = false;
+        meta.textContent =
+          (data.chapterArtRuleLabel || data.chapterArtRuleId
+            ? "规则：" + (data.chapterArtRuleLabel || data.chapterArtRuleId) + "。"
+            : "") +
+          (data.pngPathRelative ? " 文件：" + data.pngPathRelative + "。" : "") +
+          (data.skipped ? " 已跳过（已有配图且选择不覆盖）。" : "") +
+          (data.published ? " 已写入查经 JSON。" : " 尚未写入查经 JSON（可再点「发布到读经页」）。");
+
+        imgWrap.innerHTML = "";
+        imgWrap.hidden = true;
+        dlBtn.hidden = true;
+        if (lastDownloadHandler) {
+          dlBtn.removeEventListener("click", lastDownloadHandler);
+          lastDownloadHandler = null;
+        }
+
+        if (data.chapterArtUrl) {
+          imgWrap.hidden = false;
+          const src = apiUrl(data.chapterArtUrl);
+          const im = document.createElement("img");
+          im.alt = "章节配图";
+          im.src = src + (src.indexOf("?") >= 0 ? "&" : "?") + "t=" + Date.now();
+          imgWrap.appendChild(im);
+          dlBtn.hidden = false;
+          const baseName = "chapter-" + bookId + "-" + chapter;
+          lastDownloadHandler = async function () {
+            try {
+              const r = await fetch(src, { cache: "no-store" });
+              const blob = await r.blob();
+              const u = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = u;
+              a.download = baseName + ".png";
+              a.click();
+              setTimeout(function () {
+                URL.revokeObjectURL(u);
+              }, 2000);
+            } catch (_) {
+              window.open(src, "_blank", "noopener,noreferrer");
+            }
+          };
+          dlBtn.addEventListener("click", lastDownloadHandler);
+        }
+      }
+
+      function clearChapterArtPreview() {
+        const out = document.getElementById("ciOutput");
+        const meta = document.getElementById("ciMetaSource");
+        const imgWrap = document.getElementById("ciImageWrap");
+        const dlBtn = document.getElementById("ciDownloadPng");
+        if (out) out.hidden = true;
+        if (meta) meta.textContent = "";
+        if (imgWrap) {
+          imgWrap.innerHTML = "";
+          imgWrap.hidden = true;
+        }
+        if (dlBtn) {
+          dlBtn.hidden = true;
+          if (lastDownloadHandler) {
+            dlBtn.removeEventListener("click", lastDownloadHandler);
+            lastDownloadHandler = null;
+          }
+        }
+      }
+
+      function collectChapterArtJobPayload() {
+        const scopeEl = document.querySelector('input[name="ciJobScope"]:checked');
+        const scope = scopeEl ? scopeEl.value : "chapter";
+        const version = document.getElementById("ciStudyVersion").value;
+        const lang = document.getElementById("ciStudyLang").value;
+        const bookId = document.getElementById("ciBook").value;
+        const scriptureVersionId = document.getElementById("ciScripture").value;
+        const skipPublishOverwrite = document.getElementById("ciSkipOverwrite").checked === true;
+
+        const payload = {
+          kind: "chapter_art",
+          scope: scope,
+          versionMode: "single",
+          version: version,
+          langMode: "single",
+          lang: lang,
+          bookId: bookId,
+          scriptureVersionId: scriptureVersionId,
+          chapterArtRuleId: document.getElementById("ciRule").value,
+          autoPublish: true,
+          skipPublishOverwrite: skipPublishOverwrite,
+        };
+
+        if (scope === "chapter") {
+          payload.chapter = Number(document.getElementById("ciChapter").value);
+        } else {
+          payload.startChapter = Number(document.getElementById("ciJobStart").value);
+          payload.endChapter = Number(document.getElementById("ciJobEnd").value);
+        }
+        return payload;
+      }
+
+      async function refreshJobsList() {
+        const box = document.getElementById("ciJobsBox");
+        const st = document.getElementById("ciJobStatus");
+        if (!box) return;
+        try {
+          const res = await fetch(apiUrl("/api/admin/jobs"), { cache: "no-store" });
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch {
+            data = {};
+          }
+          if (!res.ok) {
+            box.textContent = "读取失败：" + (data.error || res.status);
+            return;
+          }
+          const jobs = (data.jobs || []).slice(0, 12);
+          if (!jobs.length) {
+            box.textContent = "暂无任务记录。";
+            return;
+          }
+          box.innerHTML = jobs
+            .map(function (j) {
+              const kind =
+                j.kind === "chapter_art" ? "配图" : j.kind === "study" ? "查经" : j.type || "";
+              return (
+                "<div style='margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line-soft)'><strong>" +
+                (j.id || "") +
+                "</strong> " +
+                (j.status || "") +
+                " · " +
+                kind +
+                "<br/>" +
+                String(j.progressText || "").replace(/</g, "&lt;") +
+                "</div>"
+              );
+            })
+            .join("");
+          setStatus(st, "已刷新。", false);
+        } catch (e) {
+          box.textContent = "读取失败：" + String(e.message || e);
+        }
+      }
+
+      async function loadRulesEditor() {
+        const st = document.getElementById("ciRulesStatus");
+        if (!getToken()) {
+          if (st) st.textContent = "请先登录后再加载规则。";
+          return;
+        }
+        if (st) st.textContent = "加载中…";
+        try {
+          const data = await fetchApiJson(CHAPTER_ART_RULES_CONFIG_API, {
+            headers: { Authorization: "Bearer " + getToken() },
+          });
+          applyChapterArtRulesEditorPayload(data);
+          if (st) setStatus(st, "已加载。", false);
+        } catch (e) {
+          if (st) setStatus(st, String(e.message || e), true);
+        }
+      }
+
+      async function loadBootstrap() {
+        const headers = {};
+        if (getToken()) {
+          headers.Authorization = "Bearer " + getToken();
+        }
+        const data = await fetchApiJson("/api/admin/bootstrap", { headers });
+        window.__ciBootstrap = data;
+        const books = data.books || [];
+        const scriptureAll = data.scriptureVersions || [];
+        const usfx = scriptureAll.filter(function (x) {
+          return (
+            x &&
+            x.enabled !== false &&
+            x.scriptureEnabled !== false &&
+            x.uiEnabled !== false &&
+            String(x.sourceType || "").toLowerCase() === "usfx"
+          );
+        });
+        const contentVers = (data.contentVersions || []).filter(function (x) {
+          return x && x.enabled !== false;
+        });
+        const langs = (data.languages || []).filter(function (x) {
+          return x && x.enabled !== false;
+        });
+
+        const bookSel = document.getElementById("ciBook");
+        const scrSel = document.getElementById("ciScripture");
+        const cvSel = document.getElementById("ciStudyVersion");
+        const langSel = document.getElementById("ciStudyLang");
+
+        bookSel.innerHTML = "";
+        books.forEach(function (b) {
+          const o = document.createElement("option");
+          o.value = b.bookId;
+          o.textContent = (b.bookCn || b.bookEn || b.bookId) + " (" + b.bookId + ")";
+          bookSel.appendChild(o);
+        });
+
+        scrSel.innerHTML = "";
+        usfx.forEach(function (v) {
+          const o = document.createElement("option");
+          o.value = v.id;
+          o.textContent = (v.label || v.id) + " (USFX)";
+          scrSel.appendChild(o);
+        });
+
+        cvSel.innerHTML = "";
+        contentVers.forEach(function (v) {
+          const o = document.createElement("option");
+          o.value = v.id;
+          o.textContent = v.label || v.id;
+          cvSel.appendChild(o);
+        });
+
+        langSel.innerHTML = "";
+        langs.forEach(function (L) {
+          const o = document.createElement("option");
+          o.value = L.id;
+          o.textContent = L.label || L.id;
+          langSel.appendChild(o);
+        });
+
+        fillCiRuleDropdown(data.chapterArtRules);
+
+        const rs = document.getElementById("ciRulesStatus");
+        if (getToken() && data.chapterArtRulesEditor) {
+          if (applyChapterArtRulesEditorPayload(data.chapterArtRulesEditor) && rs) {
+            setStatus(rs, "规则已从服务器加载。", false);
+          }
+        }
+
+        function syncChapterMax() {
+          const bid = bookSel.value;
+          const b = books.find(function (x) {
+            return x.bookId === bid;
+          });
+          const max = Math.max(1, Number(b?.chapters || 1));
+          const ch = document.getElementById("ciChapter");
+          const js = document.getElementById("ciJobStart");
+          const je = document.getElementById("ciJobEnd");
+          ch.max = max;
+          js.max = max;
+          je.max = max;
+          if (Number(ch.value) > max) ch.value = String(max);
+          if (Number(ch.value) < 1) ch.value = "1";
+          if (Number(js.value) > max) js.value = String(max);
+          if (Number(je.value) > max) je.value = String(max);
+          if (Number(js.value) < 1) js.value = "1";
+          if (Number(je.value) < 1) je.value = "1";
+        }
+        bookSel.addEventListener("change", syncChapterMax);
+        syncChapterMax();
+      }
+
+      function readTryForm() {
+        return {
+          version: document.getElementById("ciStudyVersion").value,
+          lang: document.getElementById("ciStudyLang").value,
+          bookId: document.getElementById("ciBook").value,
+          chapter: Number(document.getElementById("ciChapter").value),
+          scriptureVersionId: document.getElementById("ciScripture").value,
+          pasteText: document.getElementById("ciPaste").value.trim(),
+          chapterArtRuleId: document.getElementById("ciRule").value,
+        };
+      }
+
+      document.getElementById("ciRulesDefault").addEventListener("change", function () {
+        ciRulesEditor.defaultRuleId = document.getElementById("ciRulesDefault").value;
+      });
+
+      (function bindRuleEditorLiveSync() {
+        const ta = document.getElementById("ciEditDesc");
+        const lab = document.getElementById("ciEditLabel");
+        const idIn = document.getElementById("ciEditId");
+        function syncDesc() {
+          const r = ciRulesEditor.rules[ciActiveRuleIdx];
+          if (r && ta) r.styleDescription = ta.value;
+        }
+        function syncMeta() {
+          const r = ciRulesEditor.rules[ciActiveRuleIdx];
+          if (!r) return;
+          if (lab) {
+            const v = String(lab.value || "").trim();
+            if (v) r.label = v;
+          }
+          if (idIn) {
+            const nid = normalizeRuleIdClient(idIn.value);
+            if (nid) r.id = nid;
+          }
+        }
+        if (ta) ta.addEventListener("input", syncDesc);
+        if (lab) lab.addEventListener("input", syncMeta);
+        if (idIn) idIn.addEventListener("input", syncMeta);
+      })();
+
+      document.getElementById("ciRulesAddBtn").addEventListener("click", function () {
+        syncRuleFromEditor();
+        const keys = ciRulesEditor.builtinTemplateKeys || ["ancient_lineart", "children_friendly"];
+        const id = "rule_" + String(Date.now()).slice(-8);
+        ciRulesEditor.rules.push({
+          id: id,
+          label: "新规则",
+          audience: "",
+          templateFile: "",
+          fallbackBuiltinKey: keys[0] || "ancient_lineart",
+          styleDescription:
+            "- Black and white line art only; transparent background.\n" +
+            "- Ancient biblical book illustration; delicate ink lines.\n" +
+            "- No text or letters in the image; reverent composition.",
+          templateBody: "",
+        });
+        ciActiveRuleIdx = ciRulesEditor.rules.length - 1;
+        renderRuleNameList();
+      });
+
+      document.getElementById("ciRuleDeleteBtn").addEventListener("click", function () {
+        if (ciRulesEditor.rules.length <= 1) return;
+        syncRuleFromEditor();
+        ciRulesEditor.rules.splice(ciActiveRuleIdx, 1);
+        ciActiveRuleIdx = Math.min(ciActiveRuleIdx, ciRulesEditor.rules.length - 1);
+        renderRuleNameList();
+      });
+
+      document.getElementById("ciRulesReloadBtn").addEventListener("click", loadRulesEditor);
+
+      document.getElementById("ciRulesSaveBtn").addEventListener("click", async function () {
+        const st = document.getElementById("ciRulesStatus");
+        if (!getToken()) {
+          setStatus(st, "请先登录。", true);
+          return;
+        }
+        setStatus(st, "保存中…", false);
+        try {
+          const payload = collectRulesForSave();
+          ciRulesEditor.defaultRuleId = payload.defaultRuleId;
+          const data = await fetchApiJson(CHAPTER_ART_RULES_CONFIG_API, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getToken(),
+            },
+            body: JSON.stringify(payload),
+          });
+          if (window.__ciBootstrap) {
+            window.__ciBootstrap.chapterArtRules = data.chapterArtRules;
+          }
+          fillCiRuleDropdown(data.chapterArtRules);
+          await loadRulesEditor();
+          setStatus(st, "已保存。", false);
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+        }
+      });
+
+      document.getElementById("ciTryBtn").addEventListener("click", async function () {
+        const st = document.getElementById("ciStatus");
+        const authEl = document.getElementById("ciAuth");
+        const out = document.getElementById("ciOutput");
+        if (!getToken()) {
+          authEl.hidden = false;
+          authEl.textContent = "请先在读经页登录管理员帐号。";
+          return;
+        }
+        authEl.hidden = true;
+        const f = readTryForm();
+        out.hidden = true;
+        if (!f.pasteText && !f.scriptureVersionId) {
+          setStatus(st, "请指定 USFX 或粘贴经文。", true);
+          return;
+        }
+        setStatus(st, "正在生成配图（不写入查经 JSON）…", false);
+        try {
+          const data = await fetchApiJson("/api/admin/chapter-art/generate-one", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getToken(),
+            },
+            body: JSON.stringify({
+              version: f.version,
+              lang: f.lang,
+              bookId: f.bookId,
+              chapter: f.chapter,
+              scriptureVersionId: f.pasteText ? "" : f.scriptureVersionId,
+              pasteText: f.pasteText || undefined,
+              chapterArtRuleId: f.chapterArtRuleId,
+              autoPublish: false,
+              skipPublishOverwrite: false,
+            }),
+          });
+          showTryResult(data, f.bookId, f.chapter);
+          setStatus(st, data.skipped ? "已跳过。" : "试生成完成。满意后请点击「发布到读经页」。", false);
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+        }
+      });
+
+      document.getElementById("ciPublishBtn").addEventListener("click", async function () {
+        const st = document.getElementById("ciStatus");
+        if (!getToken()) {
+          setStatus(st, "请先登录。", true);
+          return;
+        }
+        const f = readTryForm();
+        setStatus(st, "正在发布到读经页…", false);
+        try {
+          const data = await fetchApiJson("/api/admin/chapter-art/publish-one", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getToken(),
+            },
+            body: JSON.stringify({
+              version: f.version,
+              lang: f.lang,
+              bookId: f.bookId,
+              chapter: f.chapter,
+              chapterArtRuleId: f.chapterArtRuleId,
+              skipPublishOverwrite: false,
+            }),
+          });
+          showTryResult(data, f.bookId, f.chapter);
+          setStatus(st, data.skipped ? "已有配图，已跳过写入。" : "已发布；读经页该章将显示插图。", false);
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+        }
+      });
+
+      document.getElementById("ciDeleteArtBtn").addEventListener("click", async function () {
+        const st = document.getElementById("ciStatus");
+        if (!getToken()) {
+          setStatus(st, "请先登录。", true);
+          return;
+        }
+        const f = readTryForm();
+        const bookSel = document.getElementById("ciBook");
+        const bookLabel =
+          (bookSel &&
+            bookSel.options[bookSel.selectedIndex] &&
+            bookSel.options[bookSel.selectedIndex].text) ||
+          f.bookId;
+        const cvSel = document.getElementById("ciStudyVersion");
+        const langSelEl = document.getElementById("ciStudyLang");
+        const verOpt = cvSel && cvSel.options[cvSel.selectedIndex];
+        const langOpt = langSelEl && langSelEl.options[langSelEl.selectedIndex];
+        const verLab = (verOpt && verOpt.text) || f.version;
+        const langLab = (langOpt && langOpt.text) || f.lang;
+        const msg =
+          "确定删除以下目标的章节配图？\n" +
+          verLab +
+          " / " +
+          langLab +
+          "\n" +
+          bookLabel +
+          " 第 " +
+          f.chapter +
+          " 章\n\n将从已发布查经 JSON 移除插图，并删除服务器上的 PNG。";
+        if (!window.confirm(msg)) return;
+        setStatus(st, "正在删除本章配图…", false);
+        try {
+          const data = await fetchApiJson(CHAPTER_ART_DELETE_ONE_API, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getToken(),
+            },
+            body: JSON.stringify({
+              version: f.version,
+              lang: f.lang,
+              bookId: f.bookId,
+              chapter: f.chapter,
+              deletePngFile: true,
+            }),
+          });
+          clearChapterArtPreview();
+          const parts = [];
+          if (data.removedFromJson) parts.push("已更新查经 JSON");
+          if (data.removedPng) parts.push("已删除 PNG");
+          setStatus(st, parts.length ? parts.join("；") + "。" : "已完成。", false);
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+        }
+      });
+
+      document.querySelectorAll('input[name="ciJobScope"]').forEach(function (r) {
+        r.addEventListener("change", function () {
+          const bookRange = document.getElementById("ciBookRange");
+          const scope = document.querySelector('input[name="ciJobScope"]:checked');
+          bookRange.style.display = scope && scope.value === "book" ? "flex" : "none";
+        });
+      });
+
+      document.getElementById("ciCreateJobBtn").addEventListener("click", async function () {
+        const st = document.getElementById("ciJobStatus");
+        if (!getToken()) {
+          setStatus(st, "请先登录。", true);
+          return;
+        }
+        setStatus(st, "正在创建任务…", false);
+        try {
+          const payload = collectChapterArtJobPayload();
+          const data = await fetchApiJson("/api/admin/job/create", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getToken(),
+            },
+            body: JSON.stringify(payload),
+          });
+          setStatus(
+            st,
+            "已创建：" + (data.job && data.job.id) + "，共 " + (data.job && data.job.total) + " 章。",
+            false
+          );
+          await refreshJobsList();
+        } catch (e) {
+          setStatus(st, String(e.message || e), true);
+        }
+      });
+
+      document.getElementById("ciRefreshJobsBtn").addEventListener("click", refreshJobsList);
+
+      (async function init() {
+        const authEl = document.getElementById("ciAuth");
+        if (!getToken()) {
+          authEl.hidden = false;
+          authEl.textContent = "请先在读经页登录；本工具仅管理员可用。";
+        } else {
+          authEl.hidden = true;
+        }
+        try {
+          await loadBootstrap();
+          if (getToken() && !window.__ciBootstrap.chapterArtRulesEditor) {
+            await loadRulesEditor();
+          }
+        } catch (e) {
+          setStatus(
+            document.getElementById("ciStatus"),
+            "加载失败：" + (e.message || e),
+            true
+          );
+        }
+      })();
+    </script>
+    <script src="/admin-shell.js?v=1" defer></script>
+  </body>
+</html>

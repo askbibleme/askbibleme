@@ -1,0 +1,7 @@
+Inter Variable (Latin subset) — self-hosted WOFF2 in this folder.
+
+Copyright (c) 2016-2024 The Inter Project Authors (https://github.com/rsms/inter).
+Licensed under the SIL Open Font License, Version 1.1.
+Full license text: https://github.com/rsms/inter/blob/master/LICENSE.txt
+
+Font file source: @fontsource-variable/inter (jsDelivr npm package), same OFL terms.

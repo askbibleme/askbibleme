@@ -12,13 +12,13 @@ const GLOBAL_SYNC_VERSE_KEYS = "bible_global_sync_verse_keys_v1";
 const GLOBAL_SYNC_QUESTION_KEYS = "bible_global_sync_question_keys_v1";
 const LAST_QUESTION_SUBMIT_AT_KEY = "bible_last_question_submit_at_v1";
 const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+const COLOR_THEME_STORAGE_KEY = "bible_color_theme_id_v1";
 const QA_INTERACTIONS_KEY = "bible_qa_interactions_v1";
 const VERSE_SEARCH_PREFS_KEY = "bible_verse_search_prefs_v1";
 let verseSearchDebounceTimer = null;
 let verseSearchSeq = 0;
 /** Safari/iOS 将「↩」绘成彩色系统符号；用 currentColor SVG 与 ♥/✎ 同色 */
 const REPLY_ACTION_GLYPH_SVG = `<svg class="qa-reply-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>`;
-const ADMIN_PASSWORD = "0777";
 const PUBLISH_MANAGER_FEATURE_VERSION = "v2.1";
 const PUBLISH_HISTORY_KEY = "bible_publish_history_v1";
 const PUBLISH_LAST_CHANGES_KEY = "bible_publish_last_changes_v1";
@@ -281,6 +281,101 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+const STUDY_ASSET_DEFAULT_ORIGIN = "https://askbible.me";
+
+function normalizeStudyApiOrigin(raw) {
+  let s = String(raw || "").trim();
+  if (!s) return "";
+  s = s.replace(/\/+$/, "");
+  if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+  return s.replace(/\/+$/, "");
+}
+
+function isLikelyStaticDevServerPortStudy(port) {
+  const p = String(port || "").trim();
+  if (!p) return false;
+  if (p === "5173" || p === "4173" || p === "8081") return true;
+  if (/^55\d{2}$/.test(p)) return true;
+  return false;
+}
+
+function getStudyApiBase() {
+  try {
+    const m = document.querySelector('meta[name="askbible-api-base"]');
+    const fromMeta = m && String(m.getAttribute("content") || "").trim();
+    if (fromMeta) return normalizeStudyApiOrigin(fromMeta);
+    if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+      return normalizeStudyApiOrigin(window.__ASKBIBLE_API_BASE__);
+    }
+    const proto = window.location.protocol || "";
+    if (proto === "capacitor:" || proto === "file:") {
+      return STUDY_ASSET_DEFAULT_ORIGIN;
+    }
+    const h = window.location.hostname || "";
+    const port = window.location.port || "";
+    if (
+      (h === "localhost" || h === "127.0.0.1") &&
+      proto === "http:" &&
+      isLikelyStaticDevServerPortStudy(port)
+    ) {
+      return "http://127.0.0.1:3000";
+    }
+  } catch (_) {}
+  return "";
+}
+
+function studyApiOriginRootFromNormalizedBase(normalized) {
+  if (!normalized) return "";
+  try {
+    const href = normalized.includes("://")
+      ? normalized
+      : "http://" + normalized;
+    const u = new URL(href);
+    return u.origin + "/";
+  } catch (_) {
+    return "";
+  }
+}
+
+/** 将 /api/... 转为绝对地址（配图 img、与 Capacitor / 静态页一致） */
+function resolveStudyApiPath(path) {
+  const p = path.startsWith("/") ? path : "/" + path;
+  const base = getStudyApiBase();
+  if (!base) return p;
+  const normalized = normalizeStudyApiOrigin(base);
+  const root = studyApiOriginRootFromNormalizedBase(normalized);
+  if (root) {
+    try {
+      return new URL(p, root).href;
+    } catch (_) {
+      /* fall through */
+    }
+  }
+  try {
+    const origin = normalized.endsWith("/") ? normalized : normalized + "/";
+    return new URL(p, origin).href;
+  } catch (_) {
+    return String(base).replace(/\/$/, "") + p;
+  }
+}
+
+function renderChapterArtSlotHtml() {
+  const art = state.studyContent?.chapterArt;
+  const raw = art && String(art.imageUrl || "").trim();
+  if (!raw) return "";
+  let src = /^https?:\/\//i.test(raw) ? raw : resolveStudyApiPath(raw);
+  const cv = String(art?.updatedAt || "").trim();
+  if (cv) {
+    src += (src.includes("?") ? "&" : "?") + "_cv=" + encodeURIComponent(cv);
+  }
+  const bookLabel = getBookLabelForPrimaryScripture();
+  const ch = Number(state.frontState.chapter || 0);
+  const alt = `${bookLabel} 第${ch}章 配图`;
+  return `<figure class="chapter-art-figure"><img class="chapter-art-img" src="${escapeHtml(
+    src
+  )}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></figure>`;
 }
 
 /** 搜索结果摘要：转义后包裹匹配片段（纯英文关键词不区分大小写，与服务器一致） */
@@ -896,6 +991,10 @@ function getLocalizedCopy() {
       ribbonChapterSaveAria: "Bookmark this chapter",
       ribbonChapterSavedAria: "This chapter is bookmarked; click to remove",
       favoriteChapterHint: "Whole chapter",
+      verseFavoriteAddedToast: "Verse saved to bookmarks",
+      verseFavoriteRemovedToast: "Removed from verse bookmarks",
+      questionFavoriteAddedToast: "Question saved to bookmarks",
+      questionFavoriteRemovedToast: "Removed from question bookmarks",
       prevChapter: "Previous",
       nextChapter: "Next",
       noContent: "No content yet for this chapter in the selected version/language.",
@@ -947,6 +1046,10 @@ function getLocalizedCopy() {
       ribbonChapterSaveAria: "Guardar este capitulo",
       ribbonChapterSavedAria: "Capitulo guardado; clic para quitar",
       favoriteChapterHint: "Capitulo entero",
+      verseFavoriteAddedToast: "Versiculo guardado en marcadores",
+      verseFavoriteRemovedToast: "Quitado de marcadores de versiculos",
+      questionFavoriteAddedToast: "Pregunta guardada en marcadores",
+      questionFavoriteRemovedToast: "Quitada de marcadores de preguntas",
       prevChapter: "Anterior",
       nextChapter: "Siguiente",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
@@ -997,6 +1100,10 @@ function getLocalizedCopy() {
       ribbonChapterSaveAria: "שמור את הפרק הנוכחי",
       ribbonChapterSavedAria: "הפרק נשמר; לחץ להסרה",
       favoriteChapterHint: "פרק שלם",
+      verseFavoriteAddedToast: "הפסוק נשמר בסימניות",
+      verseFavoriteRemovedToast: "הוסר מסימניות הפסוקים",
+      questionFavoriteAddedToast: "השאלה נשמרה בסימניות",
+      questionFavoriteRemovedToast: "הוסר מסימניות השאלות",
       prevChapter: "הקודם",
       nextChapter: "הבא",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
@@ -1046,6 +1153,10 @@ function getLocalizedCopy() {
     ribbonChapterSaveAria: "将当前章加入收藏",
     ribbonChapterSavedAria: "本页已收藏，点击取消收藏",
     favoriteChapterHint: "整章书签",
+    verseFavoriteAddedToast: "已加入经文收藏",
+    verseFavoriteRemovedToast: "已从经文收藏移除",
+    questionFavoriteAddedToast: "已加入问题收藏",
+    questionFavoriteRemovedToast: "已从问题收藏移除",
     prevChapter: "上一章",
     nextChapter: "下一章",
     noContent: "这一章还没有该版本 / 该语言的内容。",
@@ -1089,11 +1200,6 @@ function applyReaderI18n() {
   setText("#contentVersionSectionTitle", copy.triggerVersion || "问题类型");
   setText("#primaryVersionSectionTitle", copy.primaryVersionSingle);
   setText("#compareVersionSectionTitle", copy.compareVersionMulti);
-  const sidePromoHelp = document.getElementById("sidePromoHelpLink");
-  if (sidePromoHelp && copy.promoHelpAria) {
-    sidePromoHelp.setAttribute("aria-label", copy.promoHelpAria);
-    sidePromoHelp.setAttribute("title", copy.promoHelpAria);
-  }
   setText("#exportPrettyPdfBtn", copy.export);
   setText("#favoritesPanelTitle", copy.favoritesTitle);
   setText("#favoritesTabPages", copy.favoritesSectionPageTitle || "");
@@ -1746,6 +1852,7 @@ async function init() {
     initMemberHub();
     initOnlinePulseVisibility();
     initAdminModal();
+    tryConsumeAdminDeepLink();
     bindViewportScrollPersistence();
     renderAllSelectors();
     await refreshCurrentPage();
@@ -1822,8 +1929,14 @@ function initPresetQuestionActions() {
   });
 }
 
+/** 会员菜单「站点管理」与千夫长专属能力：仅 adminRole 为千夫长 */
+function userHasQianfuzhangMemberHubAccess(u) {
+  if (!u || typeof u !== "object") return false;
+  return String(u.adminRole || "").toLowerCase() === "qianfuzhang";
+}
+
 function isQianfuzhangAdmin() {
-  return String(state.currentUser?.adminRole || "").toLowerCase() === "qianfuzhang";
+  return userHasQianfuzhangMemberHubAccess(state.currentUser);
 }
 
 function openQianfuzhangQuestionInlineEditor(itemEl, qtextEl) {
@@ -2057,6 +2170,7 @@ async function performLogout() {
   state.currentUser = null;
   memberHubCloseFn();
   renderAuthStatus();
+  void refreshAppliedColorTheme();
 }
 
 function formatTotalOnlineSeconds(sec) {
@@ -2067,6 +2181,19 @@ function formatTotalOnlineSeconds(sec) {
   const h = Math.floor(m / 60);
   const m2 = m % 60;
   return m2 > 0 ? `${h} 小时 ${m2} 分` : `${h} 小时`;
+}
+
+/** 仅数字与冒号，用于丝带旁展示（无「小时」等文案） */
+function formatTotalOnlineSecondsDigits(sec) {
+  const n = Math.max(0, Math.floor(Number(sec) || 0));
+  const s = n % 60;
+  const mTotal = Math.floor(n / 60);
+  const m = mTotal % 60;
+  const h = Math.floor(mTotal / 60);
+  const p2 = (x) => String(x).padStart(2, "0");
+  if (h > 0) return `${h}:${p2(m)}:${p2(s)}`;
+  if (mTotal > 0) return `${m}:${p2(s)}`;
+  return `${s}`;
 }
 
 function stopOnlinePulseTimer() {
@@ -2094,6 +2221,7 @@ async function sendOnlinePulseOnce() {
       if (Number.isFinite(next) && next >= 0) {
         state.currentUser.totalOnlineSeconds = Math.floor(next);
         renderMemberHub();
+        renderChapterRibbonTag();
       }
     }
   } catch {
@@ -2126,11 +2254,76 @@ function normalizeUserTotalOnlineSeconds(user) {
     Number.isFinite(n) && n >= 0 ? Math.min(Math.floor(n), 86400 * 365 * 80) : 0;
 }
 
+function getColorThemesMetaFromBootstrap() {
+  return (
+    state.bootstrap?.colorThemes || {
+      defaultThemeId: "classic",
+      themes: [],
+    }
+  );
+}
+
+function getStoredColorThemeId() {
+  try {
+    return String(localStorage.getItem(COLOR_THEME_STORAGE_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function applyColorVariablesToRoot(variables) {
+  if (!variables || typeof variables !== "object") return;
+  const root = document.documentElement;
+  for (const [k, v] of Object.entries(variables)) {
+    if (!k.startsWith("--")) continue;
+    if (v == null) continue;
+    root.style.setProperty(k, String(v));
+  }
+}
+
+async function applyColorThemeById(themeId) {
+  const id = String(themeId || "").trim();
+  if (!id) return;
+  try {
+    const res = await fetch(
+      `/api/color-themes/variables?themeId=${encodeURIComponent(id)}`,
+      {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "theme");
+    applyColorVariablesToRoot(data.variables);
+  } catch {
+    /* 保留 styles.css 默认 */
+  }
+}
+
+async function refreshAppliedColorTheme() {
+  const meta = getColorThemesMetaFromBootstrap();
+  const def =
+    String(meta.defaultThemeId || "classic").trim() || "classic";
+  const u = state.currentUser;
+  const accountName = String(u?.name || "").trim();
+  let themeId = "";
+  if (accountName) {
+    themeId = String(u?.colorThemeId || "").trim();
+  } else {
+    themeId = getStoredColorThemeId();
+  }
+  if (!themeId || !(meta.themes || []).some((t) => t.id === themeId)) {
+    themeId = def;
+  }
+  await applyColorThemeById(themeId);
+}
+
 async function fetchCurrentUser() {
   const token = getAuthToken();
   if (!token) {
     state.currentUser = null;
     renderAuthStatus();
+    void refreshAppliedColorTheme();
     return;
   }
   try {
@@ -2146,6 +2339,16 @@ async function fetchCurrentUser() {
       const user = data.user || null;
       normalizeUserTotalOnlineSeconds(user);
       state.currentUser = user;
+      const nm = String(user?.name || "").trim();
+      if (nm) {
+        const tid = String(user?.colorThemeId || "").trim();
+        try {
+          if (tid) localStorage.setItem(COLOR_THEME_STORAGE_KEY, tid);
+          else localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
+        } catch (_) {
+          /* ignore */
+        }
+      }
     }
   } catch {
     state.currentUser = null;
@@ -2153,6 +2356,7 @@ async function fetchCurrentUser() {
   renderAuthStatus();
   if (state.currentUser) startOnlinePulseTimer();
   else stopOnlinePulseTimer();
+  void refreshAppliedColorTheme();
 }
 
 function displayNameFromEmail(email) {
@@ -2221,6 +2425,14 @@ function renderAuthStatus() {
   renderStudyContent();
 }
 
+function userHasSiteAdminAccess(u) {
+  if (!u || typeof u !== "object") return false;
+  if (u.isAdmin === true) return true;
+  return ["shifuzhang", "baifuzhang", "qianfuzhang"].includes(
+    String(u.adminRole || "").toLowerCase()
+  );
+}
+
 function renderMemberHub() {
   const guest = document.getElementById("memberHubGuest");
   const member = document.getElementById("memberHubMember");
@@ -2228,8 +2440,6 @@ function renderMemberHub() {
   const dn = document.getElementById("memberHubDisplayName");
   const em = document.getElementById("memberHubEmail");
   const onlineEl = document.getElementById("memberHubOnlineTotal");
-  const adminBtn = document.getElementById("memberHubAdminBtn");
-  const promoEditLink = document.getElementById("memberHubPromoEditLink");
   const hubLabel = document.getElementById("memberHubLabel");
   const hubTrigger = document.getElementById("memberHubTrigger");
   const triggerGlyph = document.getElementById("memberHubTriggerGlyph");
@@ -2281,16 +2491,10 @@ function renderMemberHub() {
       const ts = Math.max(0, Math.floor(Number(u?.totalOnlineSeconds) || 0));
       onlineEl.textContent = `累计在线 ${formatTotalOnlineSeconds(ts)}`;
     }
-    const siteAdmin =
-      u?.isAdmin === true ||
-      ["shifuzhang", "baifuzhang", "qianfuzhang"].includes(
-        String(u?.adminRole || "").toLowerCase()
-      );
-    if (adminBtn) {
-      adminBtn.hidden = !siteAdmin;
-    }
-    if (promoEditLink) {
-      promoEditLink.hidden = !siteAdmin;
+    const qianSection = document.getElementById("memberHubQianfuzhangSection");
+    const showQianMenu = userHasQianfuzhangMemberHubAccess(u);
+    if (qianSection) {
+      qianSection.hidden = !showQianMenu;
     }
     if (triggerGlyph) triggerGlyph.hidden = true;
     if (triggerStarsWrap) {
@@ -2298,8 +2502,8 @@ function renderMemberHub() {
       triggerStarsWrap.innerHTML = renderMemberHubBookmarkStars(u?.userLevel);
     }
   } else {
-    if (adminBtn) adminBtn.hidden = true;
-    if (promoEditLink) promoEditLink.hidden = true;
+    const qianSectionGuest = document.getElementById("memberHubQianfuzhangSection");
+    if (qianSectionGuest) qianSectionGuest.hidden = true;
     if (triggerGlyph) triggerGlyph.hidden = false;
     if (triggerStarsWrap) {
       triggerStarsWrap.hidden = true;
@@ -2419,7 +2623,8 @@ function initMemberHub() {
   root.dataset.memberHubBound = "1";
 
   function close() {
-    panel.hidden = true;
+    panel.setAttribute("hidden", "");
+    document.body.classList.remove("member-hub-open");
     trigger.setAttribute("aria-expanded", "false");
   }
 
@@ -2427,8 +2632,10 @@ function initMemberHub() {
     if (getAuthToken() && state.currentUser) {
       void fetchCurrentUser();
     }
+    closeAllToolbarPanels();
     renderMemberHub();
-    panel.hidden = false;
+    panel.removeAttribute("hidden");
+    document.body.classList.add("member-hub-open");
     trigger.setAttribute("aria-expanded", "true");
   }
 
@@ -2438,6 +2645,7 @@ function initMemberHub() {
   }
 
   memberHubCloseFn = close;
+
   window.openMemberHub = () => {
     const name = String(state.currentUser?.name || "").trim();
     if (!name) {
@@ -2472,31 +2680,6 @@ function initMemberHub() {
       event.preventDefault();
       event.stopPropagation();
       close();
-      try {
-        const abs = new URL(href, window.location.href);
-        const leaf = abs.pathname.split("/").pop() || "";
-        const frag = String(abs.hash || "")
-          .replace(/^#/, "")
-          .split(/[?&]/)[0];
-        const isNotebook =
-          leaf === "notebook.html" || abs.pathname.endsWith("/notebook");
-        const isSettingsHash =
-          frag === "settings" || frag === "profile";
-        let isSettingsQuery = false;
-        try {
-          isSettingsQuery =
-            abs.searchParams.get("openSettings") === "1" ||
-            abs.searchParams.get("settings") === "1" ||
-            abs.searchParams.get("profile") === "1";
-        } catch (_) {}
-        if (isNotebook && (isSettingsHash || isSettingsQuery)) {
-          try {
-            sessionStorage.setItem("askbible_notebook_open_settings_v1", "1");
-            // WebView/跳转环境下 sessionStorage 可能丢失；本地兜底一次
-            localStorage.setItem("askbible_notebook_open_settings_v1", "1");
-          } catch (_) {}
-        }
-      } catch (_) {}
       window.location.assign(link.href);
     },
     true
@@ -2535,14 +2718,55 @@ function initMemberHub() {
   document.addEventListener(
     "mousedown",
     (event) => {
+      if (panel.hasAttribute("hidden")) return;
       if (!(event.target instanceof Node)) return;
-      if (!root.contains(event.target)) close();
+      if (root.contains(event.target) || panel.contains(event.target)) return;
+      close();
     },
     true
   );
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") close();
+  /** 顶栏导航等可用 `/#openMemberHub` 或 `?memberHub=1` 打开会员书签（与点「昵称的圣经」面板一致） */
+  function tryConsumeMemberHubDeepLink() {
+    try {
+      const u = new URL(window.location.href);
+      const fromHash = u.hash === "#openMemberHub";
+      const fromQuery = u.searchParams.get("memberHub") === "1";
+      if (!fromHash && !fromQuery) return;
+      if (fromHash) {
+        u.hash = "";
+        history.replaceState({}, "", u.pathname + (u.search || ""));
+      } else {
+        u.searchParams.delete("memberHub");
+        const q = u.searchParams.toString();
+        history.replaceState({}, "", u.pathname + (q ? `?${q}` : ""));
+      }
+      queueMicrotask(() => {
+        if (typeof window.openMemberHub === "function") {
+          window.openMemberHub();
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+  tryConsumeMemberHubDeepLink();
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash !== "#openMemberHub") return;
+    try {
+      history.replaceState(
+        {},
+        "",
+        window.location.pathname + (window.location.search || "")
+      );
+    } catch {
+      /* ignore */
+    }
+    queueMicrotask(() => {
+      if (typeof window.openMemberHub === "function") {
+        window.openMemberHub();
+      }
+    });
   });
 }
 
@@ -2721,6 +2945,7 @@ async function loadBootstrap() {
   if (!res.ok) throw new Error(data.error || "无法读取前台配置");
   state.bootstrap = data;
   normalizeFrontStateByBootstrap();
+  void refreshAppliedColorTheme();
 }
 
 function normalizeFrontStateByBootstrap() {
@@ -2924,6 +3149,12 @@ function toolbarSheetsEscHandler(e) {
   if (e.key !== "Escape") return;
   const verse = document.getElementById("verseSearchOverlay");
   if (verse && !verse.hasAttribute("hidden")) return;
+  const mh = document.getElementById("memberHubPanel");
+  if (mh && !mh.hasAttribute("hidden")) {
+    e.preventDefault();
+    memberHubCloseFn();
+    return;
+  }
   const pv = document.getElementById("primaryVersionPanel");
   if (pv && !pv.hasAttribute("hidden")) {
     e.preventDefault();
@@ -2981,6 +3212,10 @@ function toggleToolbarPanel(panelId) {
 }
 
 function closeToolbarPanel(panelId) {
+  if (panelId === "memberHubPanel") {
+    memberHubCloseFn();
+    return;
+  }
   const panel = document.getElementById(panelId);
   if (!panel) return;
   if (
@@ -3011,6 +3246,7 @@ function closeAllToolbarPanels() {
       closeToolbarPanel(panelId);
     }
   );
+  memberHubCloseFn();
 }
 
 function verseSearchOverlayEscHandler(e) {
@@ -3478,6 +3714,17 @@ function renderChapterOptions() {
   el.value = String(state.frontState.chapter);
 }
 
+/** 丝带已登录文案：与界面语言一致的「昵称的圣经」 */
+function formatUserRibbonBibleTitle(rawName) {
+  const name = String(rawName || "").trim();
+  if (!name) return "";
+  const esc = escapeHtml(name);
+  const lang = String(state.frontState?.uiLang || "zh").toLowerCase();
+  if (lang.startsWith("zh")) return `${esc}的圣经`;
+  if (lang === "es") return `${esc} — Biblia`;
+  return `${esc}'s Bible`;
+}
+
 function renderChapterRibbonTag() {
   const el = document.getElementById("sideUserTag");
   if (!el) return;
@@ -3494,20 +3741,18 @@ function renderChapterRibbonTag() {
     copy.favoritesListOpenAria || copy.favoritesTitle || "打开收藏列表";
 
   el.classList.toggle("book-side-extend-tag--ribbon-user", authed);
+  el.classList.toggle("book-side-extend-tag--ribbon-guest", !authed);
+  el.classList.remove("book-side-extend-tag--ribbon-no-label");
 
   if (authed) {
-    el.classList.remove("book-side-extend-tag--ribbon-no-label");
     const sensible = getSensibleDisplayName(u);
     const lvNum = Number(u?.userLevel) || 0;
     const capped = lvNum > 0 ? Math.min(12, lvNum) : 0;
     const levelAria = capped > 0 ? `，等级 L${capped}` : "，尚无等级";
-    el.innerHTML = `<span class="ribbon-user-stack">
-      <span class="ribbon-user-name">${escapeHtml(sensible)}</span>
-      ${
-        capped > 0
-          ? `<span class="ribbon-user-lv">L${capped}</span>`
-          : `<span class="ribbon-user-lv ribbon-user-lv--empty" title="尚未形成等级">—</span>`
-      }
+    el.innerHTML = `<span class="ribbon-user-stack ribbon-user-stack--bible-line">
+      <span class="ribbon-bible-line-text">${formatUserRibbonBibleTitle(
+        accountName
+      )}</span>
       <span class="ribbon-user-stars-wrap">${renderRibbonLevelStars(
         lvNum
       )}</span>
@@ -3517,11 +3762,26 @@ function renderChapterRibbonTag() {
       `${listAria}（${sensible}${levelAria}）`
     );
   } else {
-    el.classList.add("book-side-extend-tag--ribbon-no-label");
-    el.innerHTML = "";
+    const guestLabel = escapeHtml(copy.favoritesTitle || "收藏夹");
+    el.innerHTML = `<span class="ribbon-guest-label">${guestLabel}</span>`;
     el.setAttribute("aria-label", listAria);
   }
   el.setAttribute("href", "#");
+
+  const onlineLine = document.getElementById("sideRibbonOnlineLine");
+  if (onlineLine) {
+    if (authed) {
+      const ts = Math.max(0, Math.floor(Number(u?.totalOnlineSeconds) || 0));
+      onlineLine.textContent = formatTotalOnlineSecondsDigits(ts);
+      onlineLine.setAttribute(
+        "aria-label",
+        `累计在线 ${formatTotalOnlineSeconds(ts)}`
+      );
+    } else {
+      onlineLine.textContent = "0";
+      onlineLine.setAttribute("aria-label", "累计在线，未登录");
+    }
+  }
 }
 
 function toggleCurrentChapterFavorite() {
@@ -3604,11 +3864,7 @@ function renderToolbarTriggers() {
     primaryVersionTriggerText.textContent = copy.triggerTranslation || "版本+";
   }
   if (favoritesTriggerText) {
-    const n =
-      (state.favorites || []).length +
-      (state.chapterFavorites || []).length +
-      (state.questionFavorites || []).length;
-    favoritesTriggerText.textContent = `${copy.favorites} (${n})`;
+    favoritesTriggerText.textContent = copy.favorites;
   }
 
   const sideFavListBtn = document.getElementById("sideFavoritesListBtn");
@@ -4035,6 +4291,7 @@ function renderStudyContent() {
   const leftBlocksEl = document.getElementById("leftBlocks");
   const rightBlocksEl = document.getElementById("rightBlocks");
   const repeatedWordsEl = document.getElementById("repeatedWordsLine");
+  const chapterArtSlotEl = document.getElementById("chapterArtSlot");
   const approvedTitleEl = document.getElementById("chapterApprovedTitle");
   const approvedEl = document.getElementById("chapterApprovedQuestions");
 
@@ -4052,6 +4309,7 @@ function renderStudyContent() {
       : fallbackEnd;
 
     if (repeatedWordsEl) repeatedWordsEl.textContent = "—";
+    if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = "";
     if (leftBlocksEl) {
       const scriptureLeftHtml = showScripture
         ? `<article class="flow-card flow-card-scripture-fallback">${renderVerseRangeBlock(
@@ -4092,6 +4350,8 @@ function renderStudyContent() {
       state.studyContent.repeatedWords || []
     );
   }
+
+  if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = renderChapterArtSlotHtml();
 
   const rendered = (state.studyContent.segments || []).map(renderSegmentCard);
   const splitIndex = Math.ceil(rendered.length / 2);
@@ -4551,6 +4811,70 @@ function openQuestionCorrectionDialog(payload) {
   });
 }
 
+const READER_TOAST_MS = 2200;
+const VERSE_FAVORITE_FLASH_MS = 900;
+
+let readerToastHideTimer = 0;
+
+function showReaderToast(message) {
+  const text = String(message || "").trim();
+  if (!text) return;
+  let el = document.getElementById("readerAppToast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "readerAppToast";
+    el.className = "reader-app-toast";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.classList.add("reader-app-toast--visible");
+  window.clearTimeout(readerToastHideTimer);
+  readerToastHideTimer = window.setTimeout(() => {
+    el.classList.remove("reader-app-toast--visible");
+  }, READER_TOAST_MS);
+}
+
+const FAVORITES_LIST_PULSE_MS = 620;
+/** 与 CSS sideFavoritesPlusOneInner 时长一致，结束前不移除节点 */
+const FAVORITES_PLUS_ONE_MS = 1500;
+
+/** 双点加入经文/问题收藏后：丝带 + 顶栏星 pulse；+1 在双击处飘出（外层只负责定位，内层动画单独用 transform） */
+function cueFavoritesListItemSaved(atPoint) {
+  const pulseClass = "favorites-list-saved-pulse";
+  const ribbon = document.getElementById("sideUserTag");
+  if (ribbon) {
+    ribbon.classList.remove(pulseClass);
+    void ribbon.offsetWidth;
+    ribbon.classList.add(pulseClass);
+    window.setTimeout(() => ribbon.classList.remove(pulseClass), FAVORITES_LIST_PULSE_MS);
+  }
+  const starBtn = document.getElementById("sideFavoritesListBtn");
+  if (starBtn) {
+    starBtn.classList.remove(pulseClass);
+    void starBtn.offsetWidth;
+    starBtn.classList.add(pulseClass);
+    window.setTimeout(() => starBtn.classList.remove(pulseClass), FAVORITES_LIST_PULSE_MS);
+  }
+
+  const x = Number(atPoint?.clientX);
+  const y = Number(atPoint?.clientY);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  const anchor = document.createElement("span");
+  anchor.className = "side-favorites-plus-one-anchor";
+  anchor.style.left = `${Math.round(x)}px`;
+  /* 起点在点击点略下，便于看清再向上飘 */
+  anchor.style.top = `${Math.round(y + 4)}px`;
+  const pop = document.createElement("span");
+  pop.className = "side-favorites-plus-one-float";
+  pop.textContent = "+1";
+  pop.setAttribute("aria-hidden", "true");
+  anchor.appendChild(pop);
+  document.body.appendChild(anchor);
+  window.setTimeout(() => anchor.remove(), FAVORITES_PLUS_ONE_MS);
+}
+
 function initFavorites() {
   document.addEventListener("dblclick", (event) => {
     const unit = event.target?.closest?.("[data-favorite-key]");
@@ -4561,6 +4885,9 @@ function initFavorites() {
     const text = unit.getAttribute("data-favorite-text") || "";
     if (!key || !versionId || !verse || !text) return;
 
+    const copy = getLocalizedCopy();
+    let didAdd = false;
+
     if (state.favoriteKeys.has(key)) {
       state.favorites = (state.favorites || []).filter((x) => x.key !== key);
       unit.classList.remove("is-favorited");
@@ -4569,7 +4896,9 @@ function initFavorites() {
         type: "verse",
         key,
       });
+      showReaderToast(copy.verseFavoriteRemovedToast);
     } else {
+      didAdd = true;
       state.favorites = [
         {
           key,
@@ -4583,6 +4912,12 @@ function initFavorites() {
         ...(state.favorites || []),
       ];
       unit.classList.add("is-favorited");
+      unit.classList.remove("favorite-flash");
+      void unit.offsetWidth;
+      unit.classList.add("favorite-flash");
+      window.setTimeout(() => {
+        unit.classList.remove("favorite-flash");
+      }, VERSE_FAVORITE_FLASH_MS);
       reportGlobalFavoriteToggle({
         action: "add",
         type: "verse",
@@ -4593,10 +4928,17 @@ function initFavorites() {
         title: formatBookChapterLabel(state.frontState.bookId, Number(state.frontState.chapter || 1)) + ":" + verse,
         content: text,
       });
+      showReaderToast(copy.verseFavoriteAddedToast);
     }
     saveFavorites();
     renderToolbarTriggers();
     renderFavoritesPanel();
+    if (didAdd) {
+      cueFavoritesListItemSaved({
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    }
   });
 
   document.addEventListener("dblclick", (event) => {
@@ -4606,6 +4948,9 @@ function initFavorites() {
     const question = item.getAttribute("data-question-fav-text") || "";
     const title = item.getAttribute("data-question-fav-title") || "";
     if (!key || !question) return;
+
+    const copy = getLocalizedCopy();
+    let didAdd = false;
 
     if (state.questionFavoriteKeys.has(key)) {
       state.questionFavorites = (state.questionFavorites || []).filter(
@@ -4617,7 +4962,9 @@ function initFavorites() {
         type: "question",
         key,
       });
+      showReaderToast(copy.questionFavoriteRemovedToast);
     } else {
+      didAdd = true;
       state.questionFavorites = [
         {
           key,
@@ -4632,6 +4979,12 @@ function initFavorites() {
         ...(state.questionFavorites || []),
       ];
       item.classList.add("is-favorited");
+      item.classList.remove("favorite-flash");
+      void item.offsetWidth;
+      item.classList.add("favorite-flash");
+      window.setTimeout(() => {
+        item.classList.remove("favorite-flash");
+      }, VERSE_FAVORITE_FLASH_MS);
       reportGlobalFavoriteToggle({
         action: "add",
         type: "question",
@@ -4643,10 +4996,17 @@ function initFavorites() {
         contentVersion: state.frontState.contentVersion,
         contentLang: state.frontState.contentLang,
       });
+      showReaderToast(copy.questionFavoriteAddedToast);
     }
     saveQuestionFavorites();
     renderToolbarTriggers();
     renderFavoritesPanel();
+    if (didAdd) {
+      cueFavoritesListItemSaved({
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    }
   });
 
 }
@@ -4870,23 +5230,57 @@ function updateChapterNavUI() {
 /* =========================
    后台管理
    ========================= */
+const ADMIN_MODAL_TOP_CSS_VAR = "--admin-modal-inset-top";
+
+function syncAdminModalInsetTop() {
+  const bar = document.querySelector(".site-topbar");
+  const h = bar ? bar.getBoundingClientRect().height : 0;
+  const px = Math.max(1, Math.round(h));
+  document.documentElement.style.setProperty(ADMIN_MODAL_TOP_CSS_VAR, `${px}px`);
+}
+
+function clearAdminModalInsetTop() {
+  document.documentElement.style.removeProperty(ADMIN_MODAL_TOP_CSS_VAR);
+}
+
+/** 从管理总览等跳转 `/#openAdmin` 时自动打开读经页大面板（规则、任务等） */
+function tryConsumeAdminDeepLink() {
+  function consume() {
+    try {
+      if (window.location.hash !== "#openAdmin") return false;
+      const u = new URL(window.location.href);
+      u.hash = "";
+      history.replaceState({}, "", u.pathname + (u.search || ""));
+      queueMicrotask(() => {
+        document.getElementById("openAdminBtn")?.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true })
+        );
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  consume();
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash === "#openAdmin") consume();
+  });
+}
+
 function initAdminModal() {
-  const passwordModal = document.getElementById("adminPasswordModal");
   const adminModal = document.getElementById("adminModal");
   const openAdminBtn = document.getElementById("openAdminBtn");
-  const closeAdminPasswordBtn = document.getElementById(
-    "closeAdminPasswordBtn"
-  );
   const closeAdminBtn = document.getElementById("closeAdminBtn");
-  const adminPasswordInput = document.getElementById("adminPasswordInput");
-  const adminPasswordError = document.getElementById("adminPasswordError");
-  const adminPasswordForm = document.getElementById("adminPasswordForm");
 
-  async function openPasswordModal() {
-    if (adminPasswordInput) adminPasswordInput.value = "";
-    if (adminPasswordError) adminPasswordError.textContent = "";
-    if (passwordModal) passwordModal.style.display = "block";
-  }
+  window.addEventListener(
+    "resize",
+    () => {
+      if (adminModal && adminModal.style.display === "block") {
+        syncAdminModalInsetTop();
+      }
+    },
+    { passive: true }
+  );
 
   async function openAdminRealModal() {
     await fetchCurrentUser();
@@ -4902,31 +5296,31 @@ function initAdminModal() {
     initQuestionReviewTab();
     initAdminUsersTab();
     startJobsAutoRefresh();
+    syncAdminModalInsetTop();
     if (adminModal) adminModal.style.display = "block";
+    requestAnimationFrame(() => {
+      syncAdminModalInsetTop();
+    });
   }
 
-  openAdminBtn?.addEventListener("click", openPasswordModal);
-
-  closeAdminPasswordBtn?.addEventListener("click", () => {
-    if (passwordModal) passwordModal.style.display = "none";
-  });
-
-  async function submitAdminPassword() {
-    if (adminPasswordInput?.value === ADMIN_PASSWORD) {
-      if (passwordModal) passwordModal.style.display = "none";
+  async function openAdminIfAuthorized() {
+    await fetchCurrentUser();
+    if (!userHasSiteAdminAccess(state.currentUser)) {
+      window.alert("请使用已登录的管理员账号进入后台管理。");
+      return;
+    }
+    try {
       await openAdminRealModal();
-    } else if (adminPasswordError) {
-      adminPasswordError.textContent = "密码不正确";
+    } catch (e) {
+      window.alert(String(e?.message || e) || "后台加载失败");
     }
   }
 
-  adminPasswordForm?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    void submitAdminPassword();
-  });
+  openAdminBtn?.addEventListener("click", () => void openAdminIfAuthorized());
 
   closeAdminBtn?.addEventListener("click", () => {
     if (adminModal) adminModal.style.display = "none";
+    clearAdminModalInsetTop();
     stopJobsAutoRefresh();
   });
 }
@@ -4955,7 +5349,11 @@ async function parseFetchJsonResponse(res) {
 }
 
 async function loadAdminBootstrap() {
-  const res = await fetch("/api/admin/bootstrap", { cache: "no-store" });
+  const token = getAuthToken();
+  const res = await fetch("/api/admin/bootstrap", {
+    cache: "no-store",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   const data = await parseFetchJsonResponse(res);
 
   if (!res.ok) {
@@ -8700,7 +9098,11 @@ async function reloadScriptureVersionsEverywhere() {
   await loadBootstrap();
 
   if (adminState.bootstrap) {
-    const adminRes = await fetch("/api/admin/bootstrap", { cache: "no-store" });
+    const token = getAuthToken();
+    const adminRes = await fetch("/api/admin/bootstrap", {
+      cache: "no-store",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     const adminData = await adminRes.json();
     if (adminRes.ok) {
       adminState.bootstrap = adminData;
