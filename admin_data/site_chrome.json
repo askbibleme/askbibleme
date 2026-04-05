@@ -1,0 +1,41 @@
+{
+  "updatedAt": "2026-04-05T22:59:17.577Z",
+  "topbar": {
+    "logoUrl": "",
+    "logoHeight": 36,
+    "homeHref": "/",
+    "brandTitleAttr": "Ask是寻找，Bible 回到经文，.me 被光照引导……",
+    "showSplitBrand": true,
+    "brandAsk": "Ask",
+    "brandBible": "Bible",
+    "brandMe": ".me",
+    "brandPlainTitle": "",
+    "brandSubtitle": "以问题引导阅读，让经文自己发声",
+    "brandSubtitleShow": true,
+    "brandSubtitleDismissible": false,
+    "navLinks": [
+      {
+        "href": "/",
+        "label": "读经",
+        "icon": "home",
+        "iconOnly": true
+      },
+      {
+        "href": "/promo.html",
+        "label": "理念",
+        "icon": "doc",
+        "iconOnly": true
+      },
+      {
+        "href": "/#openMemberHub",
+        "label": "用户",
+        "icon": "user",
+        "iconOnly": true
+      }
+    ]
+  },
+  "footer": {
+    "enabled": false,
+    "text": ""
+  }
+}

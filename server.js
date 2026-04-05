@@ -854,8 +854,19 @@ const SITE_CHROME_NAV_ICON_IDS = new Set([
   "share",
 ]);
 
+/** 与 site-chrome.js 内 askBibleChromeNavIconHtml 别名一致，避免旧数据或误填 id 导致 icon 被清空、仅图标被压成 false */
+const SITE_CHROME_NAV_ICON_ALIASES = {
+  document: "doc",
+  file: "doc",
+  page: "doc",
+  house: "home",
+  person: "user",
+};
+
 function normalizeSiteChromeNavIcon(raw) {
-  const s = safeText(raw || "").toLowerCase().replace(/[^a-z0-9_]/g, "");
+  let s = safeText(raw || "").toLowerCase().replace(/[^a-z0-9_]/g, "");
+  const mapped = SITE_CHROME_NAV_ICON_ALIASES[s];
+  if (mapped) s = mapped;
   if (SITE_CHROME_NAV_ICON_IDS.has(s)) return s;
   return "";
 }
@@ -5041,6 +5052,10 @@ app.get("/api/front/bootstrap", (_req, res) => {
       "default";
 
     const colorCfg = loadColorThemesConfig();
+    res.set(
+      "Cache-Control",
+      "private, no-store, no-cache, max-age=0, must-revalidate"
+    );
     res.json({
       uiLanguages,
       scriptureVersions,

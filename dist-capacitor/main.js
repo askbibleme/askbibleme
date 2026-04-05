@@ -2944,6 +2944,9 @@ async function loadBootstrap() {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "无法读取前台配置");
   state.bootstrap = data;
+  if (data.siteChrome && typeof window.__applyAskBibleSiteChrome === "function") {
+    window.__applyAskBibleSiteChrome(data.siteChrome);
+  }
   normalizeFrontStateByBootstrap();
   void refreshAppliedColorTheme();
 }

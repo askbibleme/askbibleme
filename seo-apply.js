@@ -16,11 +16,15 @@
   function isLikelyStaticDevServerPort(port) {
     var p = String(port || "").trim();
     if (!p) return false;
-    if (p === "5173" || p === "4173" || p === "8081") return true;
+    if (p === "5173" || p === "4173" || p === "8081" || p === "8080" || p === "3001") return true;
     if (/^55\d{2}$/.test(p)) return true;
     return false;
   }
 
+  /**
+   * 常见静态开发端口（Vite / Live Server 等）把 API 指到 127.0.0.1:3000；
+   * 页面与 Node 同端口（如整站 8080）时须保持空串走同源，勿写死 3000。
+   */
   function getApiBase() {
     try {
       var m = document.querySelector('meta[name="askbible-api-base"]');
@@ -34,13 +38,11 @@
         return DEFAULT_PRODUCTION_ORIGIN;
       }
       var h = window.location.hostname || "";
-      var port = window.location.port || "";
-      if (
-        (h === "localhost" || h === "127.0.0.1") &&
-        proto === "http:" &&
-        isLikelyStaticDevServerPort(port)
-      ) {
-        return "http://127.0.0.1:3000";
+      var port = String(window.location.port || "").trim();
+      var isLoop = h === "localhost" || h === "127.0.0.1";
+      if (isLoop && proto === "http:") {
+        if (!port || port === "80" || port === "3000") return "";
+        if (isLikelyStaticDevServerPort(port)) return "http://127.0.0.1:3000";
       }
     } catch (e) {}
     return "";
@@ -140,51 +142,58 @@
     } catch (e) {}
   }
 
-  /** 与 server.js 一致；优先连字符路径，404 时再试扁平路径（部分反代会丢连字符） */
-  var SITE_SEO_PUBLIC_PATHS = ["/api/site-seo", "/api/siteseo"];
+  /** 仅请求扁平路径，减少控制台重复 404；server.js 已注册 GET /api/siteseo */
+  var SITE_SEO_PUBLIC_PATH = "/api/siteseo";
+
+  function safeJson(res) {
+    if (!res || !res.ok) return Promise.resolve(null);
+    return res.json().catch(function () {
+      return null;
+    });
+  }
 
   function fetchSiteSeoJson() {
     var opts = {
       cache: "no-store",
       headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
     };
-    function attempt(i) {
-      if (i >= SITE_SEO_PUBLIC_PATHS.length) {
-        return Promise.resolve(null);
-      }
-      return fetch(apiUrl(SITE_SEO_PUBLIC_PATHS[i]), opts)
-        .then(function (res) {
-          if (res.ok) return res.json();
-          if (res.status === 404) return attempt(i + 1);
-          return null;
-        })
-        .catch(function () {
-          return attempt(i + 1);
+    return fetch(apiUrl(SITE_SEO_PUBLIC_PATH), opts)
+      .then(function (res) {
+        if (res.ok) return safeJson(res);
+        if (res.status !== 404) return null;
+        return fetch(apiUrl("/api/site-seo"), opts).then(function (res2) {
+          return safeJson(res2);
         });
-    }
-    return attempt(0);
+      })
+      .catch(function () {
+        return null;
+      });
   }
 
   function run() {
     var key = getPageKey();
-    fetchSiteSeoJson().then(function (data) {
-      if (!data || typeof data !== "object") return;
-      var page = data[key];
-      if (!page || typeof page !== "object") return;
-      if (page.documentTitle) {
-        document.title = String(page.documentTitle);
-      }
-      setMetaName("description", page.metaDescription);
-      setMetaName("keywords", page.metaKeywords);
-      setMetaProperty("og:site_name", page.ogSiteName);
-      setMetaProperty("og:title", page.ogTitle);
-      setMetaProperty("og:description", page.ogDescription);
-      setMetaName("twitter:title", page.twitterTitle);
-      setMetaName("twitter:description", page.twitterDescription);
-      setMetaName("apple-mobile-web-app-title", page.appleMobileWebAppTitle);
-      var ld = document.getElementById("askbibleSeoJsonLd");
-      if (ld) applyJsonLd(ld, page);
-    });
+    fetchSiteSeoJson()
+      .then(function (data) {
+        try {
+          if (!data || typeof data !== "object") return;
+          var page = data[key];
+          if (!page || typeof page !== "object") return;
+          if (page.documentTitle) {
+            document.title = String(page.documentTitle);
+          }
+          setMetaName("description", page.metaDescription);
+          setMetaName("keywords", page.metaKeywords);
+          setMetaProperty("og:site_name", page.ogSiteName);
+          setMetaProperty("og:title", page.ogTitle);
+          setMetaProperty("og:description", page.ogDescription);
+          setMetaName("twitter:title", page.twitterTitle);
+          setMetaName("twitter:description", page.twitterDescription);
+          setMetaName("apple-mobile-web-app-title", page.appleMobileWebAppTitle);
+          var ld = document.getElementById("askbibleSeoJsonLd");
+          if (ld) applyJsonLd(ld, page);
+        } catch (e) {}
+      })
+      .catch(function () {});
   }
 
   if (document.readyState === "loading") {

@@ -84,11 +84,19 @@
     { id: "play", labelZh: "播放" },
     { id: "share", labelZh: "分享" },
   ];
+  var ICON_ALIASES = {
+    document: "doc",
+    file: "doc",
+    page: "doc",
+    house: "home",
+    person: "user",
+  };
   function askBibleChromeNavIconHtml(id) {
     var k = String(id || "")
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9_]/g, "");
+    if (ICON_ALIASES[k]) k = ICON_ALIASES[k];
     return BY_ID[k] || "";
   }
   g.ASKBIBLE_CHROME_NAV_ICON_OPTIONS = OPTIONS;
@@ -338,15 +346,12 @@
     if (!links.length) return "";
     var inner = links
       .map(function (item) {
-        var iconIdNorm = String(item.icon || "")
-          .toLowerCase()
-          .trim()
-          .replace(/[^a-z0-9_]/g, "");
         var icon =
           typeof window !== "undefined" && typeof window.askBibleChromeNavIconHtml === "function"
             ? window.askBibleChromeNavIconHtml(item.icon) || ""
             : "";
-        var iconOnly = navLinkWantsIconOnly(item) && iconIdNorm !== "";
+        /* 与 server 一致：仅当确有 SVG 时才进入仅图标模式，避免配置勾了仅图标但 id 无效时变成「无字也无图标」 */
+        var iconOnly = navLinkWantsIconOnly(item) && icon !== "";
         var labelEsc = escapeHtml(item.label || "");
         var attrs = ' title="' + labelEsc + '"';
         if (iconOnly) attrs += ' aria-label="' + labelEsc + '"';
