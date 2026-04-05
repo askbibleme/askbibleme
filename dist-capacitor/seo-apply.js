@@ -140,36 +140,51 @@
     } catch (e) {}
   }
 
-  function run() {
-    var key = getPageKey();
-    var url = apiUrl("/api/site-seo");
-    fetch(url, {
+  /** 与 server.js 一致；优先连字符路径，404 时再试扁平路径（部分反代会丢连字符） */
+  var SITE_SEO_PUBLIC_PATHS = ["/api/site-seo", "/api/siteseo"];
+
+  function fetchSiteSeoJson() {
+    var opts = {
       cache: "no-store",
       headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-    })
-      .then(function (res) {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then(function (data) {
-        if (!data || typeof data !== "object") return;
-        var page = data[key];
-        if (!page || typeof page !== "object") return;
-        if (page.documentTitle) {
-          document.title = String(page.documentTitle);
-        }
-        setMetaName("description", page.metaDescription);
-        setMetaName("keywords", page.metaKeywords);
-        setMetaProperty("og:site_name", page.ogSiteName);
-        setMetaProperty("og:title", page.ogTitle);
-        setMetaProperty("og:description", page.ogDescription);
-        setMetaName("twitter:title", page.twitterTitle);
-        setMetaName("twitter:description", page.twitterDescription);
-        setMetaName("apple-mobile-web-app-title", page.appleMobileWebAppTitle);
-        var ld = document.getElementById("askbibleSeoJsonLd");
-        if (ld) applyJsonLd(ld, page);
-      })
-      .catch(function () {});
+    };
+    function attempt(i) {
+      if (i >= SITE_SEO_PUBLIC_PATHS.length) {
+        return Promise.resolve(null);
+      }
+      return fetch(apiUrl(SITE_SEO_PUBLIC_PATHS[i]), opts)
+        .then(function (res) {
+          if (res.ok) return res.json();
+          if (res.status === 404) return attempt(i + 1);
+          return null;
+        })
+        .catch(function () {
+          return attempt(i + 1);
+        });
+    }
+    return attempt(0);
+  }
+
+  function run() {
+    var key = getPageKey();
+    fetchSiteSeoJson().then(function (data) {
+      if (!data || typeof data !== "object") return;
+      var page = data[key];
+      if (!page || typeof page !== "object") return;
+      if (page.documentTitle) {
+        document.title = String(page.documentTitle);
+      }
+      setMetaName("description", page.metaDescription);
+      setMetaName("keywords", page.metaKeywords);
+      setMetaProperty("og:site_name", page.ogSiteName);
+      setMetaProperty("og:title", page.ogTitle);
+      setMetaProperty("og:description", page.ogDescription);
+      setMetaName("twitter:title", page.twitterTitle);
+      setMetaName("twitter:description", page.twitterDescription);
+      setMetaName("apple-mobile-web-app-title", page.appleMobileWebAppTitle);
+      var ld = document.getElementById("askbibleSeoJsonLd");
+      if (ld) applyJsonLd(ld, page);
+    });
   }
 
   if (document.readyState === "loading") {

@@ -6075,8 +6075,7 @@ app.post("/api/admin/site-chrome-config", handleSiteChromeAdminPost);
 app.get("/api/admin/sitechrome", handleSiteChromeAdminGet);
 app.post("/api/admin/sitechrome", handleSiteChromeAdminPost);
 
-/** 公开：首页 / 宣传页 SEO 文案（无鉴权；由静态页 seo-apply.js 拉取） */
-app.get("/api/site-seo", (_req, res) => {
+function handleSiteSeoPublicGet(_req, res) {
   try {
     res.set(
       "Cache-Control",
@@ -6087,7 +6086,12 @@ app.get("/api/site-seo", (_req, res) => {
     console.error(error);
     res.status(500).json({ error: error.message || "读取失败" });
   }
-});
+}
+
+/** 公开：首页 / 宣传页 SEO 文案（无鉴权；由静态页 seo-apply.js 拉取） */
+app.get("/api/site-seo", handleSiteSeoPublicGet);
+/** 扁平别名：个别反代对带连字符 path 返回 404（与 /api/sitechrome 同理） */
+app.get("/api/siteseo", handleSiteSeoPublicGet);
 
 app.get("/api/admin/site-seo", (req, res) => {
   try {
