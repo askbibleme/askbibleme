@@ -295,8 +295,7 @@
       <main class="video-center-doc">
         <h1>章节视频上传</h1>
         <p class="video-center-lead">
-          先选<strong>查经版本</strong>与<strong>内容语言</strong>。下方先<strong>上传新视频</strong>，再在下表查看<strong>该版本下所有已写入 JSON 的视频条目</strong>（含书卷名以 <code>_</code> 开头的概论/简介等目录）；并非「圣经 66 卷每章一行」的空目录表。列表接口
-          <code>GET /api/admin/published/chapter-videos-list</code>。表格里可<strong>改标题</strong>、<strong>更换封面</strong>。支持<strong>本地文件</strong>或<strong>公网直链</strong>（由服务器拉取，二选一）。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
+          先选<strong>查经版本</strong>与<strong>内容语言</strong>。下方先<strong>上传新视频</strong>，再在下表查看<strong>该版本下所有已写入 JSON 的视频条目</strong>（含书卷名以 <code>_</code> 开头的概论/简介等目录）；并非「圣经 66 卷每章一行」的空目录表。表格里可<strong>改标题</strong>、<strong>更换封面</strong>、<strong>改页面</strong>（迁到其他书卷/章，视频文件与封面一并移动）。支持<strong>本地文件</strong>或<strong>公网直链</strong>（由服务器拉取，二选一）。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
         </p>
         <p id="videoCenterAuth" class="video-center-auth" hidden></p>
         <div id="videoCenterApp" hidden>
@@ -448,6 +447,54 @@
         <div class="vc-modal-actions">
           <button type="button" class="primary" id="vcTitleModalSaveBtn">保存</button>
           <button type="button" id="vcTitleModalCancelBtn">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="vcMoveModal"
+      class="vc-modal-backdrop"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="vcMoveModalHeading"
+    >
+      <div class="vc-modal-card" style="max-width: 480px">
+        <h3 id="vcMoveModalHeading">迁移到其他书卷/章节</h3>
+        <p id="vcMoveModalSub" class="video-center-hint" style="margin-top: 0"></p>
+        <p class="video-center-hint">
+          将把<strong>视频文件与封面</strong>一并移到目标章节的已发布目录，并更新两处 JSON。目标章须已有已发布的
+          <code>*.json</code>（卷首页可选章 0，系统可自动建占位）。
+        </p>
+        <div class="video-center-field" style="margin-top: 12px">
+          <label for="vcMoveBook">目标书卷</label>
+          <select id="vcMoveBook" aria-label="目标书卷"></select>
+        </div>
+        <div class="video-center-field">
+          <label for="vcMoveChapter">目标章节</label>
+          <select id="vcMoveChapter" aria-label="目标章节"></select>
+        </div>
+        <div class="video-center-field">
+          <label for="vcMoveInsert">在该章列表中的位置（可选）</label>
+          <input
+            type="number"
+            id="vcMoveInsert"
+            min="1"
+            step="1"
+            placeholder="留空 = 排在最后"
+            style="
+              width: 100%;
+              padding: 10px 12px;
+              box-sizing: border-box;
+              border-radius: 10px;
+              border: 1px solid var(--line);
+            "
+          />
+          <p class="video-center-hint" style="margin-top: 6px">填 <strong>1</strong> 表示插到该章第一个视频之前。</p>
+        </div>
+        <div class="vc-modal-actions">
+          <button type="button" class="primary" id="vcMoveModalSaveBtn">确认迁移</button>
+          <button type="button" id="vcMoveModalCancelBtn">取消</button>
         </div>
       </div>
     </div>
@@ -635,10 +682,18 @@
       const vcTitleEditInput = document.getElementById("vcTitleEditInput");
       const vcTitleModalSaveBtn = document.getElementById("vcTitleModalSaveBtn");
       const vcTitleModalCancelBtn = document.getElementById("vcTitleModalCancelBtn");
+      const vcMoveModal = document.getElementById("vcMoveModal");
+      const vcMoveModalSub = document.getElementById("vcMoveModalSub");
+      const vcMoveBook = document.getElementById("vcMoveBook");
+      const vcMoveChapter = document.getElementById("vcMoveChapter");
+      const vcMoveInsert = document.getElementById("vcMoveInsert");
+      const vcMoveModalSaveBtn = document.getElementById("vcMoveModalSaveBtn");
+      const vcMoveModalCancelBtn = document.getElementById("vcMoveModalCancelBtn");
 
       let books = [];
       let vcPreviewObjectUrl = "";
       let modalCtx = null;
+      let moveCtx = null;
 
       function setStatus(msg, kind) {
         statusEl.textContent = msg || "";
@@ -654,23 +709,41 @@
         };
       }
 
-      function fillChapters() {
-        const bookId = String(bookSel.value || "");
+      function fillChapterSelectForBook(selectEl, bookId) {
         const b = books.find((x) => x.bookId === bookId);
         const nRaw = b ? Number(b.chapters) : NaN;
-        const n =
-          Number.isFinite(nRaw) && nRaw >= 0 ? nRaw : 1;
-        chapterSel.innerHTML = "";
+        const n = Number.isFinite(nRaw) && nRaw >= 0 ? nRaw : 1;
+        selectEl.innerHTML = "";
         const introOpt = document.createElement("option");
         introOpt.value = "0";
         introOpt.textContent = "卷首页";
-        chapterSel.appendChild(introOpt);
+        selectEl.appendChild(introOpt);
         for (let c = 1; c <= n; c += 1) {
           const opt = document.createElement("option");
           opt.value = String(c);
           opt.textContent = "第 " + c + " 章";
-          chapterSel.appendChild(opt);
+          selectEl.appendChild(opt);
         }
+      }
+
+      function fillChapters() {
+        fillChapterSelectForBook(chapterSel, String(bookSel.value || ""));
+      }
+
+      function fillMoveModalChapterOptions() {
+        const bookId = String(vcMoveBook.value || "");
+        fillChapterSelectForBook(vcMoveChapter, bookId);
+      }
+
+      function syncVcMoveBookOptions() {
+        vcMoveBook.innerHTML = "";
+        books.forEach((b) => {
+          const opt = document.createElement("option");
+          opt.value = String(b.bookId);
+          opt.textContent = String(b.bookCn || b.bookId) + " (" + String(b.bookId) + ")";
+          vcMoveBook.appendChild(opt);
+        });
+        fillMoveModalChapterOptions();
       }
 
       function posterThumbSrc(it) {
@@ -753,6 +826,19 @@
               '" data-title-b64="' +
               escapeHtml(titleB64) +
               '">改标题</button>' +
+              '<button type="button" class="vc-move-btn" data-version="' +
+              v +
+              '" data-lang="' +
+              l +
+              '" data-book="' +
+              b +
+              '" data-chapter="' +
+              ch +
+              '" data-id="' +
+              vid +
+              '" data-title-b64="' +
+              escapeHtml(titleB64) +
+              '">改页面</button>' +
               '<button type="button" class="danger vc-del-btn" data-version="' +
               v +
               '" data-lang="' +
@@ -1114,6 +1200,100 @@
         await loadAllVideosList();
       }
 
+      function openMoveModal(ctx) {
+        moveCtx = ctx;
+        const fromCh = Number(ctx.chapter) === 0 ? "卷首页" : "第" + ctx.chapter + "章";
+        vcMoveModalSub.textContent =
+          "从「" +
+          String(ctx.bookCn || ctx.bookId) +
+          " · " +
+          fromCh +
+          "」迁出 · " +
+          String(ctx.title || "").slice(0, 60);
+        syncVcMoveBookOptions();
+        let defaultTo = String(ctx.bookId || "");
+        if (ctx.bookId === "_OT_OVERVIEW" && books.some((x) => x.bookId === "_NT_OVERVIEW")) {
+          defaultTo = "_NT_OVERVIEW";
+        } else if (ctx.bookId === "_NT_OVERVIEW" && books.some((x) => x.bookId === "_OT_OVERVIEW")) {
+          defaultTo = "_OT_OVERVIEW";
+        }
+        vcMoveBook.value = defaultTo;
+        fillMoveModalChapterOptions();
+        vcMoveChapter.value = "0";
+        vcMoveInsert.value = "";
+        vcMoveModal.hidden = false;
+      }
+
+      function closeMoveModal() {
+        vcMoveModal.hidden = true;
+        moveCtx = null;
+        vcMoveInsert.value = "";
+      }
+
+      async function submitVideoMove() {
+        if (!moveCtx) return;
+        const toBookId = String(vcMoveBook.value || "").trim();
+        const toChapter = Number(vcMoveChapter.value || 0);
+        if (!toBookId) {
+          setStatus("请选择目标书卷。", "err");
+          return;
+        }
+        const fromBookId = moveCtx.bookId;
+        const fromChapter = Number(moveCtx.chapter);
+        if (fromBookId === toBookId && fromChapter === toChapter) {
+          setStatus("目标与当前位置相同。", "err");
+          return;
+        }
+        const rawIns = String(vcMoveInsert.value || "").trim();
+        const body = {
+          version: moveCtx.version,
+          lang: moveCtx.lang,
+          fromBookId,
+          fromChapter,
+          id: moveCtx.id,
+          toBookId,
+          toChapter,
+        };
+        if (rawIns !== "") {
+          const n = Number(rawIns);
+          if (Number.isFinite(n) && Number.isInteger(n) && n >= 1) {
+            body.insertIndex = n;
+          }
+        }
+        if (
+          !confirm(
+            "确认将视频「" +
+              String(moveCtx.title || "").slice(0, 40) +
+              "」迁移到所选书卷/章节？（将移动磁盘文件）"
+          )
+        ) {
+          return;
+        }
+        setStatus("正在迁移…");
+        const res = await fetch(apiUrl("/api/admin/published/chapter-video-move"), {
+          method: "POST",
+          headers: {
+            ...authHeadersBare(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        });
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw.trim() ? JSON.parse(raw) : {};
+        } catch (_) {
+          data = {};
+        }
+        if (!res.ok) {
+          setStatus(data.error || "迁移失败", "err");
+          return;
+        }
+        setStatus("已迁移完成。", "ok");
+        closeMoveModal();
+        await loadAllVideosList();
+      }
+
       async function deleteVideoRow(version, lang, bookId, chapter, id) {
         if (!confirm("确认删除该视频？（视频文件、封面与 JSON 条目均移除）")) return;
         setStatus("正在删除…");
@@ -1242,11 +1422,21 @@
         }
       });
 
+      vcMoveBook.addEventListener("change", fillMoveModalChapterOptions);
+      vcMoveModalCancelBtn.addEventListener("click", closeMoveModal);
+      vcMoveModalSaveBtn.addEventListener("click", () => {
+        void submitVideoMove();
+      });
+      vcMoveModal.addEventListener("click", (e) => {
+        if (e.target === vcMoveModal) closeMoveModal();
+      });
+
       vcAllTbody.addEventListener("click", (e) => {
         const t = e.target;
         if (!(t instanceof HTMLElement)) return;
         const posterBtn = t.closest(".vc-poster-btn");
         const titleBtn = t.closest(".vc-title-btn");
+        const moveBtn = t.closest(".vc-move-btn");
         const delBtn = t.closest(".vc-del-btn");
         if (titleBtn) {
           const version = titleBtn.getAttribute("data-version") || "";
@@ -1260,6 +1450,28 @@
           const bookCn =
             books.find((b) => b.bookId === bookId)?.bookCn || bookId;
           openTitleEditModal({
+            version,
+            lang,
+            bookId,
+            bookCn,
+            chapter,
+            id,
+            title: rawTitle,
+          });
+          return;
+        }
+        if (moveBtn) {
+          const version = moveBtn.getAttribute("data-version") || "";
+          const lang = moveBtn.getAttribute("data-lang") || "";
+          const bookId = moveBtn.getAttribute("data-book") || "";
+          const chapter = Number(moveBtn.getAttribute("data-chapter") || 0);
+          const id = moveBtn.getAttribute("data-id") || "";
+          const rawTitle = decodeTitleAttr(
+            moveBtn.getAttribute("data-title-b64") || ""
+          );
+          const bookCn =
+            books.find((b) => b.bookId === bookId)?.bookCn || bookId;
+          openMoveModal({
             version,
             lang,
             bookId,
@@ -1383,6 +1595,7 @@
           bookSel.appendChild(opt);
         });
 
+        syncVcMoveBookOptions();
         fillChapters();
         appEl.hidden = false;
 

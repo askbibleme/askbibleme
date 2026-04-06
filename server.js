@@ -3755,6 +3755,51 @@ function moveUploadedFileToFinal(src, dest) {
   }
 }
 
+function assertValidPublishedBookChapter(bookId, chapter) {
+  const bm = getBookById(bookId);
+  if (!bm) return "无效书卷";
+  const n = Number(bm.chapters);
+  const ch = Number(chapter);
+  if (!Number.isFinite(ch) || ch < 0 || !Number.isInteger(ch)) {
+    return "无效章节";
+  }
+  if (n === 0) {
+    if (ch !== 0) return "该卷仅有卷首页（章 0）";
+    return null;
+  }
+  if (ch > n) return `章节不能超过 ${n}`;
+  return null;
+}
+
+function moveChapterVideoPosterFilesBetweenDirs(fromDir, toDir, id) {
+  const base = String(id).toLowerCase();
+  const prefix = `${base}.poster.`;
+  let names;
+  try {
+    names = fs.readdirSync(fromDir);
+  } catch {
+    return;
+  }
+  fs.mkdirSync(toDir, { recursive: true });
+  for (const name of names) {
+    if (!name.startsWith(prefix)) continue;
+    const fp = path.join(fromDir, name);
+    const tp = path.join(toDir, name);
+    try {
+      if (fs.existsSync(tp)) {
+        try {
+          fs.unlinkSync(tp);
+        } catch {
+          /* ignore */
+        }
+      }
+      moveUploadedFileToFinal(fp, tp);
+    } catch {
+      /* ignore single file */
+    }
+  }
+}
+
 function chapterVideoPosterApiPath(versionId, lang, bookId, chapter, id) {
   const q = new URLSearchParams({
     version: safeText(versionId),
@@ -6741,6 +6786,160 @@ function handleChapterVideoPatchTitle(req, res) {
 
 app.patch("/api/admin/published/chapter-video", handleChapterVideoPatchTitle);
 app.patch("/api/admin/chapter-video", handleChapterVideoPatchTitle);
+
+function handleChapterVideoMovePost(req, res) {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const versionId = safeText(req.body?.version || "");
+    const lang = safeText(req.body?.lang || "");
+    const fromBookId = safeText(req.body?.fromBookId || "");
+    const fromChapter = parseNonNegativeChapterInt(req.body?.fromChapter);
+    const id = safeText(req.body?.id || "");
+    const toBookId = safeText(req.body?.toBookId || "");
+    const toChapter = parseNonNegativeChapterInt(req.body?.toChapter);
+    const rawInsert = req.body?.insertIndex;
+    let insertIndex = null;
+    if (rawInsert != null && String(rawInsert).trim() !== "") {
+      const n = Number(rawInsert);
+      if (Number.isFinite(n) && Number.isInteger(n) && n >= 1) {
+        insertIndex = n - 1;
+      }
+    }
+    if (!versionId || !lang || !fromBookId || !toBookId || !id) {
+      return res.status(400).json({ error: "缺少 version / lang / fromBookId / toBookId / id" });
+    }
+    if (fromChapter === null || toChapter === null) {
+      return res.status(400).json({ error: "缺少 fromChapter / toChapter" });
+    }
+    if (!isSafeChapterVideoId(id)) {
+      return res.status(400).json({ error: "无效的视频 id" });
+    }
+    const errFrom = assertValidPublishedBookChapter(fromBookId, fromChapter);
+    if (errFrom) return res.status(400).json({ error: errFrom });
+    const errTo = assertValidPublishedBookChapter(toBookId, toChapter);
+    if (errTo) return res.status(400).json({ error: errTo });
+    if (fromBookId === toBookId && fromChapter === toChapter) {
+      return res.status(400).json({ error: "目标与当前位置相同" });
+    }
+    const fromPath = getPublishedContentFilePath({
+      versionId,
+      lang,
+      bookId: fromBookId,
+      chapter: fromChapter,
+    });
+    const fromData = readJson(fromPath, null);
+    if (!fromData || typeof fromData !== "object") {
+      return res.status(404).json({ error: "来源章节未找到已发布 JSON" });
+    }
+    const fromVideos = normalizeChapterVideosForSave(fromData.chapterVideos);
+    const vIdx = fromVideos.findIndex(
+      (v) => String(v.id).toLowerCase() === id.toLowerCase()
+    );
+    if (vIdx < 0) {
+      return res.status(404).json({ error: "来源列表中无此视频" });
+    }
+    const entry = { ...fromVideos[vIdx] };
+    let toPath = getPublishedContentFilePath({
+      versionId,
+      lang,
+      bookId: toBookId,
+      chapter: toChapter,
+    });
+    let toData = readJson(toPath, null);
+    if ((!toData || typeof toData !== "object") && toChapter === 0) {
+      toData = ensurePublishedJsonForBookLandingVideos(versionId, lang, toBookId);
+      toPath = getPublishedContentFilePath({
+        versionId,
+        lang,
+        bookId: toBookId,
+        chapter: toChapter,
+      });
+    }
+    if (!toData || typeof toData !== "object") {
+      return res.status(400).json({
+        error:
+          "目标章节尚无已发布查经 JSON，请先在后台生成并发布该章，或选择卷首页（章 0）",
+      });
+    }
+    const toVideos = normalizeChapterVideosForSave(toData.chapterVideos);
+    if (toVideos.some((v) => String(v.id).toLowerCase() === id.toLowerCase())) {
+      return res.status(400).json({ error: "目标位置已存在相同 id 的视频" });
+    }
+    if (toVideos.length >= MAX_CHAPTER_VIDEOS_PER_CHAPTER) {
+      return res.status(400).json({
+        error: `目标章节视频已达上限（${MAX_CHAPTER_VIDEOS_PER_CHAPTER}），请先删除或迁出`,
+      });
+    }
+    const hit = resolveChapterVideoFilePath(
+      versionId,
+      lang,
+      fromBookId,
+      fromChapter,
+      id
+    );
+    if (!hit) {
+      return res.status(404).json({ error: "未找到视频文件（磁盘）" });
+    }
+    const fromVDir = getChapterVideosDir(versionId, lang, fromBookId, fromChapter);
+    const toVDir = getChapterVideosDir(versionId, lang, toBookId, toChapter);
+    fs.mkdirSync(toVDir, { recursive: true });
+    const destVideoPath = path.join(
+      toVDir,
+      `${String(id).toLowerCase()}.${hit.ext}`
+    );
+    if (fs.existsSync(destVideoPath)) {
+      return res.status(400).json({ error: "目标目录已有同名视频文件" });
+    }
+    moveUploadedFileToFinal(hit.filePath, destVideoPath);
+    moveChapterVideoPosterFilesBetweenDirs(fromVDir, toVDir, id);
+    const posterUrl = chapterVideoPosterApiPath(
+      versionId,
+      lang,
+      toBookId,
+      toChapter,
+      id
+    );
+    const nextEntry = {
+      ...entry,
+      posterUrl,
+      posterUpdatedAt: entry.posterUpdatedAt || nowIso(),
+      updatedAt: nowIso(),
+    };
+    const fromNext = fromVideos.filter((_, i) => i !== vIdx);
+    const toNext = toVideos.slice();
+    if (insertIndex == null || insertIndex < 0) {
+      toNext.push(nextEntry);
+    } else {
+      const pos = Math.min(insertIndex, toNext.length);
+      toNext.splice(pos, 0, nextEntry);
+    }
+    writeJson(fromPath, { ...fromData, chapterVideos: fromNext });
+    writeJson(toPath, { ...toData, chapterVideos: toNext });
+    invalidateStudyContentCache(versionId, lang, fromBookId, fromChapter);
+    invalidateStudyContentCache(versionId, lang, toBookId, toChapter);
+    appendAdminAudit(req, authed, "chapter_video_move", {
+      versionId,
+      lang,
+      fromBookId,
+      fromChapter,
+      toBookId,
+      toChapter,
+      videoId: id,
+    });
+    res.json({
+      ok: true,
+      fromChapterVideos: fromNext,
+      toChapterVideos: toNext,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "迁移失败" });
+  }
+}
+
+app.post("/api/admin/published/chapter-video-move", handleChapterVideoMovePost);
+app.post("/api/admin/chapter-video/move", handleChapterVideoMovePost);
 
 function chapterVideoPosterMulterMiddleware(req, res, next) {
   chapterVideoPosterMulter.single("poster")(req, res, (err) => {
