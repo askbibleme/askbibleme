@@ -395,11 +395,12 @@
       }
       .ct-preview-var-root .pv-promo-bq {
         margin: 6px 0 0;
-        padding-left: var(--promo-blockquote-padding-left);
+        padding: var(--promo-blockquote-padding);
         border-left: var(--promo-blockquote-border-width) solid var(--promo-blockquote-border);
         font-size: var(--promo-blockquote-font-size);
         line-height: var(--promo-blockquote-line-height);
         color: var(--promo-blockquote-text);
+        background: var(--promo-blockquote-bg);
       }
       .ct-preview-var-root .pv-row-actions {
         display: flex;
@@ -1237,11 +1238,12 @@
       }
       .ct-live-bq {
         margin: 0;
-        padding-left: var(--promo-blockquote-padding-left);
+        padding: var(--promo-blockquote-padding);
         border-left: var(--promo-blockquote-border-width) solid var(--promo-blockquote-border);
         font-size: var(--promo-blockquote-font-size);
         line-height: var(--promo-blockquote-line-height);
         color: var(--promo-blockquote-text);
+        background: var(--promo-blockquote-bg);
       }
       .ct-live-seg {
         padding: 14px 16px;
@@ -1615,22 +1617,32 @@
             "--promo-shell-max-width",
             "--promo-pad-x",
             "--promo-text-max-width",
+            "--promo-md-surface-bg",
+            "--promo-md-root-padding",
+            "--promo-md-root-padding-sm",
             "--promo-font-body",
             "--promo-font-heading",
             "--promo-md-font-size",
             "--promo-md-line-height",
+            "--promo-md-letter-spacing",
             "--promo-md-text",
+            "--promo-md-text-soft",
             "--promo-md-link-color",
+            "--promo-md-link-hover-color",
+            "--promo-md-link-underline-color",
+            "--promo-md-link-underline-hover-color",
             "--promo-md-hr-border",
             "--promo-p-margin-bottom",
             "--promo-h1-font-size",
             "--promo-h1-font-weight",
             "--promo-h1-line-height",
+            "--promo-h1-letter-spacing",
             "--promo-h1-margin-bottom",
             "--promo-h1-color",
             "--promo-h2-font-size",
             "--promo-h2-font-weight",
             "--promo-h2-line-height",
+            "--promo-h2-letter-spacing",
             "--promo-h2-margin-top",
             "--promo-h2-margin-bottom",
             "--promo-h2-color",
@@ -1651,13 +1663,18 @@
             "--promo-blockquote-font-size",
             "--promo-blockquote-line-height",
             "--promo-blockquote-border-width",
-            "--promo-blockquote-padding-left",
+            "--promo-blockquote-padding",
             "--promo-blockquote-margin-vertical",
             "--promo-blockquote-border",
             "--promo-blockquote-text",
+            "--promo-blockquote-bg",
             "--promo-hr-margin-vertical",
             "--promo-code-bg",
             "--promo-pre-bg",
+            "--promo-pre-text-color",
+            "--promo-pre-padding",
+            "--promo-pre-margin",
+            "--promo-pre-border-radius",
             "--promo-strong-font-weight",
           ],
         },
@@ -1666,7 +1683,7 @@
       const VAR_LABELS = {
         "--bg": "主背景",
         "--paper": "主纸色",
-        "--book-spread-paper-gradient": "书页渐变",
+        "--book-spread-paper-gradient": "书页底色（可用纯色或渐变）",
         "--paper-soft": "柔和纸色",
         "--paper-edge": "纸边色",
         "--ink": "正文色",
@@ -1710,26 +1727,36 @@
         "--ui-seg-pill-bg": "滑块背景",
         "--ui-seg-pill-shadow": "滑块阴影",
         "--ui-seg-hover-fill": "悬停填充",
-        "--promo-left-page-paper": "文章模板 · 宣传页单卡纸面渐变（整段 linear-gradient…）",
+        "--promo-left-page-paper": "文章模板 · 宣传页单卡纸面色（纯色或 linear-gradient…）",
         "--promo-shell-max-width": "文章模板 · 整卡（含顶栏对齐）最大宽度",
         "--promo-pad-x": "文章模板 · 书页左右内边距",
         "--promo-text-max-width": "文章模板 · 正文阅读列最大宽度",
+        "--promo-md-surface-bg": "文章模板 · Markdown 区背景色",
+        "--promo-md-root-padding": "文章模板 · Markdown 区内边距（如 56px 40px 72px）",
+        "--promo-md-root-padding-sm": "文章模板 · Markdown 区小屏内边距",
         "--promo-font-body": "文章模板 · 正文 font-family（inherit 或字体栈）",
         "--promo-font-heading": "文章模板 · 标题 font-family（空则用正文）",
         "--promo-md-font-size": "文章模板 · 正文字号",
         "--promo-md-line-height": "文章模板 · 正文行高（倍数或带单位）",
-        "--promo-md-text": "文章模板 · 正文主字色",
-        "--promo-md-link-color": "文章模板 · 正文内链接色",
+        "--promo-md-letter-spacing": "文章模板 · Markdown 区字间距",
+        "--promo-md-text": "文章模板 · 标题 / 主强调字色",
+        "--promo-md-text-soft": "文章模板 · 正文段落与列表字色",
+        "--promo-md-link-color": "文章模板 · 链接字色",
+        "--promo-md-link-hover-color": "文章模板 · 链接悬停字色",
+        "--promo-md-link-underline-color": "文章模板 · 链接下划线颜色（含透明度）",
+        "--promo-md-link-underline-hover-color": "文章模板 · 链接悬停下划线颜色",
         "--promo-md-hr-border": "文章模板 · 分割线（整条 border-top，如 1px solid …）",
         "--promo-p-margin-bottom": "文章模板 · 段落下边距",
         "--promo-h1-font-size": "文章模板 · h1 字号",
         "--promo-h1-font-weight": "文章模板 · h1 字重",
         "--promo-h1-line-height": "文章模板 · h1 行高",
+        "--promo-h1-letter-spacing": "文章模板 · h1 字间距",
         "--promo-h1-margin-bottom": "文章模板 · h1 下边距",
         "--promo-h1-color": "文章模板 · h1 字色",
         "--promo-h2-font-size": "文章模板 · h2 字号",
         "--promo-h2-font-weight": "文章模板 · h2 字重",
         "--promo-h2-line-height": "文章模板 · h2 行高",
+        "--promo-h2-letter-spacing": "文章模板 · h2 字间距",
         "--promo-h2-margin-top": "文章模板 · h2 上边距",
         "--promo-h2-margin-bottom": "文章模板 · h2 下边距",
         "--promo-h2-color": "文章模板 · h2 字色",
@@ -1750,13 +1777,18 @@
         "--promo-blockquote-font-size": "文章模板 · 引用块字号",
         "--promo-blockquote-line-height": "文章模板 · 引用块行高",
         "--promo-blockquote-border-width": "文章模板 · 引用左侧竖线宽度",
-        "--promo-blockquote-padding-left": "文章模板 · 引用块左内边距（文字离竖线）",
+        "--promo-blockquote-padding": "文章模板 · 引用块内边距（如 14px 0 14px 20px）",
         "--promo-blockquote-margin-vertical": "文章模板 · 引用块上下外边距",
         "--promo-blockquote-border": "文章模板 · 引用竖线颜色",
         "--promo-blockquote-text": "文章模板 · 引用块字色",
+        "--promo-blockquote-bg": "文章模板 · 引用块背景色",
         "--promo-hr-margin-vertical": "文章模板 · 分割线上下留白",
         "--promo-code-bg": "文章模板 · 行内 code 背景",
         "--promo-pre-bg": "文章模板 · 代码块 pre 背景",
+        "--promo-pre-text-color": "文章模板 · 代码块 pre 字色",
+        "--promo-pre-padding": "文章模板 · 代码块 pre 内边距",
+        "--promo-pre-margin": "文章模板 · 代码块 pre 外边距",
+        "--promo-pre-border-radius": "文章模板 · 代码块 pre 圆角",
         "--promo-strong-font-weight": "文章模板 · strong 字重",
       };
 
@@ -2221,7 +2253,7 @@
 
       function getVariableVisualMode(key) {
         if (
-          /--promo-shell-max-width|--promo-pad-x|--promo-text-max-width|--promo-font-body|--promo-font-heading|--promo-md-font-size|--promo-md-line-height|--promo-md-hr-border|--promo-p-margin-bottom|--promo-h[123]-font-size|--promo-h[123]-font-weight|--promo-h[123]-line-height|--promo-h[123]-margin-(top|bottom)|--promo-list-margin-|--promo-li-margin-bottom|--promo-blockquote-font-size|--promo-blockquote-line-height|--promo-blockquote-border-width|--promo-blockquote-padding-left|--promo-blockquote-margin-vertical|--promo-hr-margin-vertical|--promo-kicker-font-size|--promo-kicker-letter-spacing|--promo-code-bg|--promo-pre-bg|--promo-strong-font-weight|--promo-left-page-paper/i.test(
+          /--promo-shell-max-width|--promo-pad-x|--promo-text-max-width|--promo-md-root-padding|--promo-md-root-padding-sm|--promo-font-body|--promo-font-heading|--promo-md-font-size|--promo-md-line-height|--promo-md-letter-spacing|--promo-md-hr-border|--promo-p-margin-bottom|--promo-h[123]-font-size|--promo-h[123]-font-weight|--promo-h[123]-line-height|--promo-h[123]-letter-spacing|--promo-h[123]-margin-(top|bottom)|--promo-list-margin-|--promo-li-margin-bottom|--promo-blockquote-font-size|--promo-blockquote-line-height|--promo-blockquote-border-width|--promo-blockquote-padding|--promo-blockquote-margin-vertical|--promo-hr-margin-vertical|--promo-kicker-font-size|--promo-kicker-letter-spacing|--promo-code-bg|--promo-pre-bg|--promo-pre-padding|--promo-pre-margin|--promo-pre-border-radius|--promo-strong-font-weight|--promo-left-page-paper/i.test(
             key
           )
         ) {
@@ -3135,7 +3167,8 @@
             "--promo-blockquote-text",
             "--promo-blockquote-border",
             "--promo-blockquote-border-width",
-            "--promo-blockquote-padding-left",
+            "--promo-blockquote-padding",
+            "--promo-blockquote-bg",
             "--promo-blockquote-margin-vertical",
             "--promo-blockquote-font-size",
             "--promo-blockquote-line-height",
@@ -3205,10 +3238,15 @@
             "--promo-blockquote-font-size",
             "--promo-blockquote-line-height",
             "--promo-blockquote-border-width",
-            "--promo-blockquote-padding-left",
+            "--promo-blockquote-padding",
+            "--promo-blockquote-bg",
             "--promo-blockquote-margin-vertical",
             "--promo-code-bg",
             "--promo-pre-bg",
+            "--promo-pre-text-color",
+            "--promo-pre-padding",
+            "--promo-pre-margin",
+            "--promo-pre-border-radius",
           ],
           inner
         );

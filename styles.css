@@ -1,31 +1,12 @@
 :root {
   --bg: #2c2824;
   --paper: #fffdf8;
-  /* 读经 .book-spread 纸色横纹：大屏 / 小屏共用，改一处即同步 */
-  --book-spread-paper-gradient: linear-gradient(
-    90deg,
-    #faf6ee 0%,
-    #fffdf8 47%,
-    #f3ebe0 50%,
-    #fffdf8 53%,
-    #faf6ee 100%
-  );
-  /* 弹层用纸：与单栏 .book-spread 一致，整卡≈左半页（横纹拉宽 200%，书脊在右缘） */
-  --modal-half-book-paper-image: linear-gradient(
-      to right,
-      rgba(120, 96, 63, 0.12),
-      rgba(120, 96, 63, 0.04),
-      transparent 100%
-    ),
-    linear-gradient(
-      to left,
-      rgba(120, 96, 63, 0.12),
-      rgba(120, 96, 63, 0.04),
-      transparent 100%
-    ),
-    var(--book-spread-paper-gradient);
-  --modal-half-book-paper-size: 24px 100%, 24px 100%, 200% 100%;
-  --modal-half-book-paper-position: left top, right top, left center;
+  /* 读经 .book-spread 纸色：纯色（与 --paper 一致），无横纹 / 渐变 */
+  --book-spread-paper-gradient: var(--paper);
+  /* 弹层 / 登录框：与书页同色块，无叠层渐变 */
+  --modal-half-book-paper-image: none;
+  --modal-half-book-paper-size: auto;
+  --modal-half-book-paper-position: center;
   --paper-soft: #f8f2e8;
   --paper-edge: #eadcc8;
   --ink: #2d2925;
@@ -104,12 +85,7 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;
-  background: radial-gradient(
-    circle at top,
-    #5d564d 0%,
-    #423c35 40%,
-    #2d2925 100%
-  );
+  background: var(--bg);
   color: var(--ink);
 }
 
@@ -1734,38 +1710,11 @@ html.askbible-topbar-fixed .page-shell {
 }
 
 .book-layout::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 26px;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.1),
-    transparent 12%,
-    transparent 88%,
-    rgba(82, 63, 40, 0.018)
-  );
-  z-index: 0;
+  display: none;
 }
 
 .book-layout::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 80px;
-  border-top-right-radius: 26px;
-  border-bottom-right-radius: 26px;
-  background: linear-gradient(
-    to left,
-    rgba(0, 0, 0, 0.1),
-    rgba(0, 0, 0, 0.03),
-    transparent
-  );
-  pointer-events: none;
-  z-index: 1;
+  display: none;
 }
 
 .book-spread {
@@ -1774,7 +1723,7 @@ html.askbible-topbar-fixed .page-shell {
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: calc(100vh - 120px);
-  /* 大屏双栏：纸色横纹（与小屏同一变量） */
+  /* 大屏双栏：纯色纸底（与小屏、--paper 一致） */
   background: var(--book-spread-paper-gradient);
   border-radius: 26px;
   /* 左页丝带需向左探出书页内边距，hidden 会裁切；背景仍随圆角绘制 */
@@ -2368,7 +2317,7 @@ html.askbible-topbar-fixed .page-shell {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   min-height: calc(100vh - 140px);
-  background: linear-gradient(90deg, #f3e6d0 0%, #fffdf8 100%);
+  background: var(--paper);
   border-radius: 26px;
   overflow: hidden;
 }
@@ -5554,27 +5503,11 @@ a.admin-modal-hub-link.primary-btn {
     padding-top: 16px;
   }
 
-  /* 单栏：与大屏同一套纸色底纹（.book-spread 90deg 渐变）+ 同大屏左页书口晕叠在两侧 */
+  /* 单栏：与大屏同一纯色纸底 */
   .book-spread {
     grid-template-columns: 1fr;
-    background-color: var(--paper);
-    background-image: linear-gradient(
-        to right,
-        rgba(120, 96, 63, 0.14),
-        rgba(120, 96, 63, 0.05),
-        transparent 100%
-      ),
-      linear-gradient(
-        to left,
-        rgba(120, 96, 63, 0.14),
-        rgba(120, 96, 63, 0.05),
-        transparent 100%
-      ),
-      var(--book-spread-paper-gradient);
-    /* 横纹宽 200% 且左对齐：原 50% 书脊落在视口右缘，整屏≈大屏左半页 */
-    background-size: 28px 100%, 28px 100%, 200% 100%;
-    background-position: left top, right top, left center;
-    background-repeat: no-repeat, no-repeat, no-repeat;
+    background: var(--paper);
+    background-image: none;
     isolation: isolate;
     transform: translateZ(0);
   }

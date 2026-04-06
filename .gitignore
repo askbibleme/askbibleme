@@ -7,3 +7,12 @@ admin_data/system_secrets.json
 
 # 本地打的升级包（勿提交）
 deploy-builds/
+
+node_modules/
+
+# 本地账号 / 统计库与部署上传缓存（勿提交）
+admin_data/*.sqlite
+admin_data/*.sqlite-shm
+admin_data/*.sqlite-wal
+admin_data/auth.db
+admin_data/deploy/uploads/

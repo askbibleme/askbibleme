@@ -944,9 +944,9 @@ function getDefaultSiteChrome() {
       /** 为 true 时全站顶栏 position:sticky 吸顶，正文从下方滑过 */
       topbarSticky: false,
       navLinks: [
-        { href: "/", label: "读经" },
-        { href: "/promo.html", label: "介绍" },
-        { href: "/#openMemberHub", label: "会员" },
+        { href: "/", label: "读经", icon: "home", iconOnly: true },
+        { href: "/promo.html", label: "介绍", icon: "doc", iconOnly: true },
+        { href: "/#openMemberHub", label: "会员", icon: "user", iconOnly: true },
       ],
     },
     footer: {
@@ -1091,8 +1091,18 @@ function readNavLinkIconOnlyFlag(x) {
   return normalizeSiteChromeNavIconOnly(v);
 }
 
+/** 磁盘上旧数据只有 href/label 时，按 href 用默认顶栏补 icon / iconOnly，避免线上一直显示纯文字 */
+function navLinkHasExplicitIconOnly(x) {
+  if (!x || typeof x !== "object") return false;
+  return Object.prototype.hasOwnProperty.call(x, "iconOnly") ||
+    Object.prototype.hasOwnProperty.call(x, "icon_only");
+}
+
 function normalizeSiteChromeNavLinks(rawList, fallback) {
   const base = fallback || getDefaultSiteChrome().topbar.navLinks;
+  const defByHref = new Map(
+    base.map((l) => [String(l.href || "").trim(), l])
+  );
   const row = (b) => {
     const icon = normalizeSiteChromeNavIcon(b?.icon);
     const iconOnly = readNavLinkIconOnlyFlag(b) && icon !== "";
@@ -1108,10 +1118,27 @@ function normalizeSiteChromeNavLinks(rawList, fallback) {
   const out = rawList
     .slice(0, SITE_CHROME_MAX_NAV)
     .map((x) => {
-      const icon = normalizeSiteChromeNavIcon(x?.icon);
-      const iconOnly = readNavLinkIconOnlyFlag(x) && icon !== "";
+      const href = isSafeSiteChromeHref(x?.href) ? String(x.href).trim() : "";
+      const defRow = href ? defByHref.get(href) : undefined;
+      const hasExplicitIcon =
+        x &&
+        typeof x === "object" &&
+        x.icon != null &&
+        String(x.icon).trim() !== "";
+      const iconSource = hasExplicitIcon ? x.icon : defRow?.icon;
+      const icon = normalizeSiteChromeNavIcon(iconSource);
+      const iconOnlySource = navLinkHasExplicitIconOnly(x)
+        ? x.iconOnly != null
+          ? x.iconOnly
+          : x.icon_only
+        : defRow != null
+          ? defRow.iconOnly != null
+            ? defRow.iconOnly
+            : defRow.icon_only
+          : false;
+      const iconOnly = normalizeSiteChromeNavIconOnly(iconOnlySource) && icon !== "";
       return {
-        href: isSafeSiteChromeHref(x?.href) ? String(x.href).trim() : "",
+        href,
         label: safeText(x?.label || "").slice(0, 80),
         icon,
         iconOnly,
@@ -2379,6 +2406,16 @@ function walkFiles(baseDir) {
   return out;
 }
 
+function normalizeDeployPackageKind(kind) {
+  const k = safeText(kind || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+  if (k === "full") return "full";
+  if (k === "full-slim") return "full-slim";
+  return "upgrade";
+}
+
 function shouldSkipPackageRelPath(rel, kind = "upgrade") {
   const normalized = String(rel || "").replaceAll("\\", "/");
   if (!normalized) return true;
@@ -2387,6 +2424,27 @@ function shouldSkipPackageRelPath(rel, kind = "upgrade") {
   /* 部署包永不打入密钥与本地环境（避免 zip 外流或误传仓库） */
   if (normalized === "admin_data/system_secrets.json") return true;
   if (normalized === ".env" || normalized.startsWith(".env.")) return true;
+  /** 整站精简包：不含已发布经文 JSON、源码圣经数据、任务生成目录与登录/统计库 */
+  if (kind === "full-slim") {
+    const slimSkips = [
+      "content_published/",
+      "content_builds/",
+      "data/",
+      "admin_data/jobs/",
+      "deploy-builds/",
+      "admin_data/deploy/",
+    ];
+    if (slimSkips.some((p) => normalized.startsWith(p))) return true;
+    if (
+      normalized.startsWith("admin_data/auth.sqlite") ||
+      normalized.startsWith("admin_data/analytics.sqlite")
+    ) {
+      return true;
+    }
+    if (normalized === "admin_data/auth.db" || normalized.startsWith("admin_data/auth/")) {
+      return true;
+    }
+  }
   if (kind === "upgrade") {
     const upgradeSkips = [
       "admin_data/deploy/",
@@ -2403,7 +2461,7 @@ function shouldSkipPackageRelPath(rel, kind = "upgrade") {
 }
 
 function buildPackageZip({ kind, version }) {
-  const safeKind = kind === "full" ? "full" : "upgrade";
+  const safeKind = normalizeDeployPackageKind(kind);
   const safeVersion =
     safeText(version || "").replace(/[^\w.-]+/g, "_") || `v${Date.now()}`;
   const packageId = `pkg_${safeKind}_${Date.now()}_${Math.random()
@@ -7440,8 +7498,7 @@ app.get("/api/admin/deploy/package-command", (req, res) => {
   try {
     const authed = requirePermission(req, res, "manage_deploy");
     if (!authed) return;
-    const kind = safeText(req.query.kind || "upgrade");
-    const safeKind = kind === "full" ? "full" : "upgrade";
+    const safeKind = normalizeDeployPackageKind(req.query.kind);
     const suggestedVersion = safeText(req.query.version || "") || `v${Date.now()}`;
     const packageName = `askbible-${safeKind}-${suggestedVersion}.zip`;
     const excludes = [
@@ -7453,6 +7510,23 @@ app.get("/api/admin/deploy/package-command", (req, res) => {
       ".env",
       ".env.*",
     ];
+    if (safeKind === "full-slim") {
+      excludes.push(
+        "content_published/*",
+        "content_builds/*",
+        "data/*",
+        "admin_data/jobs/*",
+        "deploy-builds/*",
+        "admin_data/auth.sqlite",
+        "admin_data/auth.sqlite-shm",
+        "admin_data/auth.sqlite-wal",
+        "admin_data/analytics.sqlite",
+        "admin_data/analytics.sqlite-shm",
+        "admin_data/analytics.sqlite-wal",
+        "admin_data/auth.db",
+        "admin_data/auth/*"
+      );
+    }
     const cmd = `cd "${__dirname}" && zip -r "${packageName}" . ${excludes
       .map((x) => `-x "${x}"`)
       .join(" ")}`;

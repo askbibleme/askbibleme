@@ -5669,12 +5669,16 @@ function ensureDeployTabExists() {
         <div class="modal-actions">
           <button id="downloadUpgradePackageBtn" class="secondary-btn" type="button">下载升级包</button>
           <button id="downloadFullPackageBtn" class="secondary-btn" type="button">下载整站包</button>
+          <button id="downloadFullSlimPackageBtn" class="secondary-btn" type="button" title="不含 content_published、data、content_builds、jobs、SQLite 等">
+            下载整站精简包
+          </button>
         </div>
       </div>
     </div>
     <div class="modal-actions">
       <button id="generateUpgradeCmdBtn" class="secondary-btn" type="button">生成升级包命令</button>
       <button id="generateFullCmdBtn" class="secondary-btn" type="button">生成整站包命令</button>
+      <button id="generateFullSlimCmdBtn" class="secondary-btn" type="button">生成整站精简包命令</button>
       <button id="downloadChangedPackageBtn" class="primary-btn" type="button">按最近改动下载包</button>
     </div>
     <div id="deployPackageCommandBox" class="result-box">尚未生成打包命令。</div>
@@ -8390,8 +8394,10 @@ async function initDeployManagerTab() {
     "downloadUpgradePackageBtn"
   );
   const downloadFullPackageBtn = document.getElementById("downloadFullPackageBtn");
+  const downloadFullSlimPackageBtn = document.getElementById("downloadFullSlimPackageBtn");
   const generateUpgradeCmdBtn = document.getElementById("generateUpgradeCmdBtn");
   const generateFullCmdBtn = document.getElementById("generateFullCmdBtn");
+  const generateFullSlimCmdBtn = document.getElementById("generateFullSlimCmdBtn");
   const downloadChangedPackageBtn = document.getElementById(
     "downloadChangedPackageBtn"
   );
@@ -8629,12 +8635,24 @@ async function initDeployManagerTab() {
     }
   });
 
+  generateFullSlimCmdBtn?.addEventListener("click", async () => {
+    try {
+      await loadPackageCommand("full-slim");
+    } catch (error) {
+      if (commandBox) commandBox.textContent = error?.message || "生成命令失败";
+    }
+  });
+
   downloadUpgradePackageBtn?.addEventListener("click", () => {
     downloadPackage("upgrade");
   });
 
   downloadFullPackageBtn?.addEventListener("click", () => {
     downloadPackage("full");
+  });
+
+  downloadFullSlimPackageBtn?.addEventListener("click", () => {
+    downloadPackage("full-slim");
   });
 
   downloadChangedPackageBtn?.addEventListener("click", async () => {
