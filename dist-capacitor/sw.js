@@ -1,4 +1,4 @@
-const CACHE_NAME = "askbible-static-v36";
+const CACHE_NAME = "askbible-static-v38";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -10,7 +10,6 @@ const STATIC_ASSETS = [
   "/styles.css",
   "/promo.css",
   "/main.js",
-  "/pwa-install-hint.js",
   "/manifest.webmanifest",
   "/assets/icons/icon.svg",
   "/assets/icons/icon-maskable.svg",

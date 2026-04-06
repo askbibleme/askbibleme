@@ -1840,6 +1840,7 @@ async function init() {
     ensureScriptureCompareUI();
     initSelectors();
     initToolbarPanels();
+    initBookChapterNavDeepLink();
     initFavoritesPanelTabs();
     initVerseSearchOverlay();
     initChapterNav();
@@ -3184,6 +3185,77 @@ function initToolbarPanels() {
   document.addEventListener("keydown", toolbarSheetsEscHandler);
 }
 
+/** 顶栏导航：`/#openBookChapter` 打开书卷与章节面板（与工具栏「书卷」一致） */
+function initBookChapterNavDeepLink() {
+  const panel = document.getElementById("bookChapterPanel");
+  if (!panel) return;
+
+  window.openBookChapterPanel = () => {
+    toggleToolbarPanel("bookChapterPanel");
+  };
+
+  function tryConsumeBookChapterDeepLink() {
+    try {
+      const u = new URL(window.location.href);
+      if (u.hash !== "#openBookChapter") return;
+      u.hash = "";
+      history.replaceState({}, "", u.pathname + (u.search || ""));
+      queueMicrotask(() => {
+        if (typeof window.openBookChapterPanel === "function") {
+          window.openBookChapterPanel();
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+  tryConsumeBookChapterDeepLink();
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash !== "#openBookChapter") return;
+    try {
+      history.replaceState(
+        {},
+        "",
+        window.location.pathname + (window.location.search || "")
+      );
+    } catch {
+      /* ignore */
+    }
+    queueMicrotask(() => {
+      if (typeof window.openBookChapterPanel === "function") {
+        window.openBookChapterPanel();
+      }
+    });
+  });
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest?.("a[href]");
+      if (!a || !a.closest?.(".askbible-chrome-nav")) return;
+      let abs;
+      try {
+        abs = new URL(a.getAttribute("href") || "", window.location.href);
+      } catch {
+        return;
+      }
+      if (abs.hash !== "#openBookChapter") return;
+      if (
+        abs.pathname !== window.location.pathname ||
+        abs.search !== window.location.search
+      ) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      toggleToolbarPanel("bookChapterPanel");
+    },
+    true
+  );
+}
+
 /** 书卷 / 选版本 全屏卡片：Esc 关闭（搜经文打开时不抢） */
 function toolbarSheetsEscHandler(e) {
   if (e.key !== "Escape") return;
@@ -3584,6 +3656,34 @@ function initVerseSearchOverlay() {
   document.getElementById("verseSearchInput")?.addEventListener("input", () => {
     scheduleVerseSearch();
   });
+
+  /* 顶栏 <a href="/#openVerseSearch">：捕获阶段直接打开，避免部分环境下仅改 hash 不触发或浮层被顶栏压住看似无反应 */
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest?.("a[href]");
+      if (!a || !a.closest?.(".askbible-chrome-nav")) return;
+      let abs;
+      try {
+        abs = new URL(a.getAttribute("href") || "", window.location.href);
+      } catch {
+        return;
+      }
+      if (abs.hash !== "#openVerseSearch") return;
+      if (
+        abs.pathname !== window.location.pathname ||
+        abs.search !== window.location.search
+      ) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      openVerseSearchOverlay();
+    },
+    true
+  );
 }
 
 function markToolbarTriggerActive(panelId, active) {

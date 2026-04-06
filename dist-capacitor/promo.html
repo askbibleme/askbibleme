@@ -542,55 +542,6 @@
       </div>
     </div>
 
-    <div
-      id="addToHomeHint"
-      class="add-to-home-hint"
-      hidden
-      role="region"
-      aria-label="添加到主屏幕"
-    >
-      <div class="add-to-home-hint-inner">
-        <span class="add-to-home-hint-icon" aria-hidden="true">📱</span>
-        <p class="add-to-home-hint-text">将 AskBible 加到主屏幕，阅读更方便</p>
-        <div class="add-to-home-hint-actions">
-          <button
-            type="button"
-            id="addToHomeInstallBtn"
-            class="add-to-home-hint-btn add-to-home-hint-btn-primary"
-            hidden
-          >
-            安装
-          </button>
-          <button type="button" id="addToHomeHowBtn" class="add-to-home-hint-btn">
-            如何添加
-          </button>
-          <button type="button" id="addToHomeLaterBtn" class="add-to-home-hint-btn add-to-home-hint-btn-ghost">
-            稍后
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div
-      id="addToHomeHintModal"
-      class="modal-mask add-to-home-hint-modal"
-      hidden
-      aria-hidden="true"
-    >
-      <div
-        class="modal-card modal-card-sm add-to-home-hint-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="addToHomeHintTitle"
-      >
-        <h2 id="addToHomeHintTitle" class="add-to-home-hint-modal-title">添加到主屏幕</h2>
-        <div id="addToHomeHintSteps" class="add-to-home-hint-steps"></div>
-        <button type="button" id="addToHomeHintModalClose" class="primary-btn add-to-home-hint-modal-ok">
-          知道了
-        </button>
-      </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
     <script>
@@ -1048,7 +999,6 @@
   })();
 })();
     </script>
-    <script defer src="/pwa-install-hint.js"></script>
     <script type="module" src="/main.js"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>

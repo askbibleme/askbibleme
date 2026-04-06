@@ -33,7 +33,6 @@ const topFiles = [
   "promo.css",
   "vision.css",
   "main.js",
-  "pwa-install-hint.js",
   "manifest.webmanifest",
   "sw.js",
 ];

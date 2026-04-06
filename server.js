@@ -946,6 +946,13 @@ function getDefaultSiteChrome() {
       navLinks: [
         { href: "/", label: "读经", icon: "home", iconOnly: true },
         {
+          href: "/#openBookChapter",
+          label: "书卷",
+          ariaLabel: "选择书卷与章节",
+          icon: "book",
+          iconOnly: true,
+        },
+        {
           href: "/#openVerseSearch",
           label: "搜索",
           icon: "search",
