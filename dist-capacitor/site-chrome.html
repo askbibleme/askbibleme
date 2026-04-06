@@ -8,10 +8,10 @@
     <title>顶栏与底栏 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css?v=110" />
-    <link rel="stylesheet" href="/admin-shell.css?v=4" />
+    <link rel="stylesheet" href="/admin-shell.css?v=8" />
     <script src="/theme-apply.js?v=2"></script>
     <!-- 不用 defer：保证内联脚本执行前已注册 ASKBIBLE_CHROME_NAV_ICON_OPTIONS（顶栏图标下拉） -->
-    <script src="/site-chrome.js?v=14"></script>
+    <script src="/site-chrome.js?v=15"></script>
     <style>
       .sc-page {
         max-width: 920px;
@@ -220,47 +220,54 @@
         opacity: 0.48;
         cursor: not-allowed;
       }
-      .sc-nav-icon-grid {
+      .sc-nav-icon-select-row {
         display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
+        align-items: center;
+        gap: 10px;
         margin-top: 2px;
+        flex-wrap: wrap;
+        min-width: 0;
       }
-      .sc-nav-icon-choice {
+      .sc-nav-icon-preview {
         box-sizing: border-box;
         width: 38px;
         height: 38px;
-        padding: 0;
-        margin: 0;
+        flex-shrink: 0;
         border-radius: 10px;
         border: 1px solid var(--line);
         background: var(--paper);
-        color: var(--ink);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        color: var(--ink);
       }
-      .sc-nav-icon-choice:hover {
-        border-color: rgba(200, 155, 60, 0.55);
-        background: rgba(248, 241, 229, 0.65);
-      }
-      .sc-nav-icon-choice.is-selected {
-        border-color: rgba(200, 155, 60, 0.85);
-        box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.22);
-        background: rgba(255, 251, 242, 0.95);
-      }
-      .sc-nav-icon-choice .askbible-chrome-nav-pill-icon {
+      .sc-nav-icon-preview .askbible-chrome-nav-pill-icon {
         width: 20px;
         height: 20px;
         transform: none;
       }
-      .sc-nav-icon-choice-none {
+      .sc-nav-icon-preview-none {
         font-size: 16px;
         font-weight: 700;
         color: var(--muted);
         line-height: 1;
+      }
+      .sc-nav-icon-select {
+        flex: 1;
+        min-width: 0;
+        max-width: 280px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .sc-nav-icon-select:focus {
+        outline: 2px solid rgba(200, 155, 60, 0.55);
+        outline-offset: 2px;
       }
       .sc-nav-cell--icon-only .sc-nav-cell-label {
         margin-bottom: 2px;
@@ -323,9 +330,10 @@
           配置写入 <code>admin_data/site_chrome.json</code>，全站通过 <code>site-chrome.js</code> 统一渲染。LOGO 可用本站路径（如
           <code>/assets/icons/icon.svg</code>）或 https 地址。
         </p>
-        <p class="sc-hint" id="scAdminPageRev" data-sc-page-rev="2026-04-03" style="margin: -6px 0 14px; font-size: 12px">
-          本页修订 <code>2026-04-03</code>：导航行应含「顶栏 · 仅图标」复选框。若线上没有这一列，说明尚未部署当前仓库里的
-          <code>site-chrome.html</code>（与本地不一致），请上传该文件后强制刷新或无痕打开本页。
+        <p class="sc-hint" id="scAdminPageRev" data-sc-page-rev="2026-04-04" style="margin: -6px 0 14px; font-size: 12px">
+          本页修订 <code>2026-04-04</code>：导航「图标」为<strong>下拉菜单</strong>+左侧预览（不再是一整片图标按钮）。若你仍看到旧界面，多半是
+          <strong>Service Worker 缓存了旧 HTML</strong>：请在本站页面 → 开发者工具 → Application → Service Workers 点
+          <strong>Unregister</strong>，或「清空站点数据」后强制刷新；本地请确保用 <code>node server.js</code> 打开当前仓库而非旧目录。
         </p>
         <p id="scAuth" class="sc-auth" hidden></p>
 
@@ -415,7 +423,7 @@
             <button type="button" id="scNavAddBtn" class="secondary-btn">添加链接</button>
           </div>
           <p class="sc-hint">
-            每一项对应顶栏右侧一个深色圆角标签。左侧可拖动 <strong>⋮⋮</strong> 或按 <strong>↑↓</strong> 调整顺序。「图标」在网格中点选（图形即所选）；勾选 <strong>仅图标</strong> 后顶栏只显示图标（须先选图标，读屏仍朗读显示文字）。链接须以 <code>/</code> 或 <code>https://</code> 开头；最多 16 条。
+            每一项对应顶栏右侧一个深色圆角标签。左侧可拖动 <strong>⋮⋮</strong> 或按 <strong>↑↓</strong> 调整顺序。「图标」用<strong>下拉菜单</strong>选择（左侧小框为当前预览）；勾选 <strong>仅图标</strong> 后顶栏只显示图标（须先选图标，读屏仍朗读显示文字）。链接须以 <code>/</code> 或 <code>https://</code> 开头；最多 16 条。
             <strong>会员书签（「昵称的圣经」下拉菜单）</strong>本身不是普通超链接；若要在顶栏加一项同样效果，请填链接地址
             <code>/#openMemberHub</code>（进入读经首页并自动打开会员面板）。宣传页等同理可用
             <code>/promo.html#openMemberHub</code>。账户与登录相关请使用会员面板。
@@ -617,22 +625,38 @@
 
       function updateScNavRowIconSelection(row, iconId) {
         const hid = row.querySelector(".sc-nav-icon-value");
-        if (hid) hid.value = iconId;
-        const grid = row.querySelector(".sc-nav-icon-grid");
-        if (grid) {
-          grid.querySelectorAll(".sc-nav-icon-choice").forEach(function (b) {
-            b.classList.toggle("is-selected", b.getAttribute("data-icon") === iconId);
+        const sel = row.querySelector(".sc-nav-icon-select");
+        let id = iconId === undefined || iconId === null ? "" : String(iconId);
+        if (sel) {
+          const allowed = Array.from(sel.options).some(function (o) {
+            return o.value === id;
           });
+          if (!allowed) id = "";
+          sel.value = id;
         }
+        if (hid) hid.value = id;
+
+        const preview = row.querySelector(".sc-nav-icon-preview");
+        const htmlFn = typeof window.askBibleChromeNavIconHtml === "function" ? window.askBibleChromeNavIconHtml : null;
+        if (preview) {
+          if (!id) {
+            preview.innerHTML = '<span class="sc-nav-icon-preview-none" aria-hidden="true">—</span>';
+          } else if (htmlFn) {
+            preview.innerHTML = htmlFn(id);
+          } else {
+            preview.innerHTML = "";
+          }
+        }
+
         const cb = row.querySelector(".sc-nav-icon-only");
         const hidOnly = row.querySelector(".sc-nav-icon-only-value");
         if (cb) {
-          cb.disabled = !iconId;
-          if (!iconId) {
+          cb.disabled = !id;
+          if (!id) {
             cb.checked = false;
             if (hidOnly) hidOnly.value = "0";
           }
-        } else if (hidOnly && !iconId) {
+        } else if (hidOnly && !id) {
           hidOnly.value = "0";
         }
       }
@@ -709,28 +733,23 @@
         let want = normalizeScNavIconId(link?.icon);
         if (!allowed.has(want)) want = "";
         hid.value = want;
-        const grid = document.createElement("div");
-        grid.className = "sc-nav-icon-grid";
-        const htmlFn = typeof window.askBibleChromeNavIconHtml === "function" ? window.askBibleChromeNavIconHtml : null;
+        const wrap = document.createElement("div");
+        wrap.className = "sc-nav-icon-select-row";
+        const preview = document.createElement("span");
+        preview.className = "sc-nav-icon-preview";
+        preview.setAttribute("aria-hidden", "true");
+        const sel = document.createElement("select");
+        sel.className = "sc-nav-icon-select";
+        sel.setAttribute("aria-label", "导航项图标");
         iconOpts.forEach(function (o) {
-          const b = document.createElement("button");
-          b.type = "button";
-          b.className = "sc-nav-icon-choice";
-          b.setAttribute("data-icon", o.id);
-          b.setAttribute("title", o.id === "" ? "无" : o.labelZh || o.id);
-          b.setAttribute("aria-label", o.id === "" ? "无图标" : String(o.labelZh || o.id));
-          if (o.id === "") {
-            const sp = document.createElement("span");
-            sp.className = "sc-nav-icon-choice-none";
-            sp.textContent = "—";
-            b.appendChild(sp);
-          } else if (htmlFn) {
-            b.innerHTML = htmlFn(o.id);
-          }
-          if (want === o.id) b.classList.add("is-selected");
-          grid.appendChild(b);
+          const opt = document.createElement("option");
+          opt.value = o.id;
+          opt.textContent = o.id === "" ? "无图标" : String(o.labelZh || o.id);
+          sel.appendChild(opt);
         });
-        cellIcon.append(si, hid, grid);
+        sel.value = want;
+        wrap.append(preview, sel);
+        cellIcon.append(si, hid, wrap);
 
         const cellIconOnly = document.createElement("div");
         cellIconOnly.className = "sc-nav-cell sc-nav-cell--icon-only";
@@ -765,6 +784,7 @@
 
         row.append(meta, cellLabel, cellHref, cellIcon, cellIconOnly, rm);
         list.appendChild(row);
+        updateScNavRowIconSelection(row, want);
       }
 
       function renderNavRows(links) {
@@ -956,18 +976,18 @@
           if (after == null) list.appendChild(dragRow);
           else list.insertBefore(dragRow, after);
         });
+        list.addEventListener("change", function (e) {
+          const t = e.target;
+          if (!t || !t.classList || !t.classList.contains("sc-nav-icon-select")) return;
+          const row = t.closest("[data-sc-nav-row]");
+          if (row) updateScNavRowIconSelection(row, t.value || "");
+        });
         list.addEventListener("click", function (e) {
           const up = e.target.closest(".sc-nav-move-up");
           const down = e.target.closest(".sc-nav-move-down");
           if (up || down) {
             const row = (up || down).closest("[data-sc-nav-row]");
             if (row) moveScNavRow(row, up ? -1 : 1);
-            return;
-          }
-          const choice = e.target.closest(".sc-nav-icon-choice");
-          if (choice) {
-            const row = choice.closest("[data-sc-nav-row]");
-            if (row) updateScNavRowIconSelection(row, choice.getAttribute("data-icon") || "");
             return;
           }
           const btn = e.target.closest(".sc-nav-remove");

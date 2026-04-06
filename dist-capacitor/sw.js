@@ -1,4 +1,4 @@
-const CACHE_NAME = "askbible-static-v39";
+const CACHE_NAME = "askbible-static-v41";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -41,6 +41,16 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
   if (url.pathname.startsWith("/downloads/")) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  /* 管理后台与配置工具 HTML：勿 cache-first，否则内联脚本长期停留在旧版（如 site-chrome 图标 UI） */
+  if (
+    /\/(?:admin-hub|site-chrome|promo-edit|color-themes|chapter-illustration|article-studio|admin-analytics|seo-settings)\.html$/i.test(
+      url.pathname
+    )
+  ) {
     event.respondWith(fetch(req));
     return;
   }

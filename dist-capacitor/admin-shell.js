@@ -62,12 +62,18 @@
   aside.id = "adminShellAside";
   aside.setAttribute("aria-label", "管理后台导航");
 
-  const brand = document.createElement("a");
-  brand.className = "admin-shell-brand";
-  brand.href = "/admin-hub.html";
-  brand.innerHTML = "AskBible · <em>管理</em>";
+  const brandTitle = document.createElement("h1");
+  brandTitle.className = "admin-shell-brand-title";
 
-  aside.appendChild(brand);
+  const brand = document.createElement("a");
+  brand.className = "site-brand-link admin-shell-brand";
+  brand.href = "/";
+  brand.title = "AskBible.me 首页";
+  brand.innerHTML =
+    '<span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>';
+
+  brandTitle.appendChild(brand);
+  aside.appendChild(brandTitle);
 
   for (let g = 0; g < NAV_GROUPS.length; g++) {
     const group = NAV_GROUPS[g];

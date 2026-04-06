@@ -29,20 +29,34 @@ body.admin-shell-page {
   z-index: 210;
 }
 
-.admin-shell-brand {
-  display: block;
-  font-weight: 800;
-  font-size: calc(15px * var(--font-scale, 1));
-  color: var(--ink, #2c2824);
-  text-decoration: none;
+/* 与读经顶栏字标同结构（.brand-ask / .brand-bible / .brand-me）；侧栏浅色底，Ask/.me 用墨色以保证对比 */
+.admin-shell-brand-title {
   margin: 0 4px 14px;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  padding: 0;
+  font-family: var(--font-brand-logo, ui-sans-serif, system-ui, sans-serif);
+  font-size: calc(22px * var(--font-scale, 1));
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.4px;
 }
 
-.admin-shell-brand em {
-  font-style: normal;
-  color: #b8891c;
+.admin-shell-brand.site-brand-link {
+  display: inline-block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.admin-shell-brand.site-brand-link:hover .brand-bible {
+  filter: brightness(1.06);
+}
+
+.admin-shell-brand .brand-ask,
+.admin-shell-brand .brand-me {
+  color: var(--ink, #2c2824);
+}
+
+.admin-shell-brand .brand-bible {
+  color: var(--brand-bible, #ffb82e);
 }
 
 .admin-shell-nav-sub {
@@ -115,7 +129,7 @@ body.admin-shell-page {
   display: flex;
   flex-direction: column;
   position: relative;
-  background: var(--paper, #faf8f5);
+  background: #ffffff;
 }
 
 .admin-shell-mobile-bar {
@@ -160,6 +174,7 @@ body.admin-shell-page {
   min-height: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  background: #ffffff;
 }
 
 .admin-shell-backdrop {
@@ -207,19 +222,22 @@ body.admin-shell-page {
 }
 
 /* ========== 管理右侧主区通栏：铺满侧栏外可用宽度（与「管理首页」同一套边距节奏） ========== */
-.admin-shell-main-inner > .page-shell {
+/* body 前缀提高优先级，压过 styles.css 中 html.askbible-topbar-fixed .page-shell 的顶栏深色 */
+body.admin-shell-page .admin-shell-main-inner > .page-shell {
   max-width: none;
   width: 100%;
   margin: 0;
   box-sizing: border-box;
   padding: 14px 22px 22px;
+  background-color: #ffffff;
+  background-image: none;
 }
 
 .admin-shell-main-inner .admin-hub-inner {
-  max-width: none;
+  max-width: 800px;
   width: 100%;
-  margin: 0;
-  padding: 28px 22px 56px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
   box-sizing: border-box;
 }
 

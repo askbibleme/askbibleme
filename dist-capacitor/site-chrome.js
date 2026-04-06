@@ -540,13 +540,15 @@
     if (!omitDismissChrome) {
       applySublineDismissFromStorage(cfg);
     }
-    if (stickyOn) {
+    if (stickyOn && headers.length) {
       requestAnimationFrame(function () {
         bindFixedTopbarSpacer();
         syncFixedTopbarSpacer();
         setTimeout(syncFixedTopbarSpacer, 80);
         setTimeout(syncFixedTopbarSpacer, 350);
       });
+    } else {
+      unbindFixedTopbarSpacer();
     }
   }
 

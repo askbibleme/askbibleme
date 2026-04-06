@@ -292,6 +292,7 @@ body:has(
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  margin-top: 5px;
 }
 
 .site-topbar-link {

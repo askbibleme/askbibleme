@@ -234,7 +234,8 @@
 .promo-md-root.markdown-body {
   padding: var(--promo-md-root-padding, 56px 40px 72px);
   box-sizing: border-box;
-  background: var(--promo-md-surface-bg, #f7f5f1);
+  /* 与 .promo-book-spread 同一纸色，避免中间 Markdown 区与书卡外圈两截底色 */
+  background: var(--promo-left-page-paper, var(--paper));
   color: var(--promo-md-text, #2a2521);
   font-family: var(
     --promo-font-body,
@@ -358,7 +359,7 @@
   padding: var(--promo-blockquote-padding, 14px 0 14px 20px);
   border-left: var(--promo-blockquote-border-width, 4px) solid
     var(--promo-blockquote-border, #c8921e);
-  background: var(--promo-blockquote-bg, rgba(200, 146, 30, 0.06));
+  background: transparent;
   border-radius: 0;
   font-size: var(--promo-blockquote-font-size, 19px);
   line-height: var(--promo-blockquote-line-height, 1.85);
@@ -429,7 +430,7 @@
 }
 
 .promo-md-root th {
-  background: var(--promo-md-surface-bg, #f7f5f1);
+  background: transparent;
   font-weight: 600;
 }
 

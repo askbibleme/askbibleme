@@ -2740,8 +2740,9 @@ function requireQianfuzhangUser(req, res) {
 function sendAdminToolHtmlPage(req, res, absolutePath, _qianfuzhangOnly) {
   void _qianfuzhangOnly;
   void req;
-  /** 避免浏览器/CDN 长期缓存内联脚本，导致保存请求体缺字段（如 topbarSticky） */
-  res.set("Cache-Control", "private, no-store, must-revalidate");
+  /** 避免浏览器/CDN/SW 旁路缓存内联脚本，导致管理页 UI 与保存逻辑长期过期 */
+  res.set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0");
+  res.set("Pragma", "no-cache");
   res.sendFile(path.resolve(absolutePath), (err) => {
     if (err) {
       console.warn("[admin-tool-html]", err.message);

@@ -67,7 +67,7 @@ export const BUILTIN_COLOR_THEME_VARIABLES = {
     '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
   "--promo-font-heading":
     '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
-  "--promo-md-surface-bg": "#f7f5f1",
+  "--promo-md-surface-bg": "#fffdf8",
   "--promo-md-root-padding": "56px 40px 72px",
   "--promo-md-root-padding-sm": "40px 20px 48px",
   "--promo-md-font-size": "20px",
