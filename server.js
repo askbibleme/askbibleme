@@ -34,7 +34,14 @@ function isLoopbackBrowserOrigin(origin) {
   try {
     const u = new URL(origin);
     const h = (u.hostname || "").toLowerCase();
-    if (h !== "localhost" && h !== "127.0.0.1") return false;
+    if (
+      h !== "localhost" &&
+      h !== "127.0.0.1" &&
+      h !== "::1" &&
+      h !== "[::1]"
+    ) {
+      return false;
+    }
     if (u.protocol !== "http:" && u.protocol !== "https:") return false;
     return true;
   } catch {
@@ -42,9 +49,37 @@ function isLoopbackBrowserOrigin(origin) {
   }
 }
 
+/** 局域网 IPv4（与 listen 0.0.0.0 + 手机调试常见）：页面在 192.168.x.x:前端口、API 在 192.168.x.x:3000 时需 CORS */
+function isPrivateLanBrowserOrigin(origin) {
+  if (!origin || typeof origin !== "string") return false;
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const h = (u.hostname || "").toLowerCase();
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+    if (!m) return false;
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (![a, b, Number(m[3]), Number(m[4])].every((n) => n >= 0 && n <= 255))
+      return false;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function isDevCrossOriginBrowserOrigin(origin) {
+  return (
+    isLoopbackBrowserOrigin(origin) || isPrivateLanBrowserOrigin(origin)
+  );
+}
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (isLoopbackBrowserOrigin(origin)) {
+  if (isDevCrossOriginBrowserOrigin(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.append("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -106,6 +141,9 @@ const RULES_DIR = path.join(ADMIN_DIR, "rules");
 const JOBS_DIR = path.join(ADMIN_DIR, "jobs");
 const CONTENT_BUILDS_DIR = path.join(DATA_ROOT, "content_builds");
 const CONTENT_PUBLISHED_DIR = path.join(DATA_ROOT, "content_published");
+const CHAPTER_VIDEOS_DIR = path.join(DATA_ROOT, "chapter_videos");
+const CHAPTER_VIDEO_UPLOAD_TMP = path.join(CHAPTER_VIDEOS_DIR, "_upload_tmp");
+const MAX_CHAPTER_VIDEOS_PER_CHAPTER = 20;
 
 const LANGUAGES_FILE = path.join(ADMIN_DIR, "languages.json");
 const SCRIPTURE_VERSIONS_FILE = path.join(ADMIN_DIR, "scripture_versions.json");
@@ -117,6 +155,8 @@ const PROMO_PAGE_FILE = path.join(ADMIN_DIR, "promo_page.json");
 const PROMO_PAGE_BOOTSTRAP_FILE = path.join(ADMIN_DIR, "promo_page.bootstrap.md");
 const PROMO_PAGE_MAX_MARKDOWN = 400000;
 const PROMO_PAGE_MAX_CUSTOM_CSS = 120000;
+/** 每卷书首页介绍（Markdown），存于 content_published/<version>/<lang>/<bookId>/book_intro.json */
+const BOOK_INTRO_MAX_MARKDOWN = 400000;
 const SITE_CHROME_FILE = path.join(ADMIN_DIR, "site_chrome.json");
 const SITE_CHROME_MAX_NAV = 16;
 const SITE_CHROME_MAX_FOOTER = 8000;
@@ -410,6 +450,45 @@ function toSafeBool(value, fallback = false) {
 function toSafeNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+/** 章节视频等接口用：0 表示卷首页，须与 `!chapter` 区分 */
+function parseNonNegativeChapterInt(value) {
+  if (value === undefined || value === null) return null;
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw === "string" && raw.trim() === "") return null;
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+/** multipart 首段 JSON，避免大文件后的文本字段被反代/解析丢弃（卷首页 chapter=0 曾因此报缺参） */
+function parseUploadMetaJson(req) {
+  const raw = req.body?.meta;
+  if (raw == null || raw === "") return null;
+  try {
+    const s = typeof raw === "string" ? raw : String(raw);
+    const o = JSON.parse(s);
+    return o && typeof o === "object" ? o : null;
+  } catch {
+    return null;
+  }
+}
+
+function pickStrPreferFlat(flat, fromMeta) {
+  const a = safeText(flat ?? "");
+  if (a) return a;
+  return safeText(fromMeta ?? "");
+}
+
+function pickChapterRawForUpload(req, metaObj) {
+  const b = req.body?.chapter;
+  if (b !== undefined && b !== null && String(b).trim() !== "") return b;
+  if (metaObj && Object.prototype.hasOwnProperty.call(metaObj, "chapter")) {
+    return metaObj.chapter;
+  }
+  return undefined;
 }
 
 function nowIso() {
@@ -817,6 +896,25 @@ function handleAdminAnalyticsOverviewGet(req, res) {
 const upload = multer({
   dest: DEPLOY_UPLOADS_DIR,
   limits: { fileSize: 1024 * 1024 * 200 },
+});
+
+const chapterVideoMulter = multer({
+  dest: CHAPTER_VIDEO_UPLOAD_TMP,
+  limits: { fileSize: 250 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok =
+      file.mimetype === "video/mp4" || file.mimetype === "video/webm";
+    cb(null, ok);
+  },
+});
+
+const chapterVideoPosterMulter = multer({
+  dest: CHAPTER_VIDEO_UPLOAD_TMP,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/(jpeg|png|webp)$/i.test(String(file.mimetype || ""));
+    cb(null, ok);
+  },
 });
 
 /* =========================================================
@@ -2743,6 +2841,7 @@ function flattenBooks() {
       bookCn: book.cn,
       bookEn: book.en || book.cn,
       chapters: book.chapters,
+      overviewOnly: book.overviewOnly === true,
     }))
   );
 }
@@ -3154,6 +3253,26 @@ function getPublishedContentFilePath({ versionId, lang, bookId, chapter }) {
   );
 }
 
+function getPublishedBookIntroFilePath({ versionId, lang, bookId }) {
+  return path.join(
+    CONTENT_PUBLISHED_DIR,
+    versionId,
+    lang,
+    bookId,
+    "book_intro.json"
+  );
+}
+
+function readPublishedBookIntro({ versionId, lang, bookId }) {
+  const filePath = getPublishedBookIntroFilePath({ versionId, lang, bookId });
+  const data = readJson(filePath, null);
+  if (!data || typeof data !== "object") return null;
+  return {
+    markdown: String(data.markdown ?? "").slice(0, BOOK_INTRO_MAX_MARKDOWN),
+    updatedAt: safeText(data.updatedAt || ""),
+  };
+}
+
 function getChapterArtPngPath({ versionId, lang, bookId, chapter }) {
   return path.join(
     CONTENT_PUBLISHED_DIR,
@@ -3505,6 +3624,233 @@ function buildDivineSpeechVerseSetFromRows(rows) {
 /* =========================================================
    内容保存 / 发布
    ========================================================= */
+function isSafeChapterVideoId(id) {
+  return /^[a-f0-9]{8,64}$/i.test(String(id || ""));
+}
+
+function normalizeChapterVideosForSave(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const v of raw) {
+    if (!v || typeof v !== "object") continue;
+    const id = safeText(v.id || "");
+    if (!isSafeChapterVideoId(id)) continue;
+    const ext = safeText(v.ext || "").toLowerCase();
+    if (ext !== "mp4" && ext !== "webm") continue;
+    const mime = ext === "webm" ? "video/webm" : "video/mp4";
+    const posterUrl = safeText(v.posterUrl || v.poster || "").slice(0, 800);
+    const posterUpdatedAt = safeText(v.posterUpdatedAt || "").slice(0, 80);
+    const row = {
+      id,
+      title: safeText(v.title || "").slice(0, 200),
+      mime,
+      ext,
+      updatedAt: safeText(v.updatedAt || "") || nowIso(),
+    };
+    if (posterUrl) {
+      row.posterUrl = posterUrl;
+      if (posterUpdatedAt) row.posterUpdatedAt = posterUpdatedAt;
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+function getChapterVideosDir(versionId, lang, bookId, chapter) {
+  return path.join(
+    CHAPTER_VIDEOS_DIR,
+    safeText(versionId),
+    safeText(lang),
+    safeText(bookId),
+    String(Number(chapter))
+  );
+}
+
+/**
+ * 卷首页视频写入 `0.json`；若尚无文件则创建最小占位（与读经页 chapter=0 时拉取 chapterVideos 一致）。
+ */
+function ensurePublishedJsonForBookLandingVideos(versionId, lang, bookId) {
+  const publishedPath = getPublishedContentFilePath({
+    versionId,
+    lang,
+    bookId,
+    chapter: 0,
+  });
+  if (fs.existsSync(publishedPath)) {
+    const data = readJson(publishedPath, null);
+    return data && typeof data === "object" ? data : null;
+  }
+  const bookMeta = getBookById(bookId);
+  const stub = normalizeStudyContentForSave({
+    version: versionId,
+    versionLabel: "",
+    contentLang: lang,
+    bookId,
+    bookLabel: safeText(bookMeta?.bookCn || bookId),
+    chapter: 0,
+    theme: "",
+    repeatedWords: [],
+    segments: [],
+    chapterLeaderHint: [],
+    chapterVideos: [],
+    title: "",
+    closing: "",
+  });
+  writeJson(publishedPath, stub);
+  return readJson(publishedPath, null);
+}
+
+function resolveChapterVideoFilePath(versionId, lang, bookId, chapter, id) {
+  if (!isSafeChapterVideoId(id)) return null;
+  const resolvedDir = path.resolve(
+    getChapterVideosDir(versionId, lang, bookId, chapter)
+  );
+  const root = path.resolve(CHAPTER_VIDEOS_DIR);
+  if (resolvedDir !== root && !resolvedDir.startsWith(root + path.sep)) {
+    return null;
+  }
+  const base = String(id).toLowerCase();
+  for (const ext of ["mp4", "webm"]) {
+    const p = path.resolve(path.join(resolvedDir, `${base}.${ext}`));
+    if (p !== resolvedDir && !p.startsWith(resolvedDir + path.sep)) continue;
+    try {
+      if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+        return { filePath: p, ext };
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+function moveUploadedFileToFinal(src, dest) {
+  try {
+    fs.renameSync(src, dest);
+  } catch (e) {
+    if (e && e.code === "EXDEV") {
+      fs.copyFileSync(src, dest);
+      try {
+        fs.unlinkSync(src);
+      } catch {
+        /* ignore */
+      }
+    } else {
+      throw e;
+    }
+  }
+}
+
+function chapterVideoPosterApiPath(versionId, lang, bookId, chapter, id) {
+  const q = new URLSearchParams({
+    version: safeText(versionId),
+    lang: safeText(lang),
+    bookId: safeText(bookId),
+    chapter: String(Number(chapter)),
+    id: safeText(id),
+  });
+  return `/api/published/chapter-video-poster?${q.toString()}`;
+}
+
+function resolveChapterVideoPosterFilePath(versionId, lang, bookId, chapter, id) {
+  if (!isSafeChapterVideoId(id)) return null;
+  const resolvedDir = path.resolve(
+    getChapterVideosDir(versionId, lang, bookId, chapter)
+  );
+  const root = path.resolve(CHAPTER_VIDEOS_DIR);
+  if (resolvedDir !== root && !resolvedDir.startsWith(root + path.sep)) {
+    return null;
+  }
+  const base = String(id).toLowerCase();
+  for (const ext of ["jpg", "jpeg", "png", "webp"]) {
+    const p = path.resolve(path.join(resolvedDir, `${base}.poster.${ext}`));
+    if (p !== resolvedDir && !p.startsWith(resolvedDir + path.sep)) continue;
+    try {
+      if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+function unlinkChapterVideoPosterFiles(versionId, lang, bookId, chapter, id) {
+  const resolvedDir = path.resolve(
+    getChapterVideosDir(versionId, lang, bookId, chapter)
+  );
+  const root = path.resolve(CHAPTER_VIDEOS_DIR);
+  if (resolvedDir !== root && !resolvedDir.startsWith(root + path.sep)) return;
+  const base = String(id).toLowerCase();
+  for (const ext of ["jpg", "jpeg", "png", "webp"]) {
+    const p = path.join(resolvedDir, `${base}.poster.${ext}`);
+    try {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function listChapterVideosOverview(versionId, lang) {
+  const v = safeText(versionId);
+  const l = safeText(lang);
+  const base = path.join(CONTENT_PUBLISHED_DIR, v, l);
+  if (!fs.existsSync(base)) return [];
+  const out = [];
+  let bookEntries;
+  try {
+    bookEntries = fs.readdirSync(base, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  for (const d of bookEntries) {
+    if (!d.isDirectory()) continue;
+    const bookId = d.name;
+    if (bookId.startsWith("_")) continue;
+    const bookPath = path.join(base, bookId);
+    let files;
+    try {
+      files = fs.readdirSync(bookPath);
+    } catch {
+      continue;
+    }
+    for (const f of files) {
+      const m = /^(\d+)\.json$/i.exec(f);
+      if (!m) continue;
+      const chapter = Number(m[1]);
+      if (!Number.isFinite(chapter) || chapter < 0) continue;
+      const fp = path.join(bookPath, f);
+      const data = readJson(fp, null);
+      if (!data || typeof data !== "object") continue;
+      if (!Array.isArray(data.chapterVideos) || !data.chapterVideos.length) {
+        continue;
+      }
+      const bookLabel = safeText(data.bookLabel || "");
+      const bookMeta = getBookById(bookId);
+      const bookCn = bookLabel || bookMeta?.bookCn || bookId;
+      for (const raw of data.chapterVideos) {
+        const norm = normalizeChapterVideosForSave([raw])[0];
+        if (!norm) continue;
+        out.push({
+          version: v,
+          lang: l,
+          bookId,
+          bookCn,
+          chapter,
+          ...norm,
+        });
+      }
+    }
+  }
+  out.sort((a, b) => {
+    const bc = String(a.bookId).localeCompare(String(b.bookId));
+    if (bc !== 0) return bc;
+    if (a.chapter !== b.chapter) return a.chapter - b.chapter;
+    return String(a.title || "").localeCompare(String(b.title || ""));
+  });
+  return out;
+}
+
 function normalizeStudyContentForSave(input) {
   return {
     version: safeText(input.version),
@@ -3525,6 +3871,7 @@ function normalizeStudyContentForSave(input) {
     title: safeText(input.title),
     generatedAt: safeText(input.generatedAt) || nowIso(),
     savedAt: nowIso(),
+    chapterVideos: normalizeChapterVideosForSave(input.chapterVideos),
     ...(input.chapterArt &&
     typeof input.chapterArt === "object" &&
     !Array.isArray(input.chapterArt)
@@ -3569,6 +3916,10 @@ function saveStudyContentToBuild(studyContent, buildId) {
 }
 
 function mergePublishOneChapter(studyContent) {
+  const hadChapterVideosKey =
+    studyContent &&
+    typeof studyContent === "object" &&
+    Object.prototype.hasOwnProperty.call(studyContent, "chapterVideos");
   const normalized = normalizeStudyContentForSave(studyContent);
 
   const filePath = getPublishedContentFilePath({
@@ -3577,6 +3928,18 @@ function mergePublishOneChapter(studyContent) {
     bookId: normalized.bookId,
     chapter: normalized.chapter,
   });
+
+  const existing = readJson(filePath, null);
+  if (
+    !hadChapterVideosKey &&
+    existing &&
+    Array.isArray(existing.chapterVideos) &&
+    existing.chapterVideos.length > 0
+  ) {
+    normalized.chapterVideos = normalizeChapterVideosForSave(
+      existing.chapterVideos
+    );
+  }
 
   writeJson(filePath, normalized);
   return filePath;
@@ -4717,6 +5080,13 @@ function deletePublishedChapter(versionId, lang, bookId, chapter) {
     throw new Error("该章已发布内容不存在");
   }
 
+  const vDir = getChapterVideosDir(versionId, lang, bookId, chapter);
+  try {
+    fs.rmSync(vDir, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+
   fs.unlinkSync(filePath);
   return { deleted: true, filePath };
 }
@@ -5649,6 +6019,104 @@ app.get("/api/study-content", (req, res) => {
   }
 });
 
+app.get("/api/book-intro", (req, res) => {
+  try {
+    const version = safeText(req.query.version || "");
+    const lang = safeText(req.query.lang || "");
+    const bookId = safeText(req.query.bookId || "");
+    if (!version || !lang || !bookId) {
+      return res.status(400).json({
+        error: "缺少 version / lang / bookId",
+      });
+    }
+
+    const cacheKey = `bookintro:${version}:${lang}:${bookId}`;
+    const cached = getReadCache(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    const rec = readPublishedBookIntro({
+      versionId: version,
+      lang,
+      bookId,
+    });
+    if (!rec || !String(rec.markdown || "").trim()) {
+      const payload = { missing: true, markdown: "", updatedAt: "" };
+      setReadCache(cacheKey, payload);
+      return res.json(payload);
+    }
+
+    const payload = {
+      missing: false,
+      markdown: rec.markdown,
+      updatedAt: rec.updatedAt || "",
+    };
+    setReadCache(cacheKey, payload);
+    res.json(payload);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: error.message || "读取书卷介绍失败",
+    });
+  }
+});
+
+app.get("/api/admin/book-intro", (req, res) => {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const version = safeText(req.query.version || "");
+    const lang = safeText(req.query.lang || "");
+    const bookId = safeText(req.query.bookId || "");
+    if (!version || !lang || !bookId) {
+      return res.status(400).json({ error: "缺少 version / lang / bookId" });
+    }
+    const rec = readPublishedBookIntro({ versionId: version, lang, bookId });
+    res.json({
+      markdown: rec?.markdown || "",
+      updatedAt: rec?.updatedAt || "",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取失败" });
+  }
+});
+
+app.post("/api/admin/book-intro", (req, res) => {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const version = safeText(req.body?.version || "");
+    const lang = safeText(req.body?.lang || "");
+    const bookId = safeText(req.body?.bookId || "");
+    if (!version || !lang || !bookId) {
+      return res.status(400).json({ error: "缺少 version / lang / bookId" });
+    }
+    if (!Object.prototype.hasOwnProperty.call(req.body || {}, "markdown")) {
+      return res.status(400).json({ error: "请求体须包含 markdown 字段" });
+    }
+    let markdown = String(req.body.markdown ?? "");
+    if (markdown.length > BOOK_INTRO_MAX_MARKDOWN) {
+      markdown = markdown.slice(0, BOOK_INTRO_MAX_MARKDOWN);
+    }
+    const filePath = getPublishedBookIntroFilePath({
+      versionId: version,
+      lang,
+      bookId,
+    });
+    writeJson(filePath, {
+      markdown,
+      updatedAt: new Date().toISOString(),
+    });
+    clearReadCacheByPrefix(`bookintro:${version}:${lang}:`);
+    res.json({ ok: true, bytes: markdown.length });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "保存失败" });
+  }
+});
+
 /** 公开：已发布章节的配图 PNG（与 study JSON 中 chapterArt.imageUrl 对应） */
 app.get("/api/published/chapter-art", (req, res) => {
   try {
@@ -5678,6 +6146,463 @@ app.get("/api/published/chapter-art", (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "读取配图失败" });
+  }
+});
+
+function sendChapterVideoFile(req, res, filePath, ext) {
+  const contentType = ext === "webm" ? "video/webm" : "video/mp4";
+  let stat;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
+    return res.status(404).json({ error: "视频文件不存在" });
+  }
+  const fileSize = stat.size;
+  const range = req.headers.range;
+  if (range) {
+    const m = /^bytes=(\d*)-(\d*)$/i.exec(String(range));
+    if (!m) {
+      res.status(416);
+      res.setHeader("Content-Range", `bytes */${fileSize}`);
+      return res.end();
+    }
+    let start;
+    let end;
+    if (m[1] === "") {
+      const suffixLen = Number(m[2]);
+      if (!Number.isFinite(suffixLen) || suffixLen <= 0) {
+        res.status(416);
+        res.setHeader("Content-Range", `bytes */${fileSize}`);
+        return res.end();
+      }
+      start = Math.max(0, fileSize - suffixLen);
+      end = fileSize - 1;
+    } else {
+      start = Number(m[1]);
+      end = m[2] === "" || m[2] === undefined ? fileSize - 1 : Number(m[2]);
+    }
+    if (
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      start < 0 ||
+      start >= fileSize ||
+      end < start
+    ) {
+      res.status(416);
+      res.setHeader("Content-Range", `bytes */${fileSize}`);
+      return res.end();
+    }
+    end = Math.min(end, fileSize - 1);
+    const chunkSize = end - start + 1;
+    res.status(206);
+    res.setHeader("Content-Range", `bytes ${start}-${end}/${fileSize}`);
+    res.setHeader("Accept-Ranges", "bytes");
+    res.setHeader("Content-Length", String(chunkSize));
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    const stream = fs.createReadStream(filePath, { start, end });
+    stream.on("error", () => {
+      if (!res.headersSent) res.status(500).end();
+    });
+    stream.pipe(res);
+    return;
+  }
+  res.status(200);
+  res.setHeader("Content-Length", String(fileSize));
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  const stream = fs.createReadStream(filePath);
+  stream.on("error", () => {
+    if (!res.headersSent) res.status(500).end();
+  });
+  stream.pipe(res);
+}
+
+/** 公开：章节附属视频（支持 Range，便于播放器拖动进度） */
+app.get("/api/published/chapter-video", (req, res) => {
+  try {
+    const versionId = safeText(req.query.version || "");
+    const lang = safeText(req.query.lang || "");
+    const bookId = safeText(req.query.bookId || "");
+    const chapter = parseNonNegativeChapterInt(req.query.chapter);
+    const id = safeText(req.query.id || "");
+    if (!versionId || !lang || !bookId || chapter === null || !id) {
+      return res.status(400).json({ error: "缺少 version / lang / bookId / chapter / id" });
+    }
+    const hit = resolveChapterVideoFilePath(versionId, lang, bookId, chapter, id);
+    if (!hit) {
+      return res.status(404).json({ error: "视频不存在" });
+    }
+    sendChapterVideoFile(req, res, hit.filePath, hit.ext);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取视频失败" });
+  }
+});
+
+function chapterVideoUploadMulterMiddleware(req, res, next) {
+  chapterVideoMulter.single("video")(req, res, (err) => {
+    if (err) {
+      const msg =
+        err.code === "LIMIT_FILE_SIZE"
+          ? "文件过大（单文件最大 250MB）"
+          : String(err.message || "上传失败");
+      return res.status(400).json({ error: msg });
+    }
+    next();
+  });
+}
+
+function handleChapterVideoUploadPost(req, res) {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const file = req.file;
+    if (!file || !file.path) {
+      return res.status(400).json({ error: "请选择视频文件（字段名 video）" });
+    }
+    const metaObj = parseUploadMetaJson(req);
+    const versionId = pickStrPreferFlat(req.body?.version, metaObj?.version);
+    const lang = pickStrPreferFlat(req.body?.lang, metaObj?.lang);
+    const bookId = pickStrPreferFlat(req.body?.bookId, metaObj?.bookId);
+    const chapter = parseNonNegativeChapterInt(
+      pickChapterRawForUpload(req, metaObj)
+    );
+    const title = safeText(
+      pickStrPreferFlat(req.body?.title, metaObj?.title)
+    ).slice(0, 200);
+    if (!versionId || !lang || !bookId || chapter === null) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+      return res.status(400).json({ error: "缺少 version / lang / bookId / chapter" });
+    }
+    const publishedPath = getPublishedContentFilePath({
+      versionId,
+      lang,
+      bookId,
+      chapter,
+    });
+    let data = readJson(publishedPath, null);
+    if (!data || typeof data !== "object") {
+      if (chapter === 0) {
+        data = ensurePublishedJsonForBookLandingVideos(versionId, lang, bookId);
+      }
+    }
+    if (!data || typeof data !== "object") {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+      return res
+        .status(400)
+        .json({ error: "该章尚未发布查经内容，请先生成并发布本章后再上传视频。" });
+    }
+    const videos = normalizeChapterVideosForSave(data.chapterVideos);
+    if (videos.length >= MAX_CHAPTER_VIDEOS_PER_CHAPTER) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+      return res.status(400).json({
+        error: `每章最多 ${MAX_CHAPTER_VIDEOS_PER_CHAPTER} 个视频，请先删除后再传。`,
+      });
+    }
+    const mime = String(file.mimetype || "");
+    const ext = mime === "video/webm" ? "webm" : "mp4";
+    const id = crypto.randomBytes(16).toString("hex");
+    const dir = getChapterVideosDir(versionId, lang, bookId, chapter);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(CHAPTER_VIDEO_UPLOAD_TMP, { recursive: true });
+    const dest = path.join(dir, `${id}.${ext}`);
+    moveUploadedFileToFinal(file.path, dest);
+    const entry = {
+      id,
+      title: title || `视频 ${videos.length + 1}`,
+      mime: ext === "webm" ? "video/webm" : "video/mp4",
+      ext,
+      updatedAt: nowIso(),
+    };
+    const nextVideos = [...videos, entry];
+    const merged = { ...data, chapterVideos: nextVideos };
+    writeJson(publishedPath, merged);
+    invalidateStudyContentCache(versionId, lang, bookId, chapter);
+    appendAdminAudit(req, authed, "chapter_video_upload", {
+      versionId,
+      lang,
+      bookId,
+      chapter,
+      videoId: id,
+    });
+    res.json({ ok: true, video: entry, chapterVideos: nextVideos });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "上传失败" });
+  }
+}
+
+/* 与 GET /api/admin/published/chapter 同前缀，便于反代只放行 published 子路径时仍能上传 */
+app.post(
+  "/api/admin/published/chapter-video-upload",
+  chapterVideoUploadMulterMiddleware,
+  handleChapterVideoUploadPost
+);
+app.post(
+  "/api/admin/chapter-video/upload",
+  chapterVideoUploadMulterMiddleware,
+  handleChapterVideoUploadPost
+);
+
+app.delete("/api/admin/chapter-video", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const versionId = safeText(req.query.version || "");
+    const lang = safeText(req.query.lang || "");
+    const bookId = safeText(req.query.bookId || "");
+    const chapter = parseNonNegativeChapterInt(req.query.chapter);
+    const id = safeText(req.query.id || "");
+    if (!versionId || !lang || !bookId || chapter === null || !id) {
+      return res
+        .status(400)
+        .json({ error: "缺少 version / lang / bookId / chapter / id" });
+    }
+    if (!isSafeChapterVideoId(id)) {
+      return res.status(400).json({ error: "无效的视频 id" });
+    }
+    const publishedPath = getPublishedContentFilePath({
+      versionId,
+      lang,
+      bookId,
+      chapter,
+    });
+    const data = readJson(publishedPath, null);
+    if (!data || typeof data !== "object") {
+      return res.status(404).json({ error: "未找到已发布章节" });
+    }
+    const videos = normalizeChapterVideosForSave(data.chapterVideos);
+    const idx = videos.findIndex((v) => String(v.id).toLowerCase() === id.toLowerCase());
+    if (idx < 0) {
+      return res.status(404).json({ error: "列表中无此视频" });
+    }
+    const hit = resolveChapterVideoFilePath(versionId, lang, bookId, chapter, id);
+    if (hit) {
+      try {
+        fs.unlinkSync(hit.filePath);
+      } catch {
+        /* ignore */
+      }
+    }
+    unlinkChapterVideoPosterFiles(versionId, lang, bookId, chapter, id);
+    const nextVideos = videos.filter((_, i) => i !== idx);
+    const merged = { ...data, chapterVideos: nextVideos };
+    writeJson(publishedPath, merged);
+    invalidateStudyContentCache(versionId, lang, bookId, chapter);
+    appendAdminAudit(req, authed, "chapter_video_delete", {
+      versionId,
+      lang,
+      bookId,
+      chapter,
+      videoId: id,
+    });
+    res.json({ ok: true, chapterVideos: nextVideos });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "删除失败" });
+  }
+});
+
+function chapterVideoPosterMulterMiddleware(req, res, next) {
+  chapterVideoPosterMulter.single("poster")(req, res, (err) => {
+    if (err) {
+      const msg =
+        err.code === "LIMIT_FILE_SIZE"
+          ? "封面图过大（最大 5MB）"
+          : String(err.message || "上传失败");
+      return res.status(400).json({ error: msg });
+    }
+    next();
+  });
+}
+
+function handleChapterVideoPosterUpload(req, res) {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const file = req.file;
+    if (!file || !file.path) {
+      return res.status(400).json({ error: "请选择封面图（字段名 poster）" });
+    }
+    const metaObj = parseUploadMetaJson(req);
+    const versionId = pickStrPreferFlat(req.body?.version, metaObj?.version);
+    const lang = pickStrPreferFlat(req.body?.lang, metaObj?.lang);
+    const bookId = pickStrPreferFlat(req.body?.bookId, metaObj?.bookId);
+    const chapter = parseNonNegativeChapterInt(
+      pickChapterRawForUpload(req, metaObj)
+    );
+    const id = pickStrPreferFlat(req.body?.id, metaObj?.id);
+    if (!versionId || !lang || !bookId || chapter === null || !id) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+      return res
+        .status(400)
+        .json({ error: "缺少 version / lang / bookId / chapter / id" });
+    }
+    if (!isSafeChapterVideoId(id)) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+      return res.status(400).json({ error: "无效的视频 id" });
+    }
+    const publishedPath = getPublishedContentFilePath({
+      versionId,
+      lang,
+      bookId,
+      chapter,
+    });
+    let data = readJson(publishedPath, null);
+    if ((!data || typeof data !== "object") && chapter === 0) {
+      data = ensurePublishedJsonForBookLandingVideos(versionId, lang, bookId);
+    }
+    if (!data || typeof data !== "object") {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+      return res.status(404).json({ error: "未找到已发布章节" });
+    }
+    const videos = normalizeChapterVideosForSave(data.chapterVideos);
+    const idx = videos.findIndex((v) => String(v.id).toLowerCase() === id.toLowerCase());
+    if (idx < 0) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+      return res.status(404).json({ error: "列表中无此视频" });
+    }
+    const mime = String(file.mimetype || "").toLowerCase();
+    let ext = "jpg";
+    if (mime.includes("png")) ext = "png";
+    else if (mime.includes("webp")) ext = "webp";
+    unlinkChapterVideoPosterFiles(versionId, lang, bookId, chapter, id);
+    const dir = getChapterVideosDir(versionId, lang, bookId, chapter);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(CHAPTER_VIDEO_UPLOAD_TMP, { recursive: true });
+    const dest = path.join(dir, `${String(id).toLowerCase()}.poster.${ext}`);
+    moveUploadedFileToFinal(file.path, dest);
+    const posterUrl = chapterVideoPosterApiPath(
+      versionId,
+      lang,
+      bookId,
+      chapter,
+      id
+    );
+    const posterUpdatedAt = nowIso();
+    const nextVideos = videos.map((row, i) =>
+      i === idx ? { ...row, posterUrl, posterUpdatedAt } : row
+    );
+    const merged = { ...data, chapterVideos: nextVideos };
+    writeJson(publishedPath, merged);
+    invalidateStudyContentCache(versionId, lang, bookId, chapter);
+    appendAdminAudit(req, authed, "chapter_video_poster_upload", {
+      versionId,
+      lang,
+      bookId,
+      chapter,
+      videoId: id,
+    });
+    res.json({
+      ok: true,
+      posterUrl,
+      posterUpdatedAt,
+      chapterVideos: nextVideos,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "封面上传失败" });
+  }
+}
+
+function handleChapterVideosListGet(req, res) {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const versionId = safeText(req.query.version || "");
+    const lang = safeText(req.query.lang || "");
+    if (!versionId || !lang) {
+      return res.status(400).json({ error: "缺少 version / lang" });
+    }
+    const items = listChapterVideosOverview(versionId, lang);
+    res.json({ ok: true, items });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取视频列表失败" });
+  }
+}
+
+/* 与 published 子路径并列，便于反代只放行 /api/admin/published/ 时仍能拉列表 */
+app.get("/api/admin/published/chapter-videos-list", handleChapterVideosListGet);
+app.get("/api/admin/chapter-videos/list", handleChapterVideosListGet);
+
+app.post(
+  "/api/admin/published/chapter-video-poster-upload",
+  chapterVideoPosterMulterMiddleware,
+  handleChapterVideoPosterUpload
+);
+app.post(
+  "/api/admin/chapter-video/poster",
+  chapterVideoPosterMulterMiddleware,
+  handleChapterVideoPosterUpload
+);
+
+app.get("/api/published/chapter-video-poster", (req, res) => {
+  try {
+    const versionId = safeText(req.query.version || "");
+    const lang = safeText(req.query.lang || "");
+    const bookId = safeText(req.query.bookId || "");
+    const chapter = parseNonNegativeChapterInt(req.query.chapter);
+    const id = safeText(req.query.id || "");
+    if (!versionId || !lang || !bookId || chapter === null || !id) {
+      return res
+        .status(400)
+        .json({ error: "缺少 version / lang / bookId / chapter / id" });
+    }
+    const p = resolveChapterVideoPosterFilePath(
+      versionId,
+      lang,
+      bookId,
+      chapter,
+      id
+    );
+    if (!p) {
+      return res.status(404).json({ error: "封面不存在" });
+    }
+    const low = p.toLowerCase();
+    const contentType = low.endsWith(".png")
+      ? "image/png"
+      : low.endsWith(".webp")
+        ? "image/webp"
+        : "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.sendFile(path.resolve(p), (err) => {
+      if (err && !res.headersSent) res.status(500).end();
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取封面失败" });
   }
 });
 
@@ -6838,7 +7763,13 @@ app.get("/api/questions/approved", (req, res) => {
     const items = (db.items || [])
       .filter((x) => safeText(x.status) === "approved")
       .filter((x) => (bookId ? safeText(x.bookId) === bookId : true))
-      .filter((x) => (chapter > 0 ? toSafeNumber(x.chapter, 0) === chapter : true))
+      .filter((x) =>
+        bookId
+          ? toSafeNumber(x.chapter, 0) === chapter
+          : chapter > 0
+            ? toSafeNumber(x.chapter, 0) === chapter
+            : true
+      )
       .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
       .map((x) => {
         const uid = safeText(x.userId || x.userEmail || "");
@@ -8910,6 +9841,8 @@ app.get("/api/dev/livereload-status", (_req, res) => {
     ["color-themes.html", false],
     ["admin-analytics.html", false],
     ["seo-settings.html", false],
+    ["home-layout-map.html", false],
+    ["video-center.html", false],
   ];
   for (const [name, qianOnly] of adminToolHtml) {
     app.get(`/${name}`, (req, res) => {
@@ -8929,9 +9862,23 @@ app.get("/api/dev/livereload-status", (_req, res) => {
 /* 静态资源放在所有 /api 路由之后，避免根目录下出现与 /api/... 冲突的路径时被 express.static 抢先返回 HTML */
 app.use(express.static(__dirname));
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`http://localhost:${port}`);
+const port = Number(process.env.PORT) || 3000;
+/* 默认 0.0.0.0：本机 localhost 与局域网其它设备均可访问；仅本机时用 LISTEN_HOST=127.0.0.1 */
+const listenHost =
+  process.env.LISTEN_HOST !== undefined && process.env.LISTEN_HOST !== ""
+    ? process.env.LISTEN_HOST
+    : "0.0.0.0";
+app.listen(port, listenHost, () => {
+  console.log(`http://localhost:${port}/`);
+  if (listenHost === "0.0.0.0") {
+    console.log(
+      "[listen] 0.0.0.0:" +
+        port +
+        "（手机/同网设备请用本机局域网 IP，例如 http://192.168.x.x:" +
+        port +
+        "/）"
+    );
+  }
   startJobRunner();
   if (process.env.DEV_LIVE_RELOAD === "1") {
     import("livereload")

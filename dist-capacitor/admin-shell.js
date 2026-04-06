@@ -19,6 +19,7 @@
         { href: "/seo-settings.html", label: "SEO 设置" },
         { href: "/color-themes.html", label: "全局配色" },
         { href: "/promo-edit.html", label: "宣传页正文" },
+        { href: "/home-layout-map.html", label: "主页版面结构" },
       ],
     },
     {
@@ -28,6 +29,7 @@
     {
       sub: "读经页内",
       items: [
+        { href: "/video-center.html", label: "章节视频上传" },
         {
           href: "/#openAdmin",
           label: "规则 · 任务 · 发布",

@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>章节视频上传 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=9" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .video-center-page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 20px 14px 48px;
+        box-sizing: border-box;
+      }
+      .video-center-doc {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        padding: 22px 18px 28px;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.08);
+      }
+      .video-center-doc h1 {
+        margin: 0 0 8px;
+        font-size: calc(22px * var(--font-scale));
+        color: var(--ink);
+      }
+      .video-center-lead {
+        margin: 0 0 16px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--muted-soft);
+      }
+      .video-center-auth {
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #fff0ee;
+        border: 1px solid rgba(180, 35, 24, 0.35);
+        color: #7a1510;
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+      .video-center-block {
+        margin-top: 26px;
+        padding-top: 20px;
+        border-top: 1px solid var(--line-soft);
+      }
+      .video-center-block h2 {
+        margin: 0 0 12px;
+        font-size: calc(15px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .video-center-field {
+        margin-bottom: 14px;
+      }
+      .video-center-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .video-center-field input[type="text"],
+      .video-center-field input[type="file"],
+      .video-center-field select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+      }
+      .video-center-field input[type="file"] {
+        padding: 8px 10px;
+      }
+      .video-center-hint {
+        margin: 6px 0 0;
+        font-size: 11px;
+        color: var(--muted-soft);
+        line-height: 1.45;
+      }
+      .video-center-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+        align-items: center;
+      }
+      .video-center-actions button {
+        padding: 10px 18px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, #f7f0e4 0%, #ebe0d0 100%);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .video-center-actions button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .video-center-actions button.primary {
+        border-color: rgba(200, 155, 60, 0.55);
+        background: linear-gradient(180deg, #e8c96a 0%, #d4a84a 100%);
+        color: #2a2218;
+      }
+      .video-center-actions button.danger {
+        border-color: rgba(180, 35, 24, 0.45);
+        background: #fff5f4;
+        color: #7a1510;
+      }
+      .video-center-status {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+        min-height: 1.4em;
+      }
+      .video-center-status.err {
+        color: #9a2c2c;
+        font-weight: 600;
+      }
+      .video-center-status.ok {
+        color: #2d6a3a;
+        font-weight: 600;
+      }
+      .vc-preview-section {
+        margin: 14px 0;
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        background: rgba(255, 253, 248, 0.9);
+      }
+      .vc-preview-section label.vc-preview-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: 8px;
+        display: block;
+      }
+      .vc-preview-video {
+        display: block;
+        width: 100%;
+        max-height: 220px;
+        border-radius: 8px;
+        background: #111;
+        margin-bottom: 10px;
+      }
+      .vc-preview-seek {
+        width: 100%;
+        margin: 8px 0 4px;
+      }
+      .vc-preview-meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .vc-table-wrap {
+        overflow-x: auto;
+        margin-top: 8px;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+      }
+      .vc-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .vc-table th,
+      .vc-table td {
+        border-bottom: 1px solid var(--line-soft);
+        padding: 10px 8px;
+        text-align: left;
+        vertical-align: middle;
+      }
+      .vc-table th {
+        background: rgba(255, 251, 242, 0.95);
+        font-weight: 800;
+        color: var(--ink);
+        white-space: nowrap;
+      }
+      .vc-table tr:last-child td {
+        border-bottom: none;
+      }
+      .vc-thumb {
+        width: 88px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 6px;
+        background: var(--line-soft);
+        display: block;
+      }
+      .vc-no-poster {
+        display: inline-block;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.06);
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .vc-table-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .vc-table-actions button {
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        cursor: pointer;
+      }
+      .vc-table-actions button.danger {
+        border-color: rgba(180, 35, 24, 0.4);
+        color: #7a1510;
+        background: #fff8f7;
+      }
+      .vc-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(40, 32, 24, 0.45);
+        z-index: 12000;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 24px 12px;
+        overflow-y: auto;
+        box-sizing: border-box;
+      }
+      .vc-modal-backdrop[hidden] {
+        display: none !important;
+      }
+      .vc-modal-card {
+        max-width: 520px;
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        padding: 18px 16px 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        box-sizing: border-box;
+      }
+      .vc-modal-card h3 {
+        margin: 0 0 10px;
+        font-size: 16px;
+        color: var(--ink);
+      }
+      .vc-modal-video {
+        width: 100%;
+        max-height: 240px;
+        border-radius: 10px;
+        background: #111;
+        margin-bottom: 10px;
+      }
+      .vc-modal-seek {
+        width: 100%;
+        margin: 8px 0;
+      }
+      .vc-modal-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .vc-modal-actions button {
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        cursor: pointer;
+        background: var(--paper);
+      }
+      .vc-modal-actions button.primary {
+        border-color: rgba(200, 155, 60, 0.55);
+        background: linear-gradient(180deg, #e8c96a 0%, #d4a84a 100%);
+        color: #2a2218;
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/video-center.html">
+    <div class="page-shell video-center-page">
+      <main class="video-center-doc">
+        <h1>章节视频上传</h1>
+        <p class="video-center-lead">
+          先选<strong>查经版本</strong>与<strong>内容语言</strong>，下方表格会列出该语言下<strong>所有已上传的章节视频</strong>（书卷、章、标题、封面）。列表接口为
+          <code>GET /api/admin/published/chapter-videos-list</code>。上传新视频前可选好<strong>封面帧</strong>；也可在表格里<strong>更换封面</strong>。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>（章下拉第一项）可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
+        </p>
+        <p id="videoCenterAuth" class="video-center-auth" hidden></p>
+        <div id="videoCenterApp" hidden>
+          <div class="video-center-field">
+            <label for="vcVersion">查经版本</label>
+            <select id="vcVersion" aria-label="查经版本"></select>
+          </div>
+          <div class="video-center-field">
+            <label for="vcLang">内容语言</label>
+            <select id="vcLang" aria-label="内容语言"></select>
+          </div>
+
+          <section class="video-center-block" aria-labelledby="vcAllHeading">
+            <h2 id="vcAllHeading">全部章节视频</h2>
+            <p class="video-center-hint">随版本与语言筛选；封面来自上传的静帧图（读者端 <code>video poster</code>）。</p>
+            <div class="video-center-actions">
+              <button type="button" id="vcRefreshAllBtn">刷新列表</button>
+            </div>
+            <div class="vc-table-wrap">
+              <table class="vc-table" aria-label="章节视频列表">
+                <thead>
+                  <tr>
+                    <th scope="col">位置</th>
+                    <th scope="col">标题</th>
+                    <th scope="col">封面</th>
+                    <th scope="col">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="vcAllTbody"></tbody>
+              </table>
+            </div>
+            <p id="vcAllEmpty" class="video-center-hint" hidden>该版本与语言下暂无章节视频。</p>
+          </section>
+
+          <section class="video-center-block" aria-labelledby="vcUploadHeading">
+            <h2 id="vcUploadHeading">上传新视频</h2>
+            <div class="video-center-field">
+              <label for="vcBook">书卷</label>
+              <select id="vcBook" aria-label="书卷"></select>
+            </div>
+            <div class="video-center-field">
+              <label for="vcChapter">章</label>
+              <select id="vcChapter" aria-label="章"></select>
+            </div>
+            <div class="video-center-field">
+              <label for="vcTitle">视频标题（可选）</label>
+              <input type="text" id="vcTitle" maxlength="200" placeholder="留空则自动命名" autocomplete="off" />
+            </div>
+            <div class="video-center-field">
+              <label for="vcFile">视频文件</label>
+              <input
+                type="file"
+                id="vcFile"
+                accept="video/mp4,video/webm,.mp4,.webm"
+                aria-label="选择视频文件"
+              />
+              <p class="video-center-hint">选择文件后可拖动时间轴，选定作为封面的那一帧；上传成功后会自动提交封面（JPEG）。</p>
+            </div>
+            <div id="vcPreviewSection" class="vc-preview-section" hidden>
+              <span class="vc-preview-label">封面预览（拖动时间轴选择帧）</span>
+              <video
+                id="vcPreviewVideo"
+                class="vc-preview-video"
+                playsinline
+                muted
+                preload="metadata"
+              ></video>
+              <input type="range" id="vcPreviewSeek" class="vc-preview-seek" min="0" max="1" step="any" value="0" aria-label="选择封面时间" />
+              <div id="vcPreviewMeta" class="vc-preview-meta">0:00 / —</div>
+              <canvas id="vcPreviewCanvas" hidden></canvas>
+            </div>
+            <div class="video-center-actions">
+              <button type="button" class="primary" id="vcUploadBtn">上传到本章</button>
+            </div>
+          </section>
+
+          <p id="vcStatus" class="video-center-status" aria-live="polite"></p>
+        </div>
+      </main>
+    </div>
+
+    <div id="vcPosterModal" class="vc-modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="vcPosterModalTitle">
+      <div class="vc-modal-card">
+        <h3 id="vcPosterModalTitle">更换封面</h3>
+        <p id="vcPosterModalSub" class="video-center-hint" style="margin-top: 0"></p>
+        <video id="vcModalVideo" class="vc-modal-video" playsinline muted preload="metadata"></video>
+        <input type="range" id="vcModalSeek" class="vc-modal-seek" min="0" max="1" step="any" value="0" aria-label="选择封面时间" />
+        <div id="vcModalMeta" class="vc-preview-meta">0:00 / —</div>
+        <canvas id="vcModalCanvas" hidden></canvas>
+        <div class="vc-modal-actions">
+          <button type="button" class="primary" id="vcModalApplyBtn">使用当前帧作为封面</button>
+          <button type="button" id="vcModalCloseBtn">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/admin-shell.js?v=3" defer></script>
+    <script>
+      const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+
+      function getToken() {
+        return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+      }
+
+      function authHeadersBare() {
+        const t = getToken();
+        return t ? { Authorization: "Bearer " + t } : {};
+      }
+
+      const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+
+      function normalizeApiOrigin(raw) {
+        let s = String(raw || "").trim();
+        if (!s) return "";
+        s = s.replace(/\/+$/, "");
+        if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+        return s.replace(/\/+$/, "");
+      }
+
+      function isPrivateLanHostname(h) {
+        const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(
+          String(h || "").toLowerCase()
+        );
+        if (!m) return false;
+        const a = Number(m[1]);
+        const b = Number(m[2]);
+        if (![a, b, Number(m[3]), Number(m[4])].every((n) => n >= 0 && n <= 255))
+          return false;
+        if (a === 10) return true;
+        if (a === 172 && b >= 16 && b <= 31) return true;
+        if (a === 192 && b === 168) return true;
+        return false;
+      }
+
+      function getApiBase() {
+        const m = document.querySelector('meta[name="askbible-api-base"]');
+        const fromMeta = m && String(m.getAttribute("content") || "").trim();
+        if (fromMeta) return normalizeApiOrigin(fromMeta);
+        if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+          return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+        }
+        try {
+          const proto = window.location.protocol || "";
+          if (proto === "capacitor:" || proto === "file:") {
+            return DEFAULT_PRODUCTION_ORIGIN;
+          }
+          const h = String(window.location.hostname || "");
+          const loopback =
+            h === "localhost" ||
+            h === "127.0.0.1" ||
+            h === "::1";
+          /* 与 server 默认 PORT=3000 对齐：Live Server / Vite 等非 3000 端口需显式指向 Node */
+          if (loopback || isPrivateLanHostname(h)) {
+            const port = String(window.location.port || "");
+            if (port && port !== "3000") {
+              const scheme =
+                proto === "https:" ? "https" : "http";
+              return scheme + "://" + h + ":3000";
+            }
+          }
+        } catch (_) {}
+        return "";
+      }
+
+      function apiUrl(path) {
+        const p = path.startsWith("/") ? path : "/" + path;
+        const base = getApiBase();
+        if (!base) return p;
+        try {
+          const origin = normalizeApiOrigin(base);
+          return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+        } catch {
+          return base.replace(/\/$/, "") + p;
+        }
+      }
+
+      function mediaUrlFromApiPath(apiPath) {
+        const p = apiPath.startsWith("/") ? apiPath : "/" + apiPath;
+        const base = getApiBase();
+        if (!base) return p;
+        try {
+          const origin = normalizeApiOrigin(base);
+          return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+        } catch {
+          return base.replace(/\/$/, "") + p;
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function formatTime(sec) {
+        const n = Number(sec) || 0;
+        const m = Math.floor(n / 60);
+        const s = Math.floor(n % 60);
+        return m + ":" + (s < 10 ? "0" : "") + s;
+      }
+
+      function captureFrameBlob(video, quality) {
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (!w || !h) return Promise.resolve(null);
+        const c = document.getElementById("vcPreviewCanvas");
+        const ctx = c.getContext("2d");
+        c.width = w;
+        c.height = h;
+        ctx.drawImage(video, 0, 0, w, h);
+        return new Promise((resolve) => {
+          c.toBlob((b) => resolve(b), "image/jpeg", quality == null ? 0.88 : quality);
+        });
+      }
+
+      function captureFrameBlobModal(video, quality) {
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (!w || !h) return Promise.resolve(null);
+        const c = document.getElementById("vcModalCanvas");
+        const ctx = c.getContext("2d");
+        c.width = w;
+        c.height = h;
+        ctx.drawImage(video, 0, 0, w, h);
+        return new Promise((resolve) => {
+          c.toBlob((b) => resolve(b), "image/jpeg", quality == null ? 0.88 : quality);
+        });
+      }
+
+      const authEl = document.getElementById("videoCenterAuth");
+      const appEl = document.getElementById("videoCenterApp");
+      const statusEl = document.getElementById("vcStatus");
+      const versionSel = document.getElementById("vcVersion");
+      const langSel = document.getElementById("vcLang");
+      const bookSel = document.getElementById("vcBook");
+      const chapterSel = document.getElementById("vcChapter");
+      const titleInput = document.getElementById("vcTitle");
+      const fileInput = document.getElementById("vcFile");
+      const uploadBtn = document.getElementById("vcUploadBtn");
+      const vcPreviewSection = document.getElementById("vcPreviewSection");
+      const vcPreviewVideo = document.getElementById("vcPreviewVideo");
+      const vcPreviewSeek = document.getElementById("vcPreviewSeek");
+      const vcPreviewMeta = document.getElementById("vcPreviewMeta");
+      const vcAllTbody = document.getElementById("vcAllTbody");
+      const vcAllEmpty = document.getElementById("vcAllEmpty");
+      const vcRefreshAllBtn = document.getElementById("vcRefreshAllBtn");
+      const vcPosterModal = document.getElementById("vcPosterModal");
+      const vcModalVideo = document.getElementById("vcModalVideo");
+      const vcModalSeek = document.getElementById("vcModalSeek");
+      const vcModalMeta = document.getElementById("vcModalMeta");
+      const vcModalSub = document.getElementById("vcPosterModalSub");
+      const vcModalApplyBtn = document.getElementById("vcModalApplyBtn");
+      const vcModalCloseBtn = document.getElementById("vcModalCloseBtn");
+
+      let books = [];
+      let vcPreviewObjectUrl = "";
+      let modalCtx = null;
+
+      function setStatus(msg, kind) {
+        statusEl.textContent = msg || "";
+        statusEl.classList.remove("err", "ok");
+        if (kind === "err") statusEl.classList.add("err");
+        if (kind === "ok") statusEl.classList.add("ok");
+      }
+
+      function selectedVersionLang() {
+        return {
+          version: String(versionSel.value || "").trim(),
+          lang: String(langSel.value || "").trim(),
+        };
+      }
+
+      function fillChapters() {
+        const bookId = String(bookSel.value || "");
+        const b = books.find((x) => x.bookId === bookId);
+        const nRaw = b ? Number(b.chapters) : NaN;
+        const n =
+          Number.isFinite(nRaw) && nRaw >= 0 ? nRaw : 1;
+        chapterSel.innerHTML = "";
+        const introOpt = document.createElement("option");
+        introOpt.value = "0";
+        introOpt.textContent = "卷首页";
+        chapterSel.appendChild(introOpt);
+        for (let c = 1; c <= n; c += 1) {
+          const opt = document.createElement("option");
+          opt.value = String(c);
+          opt.textContent = "第 " + c + " 章";
+          chapterSel.appendChild(opt);
+        }
+      }
+
+      function posterThumbSrc(it) {
+        const pu = String(it.posterUrl || "").trim();
+        if (!pu) return "";
+        let u = /^https?:\/\//i.test(pu) ? pu : mediaUrlFromApiPath(pu);
+        const cv = String(it.posterUpdatedAt || "").trim();
+        if (cv) u += (u.includes("?") ? "&" : "?") + "_cv=" + encodeURIComponent(cv);
+        return u;
+      }
+
+      function renderAllTable(items) {
+        if (!items || !items.length) {
+          vcAllTbody.innerHTML = "";
+          vcAllEmpty.hidden = false;
+          return;
+        }
+        vcAllEmpty.hidden = true;
+        vcAllTbody.innerHTML = items
+          .map((it) => {
+            const chNum = Number(it.chapter);
+            const chLabel =
+              chNum === 0
+                ? "卷首页"
+                : "第" + escapeHtml(String(it.chapter || "")) + "章";
+            const loc =
+              escapeHtml(String(it.bookCn || it.bookId || "")) + " · " + chLabel;
+            const title = escapeHtml(String(it.title || "视频"));
+            const thumb = posterThumbSrc(it);
+            const thumbCell = thumb
+              ? '<img class="vc-thumb" src="' +
+                escapeHtml(thumb) +
+                '" alt="" loading="lazy" />'
+              : '<span class="vc-no-poster">未设置</span>';
+            const vid = escapeHtml(String(it.id || ""));
+            const v = escapeHtml(String(it.version || ""));
+            const l = escapeHtml(String(it.lang || ""));
+            const b = escapeHtml(String(it.bookId || ""));
+            const ch = escapeHtml(String(it.chapter || ""));
+            const uAt = escapeHtml(String(it.updatedAt || ""));
+            return (
+              "<tr>" +
+              '<td data-label="位置">' +
+              loc +
+              "</td>" +
+              '<td data-label="标题">' +
+              title +
+              "</td>" +
+              '<td data-label="封面">' +
+              thumbCell +
+              "</td>" +
+              '<td class="vc-table-actions" data-label="操作">' +
+              '<button type="button" class="vc-poster-btn" data-version="' +
+              v +
+              '" data-lang="' +
+              l +
+              '" data-book="' +
+              b +
+              '" data-chapter="' +
+              ch +
+              '" data-id="' +
+              vid +
+              '" data-updated="' +
+              uAt +
+              '" data-title="' +
+              title +
+              '">换封面</button>' +
+              '<button type="button" class="danger vc-del-btn" data-version="' +
+              v +
+              '" data-lang="' +
+              l +
+              '" data-book="' +
+              b +
+              '" data-chapter="' +
+              ch +
+              '" data-id="' +
+              vid +
+              '">删除</button>' +
+              "</td>" +
+              "</tr>"
+            );
+          })
+          .join("");
+      }
+
+      async function loadAllVideosList() {
+        const { version, lang } = selectedVersionLang();
+        if (!version || !lang) {
+          setStatus("请先选择版本与语言。", "err");
+          return;
+        }
+        setStatus("正在加载全部视频…");
+        const params = new URLSearchParams({ version, lang });
+        const res = await fetch(apiUrl("/api/admin/published/chapter-videos-list?" + params.toString()), {
+          headers: authHeadersBare(),
+          cache: "no-store",
+        });
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw.trim() ? JSON.parse(raw) : {};
+        } catch (_) {
+          data = {};
+        }
+        if (!res.ok) {
+          let msg = data.error || "加载失败（HTTP " + res.status + "）";
+          if (res.status === 404) {
+            msg +=
+              " 请确认已部署并重启 Node（需含 GET /api/admin/published/chapter-videos-list）；本页须从 Node 打开或设置 askbible-api-base。";
+          }
+          setStatus(msg, "err");
+          return;
+        }
+        renderAllTable(data.items || []);
+        setStatus("已加载 " + (data.items && data.items.length ? data.items.length : 0) + " 条。", "ok");
+      }
+
+      async function postPosterBlob(blob, meta) {
+        if (!blob) {
+          setStatus("无法截取当前帧（视频尚未解码出画面）。", "err");
+          return false;
+        }
+        const fd = new FormData();
+        fd.append(
+          "meta",
+          JSON.stringify({
+            version: meta.version,
+            lang: meta.lang,
+            bookId: meta.bookId,
+            chapter: meta.chapter,
+            id: meta.id,
+          })
+        );
+        fd.append("poster", blob, "poster.jpg");
+        const res = await fetch(apiUrl("/api/admin/published/chapter-video-poster-upload"), {
+          method: "POST",
+          headers: authHeadersBare(),
+          body: fd,
+        });
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw.trim() ? JSON.parse(raw) : {};
+        } catch (_) {
+          data = {};
+        }
+        if (!res.ok) {
+          setStatus(data.error || "封面上传失败", "err");
+          return false;
+        }
+        return true;
+      }
+
+      function resetPreview() {
+        if (vcPreviewObjectUrl) {
+          try {
+            URL.revokeObjectURL(vcPreviewObjectUrl);
+          } catch (_) {}
+          vcPreviewObjectUrl = "";
+        }
+        vcPreviewVideo.removeAttribute("src");
+        vcPreviewVideo.load();
+        vcPreviewSection.hidden = true;
+        vcPreviewSeek.value = 0;
+        vcPreviewMeta.textContent = "0:00 / —";
+      }
+
+      function bindPreviewSeek() {
+        const video = vcPreviewVideo;
+        const seek = vcPreviewSeek;
+        function syncMeta() {
+          const d = video.duration;
+          vcPreviewMeta.textContent =
+            formatTime(video.currentTime) + " / " + (Number.isFinite(d) ? formatTime(d) : "—");
+        }
+        seek.addEventListener("input", () => {
+          const d = video.duration;
+          if (!Number.isFinite(d) || d <= 0) return;
+          video.currentTime = Number(seek.value) * d;
+        });
+        video.addEventListener("seeked", syncMeta);
+        video.addEventListener("timeupdate", syncMeta);
+      }
+
+      let previewSeekBound = false;
+      fileInput.addEventListener("change", () => {
+        const f = fileInput.files && fileInput.files[0];
+        resetPreview();
+        if (!f) return;
+        vcPreviewSection.hidden = false;
+        vcPreviewObjectUrl = URL.createObjectURL(f);
+        vcPreviewVideo.src = vcPreviewObjectUrl;
+        vcPreviewVideo.addEventListener(
+          "loadedmetadata",
+          function once() {
+            vcPreviewVideo.removeEventListener("loadedmetadata", once);
+            const d = vcPreviewVideo.duration;
+            if (Number.isFinite(d) && d > 0) {
+              const t = Math.min(2, Math.max(0.25, d * 0.04));
+              vcPreviewSeek.max = 1;
+              vcPreviewSeek.value = String(t / d);
+              vcPreviewVideo.currentTime = t;
+            }
+            vcPreviewMeta.textContent =
+              formatTime(vcPreviewVideo.currentTime) +
+              " / " +
+              (Number.isFinite(d) ? formatTime(d) : "—");
+          },
+          { once: true }
+        );
+        if (!previewSeekBound) {
+          previewSeekBound = true;
+          bindPreviewSeek();
+        }
+      });
+
+      async function uploadVideo() {
+        const { version, lang } = selectedVersionLang();
+        const bookId = String(bookSel.value || "").trim();
+        const chapter = Number(chapterSel.value);
+        const file = fileInput.files && fileInput.files[0];
+        if (
+          !version ||
+          !lang ||
+          !bookId ||
+          !Number.isInteger(chapter) ||
+          chapter < 0
+        ) {
+          setStatus("请选择版本、语言、书卷与章。", "err");
+          return;
+        }
+        if (!file) {
+          setStatus("请选择视频文件。", "err");
+          return;
+        }
+        const fd = new FormData();
+        const t = String(titleInput.value || "").trim();
+        const meta = { version, lang, bookId, chapter };
+        if (t) meta.title = t;
+        /* 单段 JSON 置于文件前：避免大文件后扁平字段丢失（含 chapter=0 卷首页） */
+        fd.append("meta", JSON.stringify(meta));
+        fd.append("video", file);
+
+        uploadBtn.disabled = true;
+        setStatus("正在上传视频…");
+        try {
+          const res = await fetch(apiUrl("/api/admin/published/chapter-video-upload"), {
+            method: "POST",
+            headers: authHeadersBare(),
+            body: fd,
+          });
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) {
+            let msg = data.error || "上传失败（HTTP " + res.status + "）";
+            if (res.status === 404) {
+              msg +=
+                " 请确认 Node 已部署并重启；本页 API 指向正确。";
+            }
+            setStatus(msg, "err");
+            return;
+          }
+          const newId = String(data.video && data.video.id ? data.video.id : "").trim();
+          if (newId && vcPreviewVideo.readyState >= 2) {
+            setStatus("正在上传封面…");
+            const blob = await captureFrameBlob(vcPreviewVideo, 0.88);
+            if (blob) {
+              const ok = await postPosterBlob(blob, {
+                version,
+                lang,
+                bookId,
+                chapter,
+                id: newId,
+              });
+              if (!ok) {
+                setStatus(
+                  "视频已上传，但封面上传失败。可在下方列表中点「换封面」重试。",
+                  "err"
+                );
+                fileInput.value = "";
+                titleInput.value = "";
+                resetPreview();
+                await loadAllVideosList();
+                return;
+              }
+            }
+          }
+          setStatus("上传完成（若已加载预览并选帧，会一并上传封面）。", "ok");
+          fileInput.value = "";
+          titleInput.value = "";
+          resetPreview();
+          await loadAllVideosList();
+        } catch (e) {
+          const raw = String((e && e.message) || e || "");
+          const isFetchFail =
+            /failed to fetch|networkerror|load failed/i.test(raw);
+          setStatus(
+            isFetchFail
+              ? raw +
+                  "（请确认 Node 已在 :3000 运行；优先用 http://本机或局域网IP:3000/video-center.html 打开。）"
+              : raw || "网络错误",
+            "err"
+          );
+        } finally {
+          uploadBtn.disabled = false;
+        }
+      }
+
+      async function deleteVideoRow(version, lang, bookId, chapter, id) {
+        if (!confirm("确认删除该视频？（视频文件、封面与 JSON 条目均移除）")) return;
+        setStatus("正在删除…");
+        const params = new URLSearchParams({
+          version,
+          lang,
+          bookId,
+          chapter: String(chapter),
+          id,
+        });
+        const res = await fetch(apiUrl("/api/admin/chapter-video?" + params.toString()), {
+          method: "DELETE",
+          headers: authHeadersBare(),
+        });
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw.trim() ? JSON.parse(raw) : {};
+        } catch (_) {
+          data = {};
+        }
+        if (!res.ok) {
+          setStatus(data.error || "删除失败", "err");
+          return;
+        }
+        setStatus("已删除。", "ok");
+        await loadAllVideosList();
+      }
+
+      function openPosterModal(ctx) {
+        modalCtx = ctx;
+        vcModalSub.textContent =
+          String(ctx.bookCn || ctx.bookId) +
+          " 第" +
+          String(ctx.chapter) +
+          "章 · " +
+          String(ctx.title || "");
+        const q = new URLSearchParams({
+          version: ctx.version,
+          lang: ctx.lang,
+          bookId: ctx.bookId,
+          chapter: String(ctx.chapter),
+          id: ctx.id,
+        });
+        const vsrc = mediaUrlFromApiPath("/api/published/chapter-video?" + q.toString());
+        const bust = String(ctx.updatedAt || "").trim();
+        const vurl = bust ? vsrc + (vsrc.includes("?") ? "&" : "?") + "_cv=" + encodeURIComponent(bust) : vsrc;
+        vcModalVideo.src = vurl;
+        vcModalSeek.value = 0;
+        vcModalMeta.textContent = "0:00 / —";
+        vcPosterModal.hidden = false;
+        vcModalVideo.addEventListener(
+          "loadedmetadata",
+          function onMeta() {
+            vcModalVideo.removeEventListener("loadedmetadata", onMeta);
+            const d = vcModalVideo.duration;
+            if (Number.isFinite(d) && d > 0) {
+              const t = Math.min(2, Math.max(0.25, d * 0.04));
+              vcModalSeek.max = 1;
+              vcModalSeek.value = String(t / d);
+              vcModalVideo.currentTime = t;
+            }
+            const du = vcModalVideo.duration;
+            vcModalMeta.textContent =
+              formatTime(vcModalVideo.currentTime) +
+              " / " +
+              (Number.isFinite(du) ? formatTime(du) : "—");
+          },
+          { once: true }
+        );
+      }
+
+      function closePosterModal() {
+        vcPosterModal.hidden = true;
+        vcModalVideo.removeAttribute("src");
+        vcModalVideo.load();
+        modalCtx = null;
+      }
+
+      vcModalSeek.addEventListener("input", () => {
+        const d = vcModalVideo.duration;
+        if (!Number.isFinite(d) || d <= 0) return;
+        vcModalVideo.currentTime = Number(vcModalSeek.value) * d;
+      });
+      vcModalVideo.addEventListener("seeked", () => {
+        const d = vcModalVideo.duration;
+        vcModalMeta.textContent =
+          formatTime(vcModalVideo.currentTime) +
+          " / " +
+          (Number.isFinite(d) ? formatTime(d) : "—");
+      });
+
+      vcModalApplyBtn.addEventListener("click", async () => {
+        if (!modalCtx) return;
+        setStatus("正在上传封面…");
+        const blob = await captureFrameBlobModal(vcModalVideo, 0.88);
+        const ok = await postPosterBlob(blob, {
+          version: modalCtx.version,
+          lang: modalCtx.lang,
+          bookId: modalCtx.bookId,
+          chapter: modalCtx.chapter,
+          id: modalCtx.id,
+        });
+        if (ok) {
+          setStatus("封面已更新。", "ok");
+          closePosterModal();
+          await loadAllVideosList();
+        }
+      });
+      vcModalCloseBtn.addEventListener("click", closePosterModal);
+      vcPosterModal.addEventListener("click", (e) => {
+        if (e.target === vcPosterModal) closePosterModal();
+      });
+
+      vcAllTbody.addEventListener("click", (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLElement)) return;
+        const posterBtn = t.closest(".vc-poster-btn");
+        const delBtn = t.closest(".vc-del-btn");
+        if (posterBtn) {
+          const version = posterBtn.getAttribute("data-version") || "";
+          const lang = posterBtn.getAttribute("data-lang") || "";
+          const bookId = posterBtn.getAttribute("data-book") || "";
+          const chapter = Number(posterBtn.getAttribute("data-chapter") || 0);
+          const id = posterBtn.getAttribute("data-id") || "";
+          const title = posterBtn.getAttribute("data-title") || "";
+          const updatedAt = posterBtn.getAttribute("data-updated") || "";
+          const bookCn =
+            books.find((b) => b.bookId === bookId)?.bookCn || bookId;
+          openPosterModal({
+            version,
+            lang,
+            bookId,
+            bookCn,
+            chapter,
+            id,
+            title,
+            updatedAt,
+          });
+          return;
+        }
+        if (delBtn) {
+          deleteVideoRow(
+            delBtn.getAttribute("data-version") || "",
+            delBtn.getAttribute("data-lang") || "",
+            delBtn.getAttribute("data-book") || "",
+            Number(delBtn.getAttribute("data-chapter") || 0),
+            delBtn.getAttribute("data-id") || ""
+          );
+        }
+      });
+
+      uploadBtn.addEventListener("click", uploadVideo);
+      vcRefreshAllBtn.addEventListener("click", loadAllVideosList);
+
+      async function init() {
+        const token = getToken();
+        if (!token) {
+          authEl.hidden = false;
+          authEl.innerHTML =
+            '请先 <a href="/">返回首页</a> 登录管理员账号。';
+          appEl.hidden = true;
+          return;
+        }
+        authEl.hidden = true;
+        const res = await fetch(apiUrl("/api/admin/bootstrap"), {
+          headers: authHeadersBare(),
+          cache: "no-store",
+        });
+        const raw = await res.text();
+        let payload = {};
+        try {
+          payload = raw.trim() ? JSON.parse(raw) : {};
+        } catch (_) {
+          payload = {};
+        }
+        if (res.status === 401) {
+          authEl.hidden = false;
+          authEl.innerHTML = '请先 <a href="/">返回首页</a> 登录。';
+          appEl.hidden = true;
+          return;
+        }
+        if (res.status === 403) {
+          authEl.hidden = false;
+          authEl.innerHTML = "需要管理员权限。";
+          appEl.hidden = true;
+          return;
+        }
+        if (!res.ok) {
+          authEl.hidden = false;
+          authEl.innerHTML = "无法加载后台数据：" + (payload.error || "HTTP " + res.status);
+          appEl.hidden = true;
+          return;
+        }
+
+        const contentVersions = Array.isArray(payload.contentVersions) ? payload.contentVersions : [];
+        const langs = Array.isArray(payload.languages) ? payload.languages : [];
+        books = Array.isArray(payload.books) ? payload.books : [];
+
+        versionSel.innerHTML = "";
+        contentVersions
+          .filter((x) => x && x.enabled !== false && x.id)
+          .sort((a, b) => Number(a.order || 999) - Number(b.order || 999))
+          .forEach((x) => {
+            const opt = document.createElement("option");
+            opt.value = String(x.id);
+            opt.textContent = String(x.label || x.id);
+            versionSel.appendChild(opt);
+          });
+
+        langSel.innerHTML = "";
+        langs
+          .filter((x) => x && x.enabled !== false && (x.id || x.code))
+          .forEach((x) => {
+            const id = String(x.id || x.code || "").trim();
+            if (!id) return;
+            const opt = document.createElement("option");
+            opt.value = id;
+            opt.textContent = String(x.label || id);
+            langSel.appendChild(opt);
+          });
+
+        bookSel.innerHTML = "";
+        books.forEach((b) => {
+          const opt = document.createElement("option");
+          opt.value = String(b.bookId);
+          opt.textContent = String(b.bookCn || b.bookId) + " (" + String(b.bookId) + ")";
+          bookSel.appendChild(opt);
+        });
+
+        fillChapters();
+        appEl.hidden = false;
+
+        versionSel.addEventListener("change", loadAllVideosList);
+        langSel.addEventListener("change", loadAllVideosList);
+        bookSel.addEventListener("change", fillChapters);
+
+        await loadAllVideosList();
+      }
+
+      init();
+    </script>
+  </body>
+</html>

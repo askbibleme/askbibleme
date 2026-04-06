@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>主页版面结构分拆 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=9" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .layout-map-wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 22px 16px 56px;
+        box-sizing: border-box;
+      }
+      .layout-map-hero h1 {
+        margin: 0 0 10px;
+        font-size: calc(22px * var(--font-scale));
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+      .layout-map-hero p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.65;
+        color: var(--muted-soft);
+        max-width: 52em;
+      }
+      .layout-map-block {
+        margin-top: 28px;
+        padding: 20px 18px 22px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+        box-sizing: border-box;
+      }
+      .layout-map-block h2 {
+        margin: 0 0 12px;
+        font-size: calc(16px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .layout-map-block h3 {
+        margin: 18px 0 8px;
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .layout-map-block h3:first-of-type {
+        margin-top: 0;
+      }
+      .layout-map-tree {
+        margin: 0;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(255, 253, 248, 0.9);
+        border: 1px solid var(--line-soft);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--ink);
+        overflow-x: auto;
+        white-space: pre;
+      }
+      .layout-map-note {
+        margin: 12px 0 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+      .layout-map-table-wrap {
+        overflow-x: auto;
+        margin-top: 10px;
+      }
+      .layout-map-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .layout-map-table th,
+      .layout-map-table td {
+        border: 1px solid var(--line-soft);
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .layout-map-table th {
+        background: rgba(255, 251, 242, 0.9);
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .layout-map-table code {
+        font-size: 11px;
+        word-break: break-all;
+      }
+      .layout-map-actions {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .layout-map-actions a {
+        display: inline-flex;
+        align-items: center;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .layout-map-actions a:hover {
+        border-color: rgba(200, 155, 60, 0.45);
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/home-layout-map.html">
+    <div class="layout-map-wrap">
+      <header class="layout-map-hero">
+        <h1>主页版面结构分拆</h1>
+        <p>
+          读经首页对应仓库根目录 <code>index.html</code>，外层为 <code>.page-shell</code>；顶栏与底栏部分区域由
+          <code>site-chrome.js</code> 按接口数据注入。下列为静态骨架与主要 <code>id</code>，便于改样式或对接
+          <code>main.js</code> 时快速定位。
+        </p>
+      </header>
+
+      <div class="layout-map-block">
+        <h2>一、DOM 树概览</h2>
+        <pre class="layout-map-tree">.page-shell
+├── header.site-topbar
+│   ├── .askbible-chrome-brand-slot          ← 品牌（接口注入）
+│   ├── #openAdminBtn                         ← 程序化打开后台（通常隐藏）
+│   └── .site-topbar-actions
+│       ├── .askbible-chrome-nav-slot         ← 顶栏导航链接（接口注入）
+│       └── #memberHub …                      ← 会员入口锚点
+├── main.book-layout
+│   └── .book-spread
+│       ├── section.book-page.left-page
+│       │   … 工具条 / 翻章 / 收藏带 …
+│       │   ├── .page-title-block             ← 章号 + 书名大标题
+│       │   ├── #chapterVideosSlot            ← 本章视频（大标题下、正文区上）
+│       │   └── … 重复词、配图、#leftBlocks …
+│       └── section.book-page.right-page      ← 右页：副列 + 贡献区 + 底导航
+└── footer.site-footer.askbible-chrome-footer-slot  ← 底栏（接口注入，默认可 hidden）</pre>
+        <p class="layout-map-note">
+          书页式排版由 <code>styles.css</code> 中 <code>.book-layout</code> / <code>.book-spread</code> 等类控制；窄屏下两栏会堆叠为单栏阅读流。
+        </p>
+      </div>
+
+      <div class="layout-map-block">
+        <h2>二、左页（left-page）主要区块</h2>
+        <div class="layout-map-table-wrap">
+          <table class="layout-map-table">
+            <thead>
+              <tr>
+                <th scope="col">区域</th>
+                <th scope="col">关键选择器 / id</th>
+                <th scope="col">说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>阅读工具条</td>
+                <td><code>.page-toolbar</code>、<code>#bookChapterTrigger</code>、<code>#primaryVersionTrigger</code>、<code>#verseSearchOpenBtn</code>、<code>#displayModeSwitch</code></td>
+                <td>书卷 / 版本+ / 搜索 / 经文·全显·问题</td>
+              </tr>
+              <tr>
+                <td>隐藏表单（兼容 JS）</td>
+                <td><code>#bookId</code>、<code>#chapter</code>、<code>#contentVersion</code> 等</td>
+                <td><code>display:none</code> 保留，供现有逻辑读写</td>
+              </tr>
+              <tr>
+                <td>章节标题与导航</td>
+                <td><code>.title-nav-row</code>、<code>#prevChapterBtnTop</code>、<code>#nextChapterBtnTop</code>、<code>#fontDecreaseBtn</code>、<code>#fontIncreaseBtn</code></td>
+                <td>顶栏翻章与字号</td>
+              </tr>
+              <tr>
+                <td>收藏与在线丝带</td>
+                <td><code>#sideFavoritesListBtn</code>、<code>#sideUserTag</code>、<code>#sideRibbonOnlineLine</code></td>
+                <td>收藏列表入口、用户标签、累计在线文案</td>
+              </tr>
+              <tr>
+                <td>本章视频（若有）</td>
+                <td><code>#chapterVideosSlot</code></td>
+                <td>在大标题之前；有 <code>chapterVideos</code> 时渲染播放器，无则插槽为空不占位</td>
+              </tr>
+              <tr>
+                <td>本章标题</td>
+                <td><code>#pageChapterNumber</code>、<code>#pageBookTitle</code></td>
+                <td>大标题区</td>
+              </tr>
+              <tr>
+                <td>重复词行</td>
+                <td><code>#repeatedWordsLine</code></td>
+                <td>查经内容中的重复词提示</td>
+              </tr>
+              <tr>
+                <td>配图</td>
+                <td><code>#chapterArtSlot</code></td>
+                <td>由 <code>main.js</code> 根据已发布 JSON 中 <code>chapterArt</code> 渲染</td>
+              </tr>
+              <tr>
+                <td>查经卡片主列</td>
+                <td><code>#leftBlocks</code>（<code>.blocks-stack</code>）</td>
+                <td>半数字段卡片，与右列对半拆分</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="layout-map-block">
+        <h2>三、右页（right-page）主要区块</h2>
+        <div class="layout-map-table-wrap">
+          <table class="layout-map-table">
+            <thead>
+              <tr>
+                <th scope="col">区域</th>
+                <th scope="col">关键选择器 / id</th>
+                <th scope="col">说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>副列查经卡片</td>
+                <td><code>#rightBlocks</code></td>
+                <td>与左列同属一段 segments，按序拆成两列</td>
+              </tr>
+              <tr>
+                <td>参与贡献</td>
+                <td><code>.chapter-feedback-wrap</code>、<code>#chapterQuestionInput</code>、<code>#submitChapterQuestionBtn</code></td>
+                <td>提交本章问题</td>
+              </tr>
+              <tr>
+                <td>社区已通过问题</td>
+                <td><code>#chapterApprovedTitle</code>、<code>#chapterApprovedQuestions</code></td>
+                <td>列表由接口数据渲染</td>
+              </tr>
+              <tr>
+                <td>底部章节导航</td>
+                <td><code>.chapter-nav.bottom-nav</code>、<code>#prevChapterBtnBottom</code>、<code>#nextChapterBtnBottom</code>、<code>#chapterNavTitleBottom</code></td>
+                <td>移动端友好的底栏翻章</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="layout-map-block">
+        <h2>四、全屏浮层（overlay）与模态框</h2>
+        <p class="layout-map-note" style="margin-top: 0">
+          均在 <code>body</code> 末尾、<code>main.js</code> 之前；多数为 <code>.verse-search-overlay</code> + 内层
+          <code>role="dialog"</code> 卡片，关闭按钮常带 <code>data-close-panel="…"</code>。
+        </p>
+        <div class="layout-map-table-wrap">
+          <table class="layout-map-table">
+            <thead>
+              <tr>
+                <th scope="col">id</th>
+                <th scope="col">用途</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>#memberHubPanel</code></td>
+                <td>账户菜单（访客 / 已登录 / 千夫长入口）</td>
+              </tr>
+              <tr>
+                <td><code>#bookChapterPanel</code></td>
+                <td>书卷 + 章节网格（旧约 / 新约 / 章节）</td>
+              </tr>
+              <tr>
+                <td><code>#primaryVersionPanel</code></td>
+                <td>问题类型、主经文版本、对照版本</td>
+              </tr>
+              <tr>
+                <td><code>#favoritesPanel</code></td>
+                <td>收藏夹三标签（页面 / 经文 / 问题）</td>
+              </tr>
+              <tr>
+                <td><code>#verseSearchOverlay</code></td>
+                <td>经文关键词搜索</td>
+              </tr>
+              <tr>
+                <td><code>#authModal</code></td>
+                <td>登录 / 注册表单（<code>.modal-mask</code>）</td>
+              </tr>
+              <tr>
+                <td><code>#adminModal</code></td>
+                <td>读经内大面板：跳转独立管理页 + 规则编辑、测试生成等标签</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="layout-map-block">
+        <h2>五、脚本与配置入口</h2>
+        <div class="layout-map-table-wrap">
+          <table class="layout-map-table">
+            <thead>
+              <tr>
+                <th scope="col">资源</th>
+                <th scope="col">作用</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>main.js</code></td>
+                <td>路由 hash、读经状态、渲染左右列、面板开关、管理员弹层等</td>
+              </tr>
+              <tr>
+                <td><code>site-chrome.js</code></td>
+                <td>顶栏品牌 / 导航、底栏内容注入（数据来自站点配置接口）</td>
+              </tr>
+              <tr>
+                <td><code>seo-apply.js</code></td>
+                <td>首页 SEO 元数据与 JSON-LD（可与后台 SEO 设置联动）</td>
+              </tr>
+              <tr>
+                <td><code>theme-apply.js</code></td>
+                <td>主题与字体缩放等全局外观</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="layout-map-note">
+          修改版面时建议同时检索 <code>index.html</code>、<code>styles.css</code> 与 <code>main.js</code> 中对上述 id
+          的引用，避免只改 HTML 导致脚本找不到节点。
+        </p>
+      </div>
+
+      <div class="layout-map-actions">
+        <a href="/">打开读经首页</a>
+        <a href="/admin-hub.html">返回管理首页</a>
+      </div>
+    </div>
+
+    <script src="/admin-shell.js?v=3" defer></script>
+  </body>
+</html>

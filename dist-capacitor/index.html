@@ -73,7 +73,7 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=151" />
+    <link rel="stylesheet" href="/styles.css?v=154" />
     <script src="/theme-apply.js?v=2"></script>
     <script src="/site-chrome.js?v=15" defer></script>
     <script src="/seo-apply.js?v=4" defer></script>
@@ -266,6 +266,14 @@
               <div id="pageBookTitle" class="page-book-title">创世记</div>
             </div>
 
+            <!-- 本章视频：紧挨大标题下方；卷首页时在「介绍」卡片上方 -->
+            <div
+              id="chapterVideosSlot"
+              class="chapter-videos-slot"
+              aria-live="polite"
+              aria-label="本章视频"
+            ></div>
+
             <div class="repeated-words-wrap">
               <div id="repeatedWordsLine" class="repeated-words-line">—</div>
             </div>
@@ -295,6 +303,15 @@
               </div>
               <div id="chapterApprovedTitle" class="chapter-feedback-approved-title">社区贡献</div>
               <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
+            </div>
+
+            <div id="chapterEndNextGuide" class="chapter-end-next-guide" hidden>
+              <div class="chapter-end-next-guide-inner">
+                <p id="chapterEndNextHint" class="chapter-end-next-hint"></p>
+                <button type="button" id="chapterEndNextBtn" class="chapter-end-next-btn">
+                  <span id="chapterEndNextBtnLabel"></span>
+                </button>
+              </div>
             </div>
 
             <div class="chapter-nav bottom-nav">
@@ -1017,6 +1034,8 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
     <script type="module" src="/main.js"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>

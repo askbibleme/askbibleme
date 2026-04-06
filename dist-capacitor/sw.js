@@ -1,4 +1,4 @@
-const CACHE_NAME = "askbible-static-v42";
+const CACHE_NAME = "askbible-static-v45";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -47,7 +47,7 @@ self.addEventListener("fetch", (event) => {
 
   /* 管理后台与配置工具 HTML：勿 cache-first，否则内联脚本长期停留在旧版（如 site-chrome 图标 UI） */
   if (
-    /\/(?:admin-hub|site-chrome|promo-edit|color-themes|admin-analytics|seo-settings)\.html$/i.test(
+    /\/(?:admin-hub|site-chrome|promo-edit|color-themes|admin-analytics|seo-settings|home-layout-map|video-center)\.html$/i.test(
       url.pathname
     )
   ) {

@@ -13,6 +13,8 @@ const dest = path.join(root, "dist-capacitor");
 const topFiles = [
   "index.html",
   "admin-hub.html",
+  "home-layout-map.html",
+  "video-center.html",
   "admin-shell.css",
   "admin-shell.js",
   "download.html",

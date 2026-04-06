@@ -3,6 +3,13 @@ export const testamentOptions = [
   {
     name: "旧约",
     books: [
+      {
+        cn: "旧约概论",
+        usfx: "_OT_OVERVIEW",
+        en: "Old Testament Overview",
+        chapters: 0,
+        overviewOnly: true,
+      },
       { cn: "创世记", usfx: "GEN", chapters: 50 },
       { cn: "出埃及记", usfx: "EXO", chapters: 40 },
       { cn: "利未记", usfx: "LEV", chapters: 27 },
@@ -47,6 +54,13 @@ export const testamentOptions = [
   {
     name: "新约",
     books: [
+      {
+        cn: "新约概论",
+        usfx: "_NT_OVERVIEW",
+        en: "New Testament Overview",
+        chapters: 0,
+        overviewOnly: true,
+      },
       { cn: "马太福音", usfx: "MAT", chapters: 28 },
       { cn: "马可福音", usfx: "MRK", chapters: 16 },
       { cn: "路加福音", usfx: "LUK", chapters: 24 },
