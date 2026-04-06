@@ -4,3 +4,6 @@
 
 # 勿将 OpenAI 等密钥提交到 Git（后台「系统密钥」写入的文件）
 admin_data/system_secrets.json
+
+# 本地打的升级包（勿提交）
+deploy-builds/

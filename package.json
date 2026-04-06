@@ -7,6 +7,7 @@
     "dev": "DEV_LIVE_RELOAD=1 node server.js",
     "cap:sync": "npx cap sync",
     "cap:copy-web": "node scripts/copy-web-to-dist-capacitor.mjs",
+    "build:deploy-zip": "npm run cap:copy-web && node scripts/build-deploy-upgrade-zip.mjs",
     "cap:android": "npx cap open android",
     "android:icons": "bash scripts/generate-android-launcher-icons.sh",
     "web:icons": "bash scripts/refresh-app-icons.sh",
