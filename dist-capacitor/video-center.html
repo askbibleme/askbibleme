@@ -296,7 +296,7 @@
         <h1>章节视频上传</h1>
         <p class="video-center-lead">
           先选<strong>查经版本</strong>与<strong>内容语言</strong>，下方表格会列出该语言下<strong>所有已上传的章节视频</strong>（书卷、章、标题、封面）。列表接口为
-          <code>GET /api/admin/published/chapter-videos-list</code>。上传新视频前可选好<strong>封面帧</strong>；也可在表格里<strong>更换封面</strong>。支持<strong>本地文件</strong>或填写<strong>公网直链</strong>（由服务器拉取，与文件二选一）。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>（章下拉第一项）可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
+          <code>GET /api/admin/published/chapter-videos-list</code>。上传新视频前可选好<strong>封面帧</strong>；也可在表格里<strong>改标题</strong>、<strong>更换封面</strong>。支持<strong>本地文件</strong>或填写<strong>公网直链</strong>（由服务器拉取，与文件二选一）。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>（章下拉第一项）可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
         </p>
         <p id="videoCenterAuth" class="video-center-auth" hidden></p>
         <div id="videoCenterApp" hidden>
@@ -411,6 +411,45 @@
       </div>
     </div>
 
+    <div
+      id="vcTitleModal"
+      class="vc-modal-backdrop"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="vcTitleModalHeading"
+    >
+      <div class="vc-modal-card">
+        <h3 id="vcTitleModalHeading">修改视频标题</h3>
+        <p id="vcTitleModalSub" class="video-center-hint" style="margin-top: 0"></p>
+        <label for="vcTitleEditInput" style="display: block; margin-top: 10px; font-weight: 700"
+          >显示标题（读者端与列表共用，最多 200 字）</label
+        >
+        <input
+          type="text"
+          id="vcTitleEditInput"
+          maxlength="200"
+          style="
+            width: 100%;
+            padding: 10px 12px;
+            margin-top: 6px;
+            box-sizing: border-box;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            font-size: 15px;
+          "
+          autocomplete="off"
+        />
+        <p class="video-center-hint" style="margin-top: 8px">
+          留空保存后将自动变为「视频 1」「视频 2」形式中的对应序号。
+        </p>
+        <div class="vc-modal-actions">
+          <button type="button" class="primary" id="vcTitleModalSaveBtn">保存</button>
+          <button type="button" id="vcTitleModalCancelBtn">取消</button>
+        </div>
+      </div>
+    </div>
+
     <script src="/admin-shell.js?v=3" defer></script>
     <script>
       const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
@@ -511,6 +550,23 @@
           .replace(/"/g, "&quot;");
       }
 
+      function encodeTitleAttr(s) {
+        try {
+          return btoa(unescape(encodeURIComponent(String(s ?? ""))));
+        } catch (_) {
+          return "";
+        }
+      }
+
+      function decodeTitleAttr(b64) {
+        if (!b64) return "";
+        try {
+          return decodeURIComponent(escape(atob(b64)));
+        } catch (_) {
+          return "";
+        }
+      }
+
       function formatTime(sec) {
         const n = Number(sec) || 0;
         const m = Math.floor(n / 60);
@@ -572,6 +628,11 @@
       const vcModalSub = document.getElementById("vcPosterModalSub");
       const vcModalApplyBtn = document.getElementById("vcModalApplyBtn");
       const vcModalCloseBtn = document.getElementById("vcModalCloseBtn");
+      const vcTitleModal = document.getElementById("vcTitleModal");
+      const vcTitleModalSub = document.getElementById("vcTitleModalSub");
+      const vcTitleEditInput = document.getElementById("vcTitleEditInput");
+      const vcTitleModalSaveBtn = document.getElementById("vcTitleModalSaveBtn");
+      const vcTitleModalCancelBtn = document.getElementById("vcTitleModalCancelBtn");
 
       let books = [];
       let vcPreviewObjectUrl = "";
@@ -635,7 +696,9 @@
                 : "第" + escapeHtml(String(it.chapter || "")) + "章";
             const loc =
               escapeHtml(String(it.bookCn || it.bookId || "")) + " · " + chLabel;
-            const title = escapeHtml(String(it.title || "视频"));
+            const titleRaw = String(it.title || "视频");
+            const title = escapeHtml(titleRaw);
+            const titleB64 = encodeTitleAttr(titleRaw);
             const thumb = posterThumbSrc(it);
             const thumbCell = thumb
               ? '<img class="vc-thumb" src="' +
@@ -672,9 +735,22 @@
               vid +
               '" data-updated="' +
               uAt +
-              '" data-title="' +
-              title +
+              '" data-title-b64="' +
+              escapeHtml(titleB64) +
               '">换封面</button>' +
+              '<button type="button" class="vc-title-btn" data-version="' +
+              v +
+              '" data-lang="' +
+              l +
+              '" data-book="' +
+              b +
+              '" data-chapter="' +
+              ch +
+              '" data-id="' +
+              vid +
+              '" data-title-b64="' +
+              escapeHtml(titleB64) +
+              '">改标题</button>' +
               '<button type="button" class="danger vc-del-btn" data-version="' +
               v +
               '" data-lang="' +
@@ -978,6 +1054,64 @@
         }
       }
 
+      let titleEditCtx = null;
+
+      function openTitleEditModal(ctx) {
+        titleEditCtx = ctx;
+        vcTitleModalSub.textContent =
+          String(ctx.bookCn || ctx.bookId) +
+          (Number(ctx.chapter) === 0 ? " · 卷首页" : " · 第" + String(ctx.chapter) + "章");
+        vcTitleEditInput.value = String(ctx.title || "");
+        vcTitleModal.hidden = false;
+        setTimeout(() => {
+          try {
+            vcTitleEditInput.focus();
+            vcTitleEditInput.select();
+          } catch (_) {}
+        }, 30);
+      }
+
+      function closeTitleEditModal() {
+        vcTitleModal.hidden = true;
+        titleEditCtx = null;
+        vcTitleEditInput.value = "";
+      }
+
+      async function saveTitleEditModal() {
+        if (!titleEditCtx) return;
+        setStatus("正在保存标题…");
+        const body = {
+          version: titleEditCtx.version,
+          lang: titleEditCtx.lang,
+          bookId: titleEditCtx.bookId,
+          chapter: titleEditCtx.chapter,
+          id: titleEditCtx.id,
+          title: String(vcTitleEditInput.value || "").trim(),
+        };
+        const res = await fetch(apiUrl("/api/admin/published/chapter-video"), {
+          method: "PATCH",
+          headers: {
+            ...authHeadersBare(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        });
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw.trim() ? JSON.parse(raw) : {};
+        } catch (_) {
+          data = {};
+        }
+        if (!res.ok) {
+          setStatus(data.error || "保存标题失败", "err");
+          return;
+        }
+        setStatus("标题已更新。", "ok");
+        closeTitleEditModal();
+        await loadAllVideosList();
+      }
+
       async function deleteVideoRow(version, lang, bookId, chapter, id) {
         if (!confirm("确认删除该视频？（视频文件、封面与 JSON 条目均移除）")) return;
         setStatus("正在删除…");
@@ -1092,18 +1226,57 @@
         if (e.target === vcPosterModal) closePosterModal();
       });
 
+      vcTitleModalCancelBtn.addEventListener("click", closeTitleEditModal);
+      vcTitleModalSaveBtn.addEventListener("click", () => {
+        void saveTitleEditModal();
+      });
+      vcTitleModal.addEventListener("click", (e) => {
+        if (e.target === vcTitleModal) closeTitleEditModal();
+      });
+      vcTitleEditInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void saveTitleEditModal();
+        }
+      });
+
       vcAllTbody.addEventListener("click", (e) => {
         const t = e.target;
         if (!(t instanceof HTMLElement)) return;
         const posterBtn = t.closest(".vc-poster-btn");
+        const titleBtn = t.closest(".vc-title-btn");
         const delBtn = t.closest(".vc-del-btn");
+        if (titleBtn) {
+          const version = titleBtn.getAttribute("data-version") || "";
+          const lang = titleBtn.getAttribute("data-lang") || "";
+          const bookId = titleBtn.getAttribute("data-book") || "";
+          const chapter = Number(titleBtn.getAttribute("data-chapter") || 0);
+          const id = titleBtn.getAttribute("data-id") || "";
+          const rawTitle = decodeTitleAttr(
+            titleBtn.getAttribute("data-title-b64") || ""
+          );
+          const bookCn =
+            books.find((b) => b.bookId === bookId)?.bookCn || bookId;
+          openTitleEditModal({
+            version,
+            lang,
+            bookId,
+            bookCn,
+            chapter,
+            id,
+            title: rawTitle,
+          });
+          return;
+        }
         if (posterBtn) {
           const version = posterBtn.getAttribute("data-version") || "";
           const lang = posterBtn.getAttribute("data-lang") || "";
           const bookId = posterBtn.getAttribute("data-book") || "";
           const chapter = Number(posterBtn.getAttribute("data-chapter") || 0);
           const id = posterBtn.getAttribute("data-id") || "";
-          const title = posterBtn.getAttribute("data-title") || "";
+          const title =
+            decodeTitleAttr(posterBtn.getAttribute("data-title-b64") || "") ||
+            "";
           const updatedAt = posterBtn.getAttribute("data-updated") || "";
           const bookCn =
             books.find((b) => b.bookId === bookId)?.bookCn || bookId;

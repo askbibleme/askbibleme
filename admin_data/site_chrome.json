@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-06T04:50:30.000Z",
+  "updatedAt": "2026-04-06T06:03:15.540Z",
   "topbar": {
     "logoUrl": "",
     "logoHeight": 36,
@@ -19,8 +19,9 @@
       {
         "href": "/",
         "label": "读经",
+        "ariaLabel": "",
         "icon": "home",
-        "iconOnly": true
+        "iconOnly": false
       },
       {
         "href": "/#openBookChapter",
@@ -32,7 +33,15 @@
       {
         "href": "/#openVerseSearch",
         "label": "搜索",
+        "ariaLabel": "",
         "icon": "search",
+        "iconOnly": true
+      },
+      {
+        "href": "/#openSharePage",
+        "label": "分享",
+        "ariaLabel": "分享当前页面",
+        "icon": "share",
         "iconOnly": true
       },
       {
@@ -40,24 +49,26 @@
         "label": "-",
         "ariaLabel": "缩小字号",
         "icon": "minus",
-        "iconOnly": true
+        "iconOnly": false
       },
       {
         "href": "/#fontLarger",
         "label": "+",
         "ariaLabel": "放大字号",
         "icon": "plus",
-        "iconOnly": true
+        "iconOnly": false
       },
       {
         "href": "/promo.html",
         "label": "理念",
+        "ariaLabel": "",
         "icon": "doc",
         "iconOnly": true
       },
       {
         "href": "/#openMemberHub",
         "label": "用户",
+        "ariaLabel": "",
         "icon": "user",
         "iconOnly": true
       }

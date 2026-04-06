@@ -1062,6 +1062,13 @@ function getDefaultSiteChrome() {
           iconOnly: true,
         },
         {
+          href: "/#openSharePage",
+          label: "分享",
+          ariaLabel: "分享当前页面",
+          icon: "share",
+          iconOnly: true,
+        },
+        {
           href: "/#fontSmaller",
           label: "-",
           ariaLabel: "缩小字号",
@@ -1126,6 +1133,8 @@ function normalizeSiteChromeFooter(foot) {
 function isSafeSiteChromeHref(href) {
   const h = String(href || "").trim();
   if (!h || h.length > 400) return false;
+  /* 同页动作（如 #openSharePage），不经由外链 */
+  if (/^#[A-Za-z_][A-Za-z0-9_:.+-]*$/.test(h)) return true;
   if (h.startsWith("/") && !h.startsWith("//")) return true;
   if (/^https?:\/\//i.test(h)) {
     try {
@@ -6667,6 +6676,70 @@ app.delete("/api/admin/chapter-video", (req, res) => {
     res.status(500).json({ error: error.message || "删除失败" });
   }
 });
+
+function handleChapterVideoPatchTitle(req, res) {
+  try {
+    const authed = requirePermission(req, res, "manage_publish");
+    if (!authed) return;
+    const versionId = safeText(req.body?.version || "");
+    const lang = safeText(req.body?.lang || "");
+    const bookId = safeText(req.body?.bookId || "");
+    const chapter = parseNonNegativeChapterInt(req.body?.chapter);
+    const id = safeText(req.body?.id || "");
+    if (!versionId || !lang || !bookId || chapter === null || !id) {
+      return res
+        .status(400)
+        .json({ error: "缺少 version / lang / bookId / chapter / id" });
+    }
+    if (!isSafeChapterVideoId(id)) {
+      return res.status(400).json({ error: "无效的视频 id" });
+    }
+    let title = safeText(req.body?.title ?? "").slice(0, 200);
+    const publishedPath = getPublishedContentFilePath({
+      versionId,
+      lang,
+      bookId,
+      chapter,
+    });
+    const data = readJson(publishedPath, null);
+    if (!data || typeof data !== "object") {
+      return res.status(404).json({ error: "未找到已发布章节" });
+    }
+    const videos = normalizeChapterVideosForSave(data.chapterVideos);
+    const idx = videos.findIndex(
+      (v) => String(v.id).toLowerCase() === id.toLowerCase()
+    );
+    if (idx < 0) {
+      return res.status(404).json({ error: "列表中无此视频" });
+    }
+    const trimmed = title.trim();
+    if (!trimmed) {
+      title = `视频 ${idx + 1}`;
+    } else {
+      title = trimmed;
+    }
+    const nextVideos = videos.map((v, i) =>
+      i === idx ? { ...v, title } : v
+    );
+    const merged = { ...data, chapterVideos: nextVideos };
+    writeJson(publishedPath, merged);
+    invalidateStudyContentCache(versionId, lang, bookId, chapter);
+    appendAdminAudit(req, authed, "chapter_video_title", {
+      versionId,
+      lang,
+      bookId,
+      chapter,
+      videoId: id,
+    });
+    res.json({ ok: true, video: nextVideos[idx], chapterVideos: nextVideos });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "更新标题失败" });
+  }
+}
+
+app.patch("/api/admin/published/chapter-video", handleChapterVideoPatchTitle);
+app.patch("/api/admin/chapter-video", handleChapterVideoPatchTitle);
 
 function chapterVideoPosterMulterMiddleware(req, res, next) {
   chapterVideoPosterMulter.single("poster")(req, res, (err) => {

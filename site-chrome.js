@@ -560,6 +560,108 @@
 
   window.__applyAskBibleSiteChrome = applyAll;
 
+  function getSharePageUrl() {
+    try {
+      return String(window.location.href || "").split("#")[0];
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function getSharePageTitle() {
+    try {
+      var t = document.title;
+      if (t && String(t).trim()) return String(t).trim();
+      return "AskBible.me";
+    } catch (e) {
+      return "AskBible.me";
+    }
+  }
+
+  async function shareCurrentPage() {
+    var url = getSharePageUrl();
+    if (!url) return;
+    var title = getSharePageTitle();
+    try {
+      if (navigator.share && typeof navigator.share === "function") {
+        await navigator.share({ title: title, text: title, url: url });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+        window.alert("链接已复制到剪贴板，可粘贴分享。");
+        return;
+      }
+    } catch (e2) {}
+    try {
+      window.prompt("复制以下链接分享：", url);
+    } catch (e3) {
+      window.alert(url);
+    }
+  }
+
+  function tryConsumeShareDeepLink() {
+    try {
+      if (window.location.hash !== "#openSharePage") return;
+      var u = new URL(window.location.href);
+      u.hash = "";
+      history.replaceState({}, "", u.pathname + (u.search || ""));
+      queueMicrotask(function () {
+        void shareCurrentPage();
+      });
+    } catch (e) {}
+  }
+
+  function initSharePageNavAction() {
+    tryConsumeShareDeepLink();
+    window.addEventListener("hashchange", function () {
+      if (window.location.hash !== "#openSharePage") return;
+      try {
+        history.replaceState(
+          {},
+          "",
+          window.location.pathname + (window.location.search || "")
+        );
+      } catch (e) {}
+      queueMicrotask(function () {
+        void shareCurrentPage();
+      });
+    });
+    document.addEventListener(
+      "click",
+      function (e) {
+        if (e.defaultPrevented || e.button !== 0) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        var t = e.target;
+        if (!t || typeof t.closest !== "function") return;
+        var a = t.closest("a[href]");
+        if (!a || !a.closest(".askbible-chrome-nav")) return;
+        var abs;
+        try {
+          abs = new URL(a.getAttribute("href") || "", window.location.href);
+        } catch (err) {
+          return;
+        }
+        if (abs.hash !== "#openSharePage") return;
+        try {
+          if (String(abs.origin || "") !== String(window.location.origin || "")) return;
+        } catch (eO) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        void shareCurrentPage();
+      },
+      true
+    );
+  }
+
+  initSharePageNavAction();
+
   async function run() {
     try {
       var paths = ["/api/site-chrome", "/api/sitechrome"];
