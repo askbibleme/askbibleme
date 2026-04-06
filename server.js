@@ -63,11 +63,11 @@ app.use((req, res, next) => {
   next();
 });
 
-/* 仅匹配「恰好 POST /api」：常见于 nginx proxy_pass 截断子路径，请求未到达 /api/article-studio/chat */
+/* 仅匹配「恰好 POST /api」：常见于 nginx proxy_pass 截断子路径，子路径未到达 Node 上的具体接口 */
 app.post("/api", (req, res) => {
   res.status(400).json({
     error:
-      "请求路径不完整（只到了 /api）。正确地址为 POST /api/article-studio/chat。若使用 nginx 反代 Node，请使用：location /api/ { proxy_pass http://127.0.0.1:端口/api/; }（location 与 proxy_pass 均带末尾斜杠），并 reload nginx。",
+      "请求路径不完整（只到了 /api）。若使用 nginx 反代 Node，请使用：location /api/ { proxy_pass http://127.0.0.1:端口/api/; }（location 与 proxy_pass 均带末尾斜杠），并 reload nginx。",
   });
 });
 
@@ -1410,19 +1410,6 @@ function saveSiteSeoFromBody(body) {
   return payload;
 }
 
-function sanitizeChatMessagesForOpenAi(raw) {
-  if (!Array.isArray(raw)) return [];
-  const out = [];
-  for (const m of raw.slice(-48)) {
-    const role = safeText(m?.role || "").toLowerCase();
-    if (role !== "user" && role !== "assistant") continue;
-    const content = safeText(m?.content || "").slice(0, 24000);
-    if (!content) continue;
-    out.push({ role, content });
-  }
-  return out;
-}
-
 function formatOpenAiChatError(err) {
   const status = Number(
     err?.status ?? err?.response?.status ?? err?.statusCode ?? 0
@@ -1546,24 +1533,6 @@ async function openAiImageGenerateHelper(imagePrompt) {
   } catch (err) {
     throw new Error(formatOpenAiChatError(err));
   }
-}
-
-function parseDraftJsonFromAssistant(text) {
-  let t = String(text || "").trim();
-  const fence = /^```(?:json)?\s*([\s\S]*?)```$/im.exec(t);
-  if (fence) t = fence[1].trim();
-  const start = t.indexOf("{");
-  const end = t.lastIndexOf("}");
-  if (start === -1 || end <= start) {
-    throw new Error("模型未返回有效 JSON");
-  }
-  const obj = JSON.parse(t.slice(start, end + 1));
-  const title = safeText(obj?.title || "").slice(0, 200);
-  const body = safeText(obj?.body || "").slice(0, 50000);
-  if (!title || !body) {
-    throw new Error("JSON 中缺少 title 或 body");
-  }
-  return { title, body };
 }
 
 function parseChapterIllustrationJsonFromAssistant(text) {
@@ -2714,20 +2683,6 @@ function requireAdminUser(req, res) {
   }
   if (!authedUserHasAdminAccess(authed)) {
     res.status(403).json({ error: "需要管理员权限" });
-    return null;
-  }
-  return authed;
-}
-
-/** 与会员菜单「站点管理（千夫长）」一致：文章发布中心等 */
-function requireQianfuzhangUser(req, res) {
-  const authed = getAuthedUserFromReq(req);
-  if (!authed) {
-    res.status(401).json({ error: "请先登录" });
-    return null;
-  }
-  if (normalizeAdminRole(authed.adminRole || "") !== "qianfuzhang") {
-    res.status(403).json({ error: "需要千夫长权限" });
     return null;
   }
   return authed;
@@ -5813,93 +5768,6 @@ app.get("/api/community-articles", (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "读取社区文章失败" });
-  }
-});
-
-/** 部署自检：浏览器打开 GET /api/article-studio/ping 应看到 {"ok":true} */
-app.get("/api/article-studio/ping", (_req, res) => {
-  res.json({ ok: true, service: "article-studio", ts: SERVER_BOOT_ISO });
-});
-
-app.post("/api/article-studio/chat", async (req, res) => {
-  try {
-    const authed = requireQianfuzhangUser(req, res);
-    if (!authed) return;
-    const cleaned = sanitizeChatMessagesForOpenAi(req.body?.messages);
-    if (!cleaned.length) {
-      return res.status(400).json({ error: "请至少发送一条消息" });
-    }
-    const system = `你是 AskBible 的中文信仰写作同伴。用户会和你讨论圣经观、生活与信仰话题。请用温暖、清晰、尊重不同传统的语气回应；避免说教口吻；可适度引用经文思路但不要编造章节号码。回复用简体中文，段落简洁。`;
-    const text = await openAiChatHelper({ system, messages: cleaned });
-    res.json({ message: text });
-  } catch (error) {
-    console.error(error);
-    const msg = error?.message || "对话失败";
-    if (/缺少 OPENAI|API_KEY|401|invalid/i.test(msg)) {
-      return res.status(503).json({ error: "服务器未配置可用的 OpenAI Key" });
-    }
-    res.status(500).json({ error: msg });
-  }
-});
-
-app.post("/api/article-studio/draft", async (req, res) => {
-  try {
-    const authed = requireQianfuzhangUser(req, res);
-    if (!authed) return;
-    const cleaned = sanitizeChatMessagesForOpenAi(req.body?.messages);
-    if (!cleaned.length) {
-      return res.status(400).json({ error: "没有可整理的对话" });
-    }
-    const system = `你是中文信仰类短文的编辑。根据用户与助手之间的对话，整理成一篇可单独阅读的短文（非对话体）。
-只输出一个 JSON 对象，不要 markdown 代码围栏，不要其它说明。格式严格为：
-{"title":"标题不超过30字","body":"正文，可含换行符，300～1800字为宜，分段用\\n"}
-正文语气与对话一致，去口语赘字，保留核心观点与例证。`;
-    const text = await openAiChatHelper({ system, messages: cleaned });
-    const draft = parseDraftJsonFromAssistant(text);
-    res.json(draft);
-  } catch (error) {
-    console.error(error);
-    const msg = error?.message || "整理失败";
-    if (/缺少 OPENAI|API_KEY|401|invalid/i.test(msg)) {
-      return res.status(503).json({ error: "服务器未配置可用的 OpenAI Key" });
-    }
-    res.status(500).json({ error: msg });
-  }
-});
-
-app.post("/api/article-studio/publish", (req, res) => {
-  try {
-    const authed = requireQianfuzhangUser(req, res);
-    if (!authed) return;
-    const title = safeText(req.body?.title || "").slice(0, 200);
-    const body = safeText(req.body?.body || "").slice(0, 50000);
-    const columnId = safeText(req.body?.columnId || "communityArticles");
-    if (!PUBLISHABLE_ARTICLE_COLUMNS.has(columnId)) {
-      return res.status(400).json({ error: "不支持的目标栏目" });
-    }
-    if (title.length < 2) {
-      return res.status(400).json({ error: "标题至少 2 个字" });
-    }
-    if (body.length < 20) {
-      return res.status(400).json({ error: "正文至少约 20 字" });
-    }
-    const db = loadCommunityArticles();
-    const item = {
-      id: `ca_${Date.now()}_${crypto.randomBytes(5).toString("hex")}`,
-      columnId,
-      title,
-      body,
-      authorId: authed.id,
-      authorName: safeText(authed.name || "").slice(0, 80),
-      createdAt: nowIso(),
-      type: "article",
-    };
-    const nextItems = [item, ...(db.items || [])].slice(0, MAX_COMMUNITY_ARTICLES);
-    saveCommunityArticles({ items: nextItems });
-    res.json({ ok: true, item });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message || "发布失败" });
   }
 });
 
@@ -8995,7 +8863,6 @@ app.get("/sitemap.xml", (req, res) => {
     { path: "/promo.html", priority: "0.9", changefreq: "weekly" },
     { path: "/download.html", priority: "0.85", changefreq: "monthly" },
     { path: "/vision.html", priority: "0.75", changefreq: "monthly" },
-    { path: "/article-studio.html", priority: "0.7", changefreq: "weekly" },
   ];
   const lastmod = new Date().toISOString().slice(0, 10);
   const escXml = (s) =>
@@ -9041,8 +8908,6 @@ app.get("/api/dev/livereload-status", (_req, res) => {
     ["site-chrome.html", false],
     ["promo-edit.html", false],
     ["color-themes.html", false],
-    ["chapter-illustration.html", false],
-    ["article-studio.html", true],
     ["admin-analytics.html", false],
     ["seo-settings.html", false],
   ];

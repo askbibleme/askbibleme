@@ -19,10 +19,8 @@ const topFiles = [
   "promo.html",
   "promo-edit.html",
   "vision.html",
-  "article-studio.html",
   "blank-page.html",
   "color-themes.html",
-  "chapter-illustration.html",
   "site-chrome.html",
   "site-chrome.js",
   "seo-settings.html",
@@ -66,4 +64,4 @@ if (fs.existsSync(dlSrc)) {
   }
 }
 
-console.log("dist-capacitor 已更新（若仍 404，请部署含 /api/article-studio 的 server.js）。");
+console.log("dist-capacitor 已更新。");

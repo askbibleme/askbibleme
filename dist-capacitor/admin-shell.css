@@ -275,30 +275,17 @@ body.admin-shell-page .admin-shell-main-inner > .page-shell {
   min-height: 0 !important;
 }
 
-/* 文章发布中心：两栏区块仅保留排版，去掉卡片框 */
-.admin-shell-main-inner .article-studio-panel {
-  background: transparent !important;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0 0 24px !important;
-  box-shadow: none !important;
-}
-
-/* 文章中心 / 访问统计：去掉读经书页式大圆角与纸纹底（仅管理壳内） */
-.admin-shell-main-inner .article-studio-app .book-spread,
+/* 访问统计：去掉读经书页式大圆角与纸纹底（仅管理壳内） */
 .admin-shell-main-inner .admin-analytics-app .book-spread {
   background: transparent !important;
   border-radius: 0 !important;
   min-height: 0 !important;
 }
 
-.admin-shell-main-inner .article-studio-app .book-page,
 .admin-shell-main-inner .admin-analytics-app .book-page {
   padding: 8px 0 24px !important;
 }
 
-.admin-shell-main-inner .article-studio-app .book-page::before,
-.admin-shell-main-inner .article-studio-app .book-page::after,
 .admin-shell-main-inner .admin-analytics-app .book-page::before,
 .admin-shell-main-inner .admin-analytics-app .book-page::after {
   display: none !important;

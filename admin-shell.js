@@ -22,13 +22,6 @@
       ],
     },
     {
-      sub: "内容与媒体",
-      items: [
-        { href: "/article-studio.html", label: "文章发布中心" },
-        { href: "/chapter-illustration.html", label: "章节配图" },
-      ],
-    },
-    {
       sub: "数据",
       items: [{ href: "/admin-analytics.html", label: "访问统计" }],
     },
