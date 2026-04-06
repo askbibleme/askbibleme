@@ -3820,7 +3820,8 @@ function listChapterVideosOverview(versionId, lang) {
   for (const d of bookEntries) {
     if (!d.isDirectory()) continue;
     const bookId = d.name;
-    if (bookId.startsWith("_")) continue;
+    /* 概论等书卷目录名为 _OT_OVERVIEW、_BIBLE_INTRO 等，须参与扫描；仅跳过隐藏目录 */
+    if (bookId.startsWith(".")) continue;
     const bookPath = path.join(base, bookId);
     let files;
     try {

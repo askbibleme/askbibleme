@@ -75,7 +75,7 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css?v=154" />
     <script src="/theme-apply.js?v=2"></script>
-    <script src="/site-chrome.js?v=16" defer></script>
+    <script src="/site-chrome.js?v=17" defer></script>
     <script src="/seo-apply.js?v=4" defer></script>
   </head>
   <body>
@@ -285,6 +285,14 @@
 
           <section class="book-page right-page">
             <div class="page-head-spacer"></div>
+
+            <!-- 宽屏时与左栏 #chapterVideosSlot 分列展示多路视频；窄屏仅左栏渲染 -->
+            <div
+              id="chapterVideosSlotRight"
+              class="chapter-videos-slot chapter-videos-slot--right-col"
+              aria-live="polite"
+              aria-label="本章视频"
+            ></div>
 
             <div id="rightBlocks" class="blocks-stack"></div>
 

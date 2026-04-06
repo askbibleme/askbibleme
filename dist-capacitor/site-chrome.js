@@ -604,6 +604,8 @@
     }
   }
 
+  window.__askBibleShareCurrentPage = shareCurrentPage;
+
   function tryConsumeShareDeepLink() {
     try {
       if (window.location.hash !== "#openSharePage") return;
@@ -640,18 +642,15 @@
         if (!t || typeof t.closest !== "function") return;
         var a = t.closest("a[href]");
         if (!a || !a.closest(".askbible-chrome-nav")) return;
+        var hrefRaw = String(a.getAttribute("href") || "").trim();
         var abs;
         try {
-          abs = new URL(a.getAttribute("href") || "", window.location.href);
+          abs = new URL(hrefRaw || "#", window.location.href);
         } catch (err) {
           return;
         }
         if (abs.hash !== "#openSharePage") return;
-        try {
-          if (String(abs.origin || "") !== String(window.location.origin || "")) return;
-        } catch (eO) {
-          return;
-        }
+        /* 必须在用户手势内同步拦截并分享；勿依赖改 hash（否则部分环境下 Web Share / 剪贴板无手势会失败）。不校验链接 origin：分享对象始终为当前页。 */
         e.preventDefault();
         e.stopPropagation();
         void shareCurrentPage();

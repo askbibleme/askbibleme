@@ -295,8 +295,8 @@
       <main class="video-center-doc">
         <h1>章节视频上传</h1>
         <p class="video-center-lead">
-          先选<strong>查经版本</strong>与<strong>内容语言</strong>，下方表格会列出该语言下<strong>所有已上传的章节视频</strong>（书卷、章、标题、封面）。列表接口为
-          <code>GET /api/admin/published/chapter-videos-list</code>。上传新视频前可选好<strong>封面帧</strong>；也可在表格里<strong>改标题</strong>、<strong>更换封面</strong>。支持<strong>本地文件</strong>或填写<strong>公网直链</strong>（由服务器拉取，与文件二选一）。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>（章下拉第一项）可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
+          先选<strong>查经版本</strong>与<strong>内容语言</strong>。下方先<strong>上传新视频</strong>，再在下表查看<strong>该版本下所有已写入 JSON 的视频条目</strong>（含书卷名以 <code>_</code> 开头的概论/简介等目录）；并非「圣经 66 卷每章一行」的空目录表。列表接口
+          <code>GET /api/admin/published/chapter-videos-list</code>。表格里可<strong>改标题</strong>、<strong>更换封面</strong>。支持<strong>本地文件</strong>或<strong>公网直链</strong>（由服务器拉取，二选一）。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
         </p>
         <p id="videoCenterAuth" class="video-center-auth" hidden></p>
         <div id="videoCenterApp" hidden>
@@ -308,28 +308,6 @@
             <label for="vcLang">内容语言</label>
             <select id="vcLang" aria-label="内容语言"></select>
           </div>
-
-          <section class="video-center-block" aria-labelledby="vcAllHeading">
-            <h2 id="vcAllHeading">全部章节视频</h2>
-            <p class="video-center-hint">随版本与语言筛选；封面来自上传的静帧图（读者端 <code>video poster</code>）。</p>
-            <div class="video-center-actions">
-              <button type="button" id="vcRefreshAllBtn">刷新列表</button>
-            </div>
-            <div class="vc-table-wrap">
-              <table class="vc-table" aria-label="章节视频列表">
-                <thead>
-                  <tr>
-                    <th scope="col">位置</th>
-                    <th scope="col">标题</th>
-                    <th scope="col">封面</th>
-                    <th scope="col">操作</th>
-                  </tr>
-                </thead>
-                <tbody id="vcAllTbody"></tbody>
-              </table>
-            </div>
-            <p id="vcAllEmpty" class="video-center-hint" hidden>该版本与语言下暂无章节视频。</p>
-          </section>
 
           <section class="video-center-block" aria-labelledby="vcUploadHeading">
             <h2 id="vcUploadHeading">上传新视频</h2>
@@ -389,6 +367,30 @@
             <div class="video-center-actions">
               <button type="button" class="primary" id="vcUploadBtn">上传到本章</button>
             </div>
+          </section>
+
+          <section class="video-center-block" aria-labelledby="vcAllHeading">
+            <h2 id="vcAllHeading">全部章节视频</h2>
+            <p class="video-center-hint">
+              随版本与语言筛选；列出该版本目录下<strong>所有已带视频字段的 JSON</strong>（含概论书卷 <code>_…</code>）。封面来自上传的静帧图（读者端 <code>video poster</code>）。
+            </p>
+            <div class="video-center-actions">
+              <button type="button" id="vcRefreshAllBtn">刷新列表</button>
+            </div>
+            <div class="vc-table-wrap">
+              <table class="vc-table" aria-label="章节视频列表">
+                <thead>
+                  <tr>
+                    <th scope="col">位置</th>
+                    <th scope="col">标题</th>
+                    <th scope="col">封面</th>
+                    <th scope="col">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="vcAllTbody"></tbody>
+              </table>
+            </div>
+            <p id="vcAllEmpty" class="video-center-hint" hidden>该版本与语言下暂无章节视频。</p>
           </section>
 
           <p id="vcStatus" class="video-center-status" aria-live="polite"></p>

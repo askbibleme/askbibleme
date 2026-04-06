@@ -385,7 +385,19 @@ function renderChapterArtSlotHtml() {
   )}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></figure>`;
 }
 
-function renderChapterVideosSlotHtml(videoListOverride) {
+/** 与 .book-spread 双栏断点一致：宽屏视频分列到左右页 */
+function shouldSplitChapterVideosAcrossColumns() {
+  try {
+    return window.matchMedia("(min-width: 1101px)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * @param {"single"|"left"|"right"} columnMode single=全部在左栏；left/right=宽屏分列（按列表序奇偶）
+ */
+function renderChapterVideosSlotHtml(videoListOverride, columnMode = "single") {
   const list = Array.isArray(videoListOverride)
     ? videoListOverride
     : state.studyContent?.chapterVideos;
@@ -408,6 +420,8 @@ function renderChapterVideosSlotHtml(videoListOverride) {
   const bookLabel = getBookLabelForPrimaryScripture();
   const parts = [];
   for (let i = 0; i < list.length; i += 1) {
+    if (columnMode === "left" && i % 2 !== 0) continue;
+    if (columnMode === "right" && i % 2 !== 1) continue;
     const it = list[i];
     const id = String(it?.id || "").trim();
     if (!id) continue;
@@ -463,6 +477,73 @@ function renderChapterVideosSlotHtml(videoListOverride) {
   }
   if (!parts.length) return "";
   return `<div class="chapter-videos-inner">${parts.join("")}</div>`;
+}
+
+function clearChapterVideoSlots() {
+  const left = document.getElementById("chapterVideosSlot");
+  const right = document.getElementById("chapterVideosSlotRight");
+  if (left) left.innerHTML = "";
+  if (right) right.innerHTML = "";
+}
+
+/** 将本章视频写入左栏（及宽屏时右栏），并绑定懒加载与预览帧 */
+function mountChapterVideoSlots(videoListOverride) {
+  const left = document.getElementById("chapterVideosSlot");
+  const right = document.getElementById("chapterVideosSlotRight");
+  if (!left) return;
+  const split = shouldSplitChapterVideosAcrossColumns();
+  if (split) {
+    left.innerHTML = renderChapterVideosSlotHtml(videoListOverride, "left");
+    if (right) {
+      right.innerHTML = renderChapterVideosSlotHtml(videoListOverride, "right");
+    }
+    attachChapterVideoLazySources(left);
+    attachChapterVideoPreviewFrames(left);
+    if (right) {
+      attachChapterVideoLazySources(right);
+      attachChapterVideoPreviewFrames(right);
+    }
+  } else {
+    left.innerHTML = renderChapterVideosSlotHtml(videoListOverride, "single");
+    if (right) right.innerHTML = "";
+    attachChapterVideoLazySources(left);
+    attachChapterVideoPreviewFrames(left);
+  }
+}
+
+let chapterVideosLayoutDebounceTimer = null;
+
+function remountChapterVideoSlotsOnLayoutIfNeeded() {
+  const slot = document.getElementById("chapterVideosSlot");
+  if (!slot || !document.body.contains(slot)) return;
+  if (isBookLandingChapter()) {
+    mountChapterVideoSlots(state.bookLandingChapterVideos);
+    return;
+  }
+  if (state.studyContent) {
+    mountChapterVideoSlots();
+    return;
+  }
+  clearChapterVideoSlots();
+}
+
+function bindChapterVideosLayoutResize() {
+  if (typeof window === "undefined") return;
+  if (window.__askbibleChapterVideosResizeBound) return;
+  window.__askbibleChapterVideosResizeBound = "1";
+  window.addEventListener(
+    "resize",
+    () => {
+      if (chapterVideosLayoutDebounceTimer) {
+        clearTimeout(chapterVideosLayoutDebounceTimer);
+      }
+      chapterVideosLayoutDebounceTimer = setTimeout(() => {
+        chapterVideosLayoutDebounceTimer = null;
+        remountChapterVideoSlotsOnLayoutIfNeeded();
+      }, 220);
+    },
+    { passive: true }
+  );
 }
 
 /** 无 poster 时跳过常见「片头黑场」：加载后跳到稍后的帧作静止预览，首次播放仍从 0 秒开始 */
@@ -2196,6 +2277,8 @@ async function init() {
     initSelectors();
     initToolbarPanels();
     initBookChapterNavDeepLink();
+    initShareNavDeepLink();
+    bindChapterVideosLayoutResize();
     initFavoritesPanelTabs();
     initVerseSearchOverlay();
     initChapterNav();
@@ -3544,6 +3627,34 @@ function initToolbarPanels() {
 
   window.addEventListener("resize", syncVisibleToolbarSheetTops);
   document.addEventListener("keydown", toolbarSheetsEscHandler);
+}
+
+/** 顶栏 `/#openSharePage`：备用（须在用户手势内触发；若 site-chrome 已处理则 defaultPrevented 跳过） */
+function initShareNavDeepLink() {
+  if (document.body.dataset.shareNavDeepLinkBound === "1") return;
+  document.body.dataset.shareNavDeepLinkBound = "1";
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest?.("a[href]");
+      if (!a || !a.closest?.(".askbible-chrome-nav")) return;
+      let abs;
+      try {
+        abs = new URL(String(a.getAttribute("href") || "").trim(), window.location.href);
+      } catch {
+        return;
+      }
+      if (abs.hash !== "#openSharePage") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof window.__askBibleShareCurrentPage === "function") {
+        void window.__askBibleShareCurrentPage();
+      }
+    },
+    true
+  );
 }
 
 /** 顶栏导航：`/#openBookChapter` 打开书卷与章节面板（与工具栏「书卷」一致） */
@@ -4915,20 +5026,13 @@ function renderStudyContent() {
   const rightBlocksEl = document.getElementById("rightBlocks");
   const repeatedWordsEl = document.getElementById("repeatedWordsLine");
   const chapterArtSlotEl = document.getElementById("chapterArtSlot");
-  const chapterVideosSlotEl = document.getElementById("chapterVideosSlot");
   const approvedTitleEl = document.getElementById("chapterApprovedTitle");
   const approvedEl = document.getElementById("chapterApprovedQuestions");
 
   if (isBookLandingChapter()) {
     if (repeatedWordsEl) repeatedWordsEl.textContent = "—";
     if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = "";
-    if (chapterVideosSlotEl) {
-      chapterVideosSlotEl.innerHTML = renderChapterVideosSlotHtml(
-        state.bookLandingChapterVideos
-      );
-      attachChapterVideoLazySources(chapterVideosSlotEl);
-      attachChapterVideoPreviewFrames(chapterVideosSlotEl);
-    }
+    mountChapterVideoSlots(state.bookLandingChapterVideos);
     /* 卷首页介绍卡片暂隐藏（仍拉取 book_intro 以备日后恢复） */
     if (leftBlocksEl) leftBlocksEl.innerHTML = "";
     if (rightBlocksEl) rightBlocksEl.innerHTML = "";
@@ -4960,7 +5064,7 @@ function renderStudyContent() {
 
     if (repeatedWordsEl) repeatedWordsEl.textContent = "—";
     if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = "";
-    if (chapterVideosSlotEl) chapterVideosSlotEl.innerHTML = "";
+    clearChapterVideoSlots();
     if (leftBlocksEl) {
       const scriptureLeftHtml = showScripture
         ? `<article class="flow-card flow-card-scripture-fallback">${renderVerseRangeBlock(
@@ -5003,11 +5107,7 @@ function renderStudyContent() {
   }
 
   if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = renderChapterArtSlotHtml();
-  if (chapterVideosSlotEl) {
-    chapterVideosSlotEl.innerHTML = renderChapterVideosSlotHtml();
-    attachChapterVideoLazySources(chapterVideosSlotEl);
-    attachChapterVideoPreviewFrames(chapterVideosSlotEl);
-  }
+  mountChapterVideoSlots();
 
   const rendered = (state.studyContent.segments || []).map(renderSegmentCard);
   const splitIndex = Math.ceil(rendered.length / 2);

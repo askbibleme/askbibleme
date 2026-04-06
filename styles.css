@@ -3653,6 +3653,12 @@ button.toolbar-trigger:hover,
   max-width: 100%;
 }
 
+/* 右页视频槽：与左栏对称分列（仅宽屏有内容；窄屏由脚本清空） */
+.book-page.right-page .chapter-videos-slot--right-col:not(:empty) {
+  margin: 0 0 14px;
+  max-width: 100%;
+}
+
 .chapter-videos-inner {
   display: flex;
   flex-direction: column;
