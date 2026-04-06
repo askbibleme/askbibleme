@@ -1,4 +1,4 @@
-const CACHE_NAME = "askbible-static-v38";
+const CACHE_NAME = "askbible-static-v39";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
