@@ -124,6 +124,63 @@
     return s === "true" || s === "1" || s === "yes" || s === "on";
   }
 
+  function topbarStickyViewportTrue(v) {
+    if (v === true || v === 1) return true;
+    var s = String(v ?? "")
+      .trim()
+      .toLowerCase();
+    return s === "true" || s === "1" || s === "yes" || s === "on";
+  }
+
+  var __askbibleFixedTopbarRo = null;
+
+  function syncFixedTopbarSpacer() {
+    if (!document.documentElement.classList.contains("askbible-topbar-fixed")) return;
+    var el = document.querySelector("header.site-topbar.site-topbar--sticky");
+    if (!el) return;
+    var h = Math.ceil(el.getBoundingClientRect().height);
+    if (h < 28) h = 56;
+    document.documentElement.style.setProperty("--askbible-fixed-topbar-h", h + "px");
+  }
+
+  function unbindFixedTopbarSpacer() {
+    try {
+      document.documentElement.classList.remove("askbible-topbar-fixed");
+      document.documentElement.style.removeProperty("--askbible-fixed-topbar-h");
+      if (__askbibleFixedTopbarRo) {
+        __askbibleFixedTopbarRo.disconnect();
+        __askbibleFixedTopbarRo = null;
+      }
+    } catch (e) {}
+  }
+
+  function bindFixedTopbarSpacer() {
+    document.documentElement.classList.add("askbible-topbar-fixed");
+    var el = document.querySelector("header.site-topbar.site-topbar--sticky");
+    syncFixedTopbarSpacer();
+    if (__askbibleFixedTopbarRo) {
+      __askbibleFixedTopbarRo.disconnect();
+      __askbibleFixedTopbarRo = null;
+    }
+    if (el && typeof ResizeObserver !== "undefined") {
+      __askbibleFixedTopbarRo = new ResizeObserver(function () {
+        syncFixedTopbarSpacer();
+      });
+      __askbibleFixedTopbarRo.observe(el);
+    }
+  }
+
+  if (typeof window !== "undefined" && !window.__askbibleFixedTopbarResizeDeleg) {
+    window.__askbibleFixedTopbarResizeDeleg = true;
+    window.addEventListener(
+      "resize",
+      function () {
+        syncFixedTopbarSpacer();
+      },
+      { passive: true }
+    );
+  }
+
   if (typeof document !== "undefined" && !window.__askbibleSublineDismissDeleg) {
     window.__askbibleSublineDismissDeleg = true;
     document.addEventListener("click", function (e) {
@@ -387,20 +444,45 @@
     var el = document.querySelector(".askbible-chrome-footer-slot");
     if (!el) return;
     var foot = cfg.footer || {};
-    var text = String(foot.text || "").trim();
-    if (!foot.enabled || !text) {
+    var left = String(foot.left || "").trim();
+    var center = String(foot.center || "").trim();
+    var right = String(foot.right || "").trim();
+    var legacy = String(foot.text || "").trim();
+    if (!left && !center && !right && legacy) {
+      center = legacy;
+    }
+    if (!foot.enabled || (!left && !center && !right)) {
       el.innerHTML = "";
       el.setAttribute("hidden", "");
       return;
     }
     el.removeAttribute("hidden");
-    el.className = "site-footer askbible-chrome-footer-slot";
-    var lines = text.split(/\n/);
-    el.innerHTML = lines
-      .map(function (line) {
-        return "<p class=\"site-footer-line\">" + escapeHtml(line) + "</p>";
-      })
-      .join("");
+    el.className = "site-footer site-footer--cols askbible-chrome-footer-slot";
+    function colHtml(align, raw) {
+      var t = String(raw || "").trim();
+      if (!t) {
+        return '<div class="site-footer-col site-footer-col--' + align + '"></div>';
+      }
+      var lines = t.split(/\n/);
+      var inner = lines
+        .map(function (line) {
+          return "<p class=\"site-footer-line\">" + escapeHtml(line) + "</p>";
+        })
+        .join("");
+      return (
+        '<div class="site-footer-col site-footer-col--' +
+        align +
+        '">' +
+        inner +
+        "</div>"
+      );
+    }
+    el.innerHTML =
+      '<div class="site-footer-inner">' +
+      colHtml("left", left) +
+      colHtml("center", center) +
+      colHtml("right", right) +
+      "</div>";
   }
 
   function applySublineDismissFromStorage(cfg) {
@@ -421,8 +503,18 @@
     var headers = document.querySelectorAll("header.site-topbar");
     var omitDismissChrome = isSiteChromeAdminPage();
     var renderOpts = { omitDismissChrome: omitDismissChrome };
+    var top = cfg && cfg.topbar ? cfg.topbar : {};
+    var stickyOn = topbarStickyViewportTrue(top.topbarSticky);
+    if (!stickyOn) {
+      unbindFixedTopbarSpacer();
+    }
     for (var i = 0; i < headers.length; i++) {
       var header = headers[i];
+      if (stickyOn) {
+        header.classList.add("site-topbar--sticky");
+      } else {
+        header.classList.remove("site-topbar--sticky");
+      }
       var brandSlot = header.querySelector(".askbible-chrome-brand-slot");
       var navSlot = header.querySelector(".askbible-chrome-nav-slot");
       if (brandSlot) {
@@ -434,6 +526,14 @@
     }
     if (!omitDismissChrome) {
       applySublineDismissFromStorage(cfg);
+    }
+    if (stickyOn) {
+      requestAnimationFrame(function () {
+        bindFixedTopbarSpacer();
+        syncFixedTopbarSpacer();
+        setTimeout(syncFixedTopbarSpacer, 80);
+        setTimeout(syncFixedTopbarSpacer, 350);
+      });
     }
   }
 

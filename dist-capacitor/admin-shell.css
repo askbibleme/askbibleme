@@ -205,3 +205,83 @@ body.admin-shell-page {
     display: none !important;
   }
 }
+
+/* ========== 管理右侧主区通栏：铺满侧栏外可用宽度（与「管理首页」同一套边距节奏） ========== */
+.admin-shell-main-inner > .page-shell {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 14px 22px 22px;
+}
+
+.admin-shell-main-inner .admin-hub-inner {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 28px 22px 56px;
+  box-sizing: border-box;
+}
+
+.admin-shell-main-inner .sc-page,
+.admin-shell-main-inner .seo-page,
+.admin-shell-main-inner .ci2-page,
+.admin-shell-main-inner .ct-page {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 28px 22px 48px;
+  box-sizing: border-box;
+}
+
+/* 去掉各管理工具页内层「大卡片」外框（圆角、阴影、描边），内容铺在右侧纸质底上 */
+.admin-shell-main-inner .sc-doc,
+.admin-shell-main-inner .seo-doc,
+.admin-shell-main-inner .ci2-doc,
+.admin-shell-main-inner .ct-doc {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 0 8px !important;
+  box-sizing: border-box;
+}
+
+/* 宣传页编辑：双栏面板不再做成独立浮起卡片 */
+.admin-shell-main-inner .promo-edit-panel {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+}
+
+/* 文章发布中心：两栏区块仅保留排版，去掉卡片框 */
+.admin-shell-main-inner .article-studio-panel {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 0 24px !important;
+  box-shadow: none !important;
+}
+
+/* 文章中心 / 访问统计：去掉读经书页式大圆角与纸纹底（仅管理壳内） */
+.admin-shell-main-inner .article-studio-app .book-spread,
+.admin-shell-main-inner .admin-analytics-app .book-spread {
+  background: transparent !important;
+  border-radius: 0 !important;
+  min-height: 0 !important;
+}
+
+.admin-shell-main-inner .article-studio-app .book-page,
+.admin-shell-main-inner .admin-analytics-app .book-page {
+  padding: 8px 0 24px !important;
+}
+
+.admin-shell-main-inner .article-studio-app .book-page::before,
+.admin-shell-main-inner .article-studio-app .book-page::after,
+.admin-shell-main-inner .admin-analytics-app .book-page::before,
+.admin-shell-main-inner .admin-analytics-app .book-page::after {
+  display: none !important;
+}

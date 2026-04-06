@@ -7,11 +7,11 @@
     <meta name="askbible-api-base" content="" />
     <title>顶栏与底栏 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=106" />
-    <link rel="stylesheet" href="/admin-shell.css?v=1" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=4" />
     <script src="/theme-apply.js?v=2"></script>
     <!-- 不用 defer：保证内联脚本执行前已注册 ASKBIBLE_CHROME_NAV_ICON_OPTIONS（顶栏图标下拉） -->
-    <script src="/site-chrome.js?v=9"></script>
+    <script src="/site-chrome.js?v=12"></script>
     <style>
       .sc-page {
         max-width: 920px;
@@ -77,6 +77,17 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 12px;
+      }
+      .sc-footer-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+        align-items: start;
+      }
+      @media (max-width: 720px) {
+        .sc-footer-cols {
+          grid-template-columns: 1fr;
+        }
       }
       @media (max-width: 640px) {
         .sc-row2 {
@@ -339,6 +350,11 @@
           <input type="text" id="scBrandTitleAttr" autocomplete="off" />
         </div>
         <div class="sc-field">
+          <label
+            ><input type="checkbox" id="scTopbarSticky" /> <strong>顶栏始终固定在最顶</strong>：菜单栏用浏览器「固定定位」独占屏幕顶端，下面内容往上滚时<strong>不会把菜单带走</strong>，正文从菜单下方滑过；关闭则顶栏与普通页面一样随滚动上移。</label
+          >
+        </div>
+        <div class="sc-field">
           <label><input type="checkbox" id="scShowSplit" checked /> 使用三色分词品牌（Ask / Bible / .me）</label>
         </div>
         <div id="scSplitBrand" class="sc-row2">
@@ -405,13 +421,25 @@
 
         <section class="sc-block" aria-labelledby="scFooterHeading">
           <h2 id="scFooterHeading" class="sc-block-title">底栏设置</h2>
-          <p class="sc-block-lead">可选全站底部说明文字，纯文本、按行分段居中，不支持 HTML。</p>
+          <p class="sc-block-lead">
+            可选全站底部说明文字，纯文本、按行分段，不支持 HTML。分为<strong>左 / 中 / 右</strong>三栏展示；仅填中间一栏时接近原先「整段居中」效果。旧配置里只有一段文案的，会自动出现在中间栏。
+          </p>
         <div class="sc-field">
           <label><input type="checkbox" id="scFooterOn" /> 显示全站底栏</label>
         </div>
-        <div class="sc-field">
-          <label for="scFooterText">底栏纯文本（多行将分成多段居中）</label>
-          <textarea id="scFooterText" rows="4" placeholder="每行一段，不支持 HTML"></textarea>
+        <div class="sc-footer-cols">
+          <div class="sc-field">
+            <label for="scFooterLeft">左侧（左对齐）</label>
+            <textarea id="scFooterLeft" rows="4" placeholder="每行一段"></textarea>
+          </div>
+          <div class="sc-field">
+            <label for="scFooterCenter">中间（居中）</label>
+            <textarea id="scFooterCenter" rows="4" placeholder="每行一段"></textarea>
+          </div>
+          <div class="sc-field">
+            <label for="scFooterRight">右侧（右对齐）</label>
+            <textarea id="scFooterRight" rows="4" placeholder="每行一段"></textarea>
+          </div>
         </div>
         </section>
         <div class="sc-actions">
@@ -770,6 +798,14 @@
         return out;
       }
 
+      function readScBool(v) {
+        if (v === true || v === 1) return true;
+        const s = String(v ?? "")
+          .trim()
+          .toLowerCase();
+        return s === "true" || s === "1" || s === "yes" || s === "on";
+      }
+
       function applyForm(data) {
         const raw = data && typeof data === "object" ? data : {};
         const t = raw.topbar && typeof raw.topbar === "object" ? raw.topbar : {};
@@ -786,6 +822,7 @@
         setVal("scLogoHeight", String(t.logoHeight || 36));
         setVal("scHomeHref", t.homeHref || "/");
         setVal("scBrandTitleAttr", t.brandTitleAttr || "AskBible.me 首页");
+        setChecked("scTopbarSticky", readScBool(t.topbarSticky));
         setChecked("scShowSplit", t.showSplitBrand !== false);
         setVal("scBrandAsk", t.brandAsk || "Ask");
         setVal("scBrandBible", t.brandBible || "Bible");
@@ -797,7 +834,14 @@
         setChecked("scBrandSubtitleDismissible", t.brandSubtitleDismissible === true);
         renderNavRows(t.navLinks || []);
         setChecked("scFooterOn", f.enabled === true);
-        setVal("scFooterText", f.text || "");
+        setVal("scFooterLeft", f.left || "");
+        setVal(
+          "scFooterCenter",
+          f.center != null && String(f.center).trim() !== ""
+            ? f.center
+            : f.text || ""
+        );
+        setVal("scFooterRight", f.right || "");
         toggleSplit();
       }
 
@@ -820,12 +864,15 @@
           const n = el ? Number(el.value) : NaN;
           return Number.isFinite(n) ? n : fallback;
         };
+        const topbarSticky = tc("scTopbarSticky", false);
         return {
+          topbarSticky,
           topbar: {
             logoUrl: tv("scLogoUrl"),
             logoHeight: tn("scLogoHeight", 36),
             homeHref: tv("scHomeHref") || "/",
             brandTitleAttr: tv("scBrandTitleAttr"),
+            topbarSticky,
             showSplitBrand: tc("scShowSplit", true),
             brandAsk: $("scBrandAsk") ? $("scBrandAsk").value : "",
             brandBible: $("scBrandBible") ? $("scBrandBible").value : "",
@@ -839,7 +886,9 @@
           },
           footer: {
             enabled: tc("scFooterOn", false),
-            text: $("scFooterText") ? $("scFooterText").value : "",
+            left: $("scFooterLeft") ? $("scFooterLeft").value : "",
+            center: $("scFooterCenter") ? $("scFooterCenter").value : "",
+            right: $("scFooterRight") ? $("scFooterRight").value : "",
           },
         };
       }
@@ -961,9 +1010,15 @@
             },
             body: JSON.stringify(body),
           });
-          applyForm(saved);
+          let applied = saved;
+          if (!saved || !saved.topbar || typeof saved.topbar !== "object") {
+            applied = await fetchSiteChromeAdminJson({
+              headers: { Authorization: "Bearer " + getToken() },
+            });
+          }
+          applyForm(applied);
           if (typeof window.__applyAskBibleSiteChrome === "function") {
-            window.__applyAskBibleSiteChrome(saved);
+            window.__applyAskBibleSiteChrome(applied);
           }
           setStatus("已保存。其他已打开页面刷新后即可同步。", false);
         } catch (e) {
@@ -984,6 +1039,6 @@
         document.getElementById("scReloadBtn").click();
       })();
     </script>
-    <script src="/admin-shell.js?v=1" defer></script>
+    <script src="/admin-shell.js?v=2" defer></script>
   </body>
 </html>

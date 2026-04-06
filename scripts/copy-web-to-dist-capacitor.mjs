@@ -28,6 +28,7 @@ const topFiles = [
   "seo-settings.html",
   "seo-apply.js",
   "admin-analytics.html",
+  "analytics-collect.js",
   "styles.css",
   "promo.css",
   "vision.css",

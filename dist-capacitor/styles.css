@@ -175,6 +175,28 @@ body {
   z-index: 250;
 }
 
+/* 后台配置 topbarSticky：顶栏 fixed 独占视口顶部，正文从下方滚动，菜单不随页卷起 */
+.page-shell > .site-topbar.site-topbar--sticky {
+  position: fixed !important;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0 !important;
+  z-index: 420 !important;
+  box-sizing: border-box;
+  background-color: #4a443f;
+  padding: 10px max(18px, env(safe-area-inset-right, 0px)) 8px
+    max(18px, env(safe-area-inset-left, 0px));
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+}
+
+/* 顶栏脱离文档流后，用变量占位避免首屏正文被挡住（由 site-chrome.js 写入高度） */
+html.askbible-topbar-fixed .page-shell {
+  padding-top: var(--askbible-fixed-topbar-h, 72px);
+}
+
 @media (min-width: 1101px) {
   .page-shell > .site-topbar:has(+ .book-layout) {
     align-items: flex-end;
@@ -321,6 +343,23 @@ body {
 
 .askbible-chrome-nav-pill--icon-only .askbible-chrome-nav-pill-icon {
   margin: 0;
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* 大屏仅图标：无底框「标签」，图标直接落在顶栏底色上（小屏 @media 内另有横向滑动样式） */
+.askbible-chrome-nav .askbible-chrome-nav-pill--icon-only {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 10px;
+  padding: 6px 10px;
+  align-items: center;
+}
+
+.askbible-chrome-nav .askbible-chrome-nav-pill--icon-only:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff;
 }
 
 /* 仅图标模式：文案仅供读屏，不占版面 */
@@ -479,6 +518,43 @@ body {
 .site-footer-line {
   margin: 0;
   text-align: center;
+}
+
+/* 全站底栏三栏（后台 site_chrome 左/中/右） */
+.site-footer.site-footer--cols {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.site-footer-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.site-footer-col--left .site-footer-line {
+  text-align: left;
+}
+
+.site-footer-col--center .site-footer-line {
+  text-align: center;
+}
+
+.site-footer-col--right .site-footer-line {
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .site-footer-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer-col--left .site-footer-line,
+  .site-footer-col--right .site-footer-line {
+    text-align: center;
+  }
 }
 
 .vision-global-topbar {

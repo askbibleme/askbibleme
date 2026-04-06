@@ -120,6 +120,8 @@ const PROMO_PAGE_MAX_CUSTOM_CSS = 120000;
 const SITE_CHROME_FILE = path.join(ADMIN_DIR, "site_chrome.json");
 const SITE_CHROME_MAX_NAV = 16;
 const SITE_CHROME_MAX_FOOTER = 8000;
+/** 底栏左/中/右各栏最大字符数（总和不超过 SITE_CHROME_MAX_FOOTER 量级） */
+const SITE_CHROME_MAX_FOOTER_COL = Math.floor(SITE_CHROME_MAX_FOOTER / 3);
 const SITE_SEO_FILE = path.join(ADMIN_DIR, "site_seo.json");
 const SITE_SEO_MAX_TITLE = 160;
 const SITE_SEO_MAX_DESC = 600;
@@ -137,6 +139,7 @@ const POINTS_CONFIG_FILE = path.join(ADMIN_DIR, "points_config.json");
 const COLOR_THEMES_FILE = path.join(ADMIN_DIR, "color_themes.json");
 const OPS_CONFIG_FILE = path.join(ADMIN_DIR, "ops_config.json");
 const AUTH_DB_FILE = path.join(ADMIN_DIR, "auth.sqlite");
+const ANALYTICS_DB_FILE = path.join(ADMIN_DIR, "analytics.sqlite");
 /** 登录会话在服务端有效期（自登录时起算）。原 30 天；延长后减轻频繁重登。 */
 const USER_SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const LEGACY_USERS_FILE = path.join(ADMIN_DIR, "users.json");
@@ -664,6 +667,153 @@ function migrateLegacyAuthJsonIfNeeded() {
 
 migrateLegacyAuthJsonIfNeeded();
 
+const ANALYTICS_VISITOR_ID_MAX = 128;
+const ANALYTICS_HB_SEC_ESTIMATE = 45;
+const ANALYTICS_PV_SEC_BUMP = 3;
+
+function analyticsDayKeyLocal(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${da}`;
+}
+
+let analyticsDb = null;
+function getAnalyticsDb() {
+  if (analyticsDb) return analyticsDb;
+  ensureDir(ADMIN_DIR);
+  analyticsDb = new Database(ANALYTICS_DB_FILE);
+  analyticsDb.pragma("journal_mode = WAL");
+  analyticsDb.exec(`
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      day TEXT NOT NULL,
+      visitor_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      ts INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_analytics_day ON analytics_events(day);
+    CREATE INDEX IF NOT EXISTS idx_analytics_day_visitor ON analytics_events(day, visitor_id);
+  `);
+  return analyticsDb;
+}
+
+function normalizeAnalyticsVisitorId(raw) {
+  const s = safeText(raw || "").slice(0, ANALYTICS_VISITOR_ID_MAX);
+  if (s.length < 4) return "";
+  return s;
+}
+
+function normalizeAnalyticsKind(raw) {
+  const k = safeText(raw || "").toLowerCase();
+  if (k === "pv" || k === "hb") return k;
+  return "";
+}
+
+/** 公开：页面浏览 / 心跳采集（无鉴权；体量由 SQLite 本地存储） */
+function handleAnalyticsCollectPost(req, res) {
+  try {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const visitorId = normalizeAnalyticsVisitorId(body.visitorId);
+    const kind = normalizeAnalyticsKind(body.kind);
+    if (!visitorId || !kind) {
+      res.status(400).json({ error: "invalid payload" });
+      return;
+    }
+    const db = getAnalyticsDb();
+    const day = analyticsDayKeyLocal();
+    const ts = Date.now();
+    db.prepare(
+      "INSERT INTO analytics_events (day, visitor_id, kind, ts) VALUES (?,?,?,?)"
+    ).run(day, visitorId, kind, ts);
+    res.set("Cache-Control", "no-store");
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("[analytics/collect]", e);
+    res.status(500).json({ error: "collect failed" });
+  }
+}
+
+/** 管理员：访问统计汇总（与 admin-analytics.html 约定字段一致） */
+function handleAdminAnalyticsOverviewGet(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const db = getAnalyticsDb();
+    const now = new Date();
+    const today = analyticsDayKeyLocal(now);
+    const start = analyticsDayKeyLocal(
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13)
+    );
+    let tz = "";
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch {
+      tz = "";
+    }
+    const rows = db
+      .prepare(
+        `SELECT day AS day,
+          COUNT(DISTINCT visitor_id) AS uv,
+          SUM(CASE WHEN kind = 'pv' THEN 1 ELSE 0 END) AS pv,
+          SUM(CASE WHEN kind = 'hb' THEN 1 ELSE 0 END) AS hb
+        FROM analytics_events
+        WHERE day >= ?
+        GROUP BY day`
+      )
+      .all(start);
+    const byDay = new Map(
+      rows.map((r) => [
+        String(r.day),
+        {
+          uv: Number(r.uv || 0),
+          pv: Number(r.pv || 0),
+          hb: Number(r.hb || 0),
+        },
+      ])
+    );
+    const daily = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - i
+      );
+      const day = analyticsDayKeyLocal(d);
+      const r = byDay.get(day) || { uv: 0, pv: 0, hb: 0 };
+      daily.push({
+        date: day,
+        uniqueVisitors: r.uv,
+        pageViews: r.pv,
+        onlineSeconds:
+          r.hb * ANALYTICS_HB_SEC_ESTIMATE + r.pv * ANALYTICS_PV_SEC_BUMP,
+      });
+    }
+    const t = byDay.get(today) || { uv: 0, pv: 0, hb: 0 };
+    const registeredUsers =
+      authDb.prepare("SELECT COUNT(1) AS c FROM users").get()?.c ?? 0;
+    res.set("Cache-Control", "no-store");
+    res.json({
+      ok: true,
+      serverTime: now.toISOString(),
+      serverBootIso: SERVER_BOOT_ISO,
+      timezone: tz,
+      registeredUsers: Number(registeredUsers) || 0,
+      today: {
+        date: today,
+        uniqueVisitors: t.uv,
+        pageViews: t.pv,
+        onlineSeconds:
+          t.hb * ANALYTICS_HB_SEC_ESTIMATE + t.pv * ANALYTICS_PV_SEC_BUMP,
+      },
+      daily,
+    });
+  } catch (e) {
+    console.error("[admin/analytics/overview]", e);
+    res.status(500).json({ error: e.message || "统计读取失败" });
+  }
+}
+
 const upload = multer({
   dest: DEPLOY_UPLOADS_DIR,
   limits: { fileSize: 1024 * 1024 * 200 },
@@ -791,6 +941,8 @@ function getDefaultSiteChrome() {
       brandSubtitleShow: true,
       brandSubtitleDismissible: false,
       brandSubtitleInline: false,
+      /** 为 true 时全站顶栏 position:sticky 吸顶，正文从下方滑过 */
+      topbarSticky: false,
       navLinks: [
         { href: "/", label: "读经" },
         { href: "/promo.html", label: "介绍" },
@@ -800,7 +952,44 @@ function getDefaultSiteChrome() {
     footer: {
       enabled: false,
       text: "",
+      left: "",
+      center: "",
+      right: "",
     },
+  };
+}
+
+function normalizeSiteChromeFooter(foot) {
+  const def = getDefaultSiteChrome().footer;
+  if (!foot || typeof foot !== "object") {
+    return { ...def };
+  }
+  const enabled = foot.enabled === true;
+  const left = safeText(foot.left ?? "").slice(0, SITE_CHROME_MAX_FOOTER_COL);
+  const center = safeText(foot.center ?? "").slice(0, SITE_CHROME_MAX_FOOTER_COL);
+  const right = safeText(foot.right ?? "").slice(0, SITE_CHROME_MAX_FOOTER_COL);
+  const legacyText = String(foot.text ?? "").trim().slice(0, SITE_CHROME_MAX_FOOTER);
+  if (!left && !center && !right && legacyText) {
+    return {
+      enabled,
+      text: legacyText,
+      left: "",
+      center: legacyText.slice(0, SITE_CHROME_MAX_FOOTER_COL),
+      right: "",
+    };
+  }
+  const textMirror = [left, center, right]
+    .map((s) => String(s || "").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, SITE_CHROME_MAX_FOOTER);
+  return {
+    enabled,
+    left,
+    center,
+    right,
+    text:
+      textMirror || String(foot.text ?? "").slice(0, SITE_CHROME_MAX_FOOTER),
   };
 }
 
@@ -884,6 +1073,18 @@ function normalizeSiteChromeNavIconOnly(raw) {
   );
 }
 
+/** 顶栏开关等：兼容磁盘/请求体里的字符串 "true" */
+function readSiteChromeBool(v) {
+  if (v === true || v === 1) return true;
+  if (v === false || v === 0) return false;
+  const s = String(v ?? "")
+    .trim()
+    .toLowerCase();
+  if (s === "true" || s === "1" || s === "yes" || s === "on") return true;
+  if (s === "false" || s === "0" || s === "no" || s === "off") return false;
+  return false;
+}
+
 function readNavLinkIconOnlyFlag(x) {
   if (!x || typeof x !== "object") return false;
   const v = x.iconOnly != null ? x.iconOnly : x.icon_only;
@@ -925,7 +1126,8 @@ function loadSiteChrome() {
   const data = readJson(SITE_CHROME_FILE, null);
   if (!data || typeof data !== "object") return def;
   const top = data.topbar && typeof data.topbar === "object" ? data.topbar : {};
-  const foot = data.footer && typeof data.footer === "object" ? data.footer : {};
+  const footRaw = data.footer && typeof data.footer === "object" ? data.footer : {};
+  const foot = normalizeSiteChromeFooter(footRaw);
   const logoUrl = isSafeSiteChromeLogoUrl(top.logoUrl)
     ? String(top.logoUrl).trim()
     : "";
@@ -955,12 +1157,10 @@ function loadSiteChrome() {
       brandSubtitleShow: top.brandSubtitleShow !== false,
       brandSubtitleDismissible: top.brandSubtitleDismissible === true,
       brandSubtitleInline: top.brandSubtitleInline === true,
+      topbarSticky: readSiteChromeBool(top.topbarSticky),
       navLinks,
     },
-    footer: {
-      enabled: foot.enabled === true,
-      text: String(foot.text ?? "").slice(0, SITE_CHROME_MAX_FOOTER),
-    },
+    footer: foot,
   };
 }
 
@@ -968,12 +1168,23 @@ function saveSiteChromeFromBody(body) {
   const def = getDefaultSiteChrome();
   /** 与磁盘当前配置合并：避免请求体缺字段（旧前端、缓存页、反代剥键）把副标题等清空 */
   const existing = loadSiteChrome();
+  const rawBody = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+  const rawTop = rawBody.topbar;
   const incomingTop =
-    body?.topbar && typeof body.topbar === "object" ? body.topbar : {};
+    rawTop && typeof rawTop === "object" && !Array.isArray(rawTop)
+      ? { ...rawTop }
+      : {};
+  /** 根级备用：缓存页脚本未把开关放进 topbar 时仍能写入 */
+  if ("topbarSticky" in rawBody) {
+    incomingTop.topbarSticky = rawBody.topbarSticky;
+  }
   const incomingFoot =
-    body?.footer && typeof body.footer === "object" ? body.footer : {};
+    rawBody.footer && typeof rawBody.footer === "object" && !Array.isArray(rawBody.footer)
+      ? rawBody.footer
+      : {};
   const top = { ...existing.topbar, ...incomingTop };
-  const foot = { ...existing.footer, ...incomingFoot };
+  const footMerged = { ...existing.footer, ...incomingFoot };
+  const foot = normalizeSiteChromeFooter(footMerged);
   const payload = {
     updatedAt: nowIso(),
     topbar: {
@@ -996,15 +1207,19 @@ function saveSiteChromeFromBody(body) {
       brandSubtitleShow: top.brandSubtitleShow !== false,
       brandSubtitleDismissible: top.brandSubtitleDismissible === true,
       brandSubtitleInline: top.brandSubtitleInline === true,
+      topbarSticky: readSiteChromeBool(top.topbarSticky),
       navLinks: normalizeSiteChromeNavLinks(top.navLinks, def.topbar.navLinks),
     },
     footer: {
       enabled: foot.enabled === true,
-      text: String(foot.text ?? "").slice(0, SITE_CHROME_MAX_FOOTER),
+      left: foot.left,
+      center: foot.center,
+      right: foot.right,
+      text: foot.text,
     },
   };
   writeJson(SITE_CHROME_FILE, payload);
-  return payload;
+  return loadSiteChrome();
 }
 
 function getDefaultSiteSeoPage(which) {
@@ -2417,6 +2632,8 @@ function requireQianfuzhangUser(req, res) {
 function sendAdminToolHtmlPage(req, res, absolutePath, _qianfuzhangOnly) {
   void _qianfuzhangOnly;
   void req;
+  /** 避免浏览器/CDN 长期缓存内联脚本，导致保存请求体缺字段（如 topbarSticky） */
+  res.set("Cache-Control", "private, no-store, must-revalidate");
   res.sendFile(path.resolve(absolutePath), (err) => {
     if (err) {
       console.warn("[admin-tool-html]", err.message);
@@ -6021,6 +6238,7 @@ function handleSiteChromeAdminGet(req, res) {
   try {
     const authed = requireAdminUser(req, res);
     if (!authed) return;
+    res.set("Cache-Control", "private, no-store");
     res.json(loadSiteChrome());
   } catch (error) {
     console.error(error);
@@ -6036,6 +6254,7 @@ function handleSiteChromeAdminPost(req, res) {
     appendAdminAudit(req, authed, "site_chrome_save", {
       updatedAt: saved.updatedAt,
     });
+    res.set("Cache-Control", "private, no-store");
     res.json({ ok: true, ...saved });
   } catch (error) {
     console.error(error);
@@ -6049,6 +6268,9 @@ app.get("/api/admin/site-chrome-config", handleSiteChromeAdminGet);
 app.post("/api/admin/site-chrome-config", handleSiteChromeAdminPost);
 app.get("/api/admin/sitechrome", handleSiteChromeAdminGet);
 app.post("/api/admin/sitechrome", handleSiteChromeAdminPost);
+
+app.post("/api/analytics/collect", handleAnalyticsCollectPost);
+app.get("/api/admin/analytics/overview", handleAdminAnalyticsOverviewGet);
 
 function handleSiteSeoPublicGet(_req, res) {
   try {
@@ -8727,7 +8949,12 @@ app.listen(port, () => {
         const lr = mod.default.createServer({
           delay: 200,
           extraExts: ["json", "webmanifest", "svg"],
-          exclusions: [/\.git\//, /node_modules\//, /admin_data\/auth\.sqlite/],
+          exclusions: [
+            /\.git\//,
+            /node_modules\//,
+            /admin_data\/auth\.sqlite/,
+            /admin_data\/analytics\.sqlite/,
+          ],
         });
         lr.watch(__dirname);
         console.log(

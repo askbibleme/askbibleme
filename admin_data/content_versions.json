@@ -1,10 +1,46 @@
 {
-    "contentVersions": [
-      { "id": "default", "label": "默认版", "enabled": true, "order": 1 },
-      { "id": "gospel", "label": "福音版", "enabled": true, "order": 2 },
-      { "id": "children", "label": "儿童版", "enabled": true, "order": 3 },
-      { "id": "youth", "label": "青少年版", "enabled": true, "order": 4 },
-      { "id": "couple", "label": "夫妇版", "enabled": true, "order": 5 },
-      { "id": "workplace", "label": "职场版", "enabled": true, "order": 6 }
-    ]
-  }
+  "contentVersions": [
+    {
+      "id": "default",
+      "label": "默认版",
+      "enabled": true,
+      "showInMenu": true,
+      "order": 1
+    },
+    {
+      "id": "gospel",
+      "label": "福音版",
+      "enabled": true,
+      "showInMenu": true,
+      "order": 2
+    },
+    {
+      "id": "children",
+      "label": "儿童版",
+      "enabled": true,
+      "showInMenu": true,
+      "order": 3
+    },
+    {
+      "id": "youth",
+      "label": "青少年版",
+      "enabled": true,
+      "showInMenu": true,
+      "order": 4
+    },
+    {
+      "id": "couple",
+      "label": "夫妇版",
+      "enabled": true,
+      "showInMenu": true,
+      "order": 5
+    },
+    {
+      "id": "workplace",
+      "label": "职场版",
+      "enabled": true,
+      "showInMenu": true,
+      "order": 6
+    }
+  ]
+}

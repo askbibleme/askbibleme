@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-05T22:59:17.577Z",
+  "updatedAt": "2026-04-05T23:59:30.629Z",
   "topbar": {
     "logoUrl": "",
     "logoHeight": 36,
@@ -13,6 +13,8 @@
     "brandSubtitle": "以问题引导阅读，让经文自己发声",
     "brandSubtitleShow": true,
     "brandSubtitleDismissible": false,
+    "brandSubtitleInline": false,
+    "topbarSticky": true,
     "navLinks": [
       {
         "href": "/",
@@ -35,7 +37,10 @@
     ]
   },
   "footer": {
-    "enabled": false,
-    "text": ""
+    "enabled": true,
+    "left": "",
+    "center": "AskBibleme@gmail.com",
+    "right": "",
+    "text": "AskBibleme@gmail.com"
   }
 }
