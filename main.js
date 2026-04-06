@@ -89,6 +89,7 @@ const BOOK_NAME_EN_BY_ID = {
   "3JN": "3 John",
   JUD: "Jude",
   REV: "Revelation",
+  _BIBLE_INTRO: "Bible Introduction",
   _OT_OVERVIEW: "Old Testament Overview",
   _NT_OVERVIEW: "New Testament Overview",
 };
@@ -442,12 +443,22 @@ function renderChapterVideosSlotHtml(videoListOverride) {
       ? ""
       : ' data-chapter-video-preview="1"';
     const mime = String(it?.mime || "video/mp4").trim() || "video/mp4";
+    const lazy = i > 0;
+    const preloadVal = lazy ? "none" : "metadata";
+    const lazyAttrs = lazy
+      ? ` data-chapter-video-lazy="1" data-chapter-video-src="${escapeHtml(
+          src
+        )}" data-chapter-video-type="${escapeHtml(mime)}"`
+      : "";
+    const sourceInner = lazy
+      ? ""
+      : `<source src="${escapeHtml(src)}" type="${escapeHtml(mime)}" />`;
     parts.push(
       `<div class="chapter-video-item"><div class="chapter-video-title">${escapeHtml(
         title
-      )}</div><video class="chapter-video-el"${previewData} controls playsinline preload="metadata"${posterAttr} title="${escapeHtml(
+      )}</div><video class="chapter-video-el"${previewData}${lazyAttrs} controls playsinline preload="${preloadVal}"${posterAttr} title="${escapeHtml(
         `${formatBookChapterLabel(bookLabel, chapter)} · ${title}`
-      )}"><source src="${escapeHtml(src)}" type="${escapeHtml(mime)}" /></video></div>`
+      )}">${sourceInner}</video></div>`
     );
   }
   if (!parts.length) return "";
@@ -455,53 +466,111 @@ function renderChapterVideosSlotHtml(videoListOverride) {
 }
 
 /** 无 poster 时跳过常见「片头黑场」：加载后跳到稍后的帧作静止预览，首次播放仍从 0 秒开始 */
+function bindChapterVideoPreviewFrame(video) {
+  if (!video || video.dataset.chapterPreviewBound === "1") return;
+  if (!video.matches?.('[data-chapter-video-preview="1"]')) return;
+  video.dataset.chapterPreviewBound = "1";
+  video.addEventListener(
+    "loadedmetadata",
+    function onMeta() {
+      video.removeEventListener("loadedmetadata", onMeta);
+      if (video.poster) return;
+      const d = video.duration;
+      if (!Number.isFinite(d) || d <= 0) return;
+      const t = Math.min(2.5, Math.max(0.25, d * 0.04));
+      const onSeeked = () => {
+        video.removeEventListener("seeked", onSeeked);
+        try {
+          video.pause();
+        } catch (_) {
+          /* ignore */
+        }
+        video.dataset.chapterPreviewFrameReady = "1";
+      };
+      video.addEventListener("seeked", onSeeked, { once: true });
+      try {
+        video.currentTime = t;
+      } catch (_) {
+        /* ignore */
+      }
+    },
+    { once: true }
+  );
+  video.addEventListener("play", () => {
+    if (video.dataset.chapterPreviewFrameReady === "1") {
+      delete video.dataset.chapterPreviewFrameReady;
+      try {
+        if (video.currentTime > 0.05) {
+          video.currentTime = 0;
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  });
+}
+
+/** 第 2 条及以后的视频：接近视口再插入 source，避免多路 Range 同时拉取 */
+function attachChapterVideoLazySources(slotEl) {
+  if (!slotEl) return;
+  const lazyVideos = slotEl.querySelectorAll(
+    'video.chapter-video-el[data-chapter-video-lazy="1"]'
+  );
+  if (!lazyVideos.length) return;
+
+  const activate = (video) => {
+    if (video.dataset.chapterVideoLazy !== "1") return;
+    const src = String(video.dataset.chapterVideoSrc || "").trim();
+    const type =
+      String(video.dataset.chapterVideoType || "video/mp4").trim() ||
+      "video/mp4";
+    if (!src) return;
+    delete video.dataset.chapterVideoLazy;
+    delete video.dataset.chapterVideoSrc;
+    delete video.dataset.chapterVideoType;
+    if (video.querySelector("source")) return;
+    const s = document.createElement("source");
+    s.src = src;
+    s.type = type;
+    video.appendChild(s);
+    bindChapterVideoPreviewFrame(video);
+    try {
+      video.load();
+    } catch (_) {
+      /* ignore */
+    }
+  };
+
+  if (typeof IntersectionObserver !== "undefined") {
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (let i = 0; i < entries.length; i += 1) {
+          const e = entries[i];
+          if (!e.isIntersecting) continue;
+          const v = e.target;
+          obs.unobserve(v);
+          activate(v);
+        }
+      },
+      { root: null, rootMargin: "280px 0px", threshold: 0.01 }
+    );
+    for (let i = 0; i < lazyVideos.length; i += 1) {
+      obs.observe(lazyVideos[i]);
+    }
+  } else {
+    for (let i = 0; i < lazyVideos.length; i += 1) {
+      activate(lazyVideos[i]);
+    }
+  }
+}
+
 function attachChapterVideoPreviewFrames(slotEl) {
   if (!slotEl) return;
   const videos = slotEl.querySelectorAll(
-    "video.chapter-video-el[data-chapter-video-preview=\"1\"]"
+    'video.chapter-video-el[data-chapter-video-preview="1"]:not([data-chapter-video-lazy="1"])'
   );
   for (let i = 0; i < videos.length; i += 1) {
-    const video = videos[i];
-    if (video.dataset.chapterPreviewBound === "1") continue;
-    video.dataset.chapterPreviewBound = "1";
-    video.addEventListener(
-      "loadedmetadata",
-      function onMeta() {
-        video.removeEventListener("loadedmetadata", onMeta);
-        if (video.poster) return;
-        const d = video.duration;
-        if (!Number.isFinite(d) || d <= 0) return;
-        const t = Math.min(2.5, Math.max(0.25, d * 0.04));
-        const onSeeked = () => {
-          video.removeEventListener("seeked", onSeeked);
-          try {
-            video.pause();
-          } catch (_) {
-            /* ignore */
-          }
-          video.dataset.chapterPreviewFrameReady = "1";
-        };
-        video.addEventListener("seeked", onSeeked, { once: true });
-        try {
-          video.currentTime = t;
-        } catch (_) {
-          /* ignore */
-        }
-      },
-      { once: true }
-    );
-    video.addEventListener("play", () => {
-      if (video.dataset.chapterPreviewFrameReady === "1") {
-        delete video.dataset.chapterPreviewFrameReady;
-        try {
-          if (video.currentTime > 0.05) {
-            video.currentTime = 0;
-          }
-        } catch (_) {
-          /* ignore */
-        }
-      }
-    });
+    bindChapterVideoPreviewFrame(videos[i]);
   }
 }
 
@@ -801,6 +870,15 @@ function getBooksForTestament(testamentName) {
 const OLD_TESTAMENT_SECTIONS = [
   {
     labels: {
+      zh: "圣经简介",
+      en: "Bible Introduction",
+      es: "Introducción a la Biblia",
+      he: "מבוא לתנ״ך",
+    },
+    bookIds: ["_BIBLE_INTRO"],
+  },
+  {
+    labels: {
       zh: "旧约概论",
       en: "Old Testament Overview",
       es: "Panorama del Antiguo Testamento",
@@ -953,17 +1031,26 @@ const NEW_TESTAMENT_SECTIONS = [
   },
 ];
 
-/** 新教传统书卷顺序 1–66（与上列分组顺序一致） */
+/** 不参与 66 卷正典序号的附加书卷（概论等） */
+const BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER = new Set([
+  "_BIBLE_INTRO",
+  "_OT_OVERVIEW",
+  "_NT_OVERVIEW",
+]);
+
+/** 新教传统书卷顺序 1–66（概论条目不计入、不占位） */
 const BOOK_CANONICAL_ORDER_MAP = (() => {
   const m = new Map();
   let n = 1;
   for (const s of OLD_TESTAMENT_SECTIONS) {
     for (const id of s.bookIds) {
+      if (BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER.has(id)) continue;
       if (!m.has(id)) m.set(id, n++);
     }
   }
   for (const s of NEW_TESTAMENT_SECTIONS) {
     for (const id of s.bookIds) {
+      if (BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER.has(id)) continue;
       if (!m.has(id)) m.set(id, n++);
     }
   }
@@ -971,8 +1058,11 @@ const BOOK_CANONICAL_ORDER_MAP = (() => {
 })();
 
 function formatBookGridButtonLabel(book, bookLabelFn) {
-  const ord = BOOK_CANONICAL_ORDER_MAP.get(book.bookId);
   const name = bookLabelFn(book);
+  if (book?.overviewOnly || BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER.has(book.bookId)) {
+    return name;
+  }
+  const ord = BOOK_CANONICAL_ORDER_MAP.get(book.bookId);
   return ord != null ? `${ord}. ${name}` : name;
 }
 
@@ -1006,11 +1096,17 @@ function buildGroupedBookGridHtml(books, bookLabel, sections) {
       .map((id) => booksById.get(id))
       .filter(Boolean);
     if (!sectionBooks.length) continue;
-    parts.push(
-      `<div class="book-bible-section-title" role="heading" aria-level="3">${escapeHtml(
-        pickBibleGridSectionLabel(section.labels)
-      )}</div>`
-    );
+    const singleOverviewOnly =
+      sectionBooks.length === 1 &&
+      BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER.has(sectionBooks[0].bookId);
+    /* 概论分组标题与唯一按钮文案相同，不再多一层「小分类」标题 */
+    if (!singleOverviewOnly) {
+      parts.push(
+        `<div class="book-bible-section-title" role="heading" aria-level="3">${escapeHtml(
+          pickBibleGridSectionLabel(section.labels)
+        )}</div>`
+      );
+    }
     for (const book of sectionBooks) {
       parts.push(buttonHtml(book));
     }
@@ -4446,8 +4542,12 @@ function renderBookChapterGrids({
           ? buildNewTestamentBookGridHtml(books, bookLabel)
           : [...books]
               .sort((a, b) => {
-                const oa = BOOK_CANONICAL_ORDER_MAP.get(a.bookId) ?? 999;
-                const ob = BOOK_CANONICAL_ORDER_MAP.get(b.bookId) ?? 999;
+                const oa = a.overviewOnly
+                  ? -1
+                  : BOOK_CANONICAL_ORDER_MAP.get(a.bookId) ?? 999;
+                const ob = b.overviewOnly
+                  ? -1
+                  : BOOK_CANONICAL_ORDER_MAP.get(b.bookId) ?? 999;
                 return oa - ob;
               })
               .map((book) => {
@@ -4460,7 +4560,7 @@ function renderBookChapterGrids({
               .join("");
 
     container.querySelectorAll("[data-book-grid-id]").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const nextBookId = btn.getAttribute("data-book-grid-id");
         if (!nextBookId) return;
 
@@ -4469,7 +4569,12 @@ function renderBookChapterGrids({
         state.frontState.chapter = 0;
         saveFrontState();
         renderAllSelectors();
-        void refreshCurrentPage();
+
+        const picked = flattenBooks().find((b) => b.bookId === nextBookId);
+        if (isOverviewOnlyBookMeta(picked)) {
+          closeToolbarPanel(closePanelId);
+        }
+        await refreshCurrentPage();
       });
     });
   };
@@ -4821,6 +4926,7 @@ function renderStudyContent() {
       chapterVideosSlotEl.innerHTML = renderChapterVideosSlotHtml(
         state.bookLandingChapterVideos
       );
+      attachChapterVideoLazySources(chapterVideosSlotEl);
       attachChapterVideoPreviewFrames(chapterVideosSlotEl);
     }
     /* 卷首页介绍卡片暂隐藏（仍拉取 book_intro 以备日后恢复） */
@@ -4899,6 +5005,7 @@ function renderStudyContent() {
   if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = renderChapterArtSlotHtml();
   if (chapterVideosSlotEl) {
     chapterVideosSlotEl.innerHTML = renderChapterVideosSlotHtml();
+    attachChapterVideoLazySources(chapterVideosSlotEl);
     attachChapterVideoPreviewFrames(chapterVideosSlotEl);
   }
 

@@ -4,6 +4,13 @@ export const testamentOptions = [
     name: "旧约",
     books: [
       {
+        cn: "圣经简介",
+        usfx: "_BIBLE_INTRO",
+        en: "Bible Introduction",
+        chapters: 0,
+        overviewOnly: true,
+      },
+      {
         cn: "旧约概论",
         usfx: "_OT_OVERVIEW",
         en: "Old Testament Overview",

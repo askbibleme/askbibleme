@@ -296,7 +296,7 @@
         <h1>章节视频上传</h1>
         <p class="video-center-lead">
           先选<strong>查经版本</strong>与<strong>内容语言</strong>，下方表格会列出该语言下<strong>所有已上传的章节视频</strong>（书卷、章、标题、封面）。列表接口为
-          <code>GET /api/admin/published/chapter-videos-list</code>。上传新视频前可选好<strong>封面帧</strong>；也可在表格里<strong>更换封面</strong>。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>（章下拉第一项）可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
+          <code>GET /api/admin/published/chapter-videos-list</code>。上传新视频前可选好<strong>封面帧</strong>；也可在表格里<strong>更换封面</strong>。支持<strong>本地文件</strong>或填写<strong>公网直链</strong>（由服务器拉取，与文件二选一）。普通章节须已有已发布查经 JSON；<strong>卷首页</strong>（章下拉第一项）可无查经内容，首次上传会自动写入 <code>0.json</code> 占位。视频 MP4/WebM 最大 250MB，封面最大 5MB。
         </p>
         <p id="videoCenterAuth" class="video-center-auth" hidden></p>
         <div id="videoCenterApp" hidden>
@@ -346,6 +346,21 @@
               <input type="text" id="vcTitle" maxlength="200" placeholder="留空则自动命名" autocomplete="off" />
             </div>
             <div class="video-center-field">
+              <label for="vcVideoUrl">视频直链（可选）</label>
+              <input
+                type="url"
+                id="vcVideoUrl"
+                maxlength="2048"
+                placeholder="https://… 直接可下载的 .mp4 / .webm 地址"
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="视频文件直链"
+              />
+              <p class="video-center-hint">
+                与本地文件<strong>二选一</strong>：填写后由<strong>服务器</strong>从公网拉取并保存（单文件最大 250MB）。内网 / 本地地址会被拒绝。可点「加载预览」选封面帧（若对方未允许跨域则可能无法自动上传封面，可之后在列表里换封面）。
+              </p>
+            </div>
+            <div class="video-center-field">
               <label for="vcFile">视频文件</label>
               <input
                 type="file"
@@ -354,6 +369,9 @@
                 aria-label="选择视频文件"
               />
               <p class="video-center-hint">选择文件后可拖动时间轴，选定作为封面的那一帧；上传成功后会自动提交封面（JPEG）。</p>
+            </div>
+            <div class="video-center-actions" style="margin-top: -4px">
+              <button type="button" id="vcLoadUrlPreviewBtn">加载预览（直链）</button>
             </div>
             <div id="vcPreviewSection" class="vc-preview-section" hidden>
               <span class="vc-preview-label">封面预览（拖动时间轴选择帧）</span>
@@ -536,7 +554,9 @@
       const bookSel = document.getElementById("vcBook");
       const chapterSel = document.getElementById("vcChapter");
       const titleInput = document.getElementById("vcTitle");
+      const urlInput = document.getElementById("vcVideoUrl");
       const fileInput = document.getElementById("vcFile");
+      const loadUrlPreviewBtn = document.getElementById("vcLoadUrlPreviewBtn");
       const uploadBtn = document.getElementById("vcUploadBtn");
       const vcPreviewSection = document.getElementById("vcPreviewSection");
       const vcPreviewVideo = document.getElementById("vcPreviewVideo");
@@ -749,6 +769,7 @@
           vcPreviewObjectUrl = "";
         }
         vcPreviewVideo.removeAttribute("src");
+        vcPreviewVideo.removeAttribute("crossorigin");
         vcPreviewVideo.load();
         vcPreviewSection.hidden = true;
         vcPreviewSeek.value = 0;
@@ -776,6 +797,7 @@
       fileInput.addEventListener("change", () => {
         const f = fileInput.files && fileInput.files[0];
         resetPreview();
+        if (f && urlInput) urlInput.value = "";
         if (!f) return;
         vcPreviewSection.hidden = false;
         vcPreviewObjectUrl = URL.createObjectURL(f);
@@ -804,11 +826,57 @@
         }
       });
 
+      function attachPreviewLoadedMetadata() {
+        vcPreviewVideo.addEventListener(
+          "loadedmetadata",
+          function once() {
+            vcPreviewVideo.removeEventListener("loadedmetadata", once);
+            const d = vcPreviewVideo.duration;
+            if (Number.isFinite(d) && d > 0) {
+              const t = Math.min(2, Math.max(0.25, d * 0.04));
+              vcPreviewSeek.max = 1;
+              vcPreviewSeek.value = String(t / d);
+              vcPreviewVideo.currentTime = t;
+            }
+            vcPreviewMeta.textContent =
+              formatTime(vcPreviewVideo.currentTime) +
+              " / " +
+              (Number.isFinite(d) ? formatTime(d) : "—");
+          },
+          { once: true }
+        );
+        if (!previewSeekBound) {
+          previewSeekBound = true;
+          bindPreviewSeek();
+        }
+      }
+
+      loadUrlPreviewBtn?.addEventListener("click", () => {
+        const u = String(urlInput?.value || "").trim();
+        if (!u) {
+          setStatus("请先输入视频直链。", "err");
+          return;
+        }
+        try {
+          new URL(u);
+        } catch (_) {
+          setStatus("网址格式不正确。", "err");
+          return;
+        }
+        resetPreview();
+        fileInput.value = "";
+        vcPreviewVideo.crossOrigin = "anonymous";
+        vcPreviewSection.hidden = false;
+        vcPreviewVideo.src = u;
+        attachPreviewLoadedMetadata();
+      });
+
       async function uploadVideo() {
         const { version, lang } = selectedVersionLang();
         const bookId = String(bookSel.value || "").trim();
         const chapter = Number(chapterSel.value);
         const file = fileInput.files && fileInput.files[0];
+        const videoUrl = String(urlInput?.value || "").trim();
         if (
           !version ||
           !lang ||
@@ -819,20 +887,27 @@
           setStatus("请选择版本、语言、书卷与章。", "err");
           return;
         }
-        if (!file) {
-          setStatus("请选择视频文件。", "err");
+        if (!file && !videoUrl) {
+          setStatus("请选择本地视频文件，或填写可直链的网址。", "err");
+          return;
+        }
+        if (file && videoUrl) {
+          setStatus("请勿同时使用本地文件与直链，请只选一种方式。", "err");
           return;
         }
         const fd = new FormData();
         const t = String(titleInput.value || "").trim();
         const meta = { version, lang, bookId, chapter };
         if (t) meta.title = t;
+        if (videoUrl) meta.videoUrl = videoUrl;
         /* 单段 JSON 置于文件前：避免大文件后扁平字段丢失（含 chapter=0 卷首页） */
         fd.append("meta", JSON.stringify(meta));
-        fd.append("video", file);
+        if (file) fd.append("video", file);
 
         uploadBtn.disabled = true;
-        setStatus("正在上传视频…");
+        setStatus(
+          videoUrl ? "正在从网址拉取并保存视频…" : "正在上传视频…"
+        );
         try {
           const res = await fetch(apiUrl("/api/admin/published/chapter-video-upload"), {
             method: "POST",
@@ -873,6 +948,7 @@
                   "err"
                 );
                 fileInput.value = "";
+                if (urlInput) urlInput.value = "";
                 titleInput.value = "";
                 resetPreview();
                 await loadAllVideosList();
@@ -882,6 +958,7 @@
           }
           setStatus("上传完成（若已加载预览并选帧，会一并上传封面）。", "ok");
           fileInput.value = "";
+          if (urlInput) urlInput.value = "";
           titleInput.value = "";
           resetPreview();
           await loadAllVideosList();

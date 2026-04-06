@@ -4,6 +4,9 @@ dotenv.config();
 import express from "express";
 import fs from "fs";
 import path from "path";
+import dns from "node:dns/promises";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -898,9 +901,11 @@ const upload = multer({
   limits: { fileSize: 1024 * 1024 * 200 },
 });
 
+const CHAPTER_VIDEO_MAX_BYTES = 250 * 1024 * 1024;
+
 const chapterVideoMulter = multer({
   dest: CHAPTER_VIDEO_UPLOAD_TMP,
-  limits: { fileSize: 250 * 1024 * 1024 },
+  limits: { fileSize: CHAPTER_VIDEO_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     const ok =
       file.mimetype === "video/mp4" || file.mimetype === "video/webm";
@@ -6151,6 +6156,10 @@ app.get("/api/published/chapter-art", (req, res) => {
 
 function sendChapterVideoFile(req, res, filePath, ext) {
   const contentType = ext === "webm" ? "video/webm" : "video/mp4";
+  const cv = String((req.query && req.query._cv) || "").trim();
+  const cacheCtl = cv
+    ? "public, max-age=31536000, immutable"
+    : "public, max-age=86400, stale-while-revalidate=604800";
   let stat;
   try {
     stat = fs.statSync(filePath);
@@ -6199,7 +6208,8 @@ function sendChapterVideoFile(req, res, filePath, ext) {
     res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Content-Length", String(chunkSize));
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", cacheCtl);
+    res.setHeader("X-Content-Type-Options", "nosniff");
     const stream = fs.createReadStream(filePath, { start, end });
     stream.on("error", () => {
       if (!res.headersSent) res.status(500).end();
@@ -6211,7 +6221,8 @@ function sendChapterVideoFile(req, res, filePath, ext) {
   res.setHeader("Content-Length", String(fileSize));
   res.setHeader("Accept-Ranges", "bytes");
   res.setHeader("Content-Type", contentType);
-  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.setHeader("Cache-Control", cacheCtl);
+  res.setHeader("X-Content-Type-Options", "nosniff");
   const stream = fs.createReadStream(filePath);
   stream.on("error", () => {
     if (!res.headersSent) res.status(500).end();
@@ -6241,6 +6252,175 @@ app.get("/api/published/chapter-video", (req, res) => {
   }
 });
 
+function normalizeLookupIp(address) {
+  const s = String(address || "").trim();
+  if (s.toLowerCase().startsWith("::ffff:")) return s.slice(7);
+  return s;
+}
+
+function isBlockedSsrfIp(rawIp) {
+  const ip = normalizeLookupIp(rawIp);
+  if (ip === "127.0.0.1" || ip === "0.0.0.0") return true;
+  if (ip === "::1") return true;
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+  if (m) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    const c = Number(m[3]);
+    const d = Number(m[4]);
+    if ([a, b, c, d].some((x) => x > 255)) return true;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  }
+  const lower = ip.toLowerCase();
+  if (lower === "::1") return true;
+  if (lower.startsWith("fe80:")) return true;
+  if (/^f[cd][0-9a-f]{2}:/i.test(lower)) return true;
+  if (lower.startsWith("::ffff:")) return isBlockedSsrfIp(lower.slice(7));
+  return false;
+}
+
+async function assertChapterVideoImportUrlSafe(urlString) {
+  let u;
+  try {
+    u = new URL(urlString);
+  } catch {
+    throw new Error("无效网址");
+  }
+  if (u.username || u.password) throw new Error("网址不可包含用户名或密码");
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    throw new Error("仅支持 http / https 直链");
+  }
+  const host = u.hostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "metadata.google.internal"
+  ) {
+    throw new Error("禁止访问该主机");
+  }
+  if (isBlockedSsrfIp(host)) throw new Error("禁止访问内网或保留地址");
+  let records;
+  try {
+    records = await dns.lookup(host, { all: true });
+  } catch (e) {
+    throw new Error("域名无法解析：" + (e.message || "失败"));
+  }
+  const list = Array.isArray(records) ? records : [records];
+  for (const r of list) {
+    const addr = r && typeof r === "object" ? r.address : String(r || "");
+    if (isBlockedSsrfIp(addr)) {
+      throw new Error("域名解析到不可访问的地址");
+    }
+  }
+}
+
+const CHAPTER_VIDEO_URL_FETCH_MAX_REDIRECTS = 5;
+const CHAPTER_VIDEO_URL_FETCH_TIMEOUT_MS = 15 * 60 * 1000;
+
+async function fetchChapterVideoResponseWithSsrfChecks(startUrl) {
+  let url = startUrl;
+  for (let hop = 0; hop <= CHAPTER_VIDEO_URL_FETCH_MAX_REDIRECTS; hop += 1) {
+    await assertChapterVideoImportUrlSafe(url);
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), CHAPTER_VIDEO_URL_FETCH_TIMEOUT_MS);
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "GET",
+        redirect: "manual",
+        signal: ctrl.signal,
+        headers: {
+          Accept: "video/mp4,video/webm,application/octet-stream;q=0.9,*/*;q=0.5",
+          "User-Agent": "AskBibleChapterVideoImport/1.0",
+        },
+      });
+    } finally {
+      clearTimeout(tid);
+    }
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      if (!loc) throw new Error("重定向缺少 Location");
+      url = new URL(loc, url).href;
+      continue;
+    }
+    if (!res.ok) {
+      throw new Error(`拉取失败 HTTP ${res.status}`);
+    }
+    return { res, finalUrl: url };
+  }
+  throw new Error("重定向次数过多");
+}
+
+function inferChapterVideoExtFromUrlAndType(urlStr, contentType) {
+  const u = String(urlStr || "").toLowerCase();
+  if (u.includes(".webm") && !u.includes(".webm.")) return "webm";
+  if (u.includes(".mp4") && !u.includes(".mp4.")) return "mp4";
+  const ct = String(contentType || "").split(";")[0].trim().toLowerCase();
+  if (ct.includes("webm")) return "webm";
+  if (ct.includes("mp4")) return "mp4";
+  if (ct === "application/octet-stream" || ct === "binary/octet-stream") {
+    return "mp4";
+  }
+  return "mp4";
+}
+
+async function downloadChapterVideoFromUrlToTmp(urlString) {
+  const { res, finalUrl } = await fetchChapterVideoResponseWithSsrfChecks(urlString);
+  const ct = String(res.headers.get("content-type") || "");
+  const cl = res.headers.get("content-length");
+  if (cl && Number(cl) > CHAPTER_VIDEO_MAX_BYTES) {
+    throw new Error("远程文件超过 250MB");
+  }
+  const ext = inferChapterVideoExtFromUrlAndType(finalUrl, ct);
+  const ctMain = ct.split(";")[0].trim().toLowerCase();
+  const mimeOk =
+    ext === "webm"
+      ? ctMain.includes("webm") ||
+        ctMain.includes("octet-stream") ||
+        ctMain === ""
+      : ctMain.includes("mp4") ||
+        ctMain.includes("octet-stream") ||
+        ctMain.includes("video/") ||
+        ctMain === "";
+  if (!mimeOk && ctMain && !ctMain.includes("octet-stream")) {
+    throw new Error(`不支持的资源类型：${ctMain || "未知"}（需 mp4 或 webm 直链）`);
+  }
+  const mime = ext === "webm" ? "video/webm" : "video/mp4";
+  fs.mkdirSync(CHAPTER_VIDEO_UPLOAD_TMP, { recursive: true });
+  const tmpName = `url_${Date.now()}_${crypto.randomBytes(8).toString("hex")}.${ext}`;
+  const tmpPath = path.join(CHAPTER_VIDEO_UPLOAD_TMP, tmpName);
+  if (!res.body) throw new Error("响应无正文");
+  const nodeIn = Readable.fromWeb(res.body);
+  let received = 0;
+  const limiter = new Transform({
+    transform(chunk, _enc, cb) {
+      received += chunk.length;
+      if (received > CHAPTER_VIDEO_MAX_BYTES) {
+        cb(new Error("下载超过 250MB 已中止"));
+        return;
+      }
+      cb(null, chunk);
+    },
+  });
+  try {
+    await pipeline(nodeIn, limiter, fs.createWriteStream(tmpPath));
+  } catch (e) {
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      /* ignore */
+    }
+    throw e;
+  }
+  return { path: tmpPath, mimetype: mime, ext };
+}
+
 function chapterVideoUploadMulterMiddleware(req, res, next) {
   chapterVideoMulter.single("video")(req, res, (err) => {
     if (err) {
@@ -6254,15 +6434,51 @@ function chapterVideoUploadMulterMiddleware(req, res, next) {
   });
 }
 
-function handleChapterVideoUploadPost(req, res) {
+async function handleChapterVideoUploadPost(req, res) {
+  let urlTmpPath = null;
+  const file = req.file;
   try {
     const authed = requirePermission(req, res, "manage_publish");
     if (!authed) return;
-    const file = req.file;
-    if (!file || !file.path) {
-      return res.status(400).json({ error: "请选择视频文件（字段名 video）" });
-    }
     const metaObj = parseUploadMetaJson(req);
+    const videoUrlRaw = safeText(
+      metaObj?.videoUrl ?? req.body?.videoUrl ?? ""
+    ).trim();
+    if (videoUrlRaw.length > 2048) {
+      if (file?.path) {
+        try {
+          fs.unlinkSync(file.path);
+        } catch {
+          /* ignore */
+        }
+      }
+      return res.status(400).json({ error: "网址过长（最多 2048 字符）" });
+    }
+    const videoUrl = videoUrlRaw;
+
+    let tempPath = null;
+    let mimetype = "";
+
+    if (file?.path) {
+      tempPath = file.path;
+      mimetype = String(file.mimetype || "");
+    } else if (videoUrl) {
+      try {
+        const got = await downloadChapterVideoFromUrlToTmp(videoUrl);
+        urlTmpPath = got.path;
+        tempPath = got.path;
+        mimetype = got.mimetype;
+      } catch (e) {
+        const msg = String(e?.message || e || "从网址拉取失败");
+        return res.status(400).json({ error: msg });
+      }
+    } else {
+      return res.status(400).json({
+        error:
+          "请选择视频文件（字段 video），或在 meta 中填写可直链的 videoUrl（mp4/webm）。",
+      });
+    }
+
     const versionId = pickStrPreferFlat(req.body?.version, metaObj?.version);
     const lang = pickStrPreferFlat(req.body?.lang, metaObj?.lang);
     const bookId = pickStrPreferFlat(req.body?.bookId, metaObj?.bookId);
@@ -6274,7 +6490,7 @@ function handleChapterVideoUploadPost(req, res) {
     ).slice(0, 200);
     if (!versionId || !lang || !bookId || chapter === null) {
       try {
-        fs.unlinkSync(file.path);
+        if (tempPath) fs.unlinkSync(tempPath);
       } catch {
         /* ignore */
       }
@@ -6294,7 +6510,7 @@ function handleChapterVideoUploadPost(req, res) {
     }
     if (!data || typeof data !== "object") {
       try {
-        fs.unlinkSync(file.path);
+        if (tempPath) fs.unlinkSync(tempPath);
       } catch {
         /* ignore */
       }
@@ -6305,7 +6521,7 @@ function handleChapterVideoUploadPost(req, res) {
     const videos = normalizeChapterVideosForSave(data.chapterVideos);
     if (videos.length >= MAX_CHAPTER_VIDEOS_PER_CHAPTER) {
       try {
-        fs.unlinkSync(file.path);
+        if (tempPath) fs.unlinkSync(tempPath);
       } catch {
         /* ignore */
       }
@@ -6313,14 +6529,23 @@ function handleChapterVideoUploadPost(req, res) {
         error: `每章最多 ${MAX_CHAPTER_VIDEOS_PER_CHAPTER} 个视频，请先删除后再传。`,
       });
     }
-    const mime = String(file.mimetype || "");
+    const mime = String(mimetype || "");
     const ext = mime === "video/webm" ? "webm" : "mp4";
+    if (mime !== "video/webm" && mime !== "video/mp4") {
+      try {
+        if (tempPath) fs.unlinkSync(tempPath);
+      } catch {
+        /* ignore */
+      }
+      return res.status(400).json({ error: "仅支持 MP4 / WebM" });
+    }
     const id = crypto.randomBytes(16).toString("hex");
     const dir = getChapterVideosDir(versionId, lang, bookId, chapter);
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(CHAPTER_VIDEO_UPLOAD_TMP, { recursive: true });
     const dest = path.join(dir, `${id}.${ext}`);
-    moveUploadedFileToFinal(file.path, dest);
+    moveUploadedFileToFinal(tempPath, dest);
+    urlTmpPath = null;
     const entry = {
       id,
       title: title || `视频 ${videos.length + 1}`,
@@ -6338,24 +6563,50 @@ function handleChapterVideoUploadPost(req, res) {
       bookId,
       chapter,
       videoId: id,
+      source: file?.path ? "upload" : "url",
     });
     res.json({ ok: true, video: entry, chapterVideos: nextVideos });
   } catch (error) {
+    if (urlTmpPath) {
+      try {
+        fs.unlinkSync(urlTmpPath);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (file?.path) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+    }
     console.error(error);
-    res.status(500).json({ error: error.message || "上传失败" });
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || "上传失败" });
+    }
   }
+}
+
+function chapterVideoUploadPostRoute(req, res) {
+  void handleChapterVideoUploadPost(req, res).catch((err) => {
+    console.error(err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message || "上传失败" });
+    }
+  });
 }
 
 /* 与 GET /api/admin/published/chapter 同前缀，便于反代只放行 published 子路径时仍能上传 */
 app.post(
   "/api/admin/published/chapter-video-upload",
   chapterVideoUploadMulterMiddleware,
-  handleChapterVideoUploadPost
+  chapterVideoUploadPostRoute
 );
 app.post(
   "/api/admin/chapter-video/upload",
   chapterVideoUploadMulterMiddleware,
-  handleChapterVideoUploadPost
+  chapterVideoUploadPostRoute
 );
 
 app.delete("/api/admin/chapter-video", (req, res) => {

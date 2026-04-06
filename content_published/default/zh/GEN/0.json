@@ -1,0 +1,27 @@
+{
+  "version": "default",
+  "versionLabel": "",
+  "contentLang": "zh",
+  "bookId": "GEN",
+  "bookLabel": "创世记",
+  "chapter": 0,
+  "theme": "",
+  "repeatedWords": [],
+  "segments": [],
+  "chapterLeaderHint": [],
+  "closing": "",
+  "title": "",
+  "generatedAt": "2026-04-06T14:25:42.200Z",
+  "savedAt": "2026-04-06T14:25:42.200Z",
+  "chapterVideos": [
+    {
+      "id": "6bde6caa19faee191d296a39a51a2fc9",
+      "title": "视频 1",
+      "mime": "video/mp4",
+      "ext": "mp4",
+      "updatedAt": "2026-04-06T14:25:42.203Z",
+      "posterUrl": "/api/published/chapter-video-poster?version=default&lang=zh&bookId=GEN&chapter=0&id=6bde6caa19faee191d296a39a51a2fc9",
+      "posterUpdatedAt": "2026-04-06T14:25:42.242Z"
+    }
+  ]
+}
