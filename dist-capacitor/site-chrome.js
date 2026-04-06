@@ -35,6 +35,12 @@
     search: svg(
       '<path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>'
     ),
+    minus: svg(
+      '<path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" d="M5.5 12h13"/>'
+    ),
+    plus: svg(
+      '<path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" d="M12 5.5v13M5.5 12h13"/>'
+    ),
     heart: svg(
       '<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>'
     ),
@@ -73,6 +79,8 @@
     { id: "info", labelZh: "信息" },
     { id: "settings", labelZh: "设置" },
     { id: "search", labelZh: "搜索" },
+    { id: "minus", labelZh: "减号" },
+    { id: "plus", labelZh: "加号" },
     { id: "heart", labelZh: "心形" },
     { id: "mail", labelZh: "邮件" },
     { id: "link", labelZh: "链接" },
@@ -410,13 +418,18 @@
         /* 与 server 一致：仅当确有 SVG 时才进入仅图标模式，避免配置勾了仅图标但 id 无效时变成「无字也无图标」 */
         var iconOnly = navLinkWantsIconOnly(item) && icon !== "";
         var labelEsc = escapeHtml(item.label || "");
+        var ariaRaw =
+          item.ariaLabel != null && String(item.ariaLabel).trim() !== ""
+            ? String(item.ariaLabel).trim()
+            : String(item.label || "").trim();
+        var ariaEsc = escapeHtml(ariaRaw);
         var attrs = ' title="' + labelEsc + '"';
-        if (iconOnly) attrs += ' aria-label="' + labelEsc + '"';
+        if (iconOnly) attrs += ' aria-label="' + ariaEsc + '"';
         var pillClass = "site-topbar-link askbible-chrome-nav-pill";
         if (iconOnly) pillClass += " askbible-chrome-nav-pill--icon-only";
         var textHtml = iconOnly
           ? '<span class="askbible-chrome-nav-pill-text askbible-chrome-nav-pill-text--sr">' +
-            labelEsc +
+            ariaEsc +
             "</span>"
           : '<span class="askbible-chrome-nav-pill-text">' + labelEsc + "</span>";
         return (

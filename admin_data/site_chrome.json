@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-06T01:25:00.309Z",
+  "updatedAt": "2026-04-06T04:27:48.524Z",
   "topbar": {
     "logoUrl": "",
     "logoHeight": 36,
@@ -11,16 +11,28 @@
     "brandMe": ".me",
     "brandPlainTitle": "",
     "brandSubtitle": "以问题引导阅读，让经文自己发声",
-    "brandSubtitleShow": true,
+    "brandSubtitleShow": false,
     "brandSubtitleDismissible": false,
-    "brandSubtitleInline": true,
+    "brandSubtitleInline": false,
     "topbarSticky": true,
     "navLinks": [
       {
-        "href": "/",
-        "label": "读经",
-        "icon": "home",
+        "href": "/#openVerseSearch",
+        "label": "搜索",
+        "icon": "search",
         "iconOnly": true
+      },
+      {
+        "href": "/#fontSmaller",
+        "label": "-",
+        "icon": "",
+        "iconOnly": false
+      },
+      {
+        "href": "/#fontLarger",
+        "label": "+",
+        "icon": "",
+        "iconOnly": false
       },
       {
         "href": "/promo.html",

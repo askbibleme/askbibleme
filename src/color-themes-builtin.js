@@ -8,6 +8,8 @@
  */
 export const BUILTIN_COLOR_THEME_VARIABLES = {
   "--bg": "#2c2824",
+  /** 读经固定顶栏与顶栏占位区（须与 styles.css 顶栏一致，可主题覆盖） */
+  "--topbar-bg": "#4a443f",
   "--paper": "#fffdf8",
   "--book-spread-paper-gradient": "#fffdf8",
   "--paper-soft": "#f8f2e8",

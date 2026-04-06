@@ -3018,23 +3018,60 @@ function ensureScriptureCompareUI() {
   return;
 }
 
+function bumpFontScale(delta) {
+  const step = 0.05;
+  const cur = Number(state.frontState.fontScale) || 1;
+  const next =
+    delta < 0
+      ? Math.max(0.85, Number((cur - step).toFixed(2)))
+      : Math.min(1.3, Number((cur + step).toFixed(2)));
+  if (next === cur) return;
+  state.frontState.fontScale = next;
+  applyFontScale();
+  saveFontScale();
+}
+
 function initFontTools() {
   document.getElementById("fontDecreaseBtn")?.addEventListener("click", () => {
-    state.frontState.fontScale = Math.max(
-      0.85,
-      Number((state.frontState.fontScale - 0.05).toFixed(2))
-    );
-    applyFontScale();
-    saveFontScale();
+    bumpFontScale(-1);
   });
 
   document.getElementById("fontIncreaseBtn")?.addEventListener("click", () => {
-    state.frontState.fontScale = Math.min(
-      1.3,
-      Number((state.frontState.fontScale + 0.05).toFixed(2))
-    );
-    applyFontScale();
-    saveFontScale();
+    bumpFontScale(1);
+  });
+
+  /** 顶栏导航：`/#fontSmaller` / `/#fontLarger` 与书页 − / + 一致 */
+  function tryConsumeFontScaleDeepLink() {
+    try {
+      const u = new URL(window.location.href);
+      let d = 0;
+      if (u.hash === "#fontSmaller") d = -1;
+      else if (u.hash === "#fontLarger") d = 1;
+      else return;
+      u.hash = "";
+      history.replaceState({}, "", u.pathname + (u.search || ""));
+      queueMicrotask(() => bumpFontScale(d));
+    } catch {
+      /* ignore */
+    }
+  }
+  tryConsumeFontScaleDeepLink();
+  window.addEventListener("hashchange", () => {
+    const h = window.location.hash;
+    let d = 0;
+    if (h === "#fontSmaller") d = -1;
+    else if (h === "#fontLarger") d = 1;
+    else return;
+    try {
+      history.replaceState(
+        {},
+        "",
+        window.location.pathname + (window.location.search || "")
+      );
+    } catch {
+      /* ignore */
+    }
+    queueMicrotask(() => bumpFontScale(d));
   });
 }
 
@@ -3480,6 +3517,45 @@ function initVerseSearchOverlay() {
   const overlay = document.getElementById("verseSearchOverlay");
   const openBtn = document.getElementById("verseSearchOpenBtn");
   if (!overlay || !openBtn) return;
+
+  window.openVerseSearch = () => {
+    openVerseSearchOverlay();
+  };
+
+  /** 顶栏导航等可用 `/#openVerseSearch` 打开搜经文面板（与工具栏「搜经文」一致） */
+  function tryConsumeVerseSearchDeepLink() {
+    try {
+      const u = new URL(window.location.href);
+      if (u.hash !== "#openVerseSearch") return;
+      u.hash = "";
+      history.replaceState({}, "", u.pathname + (u.search || ""));
+      queueMicrotask(() => {
+        if (typeof window.openVerseSearch === "function") {
+          window.openVerseSearch();
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+  tryConsumeVerseSearchDeepLink();
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash !== "#openVerseSearch") return;
+    try {
+      history.replaceState(
+        {},
+        "",
+        window.location.pathname + (window.location.search || "")
+      );
+    } catch {
+      /* ignore */
+    }
+    queueMicrotask(() => {
+      if (typeof window.openVerseSearch === "function") {
+        window.openVerseSearch();
+      }
+    });
+  });
 
   openBtn.addEventListener("click", (e) => {
     e.stopPropagation();

@@ -1,5 +1,9 @@
 :root {
+  /* 读经壳与固定顶栏共用最大宽度，避免宽屏 LOGO 与书卡错位 */
+  --page-shell-max-width: 1500px;
   --bg: #2c2824;
+  /* 与 color-themes --topbar-bg 一致；固定顶栏下占位区与此同色，避免透出 --bg 断层 */
+  --topbar-bg: #4a443f;
   --paper: #fffdf8;
   /* 读经 .book-spread 纸色：纯色（与 --paper 一致），无横纹 / 渐变 */
   --book-spread-paper-gradient: var(--paper);
@@ -94,7 +98,7 @@ body {
    ========================= */
 
 .page-shell {
-  max-width: 1500px;
+  max-width: var(--page-shell-max-width);
   margin: 0 auto;
   /* 上略紧：顶缘→logo、logo→书卡都更贴 */
   padding: 10px 18px 18px;
@@ -142,7 +146,7 @@ body {
 }
 
 .page-shell > .site-topbar:has(+ .book-layout) .site-topbar-actions {
-  margin-right: 30px;
+  margin-right: 0;
 }
 
 /* 会员面板在 header 内、main 书卡在 DOM 后；抬高顶栏叠层，避免下拉被书卡盖住 */
@@ -152,25 +156,70 @@ body {
 }
 
 /* 后台配置 topbarSticky：顶栏 fixed 独占视口顶部，正文从下方滚动，菜单不随页卷起 */
+/* 宽屏与 .page-shell 同宽居中，LOGO/导航与下方书卡左缘对齐（勿再 width:100% 贴齐视口左缘） */
 .page-shell > .site-topbar.site-topbar--sticky {
   position: fixed !important;
   top: env(safe-area-inset-top, 0px);
-  left: 0;
-  right: 0;
-  width: 100%;
-  max-width: none;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(100vw, var(--page-shell-max-width));
+  max-width: var(--page-shell-max-width);
   margin: 0 !important;
   z-index: 420 !important;
+  /* 独立层叠上下文，便于 ::before 用负 z-index 铺在底色之下，避免盖住 LOGO/导航 */
+  isolation: isolate;
   box-sizing: border-box;
-  background-color: #4a443f;
+  background-color: var(--topbar-bg, #4a443f);
   padding: 10px max(18px, env(safe-area-inset-right, 0px)) 8px
     max(18px, env(safe-area-inset-left, 0px));
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+  /* 勿加下投影：与下方书卡/同色底衔接处会出现一条「缝」状阴影 */
+  box-shadow: none;
+}
+
+/* 顶栏条在视口左右铺满同色；须在内容下层（勿用正 z-index，否则会遮住品牌区） */
+.page-shell > .site-topbar.site-topbar--sticky::before {
+  content: "";
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  height: var(--askbible-fixed-topbar-h, 72px);
+  background-color: var(--topbar-bg, #4a443f);
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* 顶栏脱离文档流后，用变量占位避免首屏正文被挡住（由 site-chrome.js 写入高度） */
 html.askbible-topbar-fixed .page-shell {
+  position: relative;
   padding-top: var(--askbible-fixed-topbar-h, 72px);
+  /* 与 LOGO 顶栏同色，不再与 --bg 分两截 */
+  background-color: var(--topbar-bg, #4a443f);
+  background-image: none;
+}
+
+/* 读经主页：视口与壳层底纹与顶栏同色（书卡内仍为浅色纸） */
+body:has(
+    .page-shell
+      > main.book-layout:not(.notebook-layout):not(.promo-book-layout):not(.blank-layout)
+  ) {
+  background-color: var(--topbar-bg, #4a443f);
+}
+
+.page-shell:has(
+  > main.book-layout:not(.notebook-layout):not(.promo-book-layout):not(.blank-layout)
+) {
+  background-color: var(--topbar-bg, #4a443f);
+}
+
+body:has(
+    .page-shell
+      > main.book-layout:not(.notebook-layout):not(.promo-book-layout):not(.blank-layout)
+  )
+  .page-shell
+  .site-footer {
+  color: rgba(230, 220, 205, 0.68);
 }
 
 @media (min-width: 1101px) {
@@ -181,8 +230,8 @@ html.askbible-topbar-fixed .page-shell {
 
 .site-topbar-title {
   min-width: 0;
-  /* 固定内边距：与书页左内边距一致，宽屏不随 vw 漂移（较书页左 pad 少 10px） */
-  margin-left: 24px;
+  /* 固定内边距：与书页左内边距一致，宽屏不随 vw 漂移（较书页左 pad 少 10px）；整体较原再左移 15px */
+  margin-left: 9px;
   margin-top: -1px;
 }
 
@@ -261,35 +310,37 @@ html.askbible-topbar-fixed .page-shell {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* 后台配置的顶栏导航：深色上圆角标签（与全站顶栏槽位内链接一致） */
+/* 后台配置的顶栏导航：无底框标签，与顶栏底色一体；左右留白收紧 */
 .askbible-chrome-nav {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: center;
+  gap: 2px;
   justify-content: flex-end;
+  padding: 0;
+  margin: 0;
 }
 
 .askbible-chrome-nav .askbible-chrome-nav-pill {
   display: inline-flex;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   font-size: calc(14px * var(--font-scale));
   font-weight: 700;
-  color: #fff;
+  color: var(--ui-text);
   text-decoration: none;
-  padding: 5px 18px 7px;
-  background-color: #2b2823;
+  padding: 6px 6px;
+  background: transparent;
   border: none;
-  border-radius: 14px 14px 0 0;
+  border-radius: 10px;
   white-space: nowrap;
   line-height: 1.2;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+  box-shadow: none;
 }
 
 .askbible-chrome-nav .askbible-chrome-nav-pill:hover {
-  color: #fff;
-  background-color: #36332d;
+  color: var(--ui-text-hover);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .askbible-chrome-nav .askbible-chrome-nav-pill:focus-visible {
@@ -306,36 +357,20 @@ html.askbible-topbar-fixed .page-shell {
   flex-shrink: 0;
   opacity: 0.95;
   display: block;
-  transform: translateY(2px);
+  transform: translateY(0);
 }
 
 .askbible-chrome-nav-pill--icon-only {
   position: relative;
   justify-content: center;
-  padding-left: 12px;
-  padding-right: 12px;
   gap: 0;
+  padding: 6px 6px;
 }
 
 .askbible-chrome-nav-pill--icon-only .askbible-chrome-nav-pill-icon {
   margin: 0;
   transform: translateY(0);
   opacity: 1;
-}
-
-/* 大屏仅图标：无底框「标签」，图标直接落在顶栏底色上（小屏 @media 内另有横向滑动样式） */
-.askbible-chrome-nav .askbible-chrome-nav-pill--icon-only {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  border-radius: 10px;
-  padding: 6px 10px;
-  align-items: center;
-}
-
-.askbible-chrome-nav .askbible-chrome-nav-pill--icon-only:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #fff;
 }
 
 /* 仅图标模式：文案仅供读屏，不占版面 */
@@ -1628,9 +1663,10 @@ html.askbible-topbar-fixed .page-shell {
 
 .book-layout {
   position: relative;
+  z-index: 1;
   border-radius: 26px;
   overflow: visible;
-  background: var(--paper);
+  background: var(--book-spread-paper-gradient, var(--paper));
   box-shadow: var(--shadow-lg);
 }
 
@@ -1723,12 +1759,11 @@ html.askbible-topbar-fixed .page-shell {
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: calc(100vh - 120px);
-  /* 大屏双栏：纯色纸底（与小屏、--paper 一致） */
+  /* 大屏双栏：与 --book-spread-paper-gradient 一致（默认同 --paper） */
   background: var(--book-spread-paper-gradient);
   border-radius: 26px;
   /* 左页丝带需向左探出书页内边距，hidden 会裁切；背景仍随圆角绘制 */
   overflow: visible;
-  z-index: 2;
 }
 
 /* =========================
@@ -3550,6 +3585,44 @@ button.toolbar-trigger:hover,
 
 .title-nav-mini-btn:hover {
   color: rgba(127, 116, 104, 0.85);
+}
+
+/* 窄屏：翻章行 < - ★ + > 整体缩小，避免贴书口、横向溢出 */
+@media (max-width: 520px) {
+  .title-nav-row {
+    padding: 0 4px;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .title-nav-side {
+    gap: 6px;
+  }
+
+  .title-nav-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 32px;
+    border-radius: 14px;
+  }
+
+  .title-nav-mini-btn {
+    height: 44px;
+    min-width: 38px;
+    padding: 0 6px;
+    font-size: calc(28px * var(--font-scale));
+    border-radius: 12px;
+  }
+
+  .title-nav-fav-center .book-side-extend-list-btn {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 12px;
+  }
+
+  .title-nav-fav-center .book-side-fav-star {
+    font-size: calc(26px * var(--font-scale));
+  }
 }
 
 .page-title-block,
@@ -5503,11 +5576,15 @@ a.admin-modal-hub-link.primary-btn {
     padding-top: 16px;
   }
 
-  /* 单栏：与大屏同一纯色纸底 */
+  /* 固定顶栏时占位高度须随顶栏，勿被上面 16px 覆盖 */
+  html.askbible-topbar-fixed .page-shell {
+    padding-top: var(--askbible-fixed-topbar-h, 72px);
+  }
+
+  /* 单栏：与大屏同一书页底 */
   .book-spread {
     grid-template-columns: 1fr;
-    background: var(--paper);
-    background-image: none;
+    background: var(--book-spread-paper-gradient);
     isolation: isolate;
     transform: translateZ(0);
   }
@@ -5531,9 +5608,8 @@ a.admin-modal-hub-link.primary-btn {
     overflow: visible;
   }
 
-  /* 单栏小屏：顶栏「栏目」pill 区相对右对齐基准微调 */
   .askbible-chrome-nav {
-    transform: translateX(10px);
+    transform: none;
     /* 禁止 pill 竖排换行盖住 Logo：单行 + 横向滑动 */
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -5548,11 +5624,10 @@ a.admin-modal-hub-link.primary-btn {
     display: none;
   }
 
-  /* 小屏顶栏：菜单仅图标、无底纹边框（链接仍有 title；有 aria-label 的项读屏正常） */
   .askbible-chrome-nav .askbible-chrome-nav-pill {
     flex-shrink: 0;
-    padding: 6px;
-    border-radius: 0;
+    padding: 6px 4px;
+    border-radius: 10px;
     gap: 0;
     background: transparent !important;
     border: none !important;
@@ -5589,8 +5664,8 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .askbible-chrome-nav .askbible-chrome-nav-pill--icon-only {
-    padding-left: 6px;
-    padding-right: 6px;
+    padding-left: 4px;
+    padding-right: 4px;
   }
 
   .askbible-chrome-nav .askbible-chrome-nav-pill:has(.askbible-chrome-nav-pill-icon) .askbible-chrome-nav-pill-icon {
@@ -5608,7 +5683,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
-    margin-left: 24px;
+    margin-left: 9px;
     margin-top: -5px;
     flex: 1 1 0;
     min-width: 0;
@@ -5652,7 +5727,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .askbible-chrome-nav {
-    transform: translateX(25px);
+    transform: none;
     max-width: 100%;
     min-width: 0;
   }
@@ -5739,12 +5814,12 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .site-topbar-title {
-    margin-left: 18px;
+    margin-left: 3px;
     margin-top: 5px;
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
-    margin-left: 24px;
+    margin-left: 9px;
     margin-top: -5px;
   }
 
@@ -5844,6 +5919,12 @@ a.admin-modal-hub-link.primary-btn {
     --book-pad-left: 16px;
   }
 
+  /* 与书页左右 padding 对齐：去掉桌面为第四列预留的单侧 padding，避免小屏「左窄右宽」 */
+  .reading-toolbar {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   .toolbar-trigger,
   button.toolbar-trigger,
   .reading-toolbar button {
@@ -5857,6 +5938,7 @@ a.admin-modal-hub-link.primary-btn {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px !important;
     padding-right: 0;
+    padding-left: 0;
     position: relative;
   }
 
@@ -6028,12 +6110,12 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .site-topbar-title {
-    margin-left: 12px;
+    margin-left: -3px;
     margin-top: 0;
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
-    margin-left: 24px;
+    margin-left: 9px;
     margin-top: -5px;
   }
 
@@ -6049,6 +6131,41 @@ a.admin-modal-hub-link.primary-btn {
   .book-page {
     padding: 14px 10px 18px;
     --book-pad-left: 10px;
+  }
+
+  /* 最小屏：翻章行再缩一档 */
+  .title-nav-row {
+    padding: 0 2px;
+  }
+
+  .title-nav-side {
+    gap: 4px;
+  }
+
+  .title-nav-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 28px;
+    border-radius: 12px;
+  }
+
+  .title-nav-mini-btn {
+    height: 38px;
+    min-width: 32px;
+    padding: 0 4px;
+    font-size: calc(24px * var(--font-scale));
+    border-radius: 10px;
+  }
+
+  .title-nav-fav-center .book-side-extend-list-btn {
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 11px;
+    padding: 2px;
+  }
+
+  .title-nav-fav-center .book-side-fav-star {
+    font-size: calc(22px * var(--font-scale));
   }
 
   .toolbar-trigger-wide {

@@ -945,6 +945,26 @@ function getDefaultSiteChrome() {
       topbarSticky: false,
       navLinks: [
         { href: "/", label: "读经", icon: "home", iconOnly: true },
+        {
+          href: "/#openVerseSearch",
+          label: "搜索",
+          icon: "search",
+          iconOnly: true,
+        },
+        {
+          href: "/#fontSmaller",
+          label: "-",
+          ariaLabel: "缩小字号",
+          icon: "minus",
+          iconOnly: true,
+        },
+        {
+          href: "/#fontLarger",
+          label: "+",
+          ariaLabel: "放大字号",
+          icon: "plus",
+          iconOnly: true,
+        },
         { href: "/promo.html", label: "介绍", icon: "doc", iconOnly: true },
         { href: "/#openMemberHub", label: "会员", icon: "user", iconOnly: true },
       ],
@@ -1031,6 +1051,8 @@ const SITE_CHROME_NAV_ICON_IDS = new Set([
   "info",
   "settings",
   "search",
+  "minus",
+  "plus",
   "heart",
   "mail",
   "link",
@@ -1109,6 +1131,7 @@ function normalizeSiteChromeNavLinks(rawList, fallback) {
     return {
       href: b.href,
       label: b.label,
+      ariaLabel: safeText(b?.ariaLabel || "").slice(0, 120),
       icon,
       iconOnly,
     };
@@ -1137,9 +1160,29 @@ function normalizeSiteChromeNavLinks(rawList, fallback) {
             : defRow.icon_only
           : false;
       const iconOnly = normalizeSiteChromeNavIconOnly(iconOnlySource) && icon !== "";
+      const labelFromX = safeText(x?.label || "").slice(0, 80);
+      const label =
+        labelFromX ||
+        (defRow ? safeText(defRow.label || "").slice(0, 80) : "");
+      let ariaLabel = "";
+      if (
+        x &&
+        typeof x === "object" &&
+        x.ariaLabel != null &&
+        String(x.ariaLabel).trim() !== ""
+      ) {
+        ariaLabel = safeText(x.ariaLabel).slice(0, 120);
+      } else if (
+        defRow &&
+        defRow.ariaLabel != null &&
+        String(defRow.ariaLabel).trim() !== ""
+      ) {
+        ariaLabel = safeText(defRow.ariaLabel).slice(0, 120);
+      }
       return {
         href,
-        label: safeText(x?.label || "").slice(0, 80),
+        label,
+        ariaLabel,
         icon,
         iconOnly,
       };
