@@ -1,11 +1,11 @@
 {
-  "updatedAt": "2026-04-06T06:03:15.540Z",
+  "updatedAt": "2026-04-07T12:55:21.716Z",
   "topbar": {
-    "logoUrl": "",
+    "logoUrl": "/assets/brand/askbible-wordmark.svg",
     "logoHeight": 36,
     "homeHref": "/",
     "brandTitleAttr": "Ask是寻找，Bible 回到经文，.me 被光照引导……",
-    "showSplitBrand": true,
+    "showSplitBrand": false,
     "brandAsk": "Ask",
     "brandBible": "Bible",
     "brandMe": ".me",
@@ -16,13 +16,6 @@
     "brandSubtitleInline": false,
     "topbarSticky": true,
     "navLinks": [
-      {
-        "href": "/",
-        "label": "读经",
-        "ariaLabel": "",
-        "icon": "home",
-        "iconOnly": false
-      },
       {
         "href": "/#openBookChapter",
         "label": "书卷",
@@ -45,20 +38,6 @@
         "iconOnly": true
       },
       {
-        "href": "/#fontSmaller",
-        "label": "-",
-        "ariaLabel": "缩小字号",
-        "icon": "minus",
-        "iconOnly": false
-      },
-      {
-        "href": "/#fontLarger",
-        "label": "+",
-        "ariaLabel": "放大字号",
-        "icon": "plus",
-        "iconOnly": false
-      },
-      {
         "href": "/promo.html",
         "label": "理念",
         "ariaLabel": "",
@@ -75,7 +54,7 @@
     ]
   },
   "footer": {
-    "enabled": true,
+    "enabled": false,
     "left": "",
     "center": "AskBibleme@gmail.com",
     "right": "",

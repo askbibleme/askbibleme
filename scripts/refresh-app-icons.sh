@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 用 source-app-icon.png 生成网站/PWA PNG；180/192/512 按 66/108 留边（maskable 安全区）。
+# 推荐：npm run icons:from-svg（从 assets/icons/icon-maskable.svg 生成 Web + iOS + Android，见 scripts/generate-app-icons-from-svg.mjs）
+# 本脚本：用 source-app-icon.png 生成网站/PWA PNG；180/192/512 按 66/108 留边（maskable 安全区）。
 # 16/32 同比例略缩，避免 favicon 贴边。
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

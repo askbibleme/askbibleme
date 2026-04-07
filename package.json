@@ -10,9 +10,10 @@
     "build:deploy-zip": "npm run cap:copy-web && node scripts/build-deploy-upgrade-zip.mjs",
     "build:deploy-full-slim": "npm run cap:copy-web && node scripts/build-deploy-full-slim-zip.mjs",
     "cap:android": "npx cap open android",
-    "android:icons": "bash scripts/generate-android-launcher-icons.sh",
-    "web:icons": "bash scripts/refresh-app-icons.sh",
-    "android:prep": "bash scripts/generate-android-launcher-icons.sh && npx cap sync android",
+    "icons:from-svg": "node scripts/generate-app-icons-from-svg.mjs",
+    "android:icons": "node scripts/generate-app-icons-from-svg.mjs",
+    "web:icons": "node scripts/generate-app-icons-from-svg.mjs",
+    "android:prep": "node scripts/generate-app-icons-from-svg.mjs && npx cap sync android",
     "apk:stage": "node scripts/stage-release-apk.mjs"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "livereload": "^0.10.3",
+    "sharp": "^0.34.5",
     "typescript": "^6.0.2"
   }
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 从 assets/icons/source-app-icon.png 生成 Android mipmap 启动器图标。
+# 推荐：npm run icons:from-svg（从 assets/icons/icon-maskable.svg 生成，含 Android mipmaps）
+# 本脚本：从 assets/icons/source-app-icon.png 生成 Android mipmap 启动器图标。
 # 自适应前景：满版位图 + ic_launcher_foreground_inset.xml（21dp 安全边）。
 # 旧版 ic_launcher / round：按 66/108 比例缩小后居中垫色，避免贴边裁切。
 set -eo pipefail

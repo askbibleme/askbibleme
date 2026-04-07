@@ -123,3 +123,67 @@
     run();
   }
 })();
+
+/** iOS 主屏幕 / Safari PWA：横竖屏切换后布局视口不随屏宽更新时的轻量重排（先于 defer 的 site-chrome / main.js） */
+(function () {
+  function isIosLike() {
+    try {
+      var ua = navigator.userAgent || "";
+      if (/iPhone|iPad|iPod/.test(ua)) return true;
+      if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) return true;
+    } catch (e) {}
+    return false;
+  }
+  function isStandaloneDisplay() {
+    try {
+      if (window.matchMedia("(display-mode: standalone)").matches) return true;
+      if (window.matchMedia("(display-mode: fullscreen)").matches) return true;
+    } catch (e) {}
+    try {
+      if (window.navigator.standalone === true) return true;
+    } catch (e2) {}
+    return false;
+  }
+  if (!isIosLike() && !isStandaloneDisplay()) return;
+
+  function setInnerSizeVars() {
+    try {
+      var h = window.innerHeight;
+      var w = window.innerWidth;
+      if (window.visualViewport) {
+        h = window.visualViewport.height;
+        w = window.visualViewport.width;
+      }
+      document.documentElement.style.setProperty("--askbible-inner-h", h + "px");
+      document.documentElement.style.setProperty("--askbible-inner-w", w + "px");
+    } catch (e) {}
+  }
+
+  function nudgeReflow() {
+    setInnerSizeVars();
+    try {
+      window.dispatchEvent(new Event("resize"));
+    } catch (e) {}
+    try {
+      var y = window.scrollY || 0;
+      window.scrollTo(0, y + 1);
+      window.requestAnimationFrame(function () {
+        window.scrollTo(0, y);
+      });
+    } catch (e2) {}
+  }
+
+  window.addEventListener("resize", setInnerSizeVars, { passive: true });
+  window.addEventListener("orientationchange", function () {
+    setTimeout(nudgeReflow, 0);
+    setTimeout(nudgeReflow, 120);
+    setTimeout(nudgeReflow, 350);
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) setTimeout(setInnerSizeVars, 50);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", setInnerSizeVars);
+  }
+  setInnerSizeVars();
+})();

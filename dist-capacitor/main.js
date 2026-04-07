@@ -1785,19 +1785,30 @@ async function copyTextToClipboardQuiet(text) {
 
 /**
  * ?bookId=&chapter=&verse=&sv= 打开指定经文（与双击收藏复制的链接一致）。
+ * verse 可省略：chapter≥1 时默认第 1 节；chapter=0（卷首页）不传 verse。
  * 与其它 deep link 一样：读完即 strip 参数，避免刷新重复跳转。
  */
 function tryConsumeVersePermalinkQueryParams() {
   try {
     const u = new URL(window.location.href);
     if (!u.searchParams.has("bookId")) return;
-    if (!u.searchParams.has("verse")) return;
+    if (!u.searchParams.has("chapter")) return;
     const bookId = String(u.searchParams.get("bookId") || "").trim();
     const chapter = Number(u.searchParams.get("chapter"));
-    const verse = Number(u.searchParams.get("verse"));
     const svRaw = String(u.searchParams.get("sv") || "").trim();
-    if (!bookId || !Number.isFinite(chapter) || !Number.isFinite(verse)) return;
-    if (chapter < 1 || verse < 1) return;
+    if (!bookId || !Number.isFinite(chapter) || chapter < 0) return;
+
+    let verse;
+    if (u.searchParams.has("verse")) {
+      verse = Number(u.searchParams.get("verse"));
+    } else {
+      verse = chapter >= 1 ? 1 : 0;
+    }
+
+    if (chapter >= 1) {
+      if (!Number.isFinite(verse) || verse < 1) return;
+    }
+
     const book = getBookMetaById(bookId);
     if (!book) return;
 
@@ -1824,12 +1835,45 @@ function tryConsumeVersePermalinkQueryParams() {
     syncContentLangWithPrimaryVersion();
     saveFrontState();
 
-    const focusKey = `${versionId}|${bookId}|${chapter}|${verse}`;
-    localStorage.setItem(PENDING_FAVORITE_FOCUS_KEY, focusKey);
+    if (chapter >= 1 && verse >= 1) {
+      const focusKey = `${versionId}|${bookId}|${chapter}|${verse}`;
+      localStorage.setItem(PENDING_FAVORITE_FOCUS_KEY, focusKey);
+    }
   } catch {
     /* ignore */
   }
 }
+
+/** 顶栏「分享」用：地址栏在 strip 后不含卷章，须从 frontState 拼 deep link */
+function getSharePageUrlFromFrontState() {
+  try {
+    const bookId = String(state.frontState?.bookId || "").trim();
+    if (!bookId) return "";
+    const book = getBookMetaById(bookId);
+    if (!book) return "";
+    const chapter = Number(state.frontState?.chapter);
+    if (!Number.isFinite(chapter) || chapter < 0) return "";
+    const sv = String(state.frontState?.primaryScriptureVersionId || "").trim();
+    if (chapter >= 1) {
+      return buildVerseSharePermalinkUrl(bookId, chapter, 1, sv) || "";
+    }
+    if (chapter === 0) {
+      const u = new URL(window.location.href);
+      u.hash = "";
+      const sp = new URLSearchParams();
+      sp.set("bookId", bookId);
+      sp.set("chapter", "0");
+      if (sv) sp.set("sv", sv);
+      u.search = sp.toString();
+      return u.href;
+    }
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+window.__askBibleGetSharePageUrl = getSharePageUrlFromFrontState;
 
 function getBookMetaById(bookId) {
   return (state.bootstrap?.testamentOptions || []).find((b) => b.bookId === bookId) || null;

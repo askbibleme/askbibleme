@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层 1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 189.5 44">
+  <defs>
+    <style>
+      .cls-1, .cls-2, .cls-3 {
+        isolation: isolate;
+      }
+
+      .cls-2 {
+        fill: #ffb82e;
+      }
+
+      .cls-2, .cls-3 {
+        font-family: Arial-BoldMT, Arial;
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: 0em;
+      }
+
+      .cls-3 {
+        fill: #f6efe4;
+      }
+    </style>
+  </defs>
+  <g class="cls-1">
+    <text class="cls-3" transform="translate(1 34)"><tspan x="0" y="0">Ask</tspan></text>
+    <text class="cls-2" transform="translate(58.5 34)"><tspan x="0" y="0">Bible</tspan></text>
+    <text class="cls-3" transform="translate(134.7 34)"><tspan x="0" y="0">.me</tspan></text>
+  </g>
+</svg>

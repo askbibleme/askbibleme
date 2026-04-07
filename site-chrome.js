@@ -180,13 +180,19 @@
 
   if (typeof window !== "undefined" && !window.__askbibleFixedTopbarResizeDeleg) {
     window.__askbibleFixedTopbarResizeDeleg = true;
-    window.addEventListener(
-      "resize",
-      function () {
-        syncFixedTopbarSpacer();
-      },
-      { passive: true }
-    );
+    function syncTopbarFromViewport() {
+      syncFixedTopbarSpacer();
+    }
+    window.addEventListener("resize", syncTopbarFromViewport, { passive: true });
+    /* iOS 主屏幕 / 全屏 Web App：横竖屏切换时常不触发 resize，须单独补偿 */
+    window.addEventListener("orientationchange", function () {
+      syncTopbarFromViewport();
+      window.setTimeout(syncTopbarFromViewport, 100);
+      window.setTimeout(syncTopbarFromViewport, 350);
+    });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncTopbarFromViewport);
+    }
   }
 
   if (typeof document !== "undefined" && !window.__askbibleSublineDismissDeleg) {
@@ -302,25 +308,26 @@
     var home = escapeHtml(t.homeHref || "/");
     var titleAttr = escapeHtml(t.brandTitleAttr || "首页");
     var h = Math.max(20, Math.min(80, Number(t.logoHeight) || 36));
-    var parts = [];
-    if (String(t.logoUrl || "").trim()) {
-      var imgSrc = escapeHtml(resolveAssetUrl(t.logoUrl));
-      parts.push(
-        '<a href="' +
-          home +
-          '" class="site-brand-link askbible-chrome-logo-link" title="' +
-          titleAttr +
-          '"><img class="askbible-chrome-logo" src="' +
-          imgSrc +
-          '" alt="" height="' +
-          h +
-          '" style="height:' +
-          h +
-          'px;width:auto;display:block" loading="eager" decoding="async" /></a>'
-      );
-    }
+    var logoUrlTrim = String(t.logoUrl || "").trim();
+    var imgSrc = logoUrlTrim ? escapeHtml(resolveAssetUrl(logoUrlTrim)) : "";
+    var logoAlt = escapeHtml(
+      String(t.brandAsk || "Ask") +
+        String(t.brandBible || "Bible") +
+        String(t.brandMe || ".me")
+    );
     var innerBrand = "";
-    if (t.showSplitBrand !== false) {
+    if (imgSrc) {
+      innerBrand =
+        '<img class="askbible-chrome-logo" src="' +
+        imgSrc +
+        '" alt="' +
+        logoAlt +
+        '" height="' +
+        h +
+        '" style="height:' +
+        h +
+        'px;width:auto;display:block" loading="eager" decoding="async" />';
+    } else if (t.showSplitBrand !== false) {
       innerBrand =
         '<span class="brand-ask">' +
         escapeHtml(t.brandAsk || "Ask") +
@@ -348,10 +355,13 @@
       topbarDismissibleTrue(t.brandSubtitleDismissible)
         ? '<button type="button" class="askbible-chrome-brand-subline-dismiss" aria-label="关闭副标题" title="关闭副标题（本机不再显示）">×</button>'
         : "";
+    var h1LinkClass = imgSrc ? "site-brand-link askbible-chrome-logo-link" : "site-brand-link";
     var h1Block =
       '<h1 id="brandTitle"><a href="' +
       home +
-      '" class="site-brand-link" title="' +
+      '" class="' +
+      h1LinkClass +
+      '" title="' +
       titleAttr +
       '">' +
       innerBrand +
@@ -392,6 +402,7 @@
         subBlock +
         "</div>";
     }
+    var parts = [];
     parts.push(titleBlock);
     return '<div class="askbible-chrome-brand-inner">' + parts.join("") + "</div>";
   }
@@ -562,6 +573,10 @@
 
   function getSharePageUrl() {
     try {
+      if (typeof window.__askBibleGetSharePageUrl === "function") {
+        var custom = String(window.__askBibleGetSharePageUrl() || "").trim();
+        if (custom) return custom.split("#")[0];
+      }
       return String(window.location.href || "").split("#")[0];
     } catch (e) {
       return "";
