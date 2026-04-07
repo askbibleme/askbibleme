@@ -1,174 +1,58 @@
 {
   "characters": {
-    "亚当": {
-      "englishName": "Adam",
-      "shortSceneTagEn": "primeval man, simple wrap garment",
-      "appearanceEn": "Adult man in the prime of life, strong shoulders, dark wavy hair to the shoulders, clean-shaven or very light stubble, warm bronze skin, simple earth-toned linen wrap from waist to knee and over one shoulder, bare feet on ground, calm direct gaze"
-    },
-    "夏娃": {
-      "englishName": "Eve",
-      "shortSceneTagEn": "primeval woman, long dark hair",
-      "appearanceEn": "Adult woman, long dark hair partly braided with simple band, modest layered linen in muted rose and sand tones, graceful posture, soft features, barefoot, serene expression"
-    },
-    "挪亚": {
-      "englishName": "Noah",
-      "shortSceneTagEn": "ancient white-bearded shipbuilder patriarch",
-      "appearanceEn": "Very old man, long thick white beard to chest, deeply lined face, wise tired eyes, stooped but sturdy, coarse undyed robe with rope belt, weathered hands, wooden tool or beam optional, barefoot or simple sandals"
-    },
-    "闪": {
-      "englishName": "Shem",
-      "shortSceneTagEn": "middle-aged son of Noah, solemn",
-      "appearanceEn": "Man about fifty, dark beard with first gray, serious face, sturdy build, plain dark robe to ankle, rope belt, same era as Noah but visibly younger, respectful posture"
-    },
-    "含": {
-      "englishName": "Ham",
-      "shortSceneTagEn": "Noah's son, darker complexion, watchful",
-      "appearanceEn": "Man about forty-five, full dark beard, sun-darkened skin, strong build, short-sleeve coarse tunic, alert eyes, sandaled feet"
-    },
-    "雅弗": {
-      "englishName": "Japheth",
-      "shortSceneTagEn": "Noah's eldest-appearing son, tall",
-      "appearanceEn": "Tall man about fifty, gray-streaked beard, lighter robe in gray-brown, calm bearing, broad shoulders, simple headcloth optional"
-    },
-    "他拉": {
-      "englishName": "Terah",
-      "shortSceneTagEn": "aging clan chief, father of Abram",
-      "appearanceEn": "Old man, gray beard, furrowed brow, heavy striped Mesopotamian robe, staff, seated or leading family group, authoritative slouched posture"
-    },
-    "哈兰": {
-      "englishName": "Haran",
-      "shortSceneTagEn": "younger male of Terah's household",
-      "appearanceEn": "Man about thirty, short beard, Mesopotamian patterned tunic, dark hair, practical build; use only in Ur/Haran flashback scenes"
-    },
-    "罗得": {
-      "englishName": "Lot",
-      "shortSceneTagEn": "Abraham's nephew, softer features",
-      "appearanceEn": "Man forty to fifty, shorter and rounder face than Abraham, neat dark beard, anxious or eager eyes, fine but dusty travel robe, no staff unless traveling, always visually younger and less rugged than Abraham"
+    "雅各": {
+      "englishName": "Jacob",
+      "shortSceneTagEn": "Birth and Blessing",
+      "appearanceEn": "A young infant with a slight build, swaddled in simple linen cloth. His hair is fine and dark, still developing. His features are soft and rounded, indicative of a newborn.",
+      "periodLabelZh": "早期 (出生与祝福)",
+      "periods": [
+        {
+          "labelZh": "中期 (与以扫相遇)",
+          "shortSceneTagEn": "Encounter with Esau",
+          "appearanceEn": "A middle-aged man around 40 years old, with a well-groomed beard and hair that is dark with hints of gray. He wears a long tunic with a mantle over it, made from wool, and has a confident but weary expression. He carries a staff and appears more robust and rugged from years of hard work."
+        },
+        {
+          "labelZh": "后期 (和以色列的名分)",
+          "shortSceneTagEn": "Becoming Israel",
+          "appearanceEn": "An older man, around 90 years old, with a full gray beard and thinning hair. His clothing is more ornate, with intricate patterns in a richly colored fabric, indicating his status. His face is lined and wise, projecting an air of dignity and experience. He walks with a staff, supported by a slight stoop."
+        }
+      ]
     },
     "亚伯拉罕": {
       "englishName": "Abraham",
-      "shortSceneTagEn": "lean patriarch with full beard and staff",
-      "appearanceEn": "Lean man about seventy-five to ninety (age per scene), full silver-streaked beard, weathered sun-lined face, deep-set kind eyes, striped ancient Near Eastern robe to ankle, simple leather belt, wooden walking staff, upright calm posture, slightly taller than Lot"
-    },
-    "亚伯兰": {
-      "englishName": "Abraham",
-      "shortSceneTagEn": "younger Abram before rename, dark beard",
-      "appearanceEn": "Same face identity as Abraham: lean build, dark beard with little gray (younger Abram), alert eyes, travel robe and staff, Mesopotamian then Canaanite dress layers; must match aged Abraham in bone structure when older"
-    },
-    "撒莱": {
-      "englishName": "Sarah",
-      "shortSceneTagEn": "Sarah as Sarai, veil and grace",
-      "appearanceEn": "Same woman as Sarah: covered hair, veil, modest robes; when named Sarai show her slightly younger—fewer lines, darker hair under veil—same nose and height as older Sarah"
-    },
-    "撒拉": {
-      "englishName": "Sarah",
-      "shortSceneTagEn": "dignified matriarch beside Abraham",
-      "appearanceEn": "Woman past middle age, oval face, covered hair with simple veil, modest layered robe sand and blue-gray, composed posture, shorter than Abraham, warm but firm eyes, fine lines at eyes, hands folded or gesturing with dignity"
-    },
-    "夏甲": {
-      "englishName": "Hagar",
-      "shortSceneTagEn": "Egyptian servant woman, straight posture",
-      "appearanceEn": "Woman about twenty-five to thirty, Egyptian-style linen sheath dress with shoulder straps, short black hair under headband or small wig-style braid, kohl-lined eyes, bronze-brown skin, bare arms, subservient then defiant stance as scene needs, never confused with Sarah's veil style"
-    },
-    "以实玛利": {
-      "englishName": "Ishmael",
-      "shortSceneTagEn": "youth or young man, bow optional",
-      "appearanceEn": "Boy to young man, dark curly hair, lean, Egyptian-tinged dress when with Hagar, later desert archer with simple tunic and head-wrap, always recognizable as Hagar's son by skin tone and eye shape"
+      "shortSceneTagEn": "Call of Abraham",
+      "appearanceEn": "An elderly man, around 75 years old, with graying hair and a full beard. He wears simple, loose-fitting robes made of undyed wool, cinched at the waist with a leather belt. His build is sturdy, reflecting years of life in a nomadic lifestyle. He carries a walking stick, symbolizing his journey.",
+      "periodLabelZh": "早期 (被呼召)",
+      "periods": [
+        {
+          "labelZh": "中期 (与撒拉和以撒)",
+          "shortSceneTagEn": "Family with Sarah and Isaac",
+          "appearanceEn": "An older man, now about 100 years old, with more wisps of white in his hair and beard. He wears slightly more ornate robes, reflecting his status as a patriarch, with intricate patterns. His build remains solid, indicating a life of physical activity, and he has a more regal demeanor as he stands with his wife Sarah and son Isaac."
+        },
+        {
+          "labelZh": "后期 (祭坛上的以撒)",
+          "shortSceneTagEn": "Sacrifice of Isaac",
+          "appearanceEn": "An aged patriarch, around 130 years old, with a long white beard and thin hair. He dons an even more dignified robe, with rich colors that symbolize his covenantal status. His posture is more frail, indicating old age, yet his eyes reflect wisdom and determination as he prepares for the sacrifice of Isaac."
+        }
+      ]
     },
     "以撒": {
       "englishName": "Isaac",
-      "shortSceneTagEn": "gentler bearded patriarch, softer than Abraham",
-      "appearanceEn": "Man from youth (smooth face, hesitant eyes) to old age (full gray beard, blind milky eyes in blessing scene): medium build, lighter skin than Esau, thoughtful mouth, robes like Abraham but less travel-worn, wooden staff when elderly, never as hairy as Esau"
-    },
-    "利百加": {
-      "englishName": "Rebekah",
-      "shortSceneTagEn": "veiled matriarch or young woman at well",
-      "appearanceEn": "Young: long dark hair, pitcher at well, bright eyes, striped nomad dress. Older: veil, matronly robe, firm hands, same face shape and eyes as youth—oval face, small chin, decisive expression when directing Jacob"
-    },
-    "雅各": {
-      "englishName": "Jacob",
-      "shortSceneTagEn": "smooth-skinned younger twin, later striped patriarch",
-      "appearanceEn": "Twin of Esau: smoother skin on arms (critical for deception scene), darker wavy hair, slight build, clever eyes. Middle age: full beard, no excessive body hair on forearms, striped or plain robe, staff. Older Israel: white beard, richly bordered robe, limp or staff, same nose and brow as young Jacob"
-    },
-    "以扫": {
-      "englishName": "Esau",
-      "shortSceneTagEn": "ruddy hairy hunter, rough tunic",
-      "appearanceEn": "Ruddy ruddy complexion, thick red-brown hair and full beard, unusually hairy forearms and hands, burly hunter build, short rough tunic, leather quiver, wilder stare than Jacob, sandals, fur trim optional"
-    },
-    "拉班": {
-      "englishName": "Laban",
-      "shortSceneTagEn": "Aramean kinsman, calculating eyes",
-      "appearanceEn": "Man about sixty, gray streaked beard, sharp narrow eyes, smile that does not reach eyes, layered Mesopotamian robes with more color than Abraham's camp, finger rings optional, stocky build"
-    },
-    "利亚": {
-      "englishName": "Leah",
-      "shortSceneTagEn": "older sister, tender eyes",
-      "appearanceEn": "Woman with soft tired eyes (tradition of tender eyes), plain veil, duller robe colors than Rachel, wider-set eyes, fuller face, posture of resignation then quiet strength, always slightly less ornate dress than Rachel"
-    },
-    "拉结": {
-      "englishName": "Rachel",
-      "shortSceneTagEn": "beautiful shepherdess, graceful",
-      "appearanceEn": "Young woman, graceful oval face, bright dark eyes, long dark hair under veil when modest, finer woven dress in blue and red bands, slim waist, carries shepherd's staff or water jar, lighter step than Leah"
-    },
-    "辟拉": {
-      "englishName": "Bilhah",
-      "shortSceneTagEn": "Rachel's maid, modest",
-      "appearanceEn": "Young woman, simple servant dress, head covered, darker robe, stands half-step behind Rachel, unobtrusive face, gentle features"
-    },
-    "悉帕": {
-      "englishName": "Zilpah",
-      "shortSceneTagEn": "Leah's maid",
-      "appearanceEn": "Young woman, plain headwrap, earth-tone servant tunic, stands near Leah, calm expression, shorter than Leah"
-    },
-    "约瑟": {
-      "englishName": "Joseph",
-      "shortSceneTagEn": "favored son then Egyptian vizier",
-      "appearanceEn": "Youth: handsome oval face, dark hair to shoulders, long ornate striped coat (many colors) over white tunic. Slavery: torn simpler robe, collar chain optional. Prison: beard stubble, coarse skirt. Vizier: shaved face Egyptian style, linen kilt and sheer over-robe, gold collar, same eye shape and brow as youth for recognition"
-    },
-    "便雅悯": {
-      "englishName": "Benjamin",
-      "shortSceneTagEn": "youngest brother, resembles Joseph",
-      "appearanceEn": "Boy to young man, face echoes young Joseph—oval, dark eyes, softer jaw; simpler robe than Joseph's coat; when adult, short beard like brothers but slighter build"
-    },
-    "犹大": {
-      "englishName": "Judah",
-      "shortSceneTagEn": "bearded brother, leader among sons",
-      "appearanceEn": "Man thirty to forty, full dark beard, strong brows, striped patriarchal tunic, signet ring optional in later scenes, broader shoulders than Joseph"
-    },
-    "流便": {
-      "englishName": "Reuben",
-      "shortSceneTagEn": "eldest son of Jacob, bearded",
-      "appearanceEn": "Tall man, heavy dark beard, firstborn bearing, plain robe, serious face, older-looking than Joseph in youth scenes"
-    },
-    "麦基洗德": {
-      "englishName": "Melchizedek",
-      "shortSceneTagEn": "priest-king of Salem, bread and wine",
-      "appearanceEn": "Mature king-priest, medium beard with priestly neat trim, crown or simple royal band, white and purple layered robe, holds bread and wine vessels, serene authoritative gaze, distinct from both Abraham and pagan kings"
-    },
-    "法老": {
-      "englishName": "Pharaoh",
-      "shortSceneTagEn": "Egyptian ruler, nemes or crown",
-      "appearanceEn": "Egyptian king: striped nemes headcloth or double crown, broad collar, kilt and ceremonial apron, optional false beard, kohl eyes, regal posture; use slightly different collar pattern for Genesis Abraham-era vs Joseph-era if both appear"
-    },
-    "波提乏": {
-      "englishName": "Potiphar",
-      "shortSceneTagEn": "Egyptian officer, clean-shaven",
-      "appearanceEn": "Middle-aged Egyptian man, shaved head and face, short black wig optional, linen pleated kilt, broad necklace, muscular officer build, stern face, household master bearing"
-    },
-    "波提非拉": {
-      "englishName": "Potiphera",
-      "shortSceneTagEn": "priest of On, Egyptian",
-      "appearanceEn": "Older Egyptian priest, shaved face, leopard-skin ritual shawl optional, white linen, calm priestly eyes, thinner than Potiphar"
-    },
-    "摩西": {
-      "englishName": "Moses",
-      "shortSceneTagEn": "strong-bearded man in desert robe",
-      "appearanceEn": "Man about 80, long white-streaked beard, sun-darkened skin, coarse desert robe, rope belt, holding wooden staff, upright bearing"
-    },
-    "大卫": {
-      "englishName": "David",
-      "shortSceneTagEn": "ruddy young warrior-king with harp",
-      "appearanceEn": "Young adult male, ruddy complexion, curly dark hair and short beard, simple royal headband optional, knee-length tunic, lyre or sling implied by scene, athletic build"
+      "shortSceneTagEn": "Birth of Isaac",
+      "appearanceEn": "An infant swaddled in simple linen cloth, with tousled dark hair. Soft and chubby with a round face, reflecting the innocence of a newborn.",
+      "periodLabelZh": "早期 (出生时)",
+      "periods": [
+        {
+          "labelZh": "中期 (献祭时)",
+          "shortSceneTagEn": "Binding of Isaac",
+          "appearanceEn": "A young boy around 10 years old, with cropped dark hair and a lean build. He wears a tunic made of undyed wool, with bare feet. His expression shows a mix of curiosity and confusion as he carries wood for the altar."
+        },
+        {
+          "labelZh": "后期 (婚娶时)",
+          "shortSceneTagEn": "Marriage to Rebekah",
+          "appearanceEn": "A middle-aged man, around 40 years old, with a fuller beard and a more defined jawline. He wears a longer robe, indicative of his status, with a sash around his waist. His hair is slightly graying, and he has a calm, contemplative expression as he meets Rebekah."
+        }
+      ]
     }
   }
 }

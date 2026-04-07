@@ -1042,11 +1042,12 @@ function getDefaultSiteChrome() {
   return {
     updatedAt: "",
     topbar: {
-      logoUrl: "",
+      /** 横版透明字标（SVG），与仓库 assets/brand/askbible-wordmark.svg 一致；留空则由顶栏回退为文字品牌 */
+      logoUrl: "/assets/brand/askbible-wordmark.svg",
       logoHeight: 36,
       homeHref: "/",
       brandTitleAttr: "AskBible.me 首页",
-      showSplitBrand: true,
+      showSplitBrand: false,
       brandAsk: "Ask",
       brandBible: "Bible",
       brandMe: ".me",
@@ -1588,6 +1589,308 @@ async function openAiChatHelper({ system, messages }) {
       }
     }
     throw new Error(formatOpenAiChatError(err));
+  }
+}
+
+function parseJsonObjectFromAiText(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(raw);
+    if (o && typeof o === "object" && !Array.isArray(o)) return o;
+  } catch (_) {}
+  const fence = /```(?:json)?\s*([\s\S]*?)```/i.exec(raw);
+  if (fence) {
+    try {
+      const o = JSON.parse(fence[1].trim());
+      if (o && typeof o === "object" && !Array.isArray(o)) return o;
+    } catch (_) {}
+  }
+  const i = raw.indexOf("{");
+  const j = raw.lastIndexOf("}");
+  if (i !== -1 && j > i) {
+    try {
+      const o = JSON.parse(raw.slice(i, j + 1));
+      if (o && typeof o === "object" && !Array.isArray(o)) return o;
+    } catch (_) {}
+  }
+  return null;
+}
+
+/** 编辑预先填写的人物气质/性格：须保留在输出最前，AI 在其后补充，而非覆盖。 */
+function mergeBcdScripturePersonality(editorPref, aiOut, maxLen) {
+  const u = safeText(editorPref || "").trim();
+  const a = safeText(aiOut || "").trim();
+  if (!u) return a.slice(0, maxLen);
+  if (!a) return u.slice(0, maxLen);
+  if (a.startsWith(u)) return a.slice(0, maxLen);
+  return `${u}；${a}`.slice(0, maxLen);
+}
+
+async function handleCharacterProfileGenerate(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const chineseName = safeText(body.chineseName || "").slice(0, 32);
+    if (!chineseName) {
+      return res.status(400).json({ error: "请填写中文名（chineseName）。" });
+    }
+    const notes = safeText(body.notes || "").slice(0, 500);
+    const prefZh = safeText(body.scripturePersonalityZh || "").slice(0, 500);
+    const prefEn = safeText(body.scripturePersonalityEn || "").slice(0, 600);
+    if (!getCurrentOpenAiApiKey()) {
+      return res.status(503).json({
+        error:
+          "未配置 OpenAI API Key。请在管理后台「系统密钥」或环境变量 OPENAI_API_KEY 中配置。",
+      });
+    }
+    const system = [
+      "You are a Bible reference assistant for illustration workflows.",
+      "Given a biblical figure's Chinese name, output a single JSON object with exactly these string keys:",
+      "englishName: common English name as used in Bible translations.",
+      "scripturePersonalityZh: concise Chinese — how Scripture portrays this person's character, virtues, and role (e.g. 被称为信心之父、信而顺服). Not physical appearance.",
+      "scripturePersonalityEn: one or two English sentences — inner character, faith posture, demeanor for illustrators (e.g. 'father of faith', steadfast obedience); not clothing or face shape.",
+      "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
+      "shortSceneTagEn: one short English phrase (about one sentence) for scene tags beside Chinese scene text.",
+      "appearanceEn: detailed English visual description for image generation. Include stable facial identity cues (face shape, eye spacing, nose, distinctive traits) so the same figure can be recognized if more life stages are added later. Ancient Near Eastern or period-appropriate styling; no modern items.",
+      "Respond with ONLY valid JSON, no markdown fences, no commentary.",
+    ].join(" ");
+    const userParts = [`Chinese name: ${chineseName}`];
+    if (notes) userParts.push(`Additional notes from editor: ${notes}`);
+    if (prefZh || prefEn) {
+      userParts.push("EDITOR_PRIORITY (must lead the JSON personality fields, verbatim, then ； then your additions):");
+      if (prefZh) userParts.push(`scripturePersonalityZh: ${prefZh}`);
+      if (prefEn) userParts.push(`scripturePersonalityEn: ${prefEn}`);
+    }
+    let text;
+    try {
+      text = await openAiChatHelper({
+        system,
+        messages: [{ role: "user", content: userParts.join("\n") }],
+      });
+    } catch (err) {
+      const msg = err && err.message ? String(err.message) : "生成失败";
+      return res.status(500).json({ error: msg });
+    }
+    const parsed = parseJsonObjectFromAiText(text);
+    if (!parsed) {
+      return res
+        .status(500)
+        .json({ error: "模型未返回可解析的 JSON，请重试或手写。" });
+    }
+    const englishName = safeText(parsed.englishName || "");
+    const scripturePersonalityZh = mergeBcdScripturePersonality(
+      prefZh,
+      safeText(parsed.scripturePersonalityZh || ""),
+      500
+    );
+    const scripturePersonalityEn = mergeBcdScripturePersonality(
+      prefEn,
+      safeText(parsed.scripturePersonalityEn || ""),
+      600
+    );
+    const shortSceneTagEn = safeText(parsed.shortSceneTagEn || "");
+    const appearanceEn = safeText(parsed.appearanceEn || "");
+    if (!englishName && !appearanceEn) {
+      return res.status(500).json({ error: "模型返回内容为空，请重试。" });
+    }
+    res.json({
+      ok: true,
+      englishName: englishName.slice(0, 80),
+      scripturePersonalityZh,
+      scripturePersonalityEn,
+      shortSceneTagEn: shortSceneTagEn.slice(0, 160),
+      appearanceEn: appearanceEn.slice(0, 1200),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "生成失败，请稍后重试。" });
+  }
+}
+
+async function handleCharacterProfileGenerateLifeStages(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const chineseName = safeText(body.chineseName || "").slice(0, 32);
+    if (!chineseName) {
+      return res.status(400).json({ error: "请填写中文名（chineseName）。" });
+    }
+    const notes = safeText(body.notes || "").slice(0, 500);
+    const prefZh = safeText(body.scripturePersonalityZh || "").slice(0, 500);
+    const prefEn = safeText(body.scripturePersonalityEn || "").slice(0, 600);
+    if (!getCurrentOpenAiApiKey()) {
+      return res.status(503).json({
+        error:
+          "未配置 OpenAI API Key。请在管理后台「系统密钥」或环境变量 OPENAI_API_KEY 中配置。",
+      });
+    }
+    const system = [
+      "You are a Bible scholar assistant for illustration consistency workflows.",
+      "Given a biblical figure's Chinese name, output ONE JSON object with:",
+      "englishName: string — common English name in major Bible translations.",
+      "scripturePersonalityZh: concise Chinese — character, virtues, and biblical reputation as Scripture presents them (e.g. 信心之父、信而顺服、柔和谦卑). Not physical appearance.",
+      "scripturePersonalityEn: 1–3 English sentences — temperament, inner life, and narrative role for illustrators (e.g. 'known as the father of faith', 'courageous before giants'); do NOT repeat hair, face, or clothing (those go in appearanceEn per stage).",
+      "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
+      "stages: array whose LENGTH YOU MUST CHOOSE as 1, 2, or 3 based ONLY on how this figure appears in Scripture:",
+      "- Use exactly 1 stage if the person appears in a single narrative moment or one consistent context, or Scripture gives no basis for multiple distinct visual phases (one-off, brief mention, or one stable depiction).",
+      "- Use 2 stages if the text clearly supports an earlier vs later phase with meaningfully different age, setting, or role (chronological order).",
+      "- Use 3 stages when the narrative supports three distinct life phases — often because the figure's biblical story spans a very large age range (early / mid / late); not every character needs three.",
+      "Never pad to 3 if the Bible material does not justify it. Never output more than 3 stages.",
+      "Order stages chronologically by the biblical story. Each stage object must have:",
+      "labelZh: concise Chinese label (e.g. 唯一出场 / 早期 / 中期 / 后期 plus a short biblical cue when helpful).",
+      "shortSceneTagEn: one short English phrase for scene tags for THAT stage.",
+      "appearanceEn: detailed English visual description for THAT stage.",
+      "CRITICAL — ONE PERSON, NOT SEPARATE CAST: Every stage describes the SAME biological individual. You must NOT write descriptions that imply different unrelated faces or different ethnicities between stages.",
+      "Facial identity lock (mandatory for multi-stage outputs): Pick ONE stable facial blueprint for this figure — face shape, eye spacing and shape, nose and brow, jaw, ear shape, baseline skin tone family, any distinctive mark. Copy this SAME blueprint into EVERY stage's appearanceEn as an opening clause (use identical wording for the shared traits). After that clause, describe ONLY what changes in THIS stage: age, wrinkles, hair/beard length and color, body build, clothing, setting. Later stages show aging or context change on the SAME face, like one actor in makeup, not three different actors.",
+      "If stages.length === 1, the single appearanceEn should still name clear facial identity traits for future consistency.",
+      "Ancient Near Eastern or period-appropriate styling; no modern items.",
+      "Respond with ONLY valid JSON. No markdown fences, no commentary.",
+    ].join(" ");
+    const userParts = [`Chinese name: ${chineseName}`];
+    userParts.push(
+      "Remember: all stages are the same person; facial identity must be unified and cross-stage recognizable."
+    );
+    if (notes) userParts.push(`Editor notes: ${notes}`);
+    if (prefZh || prefEn) {
+      userParts.push("EDITOR_PRIORITY (must lead the JSON personality fields, verbatim, then ； then your additions):");
+      if (prefZh) userParts.push(`scripturePersonalityZh: ${prefZh}`);
+      if (prefEn) userParts.push(`scripturePersonalityEn: ${prefEn}`);
+    }
+    let text;
+    try {
+      text = await openAiChatHelper({
+        system,
+        messages: [{ role: "user", content: userParts.join("\n") }],
+      });
+    } catch (err) {
+      const msg = err && err.message ? String(err.message) : "生成失败";
+      return res.status(500).json({ error: msg });
+    }
+    const parsed = parseJsonObjectFromAiText(text);
+    if (!parsed || !Array.isArray(parsed.stages)) {
+      return res
+        .status(500)
+        .json({ error: "模型未返回含 stages 数组的 JSON，请重试。" });
+    }
+    const rawStages = parsed.stages.filter((s) => s && typeof s === "object").slice(0, 3);
+    if (rawStages.length < 1 || rawStages.length > 3) {
+      return res
+        .status(500)
+        .json({ error: "模型应返回 1～3 个时期，请重试。" });
+    }
+    const stages = [];
+    for (let i = 0; i < rawStages.length; i++) {
+      const s = rawStages[i];
+      stages.push({
+        labelZh: safeText(s.labelZh || "").slice(0, 32),
+        shortSceneTagEn: safeText(s.shortSceneTagEn || "").slice(0, 160),
+        appearanceEn: safeText(s.appearanceEn || "").slice(0, 1200),
+      });
+    }
+    const englishName = safeText(parsed.englishName || "").slice(0, 80);
+    const scripturePersonalityZh = mergeBcdScripturePersonality(
+      prefZh,
+      safeText(parsed.scripturePersonalityZh || ""),
+      500
+    );
+    const scripturePersonalityEn = mergeBcdScripturePersonality(
+      prefEn,
+      safeText(parsed.scripturePersonalityEn || ""),
+      600
+    );
+    if (!englishName && !stages.some((x) => String(x.appearanceEn || "").trim())) {
+      return res.status(500).json({ error: "模型返回内容为空，请重试。" });
+    }
+    const gptUserEn = userParts.join("\n");
+    res.json({
+      ok: true,
+      englishName,
+      scripturePersonalityZh,
+      scripturePersonalityEn,
+      stages,
+      promptLog: {
+        gptSystemEn: system,
+        gptUserEn,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "生成失败，请稍后重试。" });
+  }
+}
+
+async function handleCharacterProfilePromptArchiveTranslate(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const rawParts = body.parts;
+    if (!Array.isArray(rawParts) || rawParts.length < 1) {
+      return res.status(400).json({ error: "parts 须为非空数组。" });
+    }
+    if (rawParts.length > 8) {
+      return res.status(400).json({ error: "parts 最多 8 段。" });
+    }
+    if (!getCurrentOpenAiApiKey()) {
+      return res.status(503).json({
+        error:
+          "未配置 OpenAI API Key。请在管理后台「系统密钥」或环境变量 OPENAI_API_KEY 中配置。",
+      });
+    }
+    const parts = [];
+    let totalChars = 0;
+    for (let i = 0; i < rawParts.length; i++) {
+      const p = rawParts[i];
+      const id = safeText(p.id || "").slice(0, 64) || `p${i}`;
+      const label = safeText(p.label || "").slice(0, 120);
+      const text = safeText(p.text || "").slice(0, 12000);
+      totalChars += text.length;
+      if (totalChars > 48000) {
+        return res.status(400).json({ error: "各段文本总长度过大。" });
+      }
+      parts.push({ id, label, text });
+    }
+    const system = [
+      "You translate English LLM and image-generation prompt text into Simplified Chinese for Bible illustration tool admins.",
+      'Output ONLY valid JSON, no markdown fences: {"items":[{"id":"...","zh":"..."}]} — same ids as input, same order, one item per block.',
+      "Translate faithfully. Use familiar Chinese for biblical names when obvious. Keep untranslatable tokens like PNG, alpha, JSON.",
+    ].join(" ");
+    const blocks = parts
+      .map(
+        (p) =>
+          `[BLOCK id=${JSON.stringify(p.id)}]\n${p.text}`
+      )
+      .join("\n\n---\n\n");
+    const user = `Translate each BLOCK's text to Chinese in "zh". Return JSON items in the same order as the blocks.\n\n${blocks}`;
+    let text;
+    try {
+      text = await openAiChatHelper({
+        system,
+        messages: [{ role: "user", content: user }],
+      });
+    } catch (err) {
+      const msg = err && err.message ? String(err.message) : "翻译失败";
+      return res.status(500).json({ ok: false, error: msg });
+    }
+    const parsed = parseJsonObjectFromAiText(text);
+    const items =
+      parsed && Array.isArray(parsed.items) ? parsed.items : null;
+    if (!items || items.length === 0) {
+      return res
+        .status(500)
+        .json({ ok: false, error: "模型未返回可解析的翻译 JSON。" });
+    }
+    const out = items.map((it) => ({
+      id: safeText(it.id || "").slice(0, 64),
+      zh: safeText(it.zh || "").slice(0, 16000),
+    }));
+    res.json({ ok: true, items: out });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "翻译失败，请稍后重试。" });
   }
 }
 
@@ -6138,6 +6441,9 @@ function ensureCharacterIllustrationProfilesFile() {
       characters: {
         亚伯拉罕: {
           englishName: "Abraham",
+          scripturePersonalityZh: "圣经中称许的信心之父，信而顺服，蒙召即往未知之地。",
+          scripturePersonalityEn:
+            "Portrayed as the father of faith—trusting God’s promise, leaving familiar ground in obedience; steady, reverent demeanor rather than bravado.",
           shortSceneTagEn: "lean patriarch with full beard and staff",
           appearanceEn:
             "Lean man about 75, full beard, weathered face, striped ancient Near Eastern robe to the ankle, simple belt, wooden walking staff, calm posture",
@@ -6590,11 +6896,43 @@ function handleCharacterIllustrationProfilesPost(req, res) {
       const key = safeText(zh).slice(0, 32);
       if (!key) continue;
       if (!entry || typeof entry !== "object") continue;
-      out.characters[key] = {
+      const row = {
         englishName: safeText(entry.englishName || "").slice(0, 80),
         shortSceneTagEn: safeText(entry.shortSceneTagEn || "").slice(0, 160),
         appearanceEn: safeText(entry.appearanceEn || "").slice(0, 1200),
       };
+      const spZh = safeText(entry.scripturePersonalityZh || "").slice(0, 500);
+      if (spZh) row.scripturePersonalityZh = spZh;
+      const spEn = safeText(entry.scripturePersonalityEn || "").slice(0, 600);
+      if (spEn) row.scripturePersonalityEn = spEn;
+      const plz = safeText(entry.periodLabelZh || "").slice(0, 32);
+      if (plz) row.periodLabelZh = plz;
+      const img0 = safeText(entry.imageUrl || "").slice(0, 400);
+      if (img0) row.imageUrl = img0;
+      const cmp = safeText(entry.comparisonSheetUrl || "").slice(0, 400);
+      if (cmp) row.comparisonSheetUrl = cmp;
+      const hero = safeText(entry.heroImageUrl || "").slice(0, 400);
+      if (hero) row.heroImageUrl = hero;
+      const smartGenNotes = safeText(entry.smartGenNotes || "").slice(0, 400);
+      if (smartGenNotes) row.smartGenNotes = smartGenNotes;
+      const promptArchiveText = safeText(entry.promptArchiveText || "").slice(0, 200000);
+      if (promptArchiveText) row.promptArchiveText = promptArchiveText;
+      const rawPeriods = Array.isArray(entry.periods) ? entry.periods : [];
+      const periods = [];
+      for (let i = 0; i < rawPeriods.length && periods.length < 2; i++) {
+        const p = rawPeriods[i];
+        if (!p || typeof p !== "object") continue;
+        const slot = {
+          labelZh: safeText(p.labelZh || "").slice(0, 32),
+          shortSceneTagEn: safeText(p.shortSceneTagEn || "").slice(0, 160),
+          appearanceEn: safeText(p.appearanceEn || "").slice(0, 1200),
+        };
+        const img = safeText(p.imageUrl || "").slice(0, 400);
+        if (img) slot.imageUrl = img;
+        periods.push(slot);
+      }
+      if (periods.length) row.periods = periods;
+      out.characters[key] = row;
     }
     ensureDir(ADMIN_DIR);
     writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, out);
@@ -6610,6 +6948,41 @@ app.post("/api/admin/character-illustration-profiles", handleCharacterIllustrati
 /** 扁平别名：个别反代对长连字符 path 返回 404（与 /api/admin/sitechrome 同理） */
 app.get("/api/admin/bible-character-profiles", handleCharacterIllustrationProfilesGet);
 app.post("/api/admin/bible-character-profiles", handleCharacterIllustrationProfilesPost);
+app.post(
+  "/api/admin/character-illustration-profiles/generate",
+  handleCharacterProfileGenerate
+);
+app.post("/api/admin/bible-character-profiles/generate", handleCharacterProfileGenerate);
+app.post("/api/admin/bible-character-profiles/gentext", handleCharacterProfileGenerate);
+app.post(
+  "/api/admin/character-illustration-profiles/gentext",
+  handleCharacterProfileGenerate
+);
+app.post(
+  "/api/admin/character-illustration-profiles/generate-life-stages",
+  handleCharacterProfileGenerateLifeStages
+);
+app.post(
+  "/api/admin/bible-character-profiles/generate-life-stages",
+  handleCharacterProfileGenerateLifeStages
+);
+/** 短路径别名：个别反代对长 path 段返回 404，与 sitechrome 同理 */
+app.post(
+  "/api/admin/bible-character-profiles/genlifestages",
+  handleCharacterProfileGenerateLifeStages
+);
+app.post(
+  "/api/admin/character-illustration-profiles/genlifestages",
+  handleCharacterProfileGenerateLifeStages
+);
+app.post(
+  "/api/admin/bible-character-profiles/prompt-archive-translate",
+  handleCharacterProfilePromptArchiveTranslate
+);
+app.post(
+  "/api/admin/character-illustration-profiles/prompt-archive-translate",
+  handleCharacterProfilePromptArchiveTranslate
+);
 
 /**
  * POST /api/generate-prompt
@@ -6710,7 +7083,17 @@ app.post("/api/generate-illustration", async (req, res) => {
     const authed = requireAdminUser(req, res);
     if (!authed) return;
     const body = req.body || {};
-    const prompt = safeText(body.prompt || "");
+    const bcdNeutral =
+      body.bcdNeutralColor === true ||
+      body.bcdNeutralColor === "true" ||
+      body.bcdNeutralColor === 1;
+    let prompt = safeText(body.prompt || "");
+    if (bcdNeutral) {
+      prompt =
+        "COLOR LOCK (highest priority — apply before any artistic or historical style): Neutral daylight white balance (~5200K), like an overcast day or north-window studio — NOT golden hour, NOT sunset warmth. Absolutely NO yellow, amber, gold, or sepia cast on skin or across the image; NO brown oil-painting glaze or aged varnish look. Whites and linens read as clean neutral white unless the text specifies a dyed color. Skin: natural realistic human tones, not orange, not jaundiced, not honey-filtered. " +
+        prompt +
+        " COLOR LOCK (repeat): If the result looks warm-yellow or vintage-brown overall, it is wrong — rebalance to neutral, true-to-life color.";
+    }
     const transparent =
       body.transparent === true ||
       body.transparent === "true" ||
@@ -6758,21 +7141,37 @@ app.post("/api/generate-illustration", async (req, res) => {
       return res.status(502).json({ success: false, error: msg });
     }
 
-    const b64 = imgResp?.data?.[0]?.b64_json;
-    if (!b64) {
-      return res.status(502).json({
-        success: false,
-        error: "OpenAI 响应中无图像数据（缺少 b64_json）",
-      });
-    }
-
+    const d0 = imgResp?.data?.[0];
+    const b64 = d0?.b64_json || d0?.b64Json;
     let buf;
-    try {
-      buf = Buffer.from(b64, "base64");
-    } catch {
+    if (b64) {
+      try {
+        buf = Buffer.from(b64, "base64");
+      } catch {
+        return res.status(502).json({
+          success: false,
+          error: "图像 Base64 解码失败",
+        });
+      }
+    } else if (d0?.url && typeof fetch === "function") {
+      try {
+        const fr = await fetch(d0.url);
+        if (!fr.ok) {
+          return res.status(502).json({
+            success: false,
+            error: "OpenAI 返回的图片 URL 拉取失败 HTTP " + fr.status,
+          });
+        }
+        buf = Buffer.from(await fr.arrayBuffer());
+      } catch (fe) {
+        const em =
+          safeText(fe?.message || "") || "从 OpenAI 图片 URL 下载失败";
+        return res.status(502).json({ success: false, error: em });
+      }
+    } else {
       return res.status(502).json({
         success: false,
-        error: "图像 Base64 解码失败",
+        error: "OpenAI 响应中无图像数据（缺少 b64_json / url）",
       });
     }
 

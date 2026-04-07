@@ -102,6 +102,32 @@ export function englishNameForPerson(zhName, profilesRoot) {
 }
 
 /**
+ * 合并第一时期与可选的额外时期（periods[]）外观描述，供出图「锁定」一行使用。
+ */
+export function appearanceTextForPromptLock(entry) {
+  if (!entry || typeof entry !== "object") return "";
+  const parts = [];
+  const base = String(entry.appearanceEn || "").trim();
+  const pl0 = String(entry.periodLabelZh || "").trim();
+  if (base) {
+    parts.push(pl0 ? `[${pl0}] ${base}` : base);
+  }
+  const extras = Array.isArray(entry.periods) ? entry.periods : [];
+  for (const ex of extras) {
+    if (!ex || typeof ex !== "object") continue;
+    const a = String(ex.appearanceEn || "").trim();
+    if (!a) continue;
+    const lb = String(ex.labelZh || "").trim();
+    parts.push(lb ? `[${lb}] ${a}` : a);
+  }
+  const joined = parts.join(" | ");
+  if (parts.length > 1) {
+    return `Same person, unified facial identity across life stages (not different actors): ${joined}`;
+  }
+  return joined;
+}
+
+/**
  * 供最终 prompt 使用的「角色锁定」行（完整外观，跨章复用）。
  */
 export function buildCharacterLockLines(keyPeople, profilesRoot, maxPeople = 4) {
@@ -115,9 +141,14 @@ export function buildCharacterLockLines(keyPeople, profilesRoot, maxPeople = 4) 
     seen.add(z);
     const entry = getCharacterEntry(profilesRoot, z);
     const en = englishNameForPerson(z, profilesRoot) || z;
-    const app = String(entry?.appearanceEn || "").trim();
-    if (app) {
-      lines.push(`${en}: ${app}`);
+    const app = appearanceTextForPromptLock(entry).trim();
+    const persEn = String(entry?.scripturePersonalityEn || "").trim();
+    const lockParts = [];
+    if (app) lockParts.push(app);
+    if (persEn) lockParts.push(`Scripture-based temperament/demeanor: ${persEn}`);
+    const lockBody = lockParts.join(" ");
+    if (lockBody) {
+      lines.push(`${en}: ${lockBody}`);
     } else if (en && en !== z) {
       lines.push(
         `${en}: same recognizable face and body type as in other chapters of this Bible project; ancient Near Eastern biblical clothing; age-appropriate for the narrative`

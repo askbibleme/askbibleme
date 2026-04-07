@@ -50,6 +50,16 @@ body.admin-shell-page {
   filter: brightness(1.06);
 }
 
+.admin-shell-brand-wordmark {
+  max-width: 100%;
+  height: auto;
+  vertical-align: top;
+}
+
+.admin-shell-brand.site-brand-link:hover .admin-shell-brand-wordmark {
+  filter: brightness(1.04);
+}
+
 .admin-shell-brand .brand-ask,
 .admin-shell-brand .brand-me {
   color: var(--ink, #2c2824);

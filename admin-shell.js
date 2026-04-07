@@ -57,6 +57,71 @@
     }
   }
 
+  /** 侧栏浅色底：主页字标 askbible-wordmark.svg 为浅色字，换用同构图深色字 askbible-wordmark-ink.svg；自定义 https 图保持原 URL */
+  function adminShellBrandImageUrl(logoUrl) {
+    const u = String(logoUrl || "").trim();
+    if (!u) return "/assets/brand/askbible-wordmark-ink.svg";
+    const needle = "askbible-wordmark.svg";
+    const i = u.indexOf(needle);
+    if (i === -1) return u;
+    const after = u.slice(i + needle.length);
+    if (after.startsWith("?") || after === "") {
+      return u.slice(0, i) + "askbible-wordmark-ink.svg" + after;
+    }
+    return u;
+  }
+
+  function isSafeBrandImgSrc(u) {
+    const s = String(u || "").trim();
+    if (!s) return false;
+    if (s.startsWith("/") && !s.startsWith("//")) return true;
+    return /^https?:\/\//i.test(s);
+  }
+
+  function applyAdminShellBrand(top) {
+    const t = top && typeof top === "object" ? top : {};
+    const rawLogo = String(t.logoUrl || "").trim();
+    brand.title =
+      String(t.brandTitleAttr || "AskBible.me 首页").trim() || "AskBible.me 首页";
+
+    brand.replaceChildren();
+
+    if (!rawLogo) {
+      const mk = (cls, text) => {
+        const s = document.createElement("span");
+        s.className = cls;
+        s.textContent = text;
+        return s;
+      };
+      brand.appendChild(mk("brand-ask", String(t.brandAsk || "Ask")));
+      brand.appendChild(mk("brand-bible", String(t.brandBible || "Bible")));
+      brand.appendChild(mk("brand-me", String(t.brandMe || ".me")));
+      return;
+    }
+
+    const imgUrl = adminShellBrandImageUrl(rawLogo);
+    if (!isSafeBrandImgSrc(imgUrl)) return;
+
+    const h = Math.max(20, Math.min(80, Number(t.logoHeight) || 36));
+    const sideH = Math.min(32, h);
+    const alt =
+      String(t.brandAsk || "Ask") +
+      String(t.brandBible || "Bible") +
+      String(t.brandMe || ".me");
+
+    const img = document.createElement("img");
+    img.className = "admin-shell-brand-wordmark";
+    img.src = imgUrl;
+    img.alt = alt;
+    img.height = sideH;
+    img.style.height = sideH + "px";
+    img.style.width = "auto";
+    img.style.display = "block";
+    img.loading = "eager";
+    img.decoding = "async";
+    brand.appendChild(img);
+  }
+
   const root = document.createElement("div");
   root.className = "admin-shell-root";
 
@@ -72,11 +137,36 @@
   brand.className = "site-brand-link admin-shell-brand";
   brand.href = "/";
   brand.title = "AskBible.me 首页";
-  brand.innerHTML =
-    '<span class="brand-ask">Ask</span><span class="brand-bible">Bible</span><span class="brand-me">.me</span>';
+  {
+    const preload = document.createElement("img");
+    preload.className = "admin-shell-brand-wordmark";
+    preload.src = "/assets/brand/askbible-wordmark-ink.svg";
+    preload.alt = "AskBible.me";
+    preload.height = 28;
+    preload.style.height = "28px";
+    preload.style.width = "auto";
+    preload.style.display = "block";
+    preload.loading = "eager";
+    preload.decoding = "async";
+    brand.appendChild(preload);
+  }
 
   brandTitle.appendChild(brand);
   aside.appendChild(brandTitle);
+
+  void (async function syncAdminShellBrandWithSiteChrome() {
+    const paths = ["/api/site-chrome", "/api/sitechrome"];
+    for (let i = 0; i < paths.length; i++) {
+      try {
+        const res = await fetch(paths[i], { cache: "no-store" });
+        if (res.status === 404) continue;
+        if (!res.ok) continue;
+        const cfg = await res.json();
+        if (cfg && cfg.topbar) applyAdminShellBrand(cfg.topbar);
+        return;
+      } catch (_) {}
+    }
+  })();
 
   for (let g = 0; g < NAV_GROUPS.length; g++) {
     const group = NAV_GROUPS[g];
