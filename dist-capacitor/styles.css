@@ -5635,9 +5635,9 @@ a.admin-modal-hub-link.primary-btn {
    ========================= */
 
 @media (max-width: 1100px) {
-  /* 小屏：LOGO 与页顶间距略增（相对原 13px 再 +3px） */
+  /* 窄屏：页顶留白略收，让 LOGO/顶栏更靠上 */
   .page-shell {
-    padding-top: 16px;
+    padding-top: 12px;
   }
 
   /* 固定顶栏时占位高度须随顶栏，勿被上面 16px 覆盖 */
@@ -5663,6 +5663,8 @@ a.admin-modal-hub-link.primary-btn {
     align-items: flex-start;
     flex-direction: column;
     overflow: visible;
+    /* 列布局时收紧 LOGO 与下方菜单行间距（勿用默认 16px gap） */
+    gap: 6px;
   }
 
   .site-topbar-actions {
@@ -5670,6 +5672,7 @@ a.admin-modal-hub-link.primary-btn {
     justify-content: flex-end;
     flex-wrap: wrap;
     overflow: visible;
+    margin-top: 2px;
   }
 
   .askbible-chrome-nav {
@@ -5871,12 +5874,12 @@ a.admin-modal-hub-link.primary-btn {
 
 @media (max-width: 700px) {
   .page-shell {
-    padding: 16px 12px 16px;
+    padding: 12px 12px 16px;
   }
 
   .site-topbar {
     align-items: flex-start;
-    gap: 8px;
+    gap: 4px;
     margin-bottom: 10px;
   }
 
@@ -5886,7 +5889,7 @@ a.admin-modal-hub-link.primary-btn {
 
   .site-topbar-title {
     margin-left: -1px;
-    margin-top: 5px;
+    margin-top: 2px;
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
@@ -5920,17 +5923,18 @@ a.admin-modal-hub-link.primary-btn {
     gap: 0;
     width: 100%;
     justify-content: flex-end;
+    margin-top: 0;
   }
 
   /* 小屏：顶栏图标保留间距；右移/下移用 margin 与 translateY，避免 translateX 与横滑抢位 */
   .askbible-chrome-nav {
     gap: 6px;
     margin-left: 10px;
-    transform: translateY(4px);
+    transform: translateY(2px);
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
-    gap: 6px;
+    gap: 4px;
   }
 
   .askbible-chrome-nav .askbible-chrome-nav-pill {
@@ -6190,7 +6194,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell {
-    padding: 11px 5px 12px;
+    padding: 9px 5px 12px;
   }
 
   .site-topbar-title {
@@ -6213,7 +6217,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
-    gap: 4px;
+    gap: 3px;
   }
 
   .askbible-chrome-nav {
