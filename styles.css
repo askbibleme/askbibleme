@@ -178,22 +178,31 @@ body {
 }
 
 /* 顶栏条在视口左右铺满同色；须在内容下层（勿用正 z-index，否则会遮住品牌区） */
+/* 须从视口 top:0 铺到顶栏底：否则 iPad/iPhone 主屏幕 Web App 在状态栏与顶栏之间会透出白底 */
 .page-shell > .site-topbar.site-topbar--sticky::before {
   content: "";
   position: fixed;
-  top: env(safe-area-inset-top, 0px);
+  top: 0;
   left: 0;
   right: 0;
-  height: var(--askbible-fixed-topbar-h, 72px);
+  height: calc(env(safe-area-inset-top, 0px) + var(--askbible-fixed-topbar-h, 72px));
   background-color: var(--topbar-bg, #4a443f);
   z-index: -1;
   pointer-events: none;
 }
 
+/* 主屏幕全屏下橡皮筋滚动时，勿露出与顶栏不一致的底色 */
+html.askbible-topbar-fixed {
+  background-color: var(--topbar-bg, #4a443f);
+}
+
 /* 顶栏脱离文档流后，用变量占位避免首屏正文被挡住（由 site-chrome.js 写入高度） */
+/* 须含 safe-area：顶栏自身 top 已在安全区下，占位 = 安全区高度 + 顶栏测量高度 */
 html.askbible-topbar-fixed .page-shell {
   position: relative;
-  padding-top: var(--askbible-fixed-topbar-h, 72px);
+  padding-top: calc(
+    env(safe-area-inset-top, 0px) + var(--askbible-fixed-topbar-h, 72px)
+  );
   /* 与 LOGO 顶栏同色，不再与 --bg 分两截 */
   background-color: var(--topbar-bg, #4a443f);
   background-image: none;
@@ -5640,9 +5649,11 @@ a.admin-modal-hub-link.primary-btn {
     padding-top: 12px;
   }
 
-  /* 固定顶栏时占位高度须随顶栏，勿被上面 16px 覆盖 */
+  /* 固定顶栏时占位高度须随顶栏，勿被上面 12px 覆盖；须含 safe-area（与全局规则一致） */
   html.askbible-topbar-fixed .page-shell {
-    padding-top: var(--askbible-fixed-topbar-h, 72px);
+    padding-top: calc(
+      env(safe-area-inset-top, 0px) + var(--askbible-fixed-topbar-h, 72px)
+    );
   }
 
   /* 单栏：与大屏同一书页底 */
