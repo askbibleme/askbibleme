@@ -1711,6 +1711,126 @@ function makeFavoriteKey(versionId, verse) {
   return `${versionId}|${state.frontState.bookId}|${state.frontState.chapter}|${verse}`;
 }
 
+function getScriptureVersionDisplayLabel(versionId) {
+  const id = String(versionId || "").trim();
+  if (!id) return "";
+  const sv = getScriptureVersionById(id);
+  const lab = String(sv?.label || "").trim();
+  return lab || id;
+}
+
+/** 读经页经文分享：打开后由 tryConsumeVersePermalinkQueryParams 解析并跳转 */
+function buildVerseSharePermalinkUrl(bookId, chapter, verse, scriptureVersionId) {
+  try {
+    const u = new URL(window.location.href);
+    u.hash = "";
+    const sp = new URLSearchParams();
+    sp.set("bookId", String(bookId || "").trim());
+    sp.set("chapter", String(Math.max(0, Number(chapter) || 0)));
+    sp.set("verse", String(Math.max(0, Number(verse) || 0)));
+    const sv = String(scriptureVersionId || "").trim();
+    if (sv) sp.set("sv", sv);
+    u.search = sp.toString();
+    return u.href;
+  } catch {
+    return "";
+  }
+}
+
+function formatFavoriteVerseClipboardPlainText(
+  bookId,
+  chapter,
+  verse,
+  versionLabel,
+  verseText,
+  permalinkUrl
+) {
+  const body = String(verseText || "").trim();
+  const bookLabel = getLocalizedBookLabelById(bookId);
+  const ch = Number(chapter);
+  const v = Number(verse);
+  const ref = `${bookLabel} ${ch}:${v}`;
+  const meta = versionLabel ? `${ref} · ${versionLabel}` : ref;
+  const lines = [body, meta];
+  if (permalinkUrl) lines.push(String(permalinkUrl).trim());
+  return lines.filter((x) => x).join("\n");
+}
+
+async function copyTextToClipboardQuiet(text) {
+  const t = String(text || "");
+  if (!t) return false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(t);
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = t;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ?bookId=&chapter=&verse=&sv= 打开指定经文（与双击收藏复制的链接一致）。
+ * 与其它 deep link 一样：读完即 strip 参数，避免刷新重复跳转。
+ */
+function tryConsumeVersePermalinkQueryParams() {
+  try {
+    const u = new URL(window.location.href);
+    if (!u.searchParams.has("bookId")) return;
+    if (!u.searchParams.has("verse")) return;
+    const bookId = String(u.searchParams.get("bookId") || "").trim();
+    const chapter = Number(u.searchParams.get("chapter"));
+    const verse = Number(u.searchParams.get("verse"));
+    const svRaw = String(u.searchParams.get("sv") || "").trim();
+    if (!bookId || !Number.isFinite(chapter) || !Number.isFinite(verse)) return;
+    if (chapter < 1 || verse < 1) return;
+    const book = getBookMetaById(bookId);
+    if (!book) return;
+
+    let versionId = svRaw;
+    if (!versionId || !getScriptureVersionById(versionId)) {
+      versionId = state.frontState.primaryScriptureVersionId;
+    }
+    if (!getScriptureVersionById(versionId)) return;
+
+    u.searchParams.delete("bookId");
+    u.searchParams.delete("chapter");
+    u.searchParams.delete("verse");
+    u.searchParams.delete("sv");
+    const q = u.searchParams.toString();
+    history.replaceState({}, "", u.pathname + (q ? `?${q}` : "") + u.hash);
+
+    state.frontState.testament = book.testamentName;
+    state.frontState.bookId = bookId;
+    state.frontState.chapter = chapter;
+    state.frontState.primaryScriptureVersionId = versionId;
+    state.frontState.secondaryScriptureVersionIds = (
+      state.frontState.secondaryScriptureVersionIds || []
+    ).filter((id) => id !== versionId);
+    syncContentLangWithPrimaryVersion();
+    saveFrontState();
+
+    const focusKey = `${versionId}|${bookId}|${chapter}|${verse}`;
+    localStorage.setItem(PENDING_FAVORITE_FOCUS_KEY, focusKey);
+  } catch {
+    /* ignore */
+  }
+}
+
 function getBookMetaById(bookId) {
   return (state.bootstrap?.testamentOptions || []).find((b) => b.bookId === bookId) || null;
 }
@@ -2258,6 +2378,7 @@ async function init() {
     initExportButtons();
     initFavorites();
     await loadBootstrap();
+    tryConsumeVersePermalinkQueryParams();
     ensureScriptureCompareUI();
     initSelectors();
     initToolbarPanels();
@@ -5673,6 +5794,23 @@ function initFavorites() {
         content: text,
       });
       showReaderToast(copy.verseFavoriteAddedToast);
+      const bookId = String(state.frontState.bookId || "").trim();
+      const chapter = Number(state.frontState.chapter || 0);
+      const permalink = buildVerseSharePermalinkUrl(
+        bookId,
+        chapter,
+        verse,
+        versionId
+      );
+      const clip = formatFavoriteVerseClipboardPlainText(
+        bookId,
+        chapter,
+        verse,
+        getScriptureVersionDisplayLabel(versionId),
+        text,
+        permalink
+      );
+      void copyTextToClipboardQuiet(clip);
     }
     saveFavorites();
     renderToolbarTriggers();

@@ -5909,13 +5909,28 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .site-topbar-actions {
-    gap: 6px;
+    gap: 3px;
     width: 100%;
     justify-content: flex-end;
   }
 
+  /* 小屏：顶栏图标带再收紧（pill 间距 + 左右内边距，仍满足 min 44×44 点击区） */
+  .askbible-chrome-nav {
+    gap: 0;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
+    gap: 6px;
+  }
+
   .askbible-chrome-nav .askbible-chrome-nav-pill {
     font-size: calc(13px * var(--font-scale));
+    padding: 8px 3px;
+  }
+
+  .askbible-chrome-nav .askbible-chrome-nav-pill--icon-only {
+    padding-left: 1px;
+    padding-right: 1px;
   }
 
   .top-action-btn {
@@ -6180,6 +6195,23 @@ a.admin-modal-hub-link.primary-btn {
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
     width: auto;
     overflow: visible;
+  }
+
+  .site-topbar-actions {
+    gap: 2px;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
+    gap: 4px;
+  }
+
+  .askbible-chrome-nav .askbible-chrome-nav-pill {
+    padding: 8px 2px;
+  }
+
+  .askbible-chrome-nav .askbible-chrome-nav-pill--icon-only {
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .site-topbar-title h1 {

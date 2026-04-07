@@ -116,6 +116,17 @@ function scoreDifficulty(chapterType, candidateCount) {
   return "low";
 }
 
+const CHAPTER_TYPE_LABEL_ZH = {
+  genealogy: "家谱",
+  law: "律例",
+  prophecy: "预言",
+  apocalyptic: "启示异象",
+  poetry: "诗歌",
+  discourse: "讲论",
+  mixed: "比喻与叙述",
+  narrative: "叙事",
+};
+
 export function analyzeChapterForIllustration(chapterPayload) {
   const { themeFlat, summary, storyUnits } = chapterPayload;
   const chapterType = inferChapterType(
@@ -123,6 +134,8 @@ export function analyzeChapterForIllustration(chapterPayload) {
     summary,
     storyUnits
   );
+  const chapterTypeZh =
+    CHAPTER_TYPE_LABEL_ZH[chapterType] || chapterType || "未知";
   const combined = [
     themeFlat,
     summary,
@@ -137,6 +150,7 @@ export function analyzeChapterForIllustration(chapterPayload) {
 
   return {
     chapterType,
+    chapterTypeZh,
     storyUnits,
     candidateScenes,
     visualAnchors,

@@ -121,6 +121,7 @@
   const themeDisplayEl = document.getElementById("cpThemeDisplay");
   const summaryDisplayEl = document.getElementById("cpSummaryDisplay");
   const sceneEl = document.getElementById("cpScene");
+  const sceneZhEl = document.getElementById("cpSceneZh");
   const stylePresetEl = document.getElementById("cpStylePreset");
   const pipelineMetaEl = document.getElementById("cpPipelineMeta");
   const btnSceneEl = document.getElementById("cpGenerateSceneBtn");
@@ -134,6 +135,8 @@
   const statusEl = document.getElementById("cpStatus");
   const specDetailsEl = document.getElementById("cpSpecDetails");
   const specPreEl = document.getElementById("cpSpecPre");
+  const charLockDetailsEl = document.getElementById("cpCharLockDetails");
+  const charLockPreEl = document.getElementById("cpCharLockPre");
   const illustrationLayer = document.getElementById("cpIllustrationLayer");
   const illustrationImg = document.getElementById("cpIllustrationImg");
 
@@ -160,6 +163,18 @@
     }
     outEl.textContent = t;
     outEl.classList.remove("cp-output--empty");
+  }
+
+  function applyCharacterLockDisplay(lines) {
+    if (!charLockDetailsEl || !charLockPreEl) return;
+    const arr = Array.isArray(lines) ? lines : [];
+    if (arr.length) {
+      charLockPreEl.textContent = arr.join("\n");
+    } else {
+      charLockPreEl.textContent =
+        "（未生成锁定行：本章 theme/摘要中可能未匹配到人名，或尚未在 character_illustration_profiles.json 中填写 appearanceEn。）";
+    }
+    charLockDetailsEl.hidden = false;
   }
 
   function applyOverlayOpacity(percent) {
@@ -209,9 +224,17 @@
     }
   }
 
+  function setSceneZhDisplay(text, isPlaceholder) {
+    if (!sceneZhEl) return;
+    const t = String(text || "").trim();
+    sceneZhEl.textContent = t || "生成场景后将显示中文说明。";
+    sceneZhEl.classList.toggle("cp-theme-readonly--placeholder", Boolean(isPlaceholder || !t));
+  }
+
   function setThemePlaceholder(msg) {
     loadedThemeRaw = null;
     sceneVariant = 0;
+    setSceneZhDisplay("", true);
     themeDisplayEl.textContent = msg;
     themeDisplayEl.classList.add("cp-theme-readonly--placeholder");
     if (summaryDisplayEl) {
@@ -353,11 +376,16 @@
       return;
     }
     const parts = [];
-    if (pipeline.chapterType)
+    if (pipeline.chapterTypeZh)
+      parts.push("章节类型：" + pipeline.chapterTypeZh);
+    else if (pipeline.chapterType)
       parts.push("章节类型：" + pipeline.chapterType);
+    if (pipeline.selection && pipeline.selection.sceneLabelZh)
+      parts.push("择景：" + pipeline.selection.sceneLabelZh);
     if (typeof pipeline.confidence === "number")
       parts.push("置信度：" + pipeline.confidence.toFixed(2));
-    if (pipeline.warning) setPipelineMetaText(parts.join(" · ") + " — " + pipeline.warning, true);
+    const warnText = pipeline.warningZh || pipeline.warning;
+    if (warnText) setPipelineMetaText(parts.join(" · ") + " — " + warnText, true);
     else setPipelineMetaText(parts.join(" · "), false);
   }
 
@@ -390,7 +418,7 @@
     else sceneVariant = 0;
     const btn = regenerate ? btnRegenSceneEl : btnSceneEl;
     if (btn) btn.disabled = true;
-    setStatus(regenerate ? "正在换一帧场景…" : "正在根据本章生成场景…");
+    setStatus(regenerate ? "正在切换候选场景…" : "正在根据本章生成场景…");
     try {
       const res = await fetch(apiUrl("/api/chapter-illustration/scene"), {
         method: "POST",
@@ -413,20 +441,25 @@
       }
       const desc = String(data.sceneDescription || "").trim();
       if (!desc) {
-        setStatus("服务器未返回场景描述。", "err");
+        setStatus("服务器未返回英文场景描述。", "err");
         return;
       }
       sceneEl.value = desc;
+      const descZh = String(data.sceneDescriptionZh || "").trim();
+      setSceneZhDisplay(descZh || "（未返回中文说明）", !descZh);
       if (typeof data.selection?.variantIndex === "number")
         sceneVariant = data.selection.variantIndex;
       else if (typeof data.chapterState?.sceneVariant === "number")
         sceneVariant = data.chapterState.sceneVariant;
       applyPipelineFromResponse({
         chapterType: data.chapterType,
+        chapterTypeZh: data.chapterTypeZh,
         confidence: data.confidence,
         warning: data.warning,
+        warningZh: data.warningZh,
+        selection: data.selection,
       });
-      setStatus("已生成场景，可修改后点 Generate Prompt。", "ok");
+      setStatus("已生成场景：上方为中文说明，下方英文可改；可点「生成 Prompt」。", "ok");
     } catch (e) {
       setStatus(String(e && e.message ? e.message : e), "err");
     } finally {
@@ -438,7 +471,7 @@
     if (!validateThemeForPrompt()) return;
 
     btnEl.disabled = true;
-    setStatus("正在生成…");
+    setStatus("正在生成 Prompt…");
     try {
       const res = await fetch(apiUrl("/api/generate-prompt"), {
         method: "POST",
@@ -457,6 +490,7 @@
       }
       if (!res.ok) {
         if (specDetailsEl) specDetailsEl.hidden = true;
+        if (charLockDetailsEl) charLockDetailsEl.hidden = true;
         setStatus(data.error || "请求失败（HTTP " + res.status + "）", "err");
         return;
       }
@@ -466,13 +500,18 @@
       if (data.pipeline) applyPipelineFromResponse(data.pipeline);
       if (data.prompt) {
         setOutput(data.prompt);
-        setStatus("已写入 data/prompts.json（illustrationSpec → buildPrompt）。", "ok");
+        setStatus("已生成 Prompt 并写入记录；英文见下方输出区。", "ok");
+        const zhFromPrompt = String(data.sceneDescriptionZh || "").trim();
+        if (zhFromPrompt) setSceneZhDisplay(zhFromPrompt, false);
+        applyCharacterLockDisplay(
+          data.characterAppearanceLines || data.illustrationSpec?.characterAppearanceLines
+        );
         if (data.illustrationSpec && specDetailsEl && specPreEl) {
           specPreEl.textContent = JSON.stringify(data.illustrationSpec, null, 2);
           specDetailsEl.hidden = false;
         }
       } else {
-        setStatus("响应缺少 prompt。", "err");
+        setStatus("响应缺少 Prompt 正文。", "err");
       }
       if (data.transparentPng || data.imageUrl) {
         applyIllustrationSource(data.imageUrl || "", data.transparentPng || "");
@@ -494,7 +533,7 @@
     if (!validateThemeForPrompt()) return;
 
     btnIllustrationEl.disabled = true;
-    setStatus("正在生成 prompt …");
+    setStatus("正在生成 Prompt …");
     try {
       const resPrompt = await fetch(apiUrl("/api/generate-prompt"), {
         method: "POST",
@@ -513,21 +552,27 @@
       }
       if (!resPrompt.ok) {
         setStatus(
-          promptData.error || "generate-prompt 失败（HTTP " + resPrompt.status + "）",
+          promptData.error || "生成 Prompt 失败（HTTP " + resPrompt.status + "）",
           "err"
         );
         return;
       }
       const promptText = String(promptData.prompt || "").trim();
       if (!promptText) {
-        setStatus("generate-prompt 未返回 prompt。", "err");
+        setStatus("服务器未返回 Prompt 正文。", "err");
         return;
       }
       if (promptData.illustrationSpec && promptData.illustrationSpec.scene != null) {
         sceneEl.value = String(promptData.illustrationSpec.scene);
       }
       if (promptData.pipeline) applyPipelineFromResponse(promptData.pipeline);
+      const zhP = String(promptData.sceneDescriptionZh || "").trim();
+      if (zhP) setSceneZhDisplay(zhP, false);
       setOutput(promptText);
+      applyCharacterLockDisplay(
+        promptData.characterAppearanceLines ||
+          promptData.illustrationSpec?.characterAppearanceLines
+      );
       if (promptData.illustrationSpec && specDetailsEl && specPreEl) {
         specPreEl.textContent = JSON.stringify(promptData.illustrationSpec, null, 2);
         specDetailsEl.hidden = false;
@@ -542,7 +587,7 @@
         applyOverlayOpacity(opacityEl.value);
       }
 
-      setStatus("正在调用 OpenAI 出图 …");
+      setStatus("正在调用 OpenAI 生成插画 …");
       const transparent = Boolean(transparentEl.checked);
       const resImg = await fetch(apiUrl("/api/generate-illustration"), {
         method: "POST",

@@ -35,6 +35,10 @@
           label: "章节插画 Prompt",
         },
         {
+          href: "/bible-character-designer.html",
+          label: "圣经人物设计器",
+        },
+        {
           href: "/#openAdmin",
           label: "规则 · 任务 · 发布",
           note: "在读经首页打开大面板",

@@ -59,11 +59,12 @@ export function buildChapterPayloadFromPublished(data, meta) {
 
 function extractKeyPeople(text) {
   const names = [];
+  /* 长名在前，避免短前缀误切；含创世记系列常用称谓 */
   const patterns =
-    /以撒|亚伯拉罕|摩西|大卫|扫罗|约瑟|雅各|以扫|挪亚|亚当|夏娃|约伯|但以理|以利亚|以利沙|彼得|保罗|马利亚|耶稣|基督/g;
+    /以实玛利|亚伯拉罕|麦基洗德|波提非拉|波提乏|便雅悯|利百加|撒母耳|彼得|保罗|马利亚|耶稣|基督|参孙|喇合|路得|波阿斯|所罗门|以利亚|以利沙|但以理|约伯|亚伯兰|撒拉|撒莱|夏甲|挪亚|亚当|夏娃|以扫|以撒|雅各|约瑟|犹大|流便|罗得|拉班|拉结|利亚|辟拉|悉帕|他拉|哈兰|法老|摩西|大卫|扫罗|闪|含|雅弗/g;
   let m;
   const t = String(text || "");
-  while ((m = patterns.exec(t)) && names.length < 8) {
+  while ((m = patterns.exec(t)) && names.length < 12) {
     if (!names.includes(m[0])) names.push(m[0]);
   }
   return names;

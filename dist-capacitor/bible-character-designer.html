@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>圣经人物设计器 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=9" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .bcd-page {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 18px 14px 48px;
+        box-sizing: border-box;
+      }
+      .bcd-doc {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        padding: 20px 16px 26px;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.1);
+      }
+      .bcd-doc h1 {
+        margin: 0 0 8px;
+        font-size: calc(22px * var(--font-scale));
+        color: var(--ink);
+      }
+      .bcd-lead {
+        margin: 0 0 16px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--muted-soft);
+      }
+      .bcd-lead code {
+        font-size: 12px;
+      }
+      .bcd-auth {
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #fff0ee;
+        border: 1px solid rgba(180, 35, 24, 0.35);
+        color: #7a1510;
+        font-size: 13px;
+      }
+      .bcd-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 10px;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+      .bcd-toolbar button {
+        padding: 8px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .bcd-toolbar button:hover {
+        border-color: rgba(200, 155, 60, 0.5);
+      }
+      .bcd-toolbar button.bcd-btn-primary {
+        background: linear-gradient(180deg, #c9a227 0%, #a8861c 100%);
+        color: #1a1510;
+        border-color: rgba(90, 70, 20, 0.35);
+      }
+      .bcd-filter {
+        flex: 1;
+        min-width: 160px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+      }
+      .bcd-status {
+        min-height: 1.25em;
+        font-size: 12px;
+        margin-bottom: 12px;
+        color: var(--muted-soft);
+      }
+      .bcd-status.bcd-status--err {
+        color: #8b1530;
+        font-weight: 600;
+      }
+      .bcd-status.bcd-status--ok {
+        color: #2d6a3e;
+        font-weight: 600;
+      }
+      .bcd-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .bcd-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 14px 12px;
+        background: var(--paper);
+      }
+      .bcd-card--new {
+        border-style: dashed;
+        border-color: rgba(200, 155, 60, 0.55);
+      }
+      .bcd-card-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: flex-end;
+        margin-bottom: 10px;
+      }
+      .bcd-field-key {
+        flex: 1;
+        min-width: 140px;
+      }
+      .bcd-field-key label,
+      .bcd-field-block label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .bcd-field-key input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 14px;
+      }
+      .bcd-field-key input:disabled {
+        opacity: 0.85;
+        background: rgba(0, 0, 0, 0.03);
+      }
+      .bcd-card-remove {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(180, 35, 24, 0.35);
+        background: transparent;
+        color: #8b1530;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .bcd-field-block {
+        margin-top: 10px;
+      }
+      .bcd-field-block textarea,
+      .bcd-field-block input[type="text"] {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+        resize: vertical;
+      }
+      .bcd-field-block textarea {
+        min-height: 52px;
+      }
+      .bcd-field-block textarea.bcd-appearance {
+        min-height: 120px;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .bcd-hint {
+        margin: 4px 0 0;
+        font-size: 11px;
+        color: var(--muted-soft);
+        line-height: 1.4;
+      }
+      .bcd-count {
+        font-size: 12px;
+        color: var(--muted);
+        margin-left: auto;
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/bible-character-designer.html">
+    <div class="bcd-page">
+      <div class="bcd-doc">
+        <h1>圣经人物设计器</h1>
+        <p class="bcd-lead">
+          编辑插画用<strong>角色外观档案</strong>（中文名为键，与章节 theme 里的人名一致时才会自动套用）。数据保存在服务器
+          <code>admin_data/character_illustration_profiles.json</code>。英文名与两段英文描述会进入出图 Prompt；保存后「章节插画」页下次生成即可生效。
+        </p>
+        <div id="bcdAuth" class="bcd-auth" hidden></div>
+        <div class="bcd-toolbar">
+          <button type="button" id="bcdReloadBtn">重新载入</button>
+          <button type="button" id="bcdSaveBtn" class="bcd-btn-primary">保存全部</button>
+          <button type="button" id="bcdAddBtn">新增人物</button>
+          <input
+            type="search"
+            id="bcdFilter"
+            class="bcd-filter"
+            placeholder="按中文名筛选…"
+            aria-label="筛选人物"
+          />
+          <span id="bcdCount" class="bcd-count"></span>
+        </div>
+        <p id="bcdStatus" class="bcd-status" role="status"></p>
+        <div id="bcdList" class="bcd-list"></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+        const TOKEN_KEY = "bible_user_auth_token_v1";
+        const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+
+        function getToken() {
+          return String(localStorage.getItem(TOKEN_KEY) || "").trim();
+        }
+
+        function normalizeApiOrigin(raw) {
+          let s = String(raw || "").trim();
+          s = s.replace(/\/+$/, "");
+          if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+          return s.replace(/\/+$/, "");
+        }
+
+        function isPrivateLanHostname(h) {
+          const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(
+            String(h || "").toLowerCase()
+          );
+          if (!m) return false;
+          var a = Number(m[1]);
+          var b = Number(m[2]);
+          if (![a, b, Number(m[3]), Number(m[4])].every(function (n) {
+            return n >= 0 && n <= 255;
+          }))
+            return false;
+          if (a === 10) return true;
+          if (a === 172 && b >= 16 && b <= 31) return true;
+          if (a === 192 && b === 168) return true;
+          return false;
+        }
+
+        /** 与章节插画页一致：非 3000 端口打开静态页时仍请求 Node 上的 /api */
+        function getApiBase() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          const fromMeta = m && String(m.getAttribute("content") || "").trim();
+          if (fromMeta) return normalizeApiOrigin(fromMeta);
+          if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+            return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+          }
+          try {
+            const proto = window.location.protocol || "";
+            if (proto === "capacitor:" || proto === "file:") {
+              return DEFAULT_PRODUCTION_ORIGIN;
+            }
+            const h = String(window.location.hostname || "");
+            const loopback =
+              h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (loopback || isPrivateLanHostname(h)) {
+              const port = String(window.location.port || "");
+              if (port && port !== "3000") {
+                const scheme = proto === "https:" ? "https" : "http";
+                return scheme + "://" + h + ":3000";
+              }
+            }
+          } catch (_) {}
+          return "";
+        }
+
+        function apiUrl(path) {
+          const p = path.startsWith("/") ? path : "/" + path;
+          const base = getApiBase();
+          if (!base) return p;
+          try {
+            const origin = normalizeApiOrigin(base);
+            return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+          } catch {
+            return base.replace(/\/$/, "") + p;
+          }
+        }
+
+        const authEl = document.getElementById("bcdAuth");
+        const statusEl = document.getElementById("bcdStatus");
+        const listEl = document.getElementById("bcdList");
+        const filterEl = document.getElementById("bcdFilter");
+        const countEl = document.getElementById("bcdCount");
+
+        let profiles = { characters: {} };
+        let filterText = "";
+
+        function setStatus(msg, kind) {
+          statusEl.textContent = msg || "";
+          statusEl.classList.remove("bcd-status--err", "bcd-status--ok");
+          if (kind === "err") statusEl.classList.add("bcd-status--err");
+          if (kind === "ok") statusEl.classList.add("bcd-status--ok");
+        }
+
+        function sortKeys(obj) {
+          return Object.keys(obj || {}).sort(function (a, b) {
+            return a.localeCompare(b, "zh-CN");
+          });
+        }
+
+        function cardTemplate(key, entry, opts) {
+          const isNew = opts && opts.isNew;
+          const en = entry && typeof entry === "object" ? entry : {};
+          const safe = function (s) {
+            return String(s == null ? "" : s)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/"/g, "&quot;");
+          };
+          const safeTextarea = function (s) {
+            return String(s == null ? "" : s)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;");
+          };
+          const k = safe(key);
+          const englishName = safe(en.englishName || "");
+          const shortTag = safeTextarea(en.shortSceneTagEn || "");
+          const appearance = safeTextarea(en.appearanceEn || "");
+          return (
+            '<div class="bcd-card' +
+            (isNew ? " bcd-card--new" : "") +
+            '" data-key="' +
+            k +
+            '">' +
+            '<div class="bcd-card-head">' +
+            '<div class="bcd-field-key">' +
+            "<label>中文名（键）</label>" +
+            '<input type="text" class="bcd-key" value="' +
+            k +
+            '" maxlength="32" placeholder="如：亚伯拉罕" ' +
+            (isNew ? "" : 'disabled title="已保存的人物请删后重建以改名"') +
+            " />" +
+            "</div>" +
+            '<button type="button" class="bcd-card-remove">删除</button>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>英文姓名（English name）</label>" +
+            '<input type="text" class="bcd-en" maxlength="200" value="' +
+            englishName +
+            '" placeholder="Abraham" />' +
+            '<p class="bcd-hint">建议与圣经英译通用拼写一致；保存时服务器会截断至 80 字符。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>场景短标签（英文，一句内）</label>" +
+            '<textarea class="bcd-short" rows="2" maxlength="500">' +
+            shortTag +
+            "</textarea>" +
+            '<p class="bcd-hint">写入中文场景说明旁的英文摘要用；服务器截断约 160 字符。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>外观长描述（英文，给模型「锁定」长相）</label>" +
+            '<textarea class="bcd-appearance" rows="6" maxlength="2000">' +
+            appearance +
+            "</textarea>" +
+            '<p class="bcd-hint">越具体越利于跨章一致；服务器截断约 1200 字符。</p>' +
+            "</div>" +
+            "</div>"
+          );
+        }
+
+        function bindCardEvents(card) {
+          card.querySelector(".bcd-card-remove").addEventListener("click", function () {
+            card.remove();
+            updateCount();
+          });
+        }
+
+        function renderList() {
+          const chars = profiles.characters || {};
+          const keys = sortKeys(chars);
+          const parts = [];
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            parts.push(cardTemplate(key, chars[key], { isNew: false }));
+          }
+          listEl.innerHTML = parts.join("");
+          listEl.querySelectorAll(".bcd-card").forEach(bindCardEvents);
+          applyFilter();
+        }
+
+        function applyFilter() {
+          const q = filterText.trim().toLowerCase();
+          let visible = 0;
+          listEl.querySelectorAll(".bcd-card").forEach(function (card) {
+            const key = String(card.querySelector(".bcd-key").value || "")
+              .trim()
+              .toLowerCase();
+            const show = !q || key.indexOf(q) !== -1;
+            card.style.display = show ? "" : "none";
+            if (show) visible += 1;
+          });
+          const total = listEl.querySelectorAll(".bcd-card").length;
+          countEl.textContent = q
+            ? "显示 " + visible + " / 当前列表 " + total + " 人"
+            : "共 " + total + " 人";
+        }
+
+        function collectFromDom() {
+          const characters = {};
+          const cards = listEl.querySelectorAll(".bcd-card");
+          for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const key = String(card.querySelector(".bcd-key").value || "").trim();
+            if (!key) continue;
+            if (characters[key]) {
+              throw new Error("中文名重复：「" + key + "」出现多次，请只保留一条。");
+            }
+            characters[key] = {
+              englishName: String(card.querySelector(".bcd-en").value || "").trim(),
+              shortSceneTagEn: String(card.querySelector(".bcd-short").value || "").trim(),
+              appearanceEn: String(card.querySelector(".bcd-appearance").value || "").trim(),
+            };
+          }
+          return { characters: characters };
+        }
+
+        function addEmptyCard() {
+          const wrap = document.createElement("div");
+          wrap.innerHTML = cardTemplate("", {}, { isNew: true });
+          const card = wrap.firstElementChild;
+          listEl.insertBefore(card, listEl.firstChild);
+          bindCardEvents(card);
+          card.querySelector(".bcd-key").focus();
+          applyFilter();
+        }
+
+        async function loadProfiles() {
+          const res = await fetch(apiUrl("/api/admin/bible-character-profiles"), {
+            headers: { Authorization: "Bearer " + getToken() },
+            cache: "no-store",
+          });
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) {
+            var hint404 =
+              res.status === 404
+                ? " 提示：请确认 Node（server.js）已在运行；若本页不是从 :3000 打开，请在 head 添加 meta name=\"askbible-api-base\" content=\"http://127.0.0.1:3000\" 指向 API 根地址。"
+                : "";
+            throw new Error(
+              (data.error || "加载失败 HTTP " + res.status) + hint404
+            );
+          }
+          profiles = data.profiles && data.profiles.characters ? data.profiles : { characters: {} };
+          if (!profiles.characters) profiles.characters = {};
+          renderList();
+        }
+
+        async function saveProfiles() {
+          const body = collectFromDom();
+          const res = await fetch(apiUrl("/api/admin/bible-character-profiles"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getToken(),
+            },
+            body: JSON.stringify({ profiles: body }),
+          });
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) throw new Error(data.error || "保存失败 HTTP " + res.status);
+          profiles = data.profiles || body;
+          if (!profiles.characters) profiles.characters = {};
+          renderList();
+        }
+
+        filterEl.addEventListener("input", function () {
+          filterText = filterEl.value || "";
+          applyFilter();
+        });
+
+        document.getElementById("bcdReloadBtn").addEventListener("click", async function () {
+          if (!getToken()) {
+            setStatus("请先登录。", "err");
+            return;
+          }
+          setStatus("加载中…", null);
+          try {
+            await loadProfiles();
+            setStatus("已重新载入。", "ok");
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        });
+
+        document.getElementById("bcdSaveBtn").addEventListener("click", async function () {
+          if (!getToken()) {
+            setStatus("请先登录。", "err");
+            return;
+          }
+          setStatus("保存中…", null);
+          try {
+            await saveProfiles();
+            setStatus("已全部保存。", "ok");
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        });
+
+        document.getElementById("bcdAddBtn").addEventListener("click", function () {
+          if (!getToken()) {
+            setStatus("请先登录。", "err");
+            return;
+          }
+          addEmptyCard();
+          setStatus("已添加空白卡片，请填写中文名后保存。", null);
+        });
+
+        (async function init() {
+          if (!getToken()) {
+            authEl.hidden = false;
+            authEl.textContent =
+              "请先在读经首页登录管理员账号，再使用本页。";
+            setStatus("未登录。", "err");
+            return;
+          }
+          authEl.hidden = true;
+          setStatus("加载中…", null);
+          try {
+            await loadProfiles();
+            setStatus("已加载，可直接编辑后点「保存全部」。", "ok");
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        })();
+      })();
+    </script>
+    <script src="/admin-shell.js?v=4" defer></script>
+  </body>
+</html>

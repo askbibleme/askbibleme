@@ -164,6 +164,16 @@ body.cp-standalone {
   font-style: italic;
 }
 
+.cp-scene-zh-readonly {
+  min-height: 3.25rem;
+}
+
+label.cp-label-spaced {
+  display: block;
+  margin-top: 0.9rem;
+  font-weight: 700;
+}
+
 .cp-field--scene > label {
   font-weight: 700;
 }

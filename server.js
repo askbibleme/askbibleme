@@ -24,6 +24,7 @@ import {
   generateIllustrationPrompt,
   analyzeChapterForIllustration,
   buildChapterPayloadFromPublished,
+  buildCharacterLockLines,
   stateStorageKey,
   defaultChapterIllustrationState,
   mergeChapterIllustrationState,
@@ -6125,6 +6126,78 @@ const CHAPTER_ILLUSTRATION_STATE_FILE = path.join(
   "chapter_illustration_states.json"
 );
 
+const CHARACTER_ILLUSTRATION_PROFILES_FILE = path.join(
+  ADMIN_DIR,
+  "character_illustration_profiles.json"
+);
+
+function ensureCharacterIllustrationProfilesFile() {
+  ensureDir(ADMIN_DIR);
+  if (!fs.existsSync(CHARACTER_ILLUSTRATION_PROFILES_FILE)) {
+    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, {
+      characters: {
+        亚伯拉罕: {
+          englishName: "Abraham",
+          shortSceneTagEn: "lean patriarch with full beard and staff",
+          appearanceEn:
+            "Lean man about 75, full beard, weathered face, striped ancient Near Eastern robe to the ankle, simple belt, wooden walking staff, calm posture",
+        },
+        摩西: {
+          englishName: "Moses",
+          shortSceneTagEn: "strong-bearded man in desert robe",
+          appearanceEn:
+            "Man about 80, long white-streaked beard, sun-darkened skin, coarse desert robe, rope belt, holding wooden staff, upright bearing",
+        },
+        大卫: {
+          englishName: "David",
+          shortSceneTagEn: "ruddy young warrior-king with harp",
+          appearanceEn:
+            "Young adult male, ruddy complexion, curly dark hair and short beard, simple royal headband optional, knee-length tunic, lyre or sling implied by scene, athletic build",
+        },
+        撒拉: {
+          englishName: "Sarah",
+          shortSceneTagEn: "dignified matriarch beside Abraham",
+          appearanceEn:
+            "Woman past middle age, covered hair with simple veil, modest layered robe, composed posture, shorter than Abraham, warm but firm expression",
+        },
+      },
+    });
+  }
+}
+
+function loadCharacterIllustrationProfiles() {
+  ensureCharacterIllustrationProfilesFile();
+  return readJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, { characters: {} });
+}
+
+function characterLockLinesForPublishedChapter(body) {
+  const version = safeText(body.version || "");
+  const lang = safeText(body.lang || "");
+  const bookId = extractBookIdFromChapterBody(body);
+  const chapterNum = parseInt(String(body.chapter ?? ""), 10);
+  if (!version || !lang || !bookId || !Number.isFinite(chapterNum)) {
+    return [];
+  }
+  const published = readPublishedContent({
+    versionId: version,
+    lang,
+    bookId,
+    chapter: chapterNum,
+  });
+  if (!published) return [];
+  const payload = buildChapterPayloadFromPublished(published, {
+    versionId: version,
+    lang,
+    bookId,
+    chapter: chapterNum,
+  });
+  return buildCharacterLockLines(
+    payload.keyPeople,
+    loadCharacterIllustrationProfiles(),
+    6
+  );
+}
+
 function ensureChapterIllustrationStateFile() {
   ensureDir(ADMIN_DIR);
   if (!fs.existsSync(CHAPTER_ILLUSTRATION_STATE_FILE)) {
@@ -6276,12 +6349,16 @@ function buildIllustrationSpec(body) {
  * 由 illustrationSpec 生成最终英文出图 prompt（模块 chapter-illustration / prompt-generator）。
  */
 function buildPrompt(spec) {
+  const lines = Array.isArray(spec?.characterAppearanceLines)
+    ? spec.characterAppearanceLines
+    : [];
   return generateIllustrationPrompt({
     sceneDescription: safeText(spec?.scene || ""),
     transparentBackground: spec?.transparent !== false,
     composition: spec?.composition,
     stylePreset:
       safeText(spec?.stylePreset || "") || "biblical_copperplate_engraving",
+    characterAppearanceLines: lines,
   });
 }
 
@@ -6304,14 +6381,21 @@ function tryAutoSceneFromPublishedChapter(body) {
   const run = runScenePipelineFromPublishedData(
     published,
     { versionId: version, lang, bookId, chapter: chapterNum },
-    { alternateIndex: sceneVariant }
+    {
+      alternateIndex: sceneVariant,
+      profilesRoot: loadCharacterIllustrationProfiles(),
+    }
   );
   return {
     scene: run.sceneDescription,
+    sceneDescriptionZh: run.sceneDescriptionZh,
     pipeline: {
       confidence: run.confidence,
       warning: run.warning,
+      warningZh: run.warningZh,
       chapterType: run.analysis.chapterType,
+      chapterTypeZh: run.chapterTypeZh,
+      sceneDescriptionZh: run.sceneDescriptionZh,
       analysis: run.analysis,
       selection: run.selection,
       sceneVariant,
@@ -6398,18 +6482,28 @@ app.post("/api/chapter-illustration/scene", (req, res) => {
       { versionId: version, lang, bookId, chapter: chapterNum },
       {
         alternateIndex: Math.max(0, Number(body.sceneVariant || 0) || 0),
+        profilesRoot: loadCharacterIllustrationProfiles(),
       }
     );
-    const chapterState = stateFromPipelineRun(body, published, run, {
-      sceneVariant: Math.max(0, Number(body.sceneVariant || 0) || 0),
-    });
+    const chapterState = stateFromPipelineRun(
+      body,
+      published,
+      run,
+      {
+        sceneVariant: Math.max(0, Number(body.sceneVariant || 0) || 0),
+      },
+      loadCharacterIllustrationProfiles()
+    );
     saveChapterIllustrationStateToDisk(chapterState);
     res.json({
       ok: true,
       sceneDescription: run.sceneDescription,
+      sceneDescriptionZh: run.sceneDescriptionZh,
       confidence: run.confidence,
       warning: run.warning,
+      warningZh: run.warningZh,
       chapterType: run.analysis.chapterType,
+      chapterTypeZh: run.chapterTypeZh,
       analysis: run.analysis,
       selection: run.selection,
       chapterState,
@@ -6467,6 +6561,56 @@ app.post("/api/chapter-illustration/state", (req, res) => {
   }
 });
 
+function handleCharacterIllustrationProfilesGet(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    res.json({ ok: true, profiles: loadCharacterIllustrationProfiles() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "读取角色档案失败。" });
+  }
+}
+
+function handleCharacterIllustrationProfilesPost(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const profiles = body.profiles;
+    if (!profiles || typeof profiles !== "object") {
+      return res.status(400).json({ error: "缺少 profiles 对象。" });
+    }
+    const characters = profiles.characters;
+    if (!characters || typeof characters !== "object" || Array.isArray(characters)) {
+      return res.status(400).json({ error: "profiles 须包含 characters 对象（键为中文名）。" });
+    }
+    const out = { characters: {} };
+    for (const [zh, entry] of Object.entries(characters)) {
+      const key = safeText(zh).slice(0, 32);
+      if (!key) continue;
+      if (!entry || typeof entry !== "object") continue;
+      out.characters[key] = {
+        englishName: safeText(entry.englishName || "").slice(0, 80),
+        shortSceneTagEn: safeText(entry.shortSceneTagEn || "").slice(0, 160),
+        appearanceEn: safeText(entry.appearanceEn || "").slice(0, 1200),
+      };
+    }
+    ensureDir(ADMIN_DIR);
+    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, out);
+    res.json({ ok: true, profiles: out });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "保存角色档案失败。" });
+  }
+}
+
+app.get("/api/admin/character-illustration-profiles", handleCharacterIllustrationProfilesGet);
+app.post("/api/admin/character-illustration-profiles", handleCharacterIllustrationProfilesPost);
+/** 扁平别名：个别反代对长连字符 path 返回 404（与 /api/admin/sitechrome 同理） */
+app.get("/api/admin/bible-character-profiles", handleCharacterIllustrationProfilesGet);
+app.post("/api/admin/bible-character-profiles", handleCharacterIllustrationProfilesPost);
+
 /**
  * POST /api/generate-prompt
  * Body: theme 必填；scene 可空（空则据已发布 JSON 自动推断场景）；
@@ -6500,6 +6644,9 @@ app.post("/api/generate-prompt", (req, res) => {
     }
     const bodyResolved = { ...body, scene };
     const illustrationSpec = buildIllustrationSpec(bodyResolved);
+    illustrationSpec.characterAppearanceLines = characterLockLinesForPublishedChapter(
+      bodyResolved
+    );
     const prompt = buildPrompt(illustrationSpec);
     const imageUrl = safeText(body.imageUrl || "");
     const transparentPng = safeText(body.transparentPng || "");
@@ -6531,8 +6678,10 @@ app.post("/api/generate-prompt", (req, res) => {
       illustrationSpec,
       id,
       sceneDescription: scene,
+      sceneDescriptionZh: safeText(pipelineMeta?.sceneDescriptionZh || ""),
       sceneAutoGenerated: Boolean(pipelineMeta),
       pipeline: pipelineMeta || null,
+      characterAppearanceLines: illustrationSpec.characterAppearanceLines || [],
       transparentBackground: illustrationSpec.transparent,
       overlayOpacity: illustrationSpec.overlayOpacity,
       imageUrl: imageUrl || "",
@@ -6587,10 +6736,17 @@ app.post("/api/generate-illustration", async (req, res) => {
 
     let imgResp;
     try {
+      const imgSize = safeText(body.imageSize || "") || "1024x1024";
+      const allowedSizes = new Set(["1024x1024", "1536x1024", "1024x1536"]);
+      const size = allowedSizes.has(imgSize) ? imgSize : "1024x1024";
+      const imgQ = safeText(body.imageQuality || "").toLowerCase();
+      const quality =
+        imgQ === "low" || imgQ === "medium" || imgQ === "high" ? imgQ : "high";
       imgResp = await imageClient.images.generate({
         model: "gpt-image-1",
         prompt,
-        size: "1024x1024",
+        size,
+        quality,
         background: transparent ? "transparent" : "opaque",
         output_format: "png",
       });
@@ -9651,6 +9807,7 @@ app.get("/api/dev/livereload-status", (_req, res) => {
     ["home-layout-map.html", false],
     ["video-center.html", false],
     ["chapter-illustration-prompt.html", false],
+    ["bible-character-designer.html", false],
   ];
   for (const [name, qianOnly] of adminToolHtml) {
     app.get(`/${name}`, (req, res) => {

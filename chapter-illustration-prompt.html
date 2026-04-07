@@ -9,7 +9,7 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css?v=110" />
     <link rel="stylesheet" href="/admin-shell.css?v=9" />
-    <link rel="stylesheet" href="/public/styles.css?v=7" />
+    <link rel="stylesheet" href="/public/styles.css?v=8" />
     <script src="/theme-apply.js?v=2"></script>
   </head>
   <body
@@ -23,8 +23,10 @@
         <h1>章节仿古插画 Prompt</h1>
         <p class="cp-lead">
           选择<strong>版本 / 语言 / 书卷 / 章节</strong>后载入已发布 JSON 的 <code>theme</code> 与段落摘要。点击
-          <strong>Generate Scene</strong> 可自动推断单一冻结画面（可再手写修改）；<strong>Generate Prompt</strong>
-          在场景为空时也会尝试自动补全。全流程为：选章 → 场景 → Prompt → 出图（铜板刻线统一风格）。
+          <strong>生成场景</strong>可自动推断画面；<strong>中文场景说明</strong>便于阅读，<strong>英文场景</strong>发给绘图模型（可手写改英文）。<strong>生成 Prompt / 生成插画</strong>在场景为空时会尝试自动补全英文场景。全流程：选章 → 中英场景 → Prompt → 出图（铜板刻线）。同名人物外观由
+          <code>admin_data/character_illustration_profiles.json</code> 锁定，也可通过
+          <a href="/bible-character-designer.html">圣经人物设计器</a> 可视化管理；亦可
+          <code>GET/POST /api/admin/bible-character-profiles</code> 读写（别名 <code>character-illustration-profiles</code> 同效）。
         </p>
 
         <div class="cp-grid">
@@ -65,31 +67,39 @@
             </div>
             <div class="cp-field cp-field--scene">
               <div class="cp-scene-toolbar">
-                <label for="cpScene">Scene description（英文，单一冻结瞬间）</label>
+                <label for="cpSceneZh">中文场景说明（阅读用，不参与出图）</label>
                 <div class="cp-scene-btns">
                   <button type="button" id="cpGenerateSceneBtn" class="cp-btn-scene">
-                    Generate Scene
+                    生成场景
                   </button>
                   <button type="button" id="cpRegenerateSceneBtn" class="cp-btn-scene cp-btn-scene--secondary">
-                    Regenerate Scene
+                    换一帧场景
                   </button>
                 </div>
               </div>
               <p class="cp-scene-hint">
-                由本章 theme / 段落自动推断；可修改后再生成 Prompt。Regenerate 会换一帧候选画面。
+                点击「生成场景」后此处显示中文概括；换一帧会轮换候选画面。出图 Prompt
+                已强化「写实、精细线刻、高对比、禁止模糊/软焦」，并默认 <code>quality=high</code>。
               </p>
+              <p
+                id="cpSceneZh"
+                class="cp-theme-readonly cp-scene-zh-readonly cp-theme-readonly--placeholder"
+              >
+                生成场景后将显示中文说明。
+              </p>
+              <label for="cpScene" class="cp-label-spaced">英文场景描述（发给绘图模型，单一冻结瞬间）</label>
               <textarea
                 id="cpScene"
-                placeholder="留空亦可：Generate Prompt / Generate Illustration 会尝试自动填写"
+                placeholder="留空亦可：生成 Prompt / 生成插画 会尝试自动填写英文"
               ></textarea>
               <p id="cpPipelineMeta" class="cp-pipeline-meta" hidden></p>
             </div>
 
             <div class="cp-field">
-              <label for="cpStylePreset">Style preset</label>
-              <select id="cpStylePreset" aria-label="Style preset">
+              <label for="cpStylePreset">画风预设</label>
+              <select id="cpStylePreset" aria-label="画风预设">
                 <option value="biblical_copperplate_engraving">
-                  Biblical copperplate engraving（默认）
+                  仿古铜板刻线（默认）
                 </option>
               </select>
             </div>
@@ -118,27 +128,33 @@
             </div>
 
             <div class="cp-actions cp-actions--split">
-              <button type="button" id="cpGenerateBtn">Generate Prompt</button>
+              <button type="button" id="cpGenerateBtn">生成 Prompt</button>
               <button type="button" id="cpGenerateIllustrationBtn" class="cp-btn-secondary">
-                Generate Illustration
+                生成插画
               </button>
             </div>
 
-            <div class="cp-out-label">Output（英文 prompt）</div>
+            <div class="cp-out-label">出图用英文 Prompt</div>
             <div id="cpOutput" class="cp-output cp-output--empty" aria-live="polite">
               生成的英文 prompt 将显示在这里。
             </div>
             <div id="cpStatus" class="cp-status" role="status"></div>
 
             <details class="cp-spec-details" id="cpSpecDetails" hidden>
-              <summary>本次 illustrationSpec（结构化中间层）</summary>
+              <summary>本次结构化参数（illustrationSpec，JSON）</summary>
               <pre id="cpSpecPre" class="cp-spec-pre"></pre>
             </details>
 
+            <details class="cp-spec-details" id="cpCharLockDetails" hidden>
+              <summary>角色外观锁定（英文，已写入 Prompt）</summary>
+              <pre id="cpCharLockPre" class="cp-spec-pre"></pre>
+            </details>
+
             <p class="cp-note-footer">
-              出图文件名为 <code>ill-&lt;bookId&gt;-&lt;chapter&gt;-&lt;timestamp&gt;.png</code>（未带书卷信息时仍为
-              <code>gen-…</code>）。API Key：环境变量 <code>OPENAI_API_KEY</code> 或管理后台「系统密钥」。插画状态可经
-              <code>GET/POST /api/chapter-illustration/state</code> 按章读写。
+              出图默认使用 OpenAI <code>quality=high</code>（更细、更少糊边；耗时与费用高于 medium）。尺寸默认
+              <code>1024×1024</code>；可在请求体传 <code>imageSize</code> 为 <code>1536x1024</code> 或
+              <code>1024x1536</code>。文件名为 <code>ill-&lt;bookId&gt;-&lt;chapter&gt;-&lt;timestamp&gt;.png</code>。API Key：
+              <code>OPENAI_API_KEY</code> 或后台「系统密钥」。插画状态：<code>GET/POST /api/chapter-illustration/state</code>。
             </p>
           </div>
 
@@ -209,6 +225,6 @@
     </div>
 
     <script src="/admin-shell.js?v=4" defer></script>
-    <script src="/public/main.js?v=11" defer></script>
+    <script src="/public/main.js?v=13" defer></script>
   </body>
 </html>
