@@ -368,23 +368,6 @@ function resolveStudyApiPath(path) {
   }
 }
 
-function renderChapterArtSlotHtml() {
-  const art = state.studyContent?.chapterArt;
-  const raw = art && String(art.imageUrl || "").trim();
-  if (!raw) return "";
-  let src = /^https?:\/\//i.test(raw) ? raw : resolveStudyApiPath(raw);
-  const cv = String(art?.updatedAt || "").trim();
-  if (cv) {
-    src += (src.includes("?") ? "&" : "?") + "_cv=" + encodeURIComponent(cv);
-  }
-  const bookLabel = getBookLabelForPrimaryScripture();
-  const ch = Number(state.frontState.chapter || 0);
-  const alt = `${bookLabel} 第${ch}章 配图`;
-  return `<figure class="chapter-art-figure"><img class="chapter-art-img" src="${escapeHtml(
-    src
-  )}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></figure>`;
-}
-
 /** 与 .book-spread 双栏断点一致：宽屏视频分列到左右页 */
 function shouldSplitChapterVideosAcrossColumns() {
   try {
@@ -895,8 +878,10 @@ function loadFrontState() {
       ? legacyScriptureIds.slice(1)
       : [],
     testament: parsed?.testament || "旧约",
-    bookId: parsed?.bookId || "GEN",
-    chapter: Number(parsed?.chapter || 1),
+    /* 无本地记录时打开「圣经简介」卷首页（_BIBLE_INTRO / chapter 0），非创世记第 1 章 */
+    bookId: parsed?.bookId || "_BIBLE_INTRO",
+    chapter:
+      parsed == null ? 0 : Number(parsed.chapter != null ? parsed.chapter : 0),
     hideScripture: parsed?.hideScripture === true,
     showQuestions:
       typeof parsed?.showQuestions === "boolean"
@@ -3436,7 +3421,14 @@ function normalizeFrontStateByBootstrap() {
 
   const validBook = books.find((b) => b.bookId === state.frontState.bookId);
   if (!validBook) {
-    state.frontState.bookId = "GEN";
+    const intro = books.find((b) => b.bookId === "_BIBLE_INTRO");
+    if (intro) {
+      state.frontState.bookId = "_BIBLE_INTRO";
+      state.frontState.chapter = 0;
+      state.frontState.testament = intro.testamentName;
+    } else {
+      state.frontState.bookId = "GEN";
+    }
   }
 
   const currentBook = books.find((b) => b.bookId === state.frontState.bookId);
@@ -5025,13 +5017,11 @@ function renderStudyContent() {
   const leftBlocksEl = document.getElementById("leftBlocks");
   const rightBlocksEl = document.getElementById("rightBlocks");
   const repeatedWordsEl = document.getElementById("repeatedWordsLine");
-  const chapterArtSlotEl = document.getElementById("chapterArtSlot");
   const approvedTitleEl = document.getElementById("chapterApprovedTitle");
   const approvedEl = document.getElementById("chapterApprovedQuestions");
 
   if (isBookLandingChapter()) {
     if (repeatedWordsEl) repeatedWordsEl.textContent = "—";
-    if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = "";
     mountChapterVideoSlots(state.bookLandingChapterVideos);
     /* 卷首页介绍卡片暂隐藏（仍拉取 book_intro 以备日后恢复） */
     if (leftBlocksEl) leftBlocksEl.innerHTML = "";
@@ -5063,7 +5053,6 @@ function renderStudyContent() {
       : fallbackEnd;
 
     if (repeatedWordsEl) repeatedWordsEl.textContent = "—";
-    if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = "";
     clearChapterVideoSlots();
     if (leftBlocksEl) {
       const scriptureLeftHtml = showScripture
@@ -5106,7 +5095,6 @@ function renderStudyContent() {
     );
   }
 
-  if (chapterArtSlotEl) chapterArtSlotEl.innerHTML = renderChapterArtSlotHtml();
   mountChapterVideoSlots();
 
   const rendered = (state.studyContent.segments || []).map(renderSegmentCard);

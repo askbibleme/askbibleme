@@ -16,3 +16,9 @@ admin_data/*.sqlite-shm
 admin_data/*.sqlite-wal
 admin_data/auth.db
 admin_data/deploy/uploads/
+
+# 章节插画 prompt 生成记录（首次请求时由服务器创建；勿提交个人草稿）
+data/prompts.json
+
+# OpenAI 出图缓存（运行时写入 public/generated/）
+public/generated/*.png

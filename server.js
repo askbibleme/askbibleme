@@ -19,6 +19,16 @@ import {
   BUILTIN_COLOR_THEME_VARIABLES,
   BUILTIN_COLOR_THEME_VARIABLE_KEYS,
 } from "./src/color-themes-builtin.js";
+import {
+  runScenePipelineFromPublishedData,
+  generateIllustrationPrompt,
+  analyzeChapterForIllustration,
+  buildChapterPayloadFromPublished,
+  stateStorageKey,
+  defaultChapterIllustrationState,
+  mergeChapterIllustrationState,
+  stateFromPipelineRun,
+} from "./src/chapter-illustration/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1580,548 +1590,6 @@ async function openAiChatHelper({ system, messages }) {
   }
 }
 
-/**
- * 使用 OpenAI Images API 在本机生成配图（不向第三方图床上传经文，仅提交英文绘图 prompt）。
- * 模型、尺寸可通过环境变量 OPENAI_IMAGE_MODEL / OPENAI_IMAGE_SIZE 等覆盖。
- */
-async function openAiImageGenerateHelper(imagePrompt) {
-  const client = getOpenAiClient();
-  if (!client) {
-    throw new Error("缺少 OPENAI_API_KEY");
-  }
-  const prompt = String(imagePrompt || "").trim().slice(0, 4000);
-  if (!prompt) {
-    throw new Error("绘图 prompt 为空");
-  }
-  const model = safeText(process.env.OPENAI_IMAGE_MODEL || "dall-e-3");
-
-  const payload = {
-    model,
-    prompt,
-    n: 1,
-  };
-
-  if (model === "dall-e-3") {
-    let size = safeText(process.env.OPENAI_IMAGE_SIZE || "1024x1024");
-    if (!["1024x1024", "1792x1024", "1024x1792"].includes(size)) {
-      size = "1024x1024";
-    }
-    payload.size = size;
-    payload.quality =
-      safeText(process.env.OPENAI_IMAGE_QUALITY || "standard") === "hd"
-        ? "hd"
-        : "standard";
-    payload.style =
-      safeText(process.env.OPENAI_IMAGE_STYLE || "natural") === "vivid"
-        ? "vivid"
-        : "natural";
-    payload.response_format = "b64_json";
-  } else if (model === "dall-e-2") {
-    payload.size = "1024x1024";
-    payload.response_format = "b64_json";
-  }
-  /* gpt-image-1 等其它模型：只传 model + prompt，避免不兼容参数 */
-
-  try {
-    const r = await client.images.generate(payload);
-    const first = r.data && r.data[0];
-    if (!first) {
-      throw new Error("图像接口返回为空");
-    }
-    if (first.b64_json) {
-      return {
-        b64: first.b64_json,
-        mime: "image/png",
-        revised_prompt: safeText(first.revised_prompt || ""),
-      };
-    }
-    if (first.url) {
-      return {
-        url: String(first.url),
-        revised_prompt: safeText(first.revised_prompt || ""),
-      };
-    }
-    throw new Error("图像接口无 b64_json 或 url");
-  } catch (err) {
-    throw new Error(formatOpenAiChatError(err));
-  }
-}
-
-function parseChapterIllustrationJsonFromAssistant(text) {
-  let t = String(text || "").trim();
-  const fence = /^```(?:json)?\s*([\s\S]*?)```$/im.exec(t);
-  if (fence) t = fence[1].trim();
-  const start = t.indexOf("{");
-  const end = t.lastIndexOf("}");
-  if (start === -1 || end <= start) {
-    throw new Error("模型未返回有效 JSON");
-  }
-  const obj = JSON.parse(t.slice(start, end + 1));
-  const chapter_summary = safeText(obj?.chapter_summary || "").slice(0, 800);
-  const main_scene = safeText(obj?.main_scene || "").slice(0, 800);
-  const english_prompt = safeText(obj?.english_prompt || "").slice(0, 12000);
-  const negative_prompt = safeText(obj?.negative_prompt || "").slice(0, 4000);
-  if (!chapter_summary || !main_scene || !english_prompt || !negative_prompt) {
-    throw new Error(
-      "JSON 缺少 chapter_summary、main_scene、english_prompt 或 negative_prompt"
-    );
-  }
-  return { chapter_summary, main_scene, english_prompt, negative_prompt };
-}
-
-const CHAPTER_ILLUSTRATION_SYSTEM_PROMPT = [
-  "你是一个「圣经章节插图提示词生成器」。",
-  "你的任务不是解释经文，而是根据某一章圣经内容，提炼出最适合做插图的「单一核心场景」，并输出可用于 AI 绘图的英文 prompt。",
-  "",
-  "【总体目标】",
-  "- 为每一章圣经生成一张「古书插图感」的故事图",
-  "- 帮助读者理解该章主要叙事",
-  "- 图像用于叠加在米白色纸张背景上，因此必须适合透明背景",
-  "- 图像不是彩色，不是油画，不是漫画，不是现代插画",
-  "",
-  "【风格要求】",
-  "- black and white line art",
-  "- transparent background",
-  "- ancient biblical book illustration",
-  "- delicate ink lines",
-  "- engraving / etching style",
-  "- minimal shading",
-  "- no fill",
-  "- no color",
-  "- no frame",
-  "- no text",
-  "- calm, reverent, narrative",
-  "- consistent character design across chapters",
-  "- robes, head coverings, shepherd staffs, wells, tents, sheep, fields, desert hills should match ancient biblical context",
-  "- avoid cinematic realism",
-  "- avoid anime",
-  "- avoid comic style",
-  "- avoid exaggerated expressions",
-  "- avoid modern objects",
-  "- avoid decorative border",
-  "",
-  "【人物一致性要求】",
-  "- 人物面部不追求写实细节，避免每次长相漂移",
-  "- 人物比例统一",
-  "- 服装统一为古代近东长袍、披肩、头巾等",
-  "- 动作自然克制",
-  "- 构图清楚，重点突出，不拥挤",
-  "",
-  "【输出规则】",
-  "你必须只输出以下 JSON，不要输出任何别的解释：",
-  "",
-  "{",
-  '  "chapter_summary": "一句中文概括本章主要故事",',
-  '  "main_scene": "一句中文说明最适合画的核心场景",',
-  '  "english_prompt": "最终给绘图模型使用的完整英文prompt",',
-  '  "negative_prompt": "需要避免的元素，英文，逗号分隔"',
-  "}",
-  "",
-  "【english_prompt 的写法要求】",
-  "- 先写核心场景",
-  "- 再写人物、地点、动作",
-  "- 再写风格限定",
-  "- 最后写透明背景与黑白线稿要求",
-  "- 保持完整、清楚、可直接用于生成图像",
-  "",
-  "【negative_prompt 的内容方向】",
-  "modern objects, color, solid background, text, frame, comic, anime, photorealistic face, 3d render, dramatic lighting, saturated colors, fantasy armor, modern architecture",
-  "",
-  "如果一章有多个事件，只选最能代表这一章的一幕，不要贪多。",
-].join("\n");
-
-/** 固定「绘图说明」模板：仅用本地经文节选替换占位符，再交给 Images API（不经对话模型写关键词）。 */
-const CHAPTER_ART_IMAGE_PROMPT_FILE = path.join(
-  ADMIN_DIR,
-  "chapter_art_image_prompt.txt"
-);
-const CHAPTER_ART_RULES_FILE = path.join(ADMIN_DIR, "chapter_art_rules.json");
-const CHAPTER_ART_RULES_DIR = path.join(ADMIN_DIR, "chapter_art_rules");
-
-const CHAPTER_ART_IMAGE_PROMPT_BUILTIN = [
-  "Create ONE Bible chapter illustration as ancient book line art.",
-  "",
-  "Scripture location:",
-  "- Book: {{BOOK_LABEL}} ({{BOOK_ID}})",
-  "- Chapter: {{CHAPTER}}",
-  "",
-  "Use ONLY the scripture excerpt below as the narrative source. Choose ONE central scene that best represents this chapter. Do not depict unrelated stories.",
-  "---",
-  "{{SCRIPTURE}}",
-  "---",
-  "",
-  "Visual style (mandatory):",
-  "- black and white line art only",
-  "- transparent background",
-  "- ancient biblical book illustration",
-  "- delicate ink lines; engraving or etching style",
-  "- minimal shading; no solid color fills; no color",
-  "- no frame; no caption; no letters or readable text in the image",
-  "- calm, reverent, clear narrative composition",
-  "- ancient Near Eastern dress (robes, cloaks, head coverings) where people appear",
-  "- avoid cinematic realism, anime, comic, 3D render, exaggerated faces, modern objects",
-  "",
-  "Strong negative: color, photograph, anime, comic, watermark, decorative border, text, logo, saturated colors, fantasy armor, modern buildings, busy clutter.",
-].join("\n");
-
-/** 内置另一套规则示例：可按需在 chapter_art_rules.json 中增删并指向独立 .txt */
-const CHAPTER_ART_BUILTIN_CHILDREN_FRIENDLY = [
-  "Create ONE simple, friendly black-and-white Bible scene illustration for children.",
-  "",
-  "Scripture: {{BOOK_LABEL}} ({{BOOK_ID}}), Chapter {{CHAPTER}}.",
-  "",
-  "Use ONLY the excerpt below to choose ONE clear, gentle scene. Avoid graphic violence or fear; keep expressions kind and simple.",
-  "---",
-  "{{SCRIPTURE}}",
-  "---",
-  "",
-  "Style:",
-  "- black and white line drawing with clean outlines",
-  "- simple, readable shapes; one main focal scene",
-  "- transparent background",
-  "- no text or letters in the image",
-  "- ancient biblical setting when relevant (robes, simple tools, tents, hills)",
-  "",
-  "Avoid: color, photorealism, anime exaggeration, horror, gore, busy clutter, modern objects.",
-].join("\n");
-
-const CHAPTER_ART_BUILTIN_TEMPLATES = {
-  ancient_lineart: CHAPTER_ART_IMAGE_PROMPT_BUILTIN,
-  children_friendly: CHAPTER_ART_BUILTIN_CHILDREN_FRIENDLY,
-};
-
-function getDefaultChapterArtRulesCatalog() {
-  return {
-    defaultRuleId: "ancient_lineart",
-    rules: [
-      {
-        id: "ancient_lineart",
-        label: "古书黑白线稿",
-        audience: "成人查经 / 纸感阅读",
-        templateFile: "ancient_lineart.txt",
-        fallbackBuiltinKey: "ancient_lineart",
-        styleDescription: "",
-      },
-      {
-        id: "children_friendly",
-        label: "儿童友好简笔",
-        audience: "儿童主日学 / 简化场景",
-        templateFile: "children_friendly.txt",
-        fallbackBuiltinKey: "children_friendly",
-        styleDescription: "",
-      },
-    ],
-  };
-}
-
-function normalizeChapterArtRuleId(raw) {
-  const s = safeText(raw || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 64);
-  return s || "ancient_lineart";
-}
-
-function loadChapterArtRulesCatalog() {
-  const base = getDefaultChapterArtRulesCatalog();
-  const data = readJson(CHAPTER_ART_RULES_FILE, null);
-  if (!data || typeof data !== "object") {
-    return base;
-  }
-  let rules = Array.isArray(data.rules) ? data.rules : [];
-  if (!rules.length) {
-    rules = base.rules;
-  } else {
-    rules = rules
-      .map((r) => {
-        const id = normalizeChapterArtRuleId(r?.id || "");
-        return {
-          id,
-          label: safeText(r?.label || id).slice(0, 120),
-          audience: safeText(r?.audience || "").slice(0, 200),
-          templateFile: safeText(r?.templateFile || "").slice(0, 180),
-          fallbackBuiltinKey: normalizeChapterArtRuleId(
-            r?.fallbackBuiltinKey || "ancient_lineart"
-          ),
-          styleDescription: safeText(r?.styleDescription || "").slice(0, 8000),
-        };
-      })
-      .filter((r) => r.id);
-    const byId = new Map();
-    for (const r of rules) {
-      byId.set(r.id, r);
-    }
-    rules = Array.from(byId.values());
-  }
-  if (!rules.length) {
-    return base;
-  }
-  let defaultRuleId = normalizeChapterArtRuleId(
-    data.defaultRuleId || base.defaultRuleId
-  );
-  if (!rules.some((r) => r.id === defaultRuleId)) {
-    defaultRuleId = rules[0].id;
-  }
-  return { defaultRuleId, rules };
-}
-
-function getChapterArtBootstrapRulesPayload() {
-  const c = loadChapterArtRulesCatalog();
-  return {
-    defaultRuleId: c.defaultRuleId,
-    rules: c.rules.map((r) => ({
-      id: r.id,
-      label: r.label,
-      audience: r.audience,
-      templateFile: r.templateFile || "",
-      styleDescription: safeText(r.styleDescription || "").slice(0, 8000),
-    })),
-  };
-}
-
-function resolveChapterArtRuleById(ruleId) {
-  const cat = loadChapterArtRulesCatalog();
-  const id = safeText(ruleId || cat.defaultRuleId);
-  const rule =
-    cat.rules.find((r) => r.id === id) || cat.rules.find((r) => r.id === cat.defaultRuleId) || cat.rules[0];
-  return { catalog: cat, rule };
-}
-
-function getChapterArtTemplateTextForRule(rule) {
-  const sd = String(rule?.styleDescription || "").trim();
-  if (sd) {
-    try {
-      return buildChapterArtTemplateFromStyleDescription(sd);
-    } catch (e) {
-      console.error("buildChapterArtTemplateFromStyleDescription:", e);
-    }
-  }
-  ensureDir(CHAPTER_ART_RULES_DIR);
-  const file = safeText(rule?.templateFile || "");
-  if (file && !file.includes("..") && !path.isAbsolute(file)) {
-    const full = path.join(CHAPTER_ART_RULES_DIR, file);
-    try {
-      if (fs.existsSync(full)) {
-        const s = fs.readFileSync(full, "utf8");
-        if (String(s).trim()) return String(s).trim();
-      }
-    } catch (error) {
-      console.error("读取章节配图规则文件失败:", full, error);
-    }
-  }
-  if (safeText(rule?.id) === "ancient_lineart") {
-    try {
-      if (fs.existsSync(CHAPTER_ART_IMAGE_PROMPT_FILE)) {
-        const s = fs.readFileSync(CHAPTER_ART_IMAGE_PROMPT_FILE, "utf8");
-        if (String(s).trim()) return String(s).trim();
-      }
-    } catch (error) {
-      console.error("读取 chapter_art_image_prompt.txt 失败:", error);
-    }
-  }
-  const key = safeText(rule?.fallbackBuiltinKey || "ancient_lineart");
-  return (
-    CHAPTER_ART_BUILTIN_TEMPLATES[key] || CHAPTER_ART_BUILTIN_TEMPLATES.ancient_lineart
-  );
-}
-
-function loadChapterArtImagePromptTemplate(ruleId) {
-  const { rule } = resolveChapterArtRuleById(ruleId);
-  return getChapterArtTemplateTextForRule(rule);
-}
-
-function buildChapterArtImagePromptForGeneration(verseBlock, meta, ruleId) {
-  const bookLabel = safeText(meta?.bookLabel || "");
-  const bookId = safeText(meta?.bookId || "");
-  const chapter = String(toSafeNumber(meta?.chapter, 0));
-  const excerpt = String(verseBlock || "")
-    .trim()
-    .slice(0, 3200);
-  let t = loadChapterArtImagePromptTemplate(ruleId);
-  t = t
-    .replace(/\{\{BOOK_LABEL\}\}/g, bookLabel || bookId)
-    .replace(/\{\{BOOK_ID\}\}/g, bookId)
-    .replace(/\{\{CHAPTER\}\}/g, chapter)
-    .replace(/\{\{SCRIPTURE\}\}/g, excerpt || "(empty)");
-  t = String(t || "").trim();
-  if (t.length > 4000) t = t.slice(0, 4000);
-  return t;
-}
-
-function getChapterArtJobDelayMs() {
-  return Math.max(400, toSafeNumber(process.env.CHAPTER_ART_JOB_DELAY_MS, 2200));
-}
-
-const CHAPTER_ART_RULE_PLACEHOLDERS = [
-  "{{BOOK_LABEL}}",
-  "{{BOOK_ID}}",
-  "{{CHAPTER}}",
-  "{{SCRIPTURE}}",
-];
-
-/** 管理员只写「描述词」时，由服务器拼出含四占位符的完整英文绘图说明 */
-function buildChapterArtTemplateFromStyleDescription(styleDescription) {
-  const s = String(styleDescription || "").trim();
-  if (!s) {
-    throw new Error("风格描述词不能为空");
-  }
-  if (s.length > 6000) {
-    throw new Error("风格描述词过长（请控制在 6000 字以内）");
-  }
-  return [
-    "Create ONE Bible chapter illustration.",
-    "",
-    "Scripture location:",
-    "- Book: {{BOOK_LABEL}} ({{BOOK_ID}})",
-    "- Chapter: {{CHAPTER}}",
-    "",
-    "Use ONLY the scripture excerpt below as the narrative source. Choose ONE central scene that best represents this chapter. Do not depict unrelated stories.",
-    "---",
-    "{{SCRIPTURE}}",
-    "---",
-    "",
-    "Visual style and scene direction (follow strictly):",
-    s,
-    "",
-    "Technical requirements:",
-    "- No readable text, letters, watermarks, captions, or logos in the image.",
-    "- Transparent background unless the style instructions above clearly specify otherwise.",
-    "- Reverent, clear composition; avoid modern objects unless required by the scene.",
-  ].join("\n");
-}
-
-function getChapterArtBuiltinTemplateKeys() {
-  return Object.keys(CHAPTER_ART_BUILTIN_TEMPLATES);
-}
-
-/** 管理员页加载：含每条规则当前解析后的模板全文 */
-function buildAdminChapterArtRulesPayload() {
-  const c = loadChapterArtRulesCatalog();
-  return {
-    defaultRuleId: c.defaultRuleId,
-    builtinTemplateKeys: getChapterArtBuiltinTemplateKeys(),
-    rules: c.rules.map((rule) => ({
-      id: rule.id,
-      label: rule.label,
-      audience: rule.audience,
-      templateFile: rule.templateFile || "",
-      fallbackBuiltinKey: rule.fallbackBuiltinKey || "ancient_lineart",
-      styleDescription: safeText(rule.styleDescription || "").slice(0, 8000),
-      templateBody: getChapterArtTemplateTextForRule(rule),
-    })),
-  };
-}
-
-/** 从页面保存：写 chapter_art_rules.json + admin_data/chapter_art_rules/*.txt */
-function saveChapterArtRulesConfigFromBody(body) {
-  const defaultRuleIdIn = normalizeChapterArtRuleId(
-    body?.defaultRuleId || "ancient_lineart"
-  );
-  const rawRules = Array.isArray(body?.rules) ? body.rules : [];
-  if (!rawRules.length) {
-    throw new Error("至少保留一条规则");
-  }
-  if (rawRules.length > 32) {
-    throw new Error("规则数量过多（最多 32 条）");
-  }
-
-  const rules = [];
-  const seen = new Set();
-  for (const r of rawRules) {
-    const id = normalizeChapterArtRuleId(r?.id || "");
-    if (!id) {
-      throw new Error("每条规则须填写 id（英文、数字、下划线）");
-    }
-    if (seen.has(id)) {
-      throw new Error(`重复的规则 id：${id}`);
-    }
-    seen.add(id);
-    const label = safeText(r?.label || id).slice(0, 120);
-    const audience = safeText(r?.audience || "").slice(0, 200);
-    let templateFile = safeText(r?.templateFile || "").slice(0, 180);
-    if (!templateFile) {
-      templateFile = `${id}.txt`;
-    }
-    if (templateFile.includes("..") || path.isAbsolute(templateFile)) {
-      throw new Error(`非法模板文件名：${templateFile}`);
-    }
-    const fb = normalizeChapterArtRuleId(
-      r?.fallbackBuiltinKey || "ancient_lineart"
-    );
-    if (!CHAPTER_ART_BUILTIN_TEMPLATES[fb]) {
-      throw new Error(
-        `无效 fallbackBuiltinKey「${fb}」，可选：${getChapterArtBuiltinTemplateKeys().join(", ")}`
-      );
-    }
-    const styleDesc = String(r?.styleDescription ?? "").trim();
-    let templateBody = String(r?.templateBody ?? "").trim();
-    if (styleDesc) {
-      templateBody = buildChapterArtTemplateFromStyleDescription(styleDesc).trim();
-    } else if (!templateBody) {
-      const catSnapshot = loadChapterArtRulesCatalog();
-      const prevRule = catSnapshot.rules.find((x) => x.id === id);
-      if (prevRule) {
-        templateBody = String(
-          getChapterArtTemplateTextForRule(prevRule) || ""
-        ).trim();
-      }
-    }
-    if (templateBody.length > 100000) {
-      throw new Error(`规则 ${id} 的模板过长`);
-    }
-    rules.push({
-      id,
-      label,
-      audience,
-      templateFile,
-      fallbackBuiltinKey: fb,
-      templateBody,
-      styleDescription: styleDesc ? styleDesc.slice(0, 8000) : "",
-    });
-  }
-
-  let def = normalizeChapterArtRuleId(defaultRuleIdIn);
-  if (!rules.some((x) => x.id === def)) {
-    def = rules[0].id;
-  }
-
-  ensureDir(CHAPTER_ART_RULES_DIR);
-  for (const rule of rules) {
-    const t = String(rule.templateBody || "").trim();
-    if (!t) {
-      throw new Error(`规则「${rule.label || rule.id}」的模板正文不能为空`);
-    }
-    for (const ph of CHAPTER_ART_RULE_PLACEHOLDERS) {
-      if (!t.includes(ph)) {
-        throw new Error(`规则 ${rule.id} 的模板须包含占位符 ${ph}`);
-      }
-    }
-    const dest = path.join(CHAPTER_ART_RULES_DIR, rule.templateFile);
-    ensureDir(path.dirname(dest));
-    fs.writeFileSync(dest, t, "utf8");
-  }
-
-  const jsonPayload = {
-    defaultRuleId: def,
-    rules: rules.map((r) => {
-      const row = {
-        id: r.id,
-        label: r.label,
-        audience: r.audience,
-        templateFile: r.templateFile,
-        fallbackBuiltinKey: r.fallbackBuiltinKey,
-      };
-      if (r.styleDescription) {
-        row.styleDescription = r.styleDescription;
-      }
-      return row;
-    }),
-  };
-  writeJson(CHAPTER_ART_RULES_FILE, jsonPayload);
-  return jsonPayload;
-}
-
 function loadQuestionSubmissions() {
   const data = readJson(QUESTION_SUBMISSIONS_FILE, null);
   if (!data || typeof data !== "object") {
@@ -3287,211 +2755,6 @@ function readPublishedBookIntro({ versionId, lang, bookId }) {
   };
 }
 
-function getChapterArtPngPath({ versionId, lang, bookId, chapter }) {
-  return path.join(
-    CONTENT_PUBLISHED_DIR,
-    versionId,
-    lang,
-    bookId,
-    "_art",
-    `${chapter}.png`
-  );
-}
-
-function mergeChapterArtIntoPublishedJson({
-  versionId,
-  lang,
-  bookId,
-  chapter,
-  imageUrlPath,
-  ruleId,
-  ruleLabel,
-}) {
-  const filePath = getPublishedContentFilePath({
-    versionId,
-    lang,
-    bookId,
-    chapter,
-  });
-  const data = readJson(filePath, null);
-  if (!data || typeof data !== "object") {
-    throw new Error(
-      "该章尚无已发布的查经 JSON；请先在后台生成并发布该章问题内容，再写入配图。"
-    );
-  }
-  const next = { ...data };
-  next.chapterArt = {
-    imageUrl: safeText(imageUrlPath || "").slice(0, 800),
-    updatedAt: nowIso(),
-    ruleId: safeText(ruleId || "").slice(0, 64),
-    ruleLabel: safeText(ruleLabel || "").slice(0, 120),
-  };
-  writeJson(filePath, next);
-  return { filePath, next };
-}
-
-/** 从已发布查经 JSON 移除 chapterArt，并可删除对应 PNG。 */
-function removeChapterArtForPublishedChapter({
-  versionId,
-  lang,
-  bookId,
-  chapter,
-  deletePngFile = true,
-}) {
-  const pubPath = getPublishedContentFilePath({
-    versionId,
-    lang,
-    bookId,
-    chapter,
-  });
-  if (!fs.existsSync(pubPath)) {
-    throw new Error("该章尚无已发布的查经 JSON。");
-  }
-  const data = readJson(pubPath, null);
-  if (!data || typeof data !== "object") {
-    throw new Error("查经 JSON 无效。");
-  }
-  const hadJsonArt = Object.prototype.hasOwnProperty.call(data, "chapterArt");
-  let removedFromJson = false;
-  if (hadJsonArt) {
-    const next = { ...data };
-    delete next.chapterArt;
-    writeJson(pubPath, next);
-    removedFromJson = true;
-  }
-
-  const pngPath = getChapterArtPngPath({ versionId, lang, bookId, chapter });
-  let removedPng = false;
-  if (deletePngFile && fs.existsSync(pngPath)) {
-    try {
-      fs.unlinkSync(pngPath);
-      removedPng = true;
-    } catch (e) {
-      console.error("删除章节配图 PNG 失败:", pngPath, e);
-    }
-  }
-
-  invalidateStudyContentCache(versionId, lang, bookId, chapter);
-  return { removedFromJson, removedPng, hadJsonArt };
-}
-
-/** @returns {Promise<{ skipped?: boolean, pngPath: string, published: boolean }>} */
-async function executeChapterArtTarget(job, target, opts = {}) {
-  const versionId = safeText(target.versionId || "");
-  const lang = safeText(target.lang || "");
-  const bookId = safeText(target.bookId || "");
-  const chapter = toSafeNumber(target.chapter, 0);
-  const scriptureVersionId = safeText(job.scriptureVersionId || "");
-  const pasteText = safeText(opts.pasteText || "").slice(0, 50000);
-  const cat = loadChapterArtRulesCatalog();
-  const chapterArtRuleId = safeText(
-    opts.ruleId || job.chapterArtRuleId || cat.defaultRuleId
-  );
-  const { rule: resolvedRule } = resolveChapterArtRuleById(chapterArtRuleId);
-
-  if (!versionId || !lang || !bookId || !chapter) {
-    throw new Error("目标缺少 version / lang / bookId / chapter");
-  }
-
-  const book = getBookById(bookId);
-  if (!book) throw new Error("无效书卷");
-
-  let verseBlock = "";
-  if (pasteText.trim()) {
-    verseBlock = pasteText.trim();
-  } else {
-    const cfg = getScriptureVersionConfig(scriptureVersionId);
-    if (!cfg || cfg.sourceType !== "usfx") {
-      throw new Error("任务缺少有效的本地 USFX 经文版本（scriptureVersionId）");
-    }
-    const rows = getScriptureRowsForVersion({
-      scriptureVersionId,
-      bookId,
-      chapter,
-    });
-    verseBlock = rows
-      .map((r) => `${r.verse}. ${safeText(r.text)}`)
-      .join("\n");
-  }
-  if (!verseBlock.trim()) {
-    throw new Error("未读取到本章经文（请检查 USFX 或粘贴内容）");
-  }
-  if (verseBlock.length > 12000) {
-    verseBlock =
-      verseBlock.slice(0, 12000) + "\n...(内容过长已截断)";
-  }
-
-  const bookLabel =
-    lang === "en" ? book.bookEn || bookId : book.bookCn || bookId;
-  const imagePrompt = buildChapterArtImagePromptForGeneration(
-    verseBlock,
-    {
-      bookLabel,
-      bookId,
-      chapter,
-    },
-    resolvedRule.id
-  );
-
-  const img = await openAiImageGenerateHelper(imagePrompt);
-  const b64 = img.b64;
-  if (!b64) {
-    throw new Error("图像接口未返回 b64_json");
-  }
-
-  const pngPath = getChapterArtPngPath({ versionId, lang, bookId, chapter });
-  ensureDir(path.dirname(pngPath));
-  fs.writeFileSync(pngPath, Buffer.from(String(b64), "base64"));
-
-  if (job.autoPublish !== true) {
-    return { skipped: false, pngPath, published: false };
-  }
-
-  const pubPath = getPublishedContentFilePath({
-    versionId,
-    lang,
-    bookId,
-    chapter,
-  });
-  if (!fs.existsSync(pubPath)) {
-    throw new Error(
-      "该章尚无已发布的查经 JSON。请先用「测试生成」或批量任务发布该章问题内容，再生成配图。"
-    );
-  }
-  const existing = readJson(pubPath, null);
-  if (
-    job.skipPublishOverwrite === true &&
-    existing &&
-    existing.chapterArt &&
-    safeText(existing.chapterArt.imageUrl || "")
-  ) {
-    return { skipped: true, pngPath, published: false };
-  }
-
-  const q = new URLSearchParams({
-    version: versionId,
-    lang,
-    bookId,
-    chapter: String(chapter),
-  });
-  const imageUrl = `/api/published/chapter-art?${q.toString()}`;
-  mergeChapterArtIntoPublishedJson({
-    versionId,
-    lang,
-    bookId,
-    chapter,
-    imageUrlPath: imageUrl,
-    ruleId: resolvedRule.id,
-    ruleLabel: resolvedRule.label,
-  });
-
-  if (safeText(job.buildId)) {
-    bumpPublishedMergeMetaForOneChapter(versionId, lang, job.buildId);
-  }
-  invalidateStudyContentCache(versionId, lang, bookId, chapter);
-  return { skipped: false, pngPath, published: true };
-}
-
 function readPublishedContent({ versionId, lang, bookId, chapter }) {
   const filePath = getPublishedContentFilePath({
     versionId,
@@ -3932,18 +3195,6 @@ function normalizeStudyContentForSave(input) {
     generatedAt: safeText(input.generatedAt) || nowIso(),
     savedAt: nowIso(),
     chapterVideos: normalizeChapterVideosForSave(input.chapterVideos),
-    ...(input.chapterArt &&
-    typeof input.chapterArt === "object" &&
-    !Array.isArray(input.chapterArt)
-      ? {
-          chapterArt: {
-            imageUrl: safeText(input.chapterArt.imageUrl || "").slice(0, 800),
-            updatedAt: safeText(input.chapterArt.updatedAt || ""),
-            ruleId: safeText(input.chapterArt.ruleId || "").slice(0, 64),
-            ruleLabel: safeText(input.chapterArt.ruleLabel || "").slice(0, 120),
-          },
-        }
-      : {}),
   };
 }
 
@@ -4799,51 +4050,16 @@ function listAllJobsNewestFirst() {
 
 function createBulkJob(payload) {
   const kind = safeText(payload.kind || "study");
-  if (kind === "chapter_art") {
-    if (!safeText(payload.scriptureVersionId)) {
-      throw new Error("章节配图批量任务须指定 scriptureVersionId（本地 USFX 译本 id）");
-    }
-    const scCfg = getScriptureVersionConfig(payload.scriptureVersionId);
-    if (!scCfg || scCfg.sourceType !== "usfx") {
-      throw new Error("章节配图须使用 sourceType 为 usfx 的经文版本");
-    }
-    if (payload.autoPublish === false) {
-      throw new Error("章节配图任务当前仅支持自动逐章发布（autoPublish: true）");
-    }
-    const cat = loadChapterArtRulesCatalog();
-    const rid = safeText(
-      payload.chapterArtRuleId || payload.ruleId || cat.defaultRuleId
-    );
-    if (!cat.rules.some((r) => r.id === rid)) {
-      throw new Error(
-        `无效的配图规则 id「${rid}」。请在 admin_data/chapter_art_rules.json 中配置，或使用 bootstrap 返回的 chapterArtRules。`
-      );
-    }
-  }
 
   const targets = resolveTargetsFromPayload(payload);
   const jobId = `job_${Date.now()}`;
-  const buildId =
-    kind === "chapter_art"
-      ? `build_${Date.now()}_chapter_art_${safeText(payload.version || "v")}_${safeText(payload.lang || "l")}`
-      : createBuildIdForJob(payload);
-
-  const catRules = loadChapterArtRulesCatalog();
-  const resolvedChapterArtRuleId =
-    kind === "chapter_art"
-      ? safeText(
-          payload.chapterArtRuleId ||
-            payload.ruleId ||
-            catRules.defaultRuleId
-        )
-      : "";
+  const buildId = createBuildIdForJob(payload);
 
   const job = {
     id: jobId,
     kind,
-    type: kind === "chapter_art" ? "chapter_art" : "bulk_generate",
+    type: "bulk_generate",
     scriptureVersionId: safeText(payload.scriptureVersionId || ""),
-    chapterArtRuleId: resolvedChapterArtRuleId,
     scope: safeText(payload.scope || "chapter"),
     versionMode: safeText(payload.versionMode || "single"),
     version: safeText(payload.version || ""),
@@ -4897,10 +4113,9 @@ function createRetryFailedJob(sourceJobId) {
 
   const job = {
     id: jobId,
-    kind: sourceJob.kind === "chapter_art" ? "chapter_art" : "study",
+    kind: "study",
     type: "retry_failed",
     scriptureVersionId: safeText(sourceJob.scriptureVersionId || ""),
-    chapterArtRuleId: safeText(sourceJob.chapterArtRuleId || ""),
     scope: sourceJob.scope || "book",
     versionMode: sourceJob.versionMode || "single",
     version: sourceJob.version || "",
@@ -4939,10 +4154,7 @@ function buildCompletionSummary(job) {
   const errorCount = Number(job.errors?.length || 0);
   let autoPublished = "未自动发布";
   if (job.autoPublish) {
-    autoPublished =
-      job.kind === "chapter_art"
-        ? "已逐章写入配图并合并发布"
-        : "已自动逐章合并发布";
+    autoPublished = "已自动逐章合并发布";
   }
   return `完成：成功 ${successCount}，失败 ${errorCount}，${autoPublished}`;
 }
@@ -4970,70 +4182,53 @@ async function processBulkJob(job) {
     const target = latestJob.targets[i];
 
     try {
-      const isChapterArt = latestJob.kind === "chapter_art";
-
-      if (isChapterArt) {
-        latestJob.progressText = `正在生成配图 ${target.versionId} / ${target.lang} / ${target.bookId} / ${target.chapter}`;
-      } else {
-        latestJob.progressText = `正在生成 ${target.versionId} / ${target.lang} / ${target.bookId} / ${target.chapter}`;
-      }
+      latestJob.progressText = `正在生成 ${target.versionId} / ${target.lang} / ${target.bookId} / ${target.chapter}`;
       latestJob.updatedAt = nowIso();
       writeJob(latestJob);
 
-      if (isChapterArt) {
-        const r = await executeChapterArtTarget(latestJob, target);
-        if (r.skipped) {
-          latestJob.progressText = `已有配图，已跳过 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
-        } else if (r.published) {
-          latestJob.progressText = `已生成并发布配图 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
+      const result = await generateStudyWithRuleConfig({
+        versionId: target.versionId,
+        lang: target.lang,
+        bookId: target.bookId,
+        chapter: target.chapter,
+      });
+
+      const { savedContent } = saveStudyContentToBuild(
+        result,
+        latestJob.buildId
+      );
+
+      if (latestJob.autoPublish) {
+        const cmp = compareStudyContentWithPublished(savedContent);
+        const skipOverwrite = latestJob.skipPublishOverwrite === true;
+        if (!cmp.changed) {
+          latestJob.progressText = `已生成，与已发布一致已跳过发布 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
+        } else if (skipOverwrite && cmp.publishedExists) {
+          latestJob.progressText = `已生成，该章已有发布已跳过覆盖 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
         } else {
-          latestJob.progressText = `已生成配图文件（未合并 JSON）${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
+          mergePublishOneChapter(savedContent);
+          bumpPublishedMergeMetaForOneChapter(
+            target.versionId,
+            target.lang,
+            latestJob.buildId
+          );
+          invalidateStudyContentCache(
+            target.versionId,
+            target.lang,
+            target.bookId,
+            target.chapter
+          );
+          latestJob.progressText = `已生成并发布 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
         }
       } else {
-        const result = await generateStudyWithRuleConfig({
-          versionId: target.versionId,
-          lang: target.lang,
-          bookId: target.bookId,
-          chapter: target.chapter,
-        });
-
-        const { savedContent } = saveStudyContentToBuild(
-          result,
-          latestJob.buildId
-        );
-
-        if (latestJob.autoPublish) {
-          const cmp = compareStudyContentWithPublished(savedContent);
-          const skipOverwrite = latestJob.skipPublishOverwrite === true;
-          if (!cmp.changed) {
-            latestJob.progressText = `已生成，与已发布一致已跳过发布 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
-          } else if (skipOverwrite && cmp.publishedExists) {
-            latestJob.progressText = `已生成，该章已有发布已跳过覆盖 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
-          } else {
-            mergePublishOneChapter(savedContent);
-            bumpPublishedMergeMetaForOneChapter(
-              target.versionId,
-              target.lang,
-              latestJob.buildId
-            );
-            invalidateStudyContentCache(
-              target.versionId,
-              target.lang,
-              target.bookId,
-              target.chapter
-            );
-            latestJob.progressText = `已生成并发布 ${target.bookId} ${target.chapter} 章（${i + 1} / ${latestJob.total}）`;
-          }
-        } else {
-          latestJob.progressText = `已完成 ${i + 1} / ${latestJob.total}`;
-        }
+        latestJob.progressText = `已完成 ${i + 1} / ${latestJob.total}`;
       }
 
       latestJob.done = i + 1;
       latestJob.updatedAt = nowIso();
       writeJob(latestJob);
 
-      await sleep(isChapterArt ? getChapterArtJobDelayMs() : 150);
+      await sleep(150);
     } catch (error) {
       latestJob.done = i + 1;
       latestJob.errors.push({
@@ -6177,38 +5372,6 @@ app.post("/api/admin/book-intro", (req, res) => {
   }
 });
 
-/** 公开：已发布章节的配图 PNG（与 study JSON 中 chapterArt.imageUrl 对应） */
-app.get("/api/published/chapter-art", (req, res) => {
-  try {
-    const versionId = safeText(req.query.version || "");
-    const lang = safeText(req.query.lang || "");
-    const bookId = safeText(req.query.bookId || "");
-    const chapter = toSafeNumber(req.query.chapter, 0);
-    if (!versionId || !lang || !bookId || !chapter) {
-      return res.status(400).json({ error: "缺少 version / lang / bookId / chapter" });
-    }
-    const pngPath = getChapterArtPngPath({
-      versionId,
-      lang,
-      bookId,
-      chapter,
-    });
-    if (!fs.existsSync(pngPath)) {
-      return res.status(404).json({ error: "该章配图不存在" });
-    }
-    res.setHeader("Content-Type", "image/png");
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    res.sendFile(path.resolve(pngPath), (err) => {
-      if (err && !res.headersSent) {
-        res.status(500).end();
-      }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message || "读取配图失败" });
-  }
-});
-
 function sendChapterVideoFile(req, res, filePath, ext) {
   const contentType = ext === "webm" ? "video/webm" : "video/mp4";
   const cv = String((req.query && req.query._cv) || "").trim();
@@ -6941,6 +6104,555 @@ function handleChapterVideoMovePost(req, res) {
 app.post("/api/admin/published/chapter-video-move", handleChapterVideoMovePost);
 app.post("/api/admin/chapter-video/move", handleChapterVideoMovePost);
 
+/* =========================================================
+   章节仿古插画：英文 Prompt 生成（MVP，本地 JSON 追加记录）
+   ========================================================= */
+
+const CHAPTER_PROMPT_LOG_FILE = path.join(__dirname, "data", "prompts.json");
+
+function ensureChapterPromptLogFile() {
+  const dir = path.dirname(CHAPTER_PROMPT_LOG_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  if (!fs.existsSync(CHAPTER_PROMPT_LOG_FILE)) {
+    writeJson(CHAPTER_PROMPT_LOG_FILE, { entries: [] });
+  }
+}
+
+const CHAPTER_ILLUSTRATION_STATE_FILE = path.join(
+  ADMIN_DIR,
+  "chapter_illustration_states.json"
+);
+
+function ensureChapterIllustrationStateFile() {
+  ensureDir(ADMIN_DIR);
+  if (!fs.existsSync(CHAPTER_ILLUSTRATION_STATE_FILE)) {
+    writeJson(CHAPTER_ILLUSTRATION_STATE_FILE, { chapters: {} });
+  }
+}
+
+function extractBookIdFromChapterBody(body) {
+  const direct = safeText(body?.bookId || "");
+  if (direct) return direct;
+  const book = safeText(body?.book || "");
+  const m = /\(([A-Za-z0-9_]+)\)\s*$/.exec(book);
+  return m ? m[1] : "";
+}
+
+function loadChapterIllustrationStateFromDisk(versionId, lang, bookId, chapter) {
+  ensureChapterIllustrationStateFile();
+  const key = stateStorageKey({ versionId, lang, bookId, chapter });
+  const data = readJson(CHAPTER_ILLUSTRATION_STATE_FILE, { chapters: {} });
+  return (data.chapters && data.chapters[key]) || null;
+}
+
+function saveChapterIllustrationStateToDisk(state) {
+  ensureChapterIllustrationStateFile();
+  const key = stateStorageKey({
+    versionId: state.versionId,
+    lang: state.lang,
+    bookId: state.bookId,
+    chapter: state.chapterNumber,
+  });
+  const data = readJson(CHAPTER_ILLUSTRATION_STATE_FILE, { chapters: {} });
+  data.chapters = data.chapters || {};
+  data.chapters[key] = {
+    ...state,
+    updatedAt: nowIso(),
+  };
+  writeJson(CHAPTER_ILLUSTRATION_STATE_FILE, data);
+  return key;
+}
+
+function clampChapterPromptOverlayOpacity(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 100;
+  return Math.max(0, Math.min(100, Math.round(x)));
+}
+
+/**
+ * 从一段文本切分、去重，得到简短关键词（仅写入 illustrationSpec.elements，供内部分析；不原样进入 buildPrompt）。
+ */
+function extractKeywordsFromSceneText(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return [];
+  const seen = new Set();
+  const out = [];
+  const push = (token) => {
+    const t = String(token || "").trim();
+    if (t.length < 2) return;
+    const key = t.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(t);
+  };
+  raw.split(/[\s,.;:，。；、!?？！\-_/|"'「」『』]+/).forEach((p) => push(p));
+  const latin = raw.match(/[a-zA-Z][a-zA-Z\-]{1,}/g);
+  if (latin) latin.forEach((w) => push(w));
+  if (out.length === 0 && raw.length >= 2 && raw.length <= 80) push(raw);
+  return out.slice(0, 16);
+}
+
+/**
+ * 结构化中间层：由请求体 + 默认值组装，再交给 buildPrompt(spec) 生成稳定英文 prompt。
+ */
+function mergeSpecKeywordLists(lists) {
+  const seen = new Set();
+  const out = [];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const t of list) {
+      const s = String(t || "").trim();
+      if (s.length < 2) continue;
+      const k = s.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(s);
+      if (out.length >= 24) return out;
+    }
+  }
+  return out;
+}
+
+/** theme 可为字符串（现有发布 JSON）或 { core, resolution } */
+function normalizeThemeParts(themeInput) {
+  if (
+    themeInput &&
+    typeof themeInput === "object" &&
+    !Array.isArray(themeInput)
+  ) {
+    return {
+      core: safeText(themeInput.core ?? themeInput.summary ?? ""),
+      resolution: safeText(
+        themeInput.resolution ?? themeInput.resolve ?? themeInput.turn ?? ""
+      ),
+    };
+  }
+  const s = safeText(
+    typeof themeInput === "string" ? themeInput : String(themeInput || "")
+  );
+  return { core: s, resolution: "" };
+}
+
+function themeHasUsableContent(themeInput) {
+  const { core, resolution } = normalizeThemeParts(themeInput);
+  return Boolean(safeText(core) || safeText(resolution));
+}
+
+function themeToFlatString(themeInput) {
+  const { core, resolution } = normalizeThemeParts(themeInput);
+  const parts = [safeText(resolution), safeText(core)].filter(Boolean);
+  return parts.join("；");
+}
+
+function buildIllustrationSpec(body) {
+  const scene = safeText(body?.scene || "");
+  const theme = themeToFlatString(body?.theme);
+  const transparent = body?.transparentBackground !== false;
+  return {
+    book: safeText(body?.book || ""),
+    bookId: safeText(body?.bookId || extractBookIdFromChapterBody(body)),
+    chapter: safeText(body?.chapter || ""),
+    theme,
+    scene,
+    composition: safeText(body?.composition || "") || "single focal point",
+    mood: safeText(body?.mood || "") || "calm, spacious, peaceful",
+    elements: mergeSpecKeywordLists([
+      extractKeywordsFromSceneText(theme),
+      extractKeywordsFromSceneText(scene),
+    ]),
+    style: "antique engraving",
+    stylePreset:
+      safeText(body?.stylePreset || "") || "biblical_copperplate_engraving",
+    transparent,
+    overlayOpacity: clampChapterPromptOverlayOpacity(
+      body?.overlayOpacity != null ? body.overlayOpacity : 100
+    ),
+  };
+}
+
+/**
+ * 由 illustrationSpec 生成最终英文出图 prompt（模块 chapter-illustration / prompt-generator）。
+ */
+function buildPrompt(spec) {
+  return generateIllustrationPrompt({
+    sceneDescription: safeText(spec?.scene || ""),
+    transparentBackground: spec?.transparent !== false,
+    composition: spec?.composition,
+    stylePreset:
+      safeText(spec?.stylePreset || "") || "biblical_copperplate_engraving",
+  });
+}
+
+function tryAutoSceneFromPublishedChapter(body) {
+  const version = safeText(body.version || "");
+  const lang = safeText(body.lang || "");
+  const bookId = extractBookIdFromChapterBody(body);
+  const chapterNum = parseInt(String(body.chapter ?? ""), 10);
+  const sceneVariant = Math.max(0, Number(body.sceneVariant || 0) || 0);
+  if (!version || !lang || !bookId || !Number.isFinite(chapterNum)) {
+    return null;
+  }
+  const published = readPublishedContent({
+    versionId: version,
+    lang,
+    bookId,
+    chapter: chapterNum,
+  });
+  if (!published) return null;
+  const run = runScenePipelineFromPublishedData(
+    published,
+    { versionId: version, lang, bookId, chapter: chapterNum },
+    { alternateIndex: sceneVariant }
+  );
+  return {
+    scene: run.sceneDescription,
+    pipeline: {
+      confidence: run.confidence,
+      warning: run.warning,
+      chapterType: run.analysis.chapterType,
+      analysis: run.analysis,
+      selection: run.selection,
+      sceneVariant,
+    },
+  };
+}
+
+/**
+ * POST /api/chapter-illustration/analyze
+ * Body: version, lang, bookId, chapter（与已发布章节一致）
+ */
+app.post("/api/chapter-illustration/analyze", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const version = safeText(body.version || "");
+    const lang = safeText(body.lang || "");
+    const bookId = safeText(body.bookId || extractBookIdFromChapterBody(body));
+    const chapterNum = parseInt(String(body.chapter ?? ""), 10);
+    if (!version || !lang || !bookId || !Number.isFinite(chapterNum)) {
+      return res.status(400).json({
+        error: "缺少 version、lang、bookId 或 chapter。",
+      });
+    }
+    const published = readPublishedContent({
+      versionId: version,
+      lang,
+      bookId,
+      chapter: chapterNum,
+    });
+    if (!published) {
+      return res.status(404).json({
+        error: "未找到已发布章节，无法分析。",
+      });
+    }
+    const payload = buildChapterPayloadFromPublished(published, {
+      versionId: version,
+      lang,
+      bookId,
+      chapter: chapterNum,
+    });
+    const analysis = analyzeChapterForIllustration(payload);
+    res.json({ ok: true, analysis, payloadSummary: payload.summary });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "无法分析本章插画要点，请稍后重试。",
+    });
+  }
+});
+
+/**
+ * POST /api/chapter-illustration/scene
+ * Body: version, lang, bookId, chapter, sceneVariant（可选，换一景）
+ */
+app.post("/api/chapter-illustration/scene", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const version = safeText(body.version || "");
+    const lang = safeText(body.lang || "");
+    const bookId = extractBookIdFromChapterBody(body);
+    const chapterNum = parseInt(String(body.chapter ?? ""), 10);
+    if (!version || !lang || !bookId || !Number.isFinite(chapterNum)) {
+      return res.status(400).json({
+        error: "缺少 version、lang、bookId 或 chapter。",
+      });
+    }
+    const published = readPublishedContent({
+      versionId: version,
+      lang,
+      bookId,
+      chapter: chapterNum,
+    });
+    if (!published) {
+      return res.status(404).json({
+        error: "未找到已发布章节，无法生成场景。",
+      });
+    }
+    const run = runScenePipelineFromPublishedData(
+      published,
+      { versionId: version, lang, bookId, chapter: chapterNum },
+      {
+        alternateIndex: Math.max(0, Number(body.sceneVariant || 0) || 0),
+      }
+    );
+    const chapterState = stateFromPipelineRun(body, published, run, {
+      sceneVariant: Math.max(0, Number(body.sceneVariant || 0) || 0),
+    });
+    saveChapterIllustrationStateToDisk(chapterState);
+    res.json({
+      ok: true,
+      sceneDescription: run.sceneDescription,
+      confidence: run.confidence,
+      warning: run.warning,
+      chapterType: run.analysis.chapterType,
+      analysis: run.analysis,
+      selection: run.selection,
+      chapterState,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "自动生成场景失败，请稍后重试或手写英文场景。",
+    });
+  }
+});
+
+/**
+ * POST /api/chapter-illustration/state
+ * GET query: version, lang, bookId, chapter
+ */
+app.get("/api/chapter-illustration/state", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const q = req.query || {};
+    const version = safeText(q.version || "");
+    const lang = safeText(q.lang || "");
+    const bookId = safeText(q.bookId || "");
+    const chapter = q.chapter;
+    if (!version || !lang || !bookId || chapter === undefined) {
+      return res.status(400).json({ error: "缺少查询参数。" });
+    }
+    const st = loadChapterIllustrationStateFromDisk(version, lang, bookId, chapter);
+    res.json({ ok: true, chapterState: st });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "读取保存状态失败。" });
+  }
+});
+
+app.post("/api/chapter-illustration/state", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const st = body.chapterState;
+    if (!st || typeof st !== "object") {
+      return res.status(400).json({ error: "缺少 chapterState。" });
+    }
+    const merged = mergeChapterIllustrationState(
+      defaultChapterIllustrationState(),
+      st
+    );
+    saveChapterIllustrationStateToDisk(merged);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "保存状态失败。" });
+  }
+});
+
+/**
+ * POST /api/generate-prompt
+ * Body: theme 必填；scene 可空（空则据已发布 JSON 自动推断场景）；
+ * version, lang, bookId, chapter 与 scene 同时用于自动场景；sceneVariant 换候选景。
+ */
+app.post("/api/generate-prompt", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    if (!themeHasUsableContent(body.theme)) {
+      return res.status(400).json({
+        error:
+          "请先完善 theme（本章 JSON 需提供 theme 正文，或 theme.core / theme.resolution）",
+      });
+    }
+    let scene = safeText(body.scene || "");
+    let pipelineMeta = null;
+    if (!scene) {
+      const auto = tryAutoSceneFromPublishedChapter(body);
+      if (auto && safeText(auto.scene)) {
+        scene = auto.scene;
+        pipelineMeta = auto.pipeline;
+      }
+    }
+    if (!scene) {
+      return res.status(400).json({
+        error:
+          "未能自动生成场景。请填写 Scene description，或确认已选版本/语言/书卷并已发布该章。",
+      });
+    }
+    const bodyResolved = { ...body, scene };
+    const illustrationSpec = buildIllustrationSpec(bodyResolved);
+    const prompt = buildPrompt(illustrationSpec);
+    const imageUrl = safeText(body.imageUrl || "");
+    const transparentPng = safeText(body.transparentPng || "");
+    ensureChapterPromptLogFile();
+    const data = readJson(CHAPTER_PROMPT_LOG_FILE, { entries: [] });
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    const id =
+      "cp_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
+    entries.unshift({
+      id,
+      createdAt: nowIso(),
+      illustrationSpec,
+      prompt,
+      imageUrl,
+      transparentPng,
+      book: illustrationSpec.book,
+      chapter: illustrationSpec.chapter,
+      theme: illustrationSpec.theme,
+      scene: illustrationSpec.scene,
+      sceneAutoGenerated: Boolean(pipelineMeta),
+      pipeline: pipelineMeta || undefined,
+      transparentBackground: illustrationSpec.transparent,
+      overlayOpacity: illustrationSpec.overlayOpacity,
+    });
+    writeJson(CHAPTER_PROMPT_LOG_FILE, { entries });
+    res.json({
+      ok: true,
+      prompt,
+      illustrationSpec,
+      id,
+      sceneDescription: scene,
+      sceneAutoGenerated: Boolean(pipelineMeta),
+      pipeline: pipelineMeta || null,
+      transparentBackground: illustrationSpec.transparent,
+      overlayOpacity: illustrationSpec.overlayOpacity,
+      imageUrl: imageUrl || "",
+      transparentPng: transparentPng || "",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "生成失败" });
+  }
+});
+
+const CHAPTER_ILLUSTRATION_GENERATED_DIR = path.join(
+  __dirname,
+  "public",
+  "generated"
+);
+
+/**
+ * POST /api/generate-illustration
+ * Body: { prompt: string, transparent: boolean }
+ * Key 与全站一致：环境变量 OPENAI_API_KEY 优先，否则管理后台「系统密钥」。
+ * 成功：{ success: true, imageUrl, transparentPng }（transparentPng 为 boolean，表示是否请求透明背景）。
+ */
+app.post("/api/generate-illustration", async (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const prompt = safeText(body.prompt || "");
+    const transparent =
+      body.transparent === true ||
+      body.transparent === "true" ||
+      body.transparent === 1 ||
+      body.transparent === "1";
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        error: "缺少 prompt",
+      });
+    }
+
+    const apiKey = getCurrentOpenAiApiKey();
+    if (!apiKey) {
+      return res.status(503).json({
+        success: false,
+        error:
+          "未配置 OpenAI API Key：请在环境变量 OPENAI_API_KEY 或管理后台「系统密钥」中设置后重启服务。",
+      });
+    }
+
+    const imageClient = new OpenAI({ apiKey });
+
+    let imgResp;
+    try {
+      imgResp = await imageClient.images.generate({
+        model: "gpt-image-1",
+        prompt,
+        size: "1024x1024",
+        background: transparent ? "transparent" : "opaque",
+        output_format: "png",
+      });
+    } catch (apiErr) {
+      const msg =
+        safeText(apiErr?.message || "") ||
+        safeText(apiErr?.error?.message || "") ||
+        "OpenAI 图片接口调用失败";
+      return res.status(502).json({ success: false, error: msg });
+    }
+
+    const b64 = imgResp?.data?.[0]?.b64_json;
+    if (!b64) {
+      return res.status(502).json({
+        success: false,
+        error: "OpenAI 响应中无图像数据（缺少 b64_json）",
+      });
+    }
+
+    let buf;
+    try {
+      buf = Buffer.from(b64, "base64");
+    } catch {
+      return res.status(502).json({
+        success: false,
+        error: "图像 Base64 解码失败",
+      });
+    }
+
+    ensureDir(CHAPTER_ILLUSTRATION_GENERATED_DIR);
+    const bookIdRaw = safeText(body.bookId || "");
+    const chRaw = safeText(body.chapter ?? "");
+    let filename;
+    if (bookIdRaw && chRaw !== "") {
+      const safeBook =
+        bookIdRaw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 16) || "bk";
+      const safeCh = chRaw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 8) || "0";
+      filename = `ill-${safeBook}-${safeCh}-${Date.now()}.png`;
+    } else {
+      filename = `gen-${Date.now()}.png`;
+    }
+    const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
+    fs.writeFileSync(filePath, buf);
+
+    const imageUrl = `/generated/${filename}`;
+    res.json({
+      success: true,
+      imageUrl,
+      localPath: `public/generated/${filename}`,
+      transparentPng: transparent,
+      sceneDescription: safeText(body.sceneDescription || ""),
+      promptUsed: prompt.slice(0, 500),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "生成失败",
+    });
+  }
+});
+
 function chapterVideoPosterMulterMiddleware(req, res, next) {
   chapterVideoPosterMulter.single("poster")(req, res, (err) => {
     if (err) {
@@ -7219,429 +6931,6 @@ app.get("/api/community-articles", (req, res) => {
     res.status(500).json({ error: error.message || "读取社区文章失败" });
   }
 });
-
-/** 管理员：根据本章经文生成 AI 配图用英文 prompt（OpenAI）。
- *  经文正文只从本机仓库内的 USFX 文件读取（见 admin_data/scripture_versions.json 的 sourceFile），
- *  不向任何公网「圣经 API」拉取；仅 OpenAI 对话走外网。 */
-app.post("/api/admin/chapter-illustration-prompt", async (req, res) => {
-  try {
-    const authed = requireAdminUser(req, res);
-    if (!authed) return;
-    const bookId = safeText(req.body?.bookId || "");
-    const chapter = toSafeNumber(req.body?.chapter, 0);
-    let versionId = safeText(req.body?.versionId || "");
-    const pasteText = safeText(req.body?.pasteText || "").slice(0, 50000);
-
-    if (!bookId || !chapter) {
-      return res.status(400).json({ error: "缺少 bookId 或 chapter" });
-    }
-
-    const book = getBookById(bookId);
-    if (!book) {
-      return res.status(400).json({ error: "无效书卷" });
-    }
-    const maxCh = Number(book.chapters || 0);
-    if (!Number.isInteger(chapter) || chapter < 1 || chapter > maxCh) {
-      return res.status(400).json({ error: "章节范围不正确" });
-    }
-
-    let scriptureSource = "admin_pasted";
-    let localUsfxRelativePath = null;
-
-    let verseBlock = pasteText.trim();
-    if (!verseBlock) {
-      const enabled = getEnabledScriptureVersions().filter(
-        (x) => x.uiEnabled !== false && x.scriptureEnabled !== false
-      );
-      if (!versionId) {
-        versionId = safeText(enabled[0]?.id);
-      }
-      if (!versionId) {
-        return res
-          .status(400)
-          .json({ error: "未配置可用经文译本，请在下拉框选择或粘贴本章经文" });
-      }
-      const cfg = getScriptureVersionConfig(versionId);
-      if (!cfg) {
-        return res.status(400).json({ error: "无效的经文版本 id" });
-      }
-      if (cfg.sourceType !== "usfx") {
-        return res.status(400).json({
-          error:
-            "配图页只从本仓库 USFX 文件读经文（不向公网圣经接口请求）。请在「经文版本」里选用 sourceType 为 usfx 的译本，或改用下方粘贴经文。",
-        });
-      }
-      scriptureSource = "local_repository_usfx";
-      localUsfxRelativePath = safeText(cfg.sourceFile || "");
-
-      const rows = getScriptureRowsForVersion({
-        scriptureVersionId: versionId,
-        bookId,
-        chapter,
-      });
-      verseBlock = rows
-        .map((r) => `${r.verse}. ${safeText(r.text)}`)
-        .join("\n");
-      if (!verseBlock.trim()) {
-        return res.status(400).json({ error: "未读取到本章经文" });
-      }
-    }
-
-    const MAX_CHARS = 14000;
-    if (verseBlock.length > MAX_CHARS) {
-      verseBlock =
-        verseBlock.slice(0, MAX_CHARS) +
-        "\n...(内容过长已截断；可改用「粘贴经文」精简后重试)";
-    }
-
-    const bookLabel = `${safeText(book.bookCn || book.bookEn || bookId)}（${bookId}）`;
-    const versionLabel = versionId || "粘贴文本";
-    const userMsg = [
-      `【书卷】${bookLabel}`,
-      `【章】第 ${chapter} 章`,
-      `【译本或来源】${versionLabel}`,
-      "",
-      "以下为本章经文，请据此只输出系统要求的 JSON：",
-      "",
-      verseBlock,
-    ].join("\n");
-
-    const text = await openAiChatHelper({
-      system: CHAPTER_ILLUSTRATION_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMsg }],
-    });
-    const data = parseChapterIllustrationJsonFromAssistant(text);
-
-    const generateImage = req.body?.generateImage !== false;
-    let image = null;
-    if (generateImage) {
-      const en = safeText(data.english_prompt || "").trim();
-      const neg = safeText(data.negative_prompt || "").trim();
-      let imgPrompt = neg
-        ? `${en}\n\nAvoid / do not include: ${neg}`
-        : en;
-      imgPrompt = imgPrompt.slice(0, 4000);
-      try {
-        const img = await openAiImageGenerateHelper(imgPrompt);
-        image = {
-          ok: true,
-          mime: safeText(img.mime || "image/png"),
-          b64: img.b64 || null,
-          url: img.url || null,
-          revised_prompt: safeText(img.revised_prompt || ""),
-        };
-      } catch (imgErr) {
-        image = {
-          ok: false,
-          error: safeText(imgErr?.message || String(imgErr)),
-        };
-      }
-    } else {
-      image = { ok: false, skipped: true };
-    }
-
-    res.json({
-      ok: true,
-      bookId,
-      chapter,
-      versionId: versionId || null,
-      scriptureSource,
-      localUsfxFile: localUsfxRelativePath,
-      ...data,
-      image,
-    });
-  } catch (error) {
-    console.error(error);
-    const msg = error?.message || "生成失败";
-    if (/缺少 OPENAI|API_KEY|401|invalid/i.test(msg)) {
-      return res.status(503).json({ error: "服务器未配置可用的 OpenAI Key" });
-    }
-    if (msg.includes("JSON") || msg.includes("parse")) {
-      return res.status(422).json({ error: msg });
-    }
-    res.status(500).json({ error: msg });
-  }
-});
-
-/** 管理员：固定绘图模板 + 本地 USFX（或粘贴）→ OpenAI Images → 写入 PNG 并合并进已发布查经 JSON（不经对话生成关键词）。 */
-app.post("/api/admin/chapter-art/generate-one", async (req, res) => {
-  try {
-    const authed = requireAdminUser(req, res);
-    if (!authed) return;
-    const version = safeText(
-      req.body?.version || req.body?.contentVersion || ""
-    );
-    const lang = safeText(req.body?.lang || req.body?.contentLang || "");
-    const bookId = safeText(req.body?.bookId || "");
-    const chapter = toSafeNumber(req.body?.chapter, 0);
-    const scriptureVersionId = safeText(req.body?.scriptureVersionId || "");
-    const pasteText = safeText(req.body?.pasteText || "").slice(0, 50000);
-    const skipPublishOverwrite = req.body?.skipPublishOverwrite === true;
-
-    if (!version || !lang || !bookId || !chapter) {
-      return res
-        .status(400)
-        .json({ error: "缺少 version（查经内容版本）/ lang / bookId / chapter" });
-    }
-    if (!pasteText.trim() && !scriptureVersionId) {
-      return res
-        .status(400)
-        .json({ error: "须指定 scriptureVersionId（USFX）或粘贴本章经文" });
-    }
-
-    const cat = loadChapterArtRulesCatalog();
-    const ruleIdReq = safeText(
-      req.body?.chapterArtRuleId || req.body?.ruleId || cat.defaultRuleId
-    );
-    if (!cat.rules.some((x) => x.id === ruleIdReq)) {
-      return res.status(400).json({
-        error: `无效的配图规则 id「${ruleIdReq}」，请从 admin_data/chapter_art_rules.json 或页面下拉框选用。`,
-      });
-    }
-
-    const job = {
-      scriptureVersionId,
-      chapterArtRuleId: ruleIdReq,
-      autoPublish: req.body?.autoPublish !== false,
-      skipPublishOverwrite,
-      buildId: `chapter_art_one_${Date.now()}`,
-    };
-    const target = { versionId: version, lang, bookId, chapter };
-    const r = await executeChapterArtTarget(job, target, { pasteText });
-    const q = new URLSearchParams({
-      version,
-      lang,
-      bookId,
-      chapter: String(chapter),
-    });
-    const chapterArtPath = `/api/published/chapter-art?${q.toString()}`;
-    const ruleRow = resolveChapterArtRuleById(ruleIdReq).rule;
-    res.json({
-      ok: true,
-      skipped: Boolean(r.skipped),
-      published: r.published,
-      chapterArtRuleId: ruleRow.id,
-      chapterArtRuleLabel: ruleRow.label,
-      pngPathRelative: path
-        .relative(DATA_ROOT, r.pngPath)
-        .replace(/\\/g, "/"),
-      chapterArtUrl: r.pngPath ? chapterArtPath : null,
-    });
-  } catch (error) {
-    console.error(error);
-    const msg = error?.message || "生成失败";
-    if (/缺少 OPENAI|API_KEY|401|invalid/i.test(msg)) {
-      return res.status(503).json({ error: "服务器未配置可用的 OpenAI Key" });
-    }
-    res.status(500).json({ error: msg });
-  }
-});
-
-/** 管理员：将已生成的 PNG 合并进已发布查经 JSON（不重新调用图像模型）。 */
-app.post("/api/admin/chapter-art/publish-one", async (req, res) => {
-  try {
-    const authed = requireAdminUser(req, res);
-    if (!authed) return;
-    const version = safeText(
-      req.body?.version || req.body?.contentVersion || ""
-    );
-    const lang = safeText(req.body?.lang || req.body?.contentLang || "");
-    const bookId = safeText(req.body?.bookId || "");
-    const chapter = toSafeNumber(req.body?.chapter, 0);
-    const skipPublishOverwrite = req.body?.skipPublishOverwrite === true;
-
-    if (!version || !lang || !bookId || !chapter) {
-      return res
-        .status(400)
-        .json({ error: "缺少 version（查经内容版本）/ lang / bookId / chapter" });
-    }
-
-    const cat = loadChapterArtRulesCatalog();
-    const ruleIdReq = safeText(
-      req.body?.chapterArtRuleId || req.body?.ruleId || cat.defaultRuleId
-    );
-    if (!cat.rules.some((x) => x.id === ruleIdReq)) {
-      return res.status(400).json({
-        error: `无效的配图规则 id「${ruleIdReq}」。`,
-      });
-    }
-    const { rule: ruleRow } = resolveChapterArtRuleById(ruleIdReq);
-
-    const pngPath = getChapterArtPngPath({
-      versionId: version,
-      lang,
-      bookId,
-      chapter,
-    });
-    if (!fs.existsSync(pngPath)) {
-      return res.status(400).json({
-        error: "请先生成本章配图（当前尚无 PNG 文件）。",
-      });
-    }
-
-    const pubPath = getPublishedContentFilePath({
-      versionId: version,
-      lang,
-      bookId,
-      chapter,
-    });
-    if (!fs.existsSync(pubPath)) {
-      return res.status(400).json({
-        error:
-          "该章查经内容尚未发布。请先在后台发布该章问题内容，再插入配图。",
-      });
-    }
-
-    if (skipPublishOverwrite) {
-      const existing = readJson(pubPath, null);
-      if (
-        existing &&
-        existing.chapterArt &&
-        safeText(existing.chapterArt.imageUrl || "")
-      ) {
-        const q = new URLSearchParams({
-          version,
-          lang,
-          bookId,
-          chapter: String(chapter),
-        });
-        return res.json({
-          ok: true,
-          skipped: true,
-          published: false,
-          chapterArtRuleId: ruleRow.id,
-          chapterArtRuleLabel: ruleRow.label,
-          chapterArtUrl: `/api/published/chapter-art?${q.toString()}`,
-        });
-      }
-    }
-
-    const q = new URLSearchParams({
-      version,
-      lang,
-      bookId,
-      chapter: String(chapter),
-    });
-    const imageUrl = `/api/published/chapter-art?${q.toString()}`;
-    mergeChapterArtIntoPublishedJson({
-      versionId: version,
-      lang,
-      bookId,
-      chapter,
-      imageUrlPath: imageUrl,
-      ruleId: ruleRow.id,
-      ruleLabel: ruleRow.label,
-    });
-    invalidateStudyContentCache(version, lang, bookId, chapter);
-    res.json({
-      ok: true,
-      skipped: false,
-      published: true,
-      chapterArtRuleId: ruleRow.id,
-      chapterArtRuleLabel: ruleRow.label,
-      chapterArtUrl: imageUrl,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message || "发布失败" });
-  }
-});
-
-/** 管理员：移除本章已发布 JSON 中的 chapterArt，并删除配图 PNG（默认）。 */
-async function handleChapterArtDeleteOne(req, res) {
-  try {
-    const authed = requireAdminUser(req, res);
-    if (!authed) return;
-    const version = safeText(
-      req.body?.version || req.body?.contentVersion || ""
-    );
-    const lang = safeText(req.body?.lang || req.body?.contentLang || "");
-    const bookId = safeText(req.body?.bookId || "");
-    const chapter = toSafeNumber(req.body?.chapter, 0);
-    const deletePngFile = req.body?.deletePngFile !== false;
-
-    if (!version || !lang || !bookId || !chapter) {
-      return res
-        .status(400)
-        .json({ error: "缺少 version / lang / bookId / chapter" });
-    }
-
-    const r = removeChapterArtForPublishedChapter({
-      versionId: version,
-      lang,
-      bookId,
-      chapter,
-      deletePngFile,
-    });
-
-    if (!r.removedFromJson && !r.removedPng) {
-      return res.status(400).json({
-        error: "本章没有配图记录（JSON 中无 chapterArt），且磁盘上亦无 PNG。",
-      });
-    }
-
-    appendAdminAudit(req, authed, "chapter_art_delete_one", {
-      version,
-      lang,
-      bookId,
-      chapter,
-      removedFromJson: r.removedFromJson,
-      removedPng: r.removedPng,
-    });
-
-    res.json({
-      ok: true,
-      removedFromJson: r.removedFromJson,
-      removedPng: r.removedPng,
-      chapterArtUrl: null,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message || "删除失败" });
-  }
-}
-
-app.post("/api/admin/chapter-art/delete-one", handleChapterArtDeleteOne);
-/** 扁平路由：与 chapter-art-rules-config 相同，避免个别反代对多级 path 返回 404 */
-app.post("/api/admin/chapter-art-delete-one", handleChapterArtDeleteOne);
-
-function handleChapterArtRulesConfigGet(req, res) {
-  try {
-    const authed = requireAdminUser(req, res);
-    if (!authed) return;
-    res.json(buildAdminChapterArtRulesPayload());
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message || "读取规则失败" });
-  }
-}
-
-function handleChapterArtRulesConfigPost(req, res) {
-  try {
-    const authed = requireAdminUser(req, res);
-    if (!authed) return;
-    const saved = saveChapterArtRulesConfigFromBody(req.body || {});
-    appendAdminAudit(req, authed, "chapter_art_rules_save", {
-      defaultRuleId: saved.defaultRuleId,
-      ruleCount: saved.rules.length,
-    });
-    res.json({
-      ok: true,
-      defaultRuleId: saved.defaultRuleId,
-      rules: saved.rules,
-      chapterArtRules: getChapterArtBootstrapRulesPayload(),
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(400).json({ error: error.message || "保存失败" });
-  }
-}
-
-/** 管理员：读取/保存配图规则（两套路由，避免个别反代对多级 path 处理异常） */
-app.get("/api/admin/chapter-art/rules-config", handleChapterArtRulesConfigGet);
-app.post("/api/admin/chapter-art/rules-config", handleChapterArtRulesConfigPost);
-app.get("/api/admin/chapter-art-rules-config", handleChapterArtRulesConfigGet);
-app.post("/api/admin/chapter-art-rules-config", handleChapterArtRulesConfigPost);
 
 /** 公开：全站顶栏 / 底栏配置（无鉴权） */
 function handleSiteChromePublicGet(_req, res) {
@@ -9295,14 +8584,8 @@ app.get("/api/admin/bootstrap", (req, res) => {
       published: loadPublished(),
       books: flattenBooks(),
       pointsConfig: loadPointsConfig(),
-      chapterArtRules: getChapterArtBootstrapRulesPayload(),
       siteChrome: loadSiteChrome(),
     };
-    try {
-      payload.chapterArtRulesEditor = buildAdminChapterArtRulesPayload();
-    } catch (e) {
-      console.error("chapterArtRulesEditor:", e);
-    }
     res.json(payload);
   } catch (error) {
     console.error(error);
@@ -10367,6 +9650,7 @@ app.get("/api/dev/livereload-status", (_req, res) => {
     ["seo-settings.html", false],
     ["home-layout-map.html", false],
     ["video-center.html", false],
+    ["chapter-illustration-prompt.html", false],
   ];
   for (const [name, qianOnly] of adminToolHtml) {
     app.get(`/${name}`, (req, res) => {
@@ -10382,6 +9666,15 @@ app.get("/api/dev/livereload-status", (_req, res) => {
     });
   }
 })();
+
+/* 章节插画 OpenAI 出图落盘：/generated/gen-*.png */
+app.use(
+  "/generated",
+  express.static(path.join(__dirname, "public", "generated"), {
+    maxAge: "1d",
+    etag: true,
+  })
+);
 
 /* 静态资源放在所有 /api 路由之后，避免根目录下出现与 /api/... 冲突的路径时被 express.static 抢先返回 HTML */
 app.use(express.static(__dirname));

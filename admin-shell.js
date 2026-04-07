@@ -31,6 +31,10 @@
       items: [
         { href: "/video-center.html", label: "章节视频上传" },
         {
+          href: "/chapter-illustration-prompt.html",
+          label: "章节插画 Prompt",
+        },
+        {
           href: "/#openAdmin",
           label: "规则 · 任务 · 发布",
           note: "在读经首页打开大面板",

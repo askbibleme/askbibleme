@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>章节插画 Prompt 生成 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=9" />
+    <link rel="stylesheet" href="/public/styles.css?v=7" />
+    <script src="/theme-apply.js?v=2"></script>
+  </head>
+  <body
+    class="admin-shell-page"
+    data-admin-current="/chapter-illustration-prompt.html"
+  >
+    <div class="cp-wrap">
+      <div id="cpAuth" class="cp-auth-banner" hidden></div>
+
+      <div class="cp-panel" id="cpApp" hidden>
+        <h1>章节仿古插画 Prompt</h1>
+        <p class="cp-lead">
+          选择<strong>版本 / 语言 / 书卷 / 章节</strong>后载入已发布 JSON 的 <code>theme</code> 与段落摘要。点击
+          <strong>Generate Scene</strong> 可自动推断单一冻结画面（可再手写修改）；<strong>Generate Prompt</strong>
+          在场景为空时也会尝试自动补全。全流程为：选章 → 场景 → Prompt → 出图（铜板刻线统一风格）。
+        </p>
+
+        <div class="cp-grid">
+          <div class="cp-col cp-col--form">
+            <div class="cp-field">
+              <label for="cpVersion">内容版本</label>
+              <select id="cpVersion" aria-label="内容版本"></select>
+            </div>
+            <div class="cp-field">
+              <label for="cpLang">语言</label>
+              <select id="cpLang" aria-label="语言"></select>
+            </div>
+            <div class="cp-field">
+              <label for="cpBook">书卷</label>
+              <select id="cpBook" aria-label="书卷"></select>
+            </div>
+            <div class="cp-field">
+              <label for="cpChapter">章节</label>
+              <select id="cpChapter" aria-label="章节"></select>
+            </div>
+            <div class="cp-field">
+              <label>Theme（本章主题，来自已发布 JSON）</label>
+              <p
+                id="cpThemeDisplay"
+                class="cp-theme-readonly cp-theme-readonly--placeholder"
+              >
+                请选择版本、语言、书卷与章节；将自动载入该章的 <code>theme</code>。
+              </p>
+            </div>
+            <div class="cp-field">
+              <label>章节摘要（首段标题，供理解叙事）</label>
+              <p
+                id="cpSummaryDisplay"
+                class="cp-theme-readonly cp-theme-readonly--placeholder"
+              >
+                载入章节后将显示第一段 <code>segments[].title</code>。
+              </p>
+            </div>
+            <div class="cp-field cp-field--scene">
+              <div class="cp-scene-toolbar">
+                <label for="cpScene">Scene description（英文，单一冻结瞬间）</label>
+                <div class="cp-scene-btns">
+                  <button type="button" id="cpGenerateSceneBtn" class="cp-btn-scene">
+                    Generate Scene
+                  </button>
+                  <button type="button" id="cpRegenerateSceneBtn" class="cp-btn-scene cp-btn-scene--secondary">
+                    Regenerate Scene
+                  </button>
+                </div>
+              </div>
+              <p class="cp-scene-hint">
+                由本章 theme / 段落自动推断；可修改后再生成 Prompt。Regenerate 会换一帧候选画面。
+              </p>
+              <textarea
+                id="cpScene"
+                placeholder="留空亦可：Generate Prompt / Generate Illustration 会尝试自动填写"
+              ></textarea>
+              <p id="cpPipelineMeta" class="cp-pipeline-meta" hidden></p>
+            </div>
+
+            <div class="cp-field">
+              <label for="cpStylePreset">Style preset</label>
+              <select id="cpStylePreset" aria-label="Style preset">
+                <option value="biblical_copperplate_engraving">
+                  Biblical copperplate engraving（默认）
+                </option>
+              </select>
+            </div>
+
+            <div class="cp-field cp-field--inline">
+              <label class="cp-check-label">
+                <input type="checkbox" id="cpTransparentBg" checked />
+                Transparent Background（prompt 与出图均使用透明背景）
+              </label>
+            </div>
+
+            <div class="cp-field">
+              <label for="cpOpacity">
+                Overlay opacity（叠加透明度）
+                <span id="cpOpacityValue" class="cp-range-value">85%</span>
+              </label>
+              <input
+                type="range"
+                id="cpOpacity"
+                min="0"
+                max="100"
+                value="85"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              />
+            </div>
+
+            <div class="cp-actions cp-actions--split">
+              <button type="button" id="cpGenerateBtn">Generate Prompt</button>
+              <button type="button" id="cpGenerateIllustrationBtn" class="cp-btn-secondary">
+                Generate Illustration
+              </button>
+            </div>
+
+            <div class="cp-out-label">Output（英文 prompt）</div>
+            <div id="cpOutput" class="cp-output cp-output--empty" aria-live="polite">
+              生成的英文 prompt 将显示在这里。
+            </div>
+            <div id="cpStatus" class="cp-status" role="status"></div>
+
+            <details class="cp-spec-details" id="cpSpecDetails" hidden>
+              <summary>本次 illustrationSpec（结构化中间层）</summary>
+              <pre id="cpSpecPre" class="cp-spec-pre"></pre>
+            </details>
+
+            <p class="cp-note-footer">
+              出图文件名为 <code>ill-&lt;bookId&gt;-&lt;chapter&gt;-&lt;timestamp&gt;.png</code>（未带书卷信息时仍为
+              <code>gen-…</code>）。API Key：环境变量 <code>OPENAI_API_KEY</code> 或管理后台「系统密钥」。插画状态可经
+              <code>GET/POST /api/chapter-illustration/state</code> 按章读写。
+            </p>
+          </div>
+
+          <div class="cp-col cp-col--preview">
+            <div class="cp-preview-title">书页预览（透明插画叠加）</div>
+            <div class="cp-preview" id="cpPreview" aria-label="旧纸张上的插画叠加预览">
+              <div class="cp-preview-page" id="cpPaperLayer">
+                <div class="cp-preview-paper-inner">
+                  <p class="cp-preview-faux-text">
+                    <span class="cp-preview-dropcap">I</span>
+                    n the beginning… placeholder body text to suggest a Bible page. The engraving
+                    floats above this block as a separate layer.
+                  </p>
+                </div>
+                <div class="cp-preview-overlay-host">
+                  <div
+                    id="cpIllustrationLayer"
+                    class="cp-preview-illustration"
+                    data-state="placeholder"
+                    data-has-image="0"
+                  >
+                    <img
+                      id="cpIllustrationImg"
+                      class="cp-preview-illustration-img"
+                      alt=""
+                      decoding="async"
+                    />
+                    <div id="cpIllustrationPlaceholder" class="cp-preview-placeholder" aria-hidden="true">
+                      <svg
+                        class="cp-placeholder-svg"
+                        viewBox="0 0 200 200"
+                        xmlns="http://www.w3.org/2000/svg"
+                        focusable="false"
+                      >
+                        <title>Placeholder engraving</title>
+                        <g fill="none" stroke="#0a0a0a" stroke-width="1.2" stroke-linecap="round">
+                          <circle cx="100" cy="88" r="52" />
+                          <path d="M100 36 L100 140 M48 88 L152 88" opacity="0.35" />
+                          <path
+                            d="M68 120 Q100 148 132 120"
+                            stroke-width="1"
+                            opacity="0.6"
+                          />
+                          <path
+                            d="M76 64 L88 76 L76 88 M124 64 L112 76 L124 88"
+                            stroke-width="0.9"
+                          />
+                          <path
+                            d="M60 150 H140"
+                            stroke-dasharray="3 4"
+                            opacity="0.45"
+                          />
+                          <path
+                            d="M70 56 L75 50 L80 56 M120 50 L125 56 L130 50"
+                            stroke-width="0.7"
+                            opacity="0.5"
+                          />
+                        </g>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/admin-shell.js?v=4" defer></script>
+    <script src="/public/main.js?v=11" defer></script>
+  </body>
+</html>

@@ -337,6 +337,10 @@ body:has(
   white-space: nowrap;
   line-height: 1.2;
   box-shadow: none;
+  cursor: pointer;
+  /* 避免横向滚动条「吃掉」轻点：优先识别为点击而非平移起手 */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.12);
 }
 
 .askbible-chrome-nav .askbible-chrome-nav-pill:hover {
@@ -3688,35 +3692,6 @@ button.toolbar-trigger:hover,
   vertical-align: middle;
 }
 
-.chapter-art-slot:empty {
-  display: none;
-}
-
-.chapter-art-slot:not(:empty) {
-  margin: 0 auto 20px;
-  max-width: 100%;
-}
-
-.chapter-art-figure {
-  margin: 0;
-  padding: 0;
-  text-align: center;
-}
-
-.chapter-art-img {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  border-radius: 12px;
-  box-shadow: 0 6px 20px rgba(76, 62, 42, 0.12);
-  background: rgba(255, 252, 245, 0.6);
-}
-
-.chapter-art-slot:not(:empty) + .blocks-stack .flow-card:first-child h3 {
-  margin-top: 8px;
-}
-
 /* =========================
    内容
    ========================= */
@@ -5701,6 +5676,8 @@ a.admin-modal-hub-link.primary-btn {
     scrollbar-width: none;
     max-width: 100%;
     box-sizing: border-box;
+    /* 仅横向平移交给条形容器；子项 pill 用 touch-action:manipulation 保点击 */
+    touch-action: pan-x pinch-zoom;
   }
 
   .askbible-chrome-nav::-webkit-scrollbar {
@@ -5709,7 +5686,10 @@ a.admin-modal-hub-link.primary-btn {
 
   .askbible-chrome-nav .askbible-chrome-nav-pill {
     flex-shrink: 0;
-    padding: 6px 4px;
+    padding: 10px 8px;
+    min-width: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
     border-radius: 10px;
     gap: 0;
     background: transparent !important;

@@ -15,6 +15,7 @@ const topFiles = [
   "admin-hub.html",
   "home-layout-map.html",
   "video-center.html",
+  "chapter-illustration-prompt.html",
   "admin-shell.css",
   "admin-shell.js",
   "download.html",
@@ -46,11 +47,12 @@ for (const f of topFiles) {
   console.log("copy", f);
 }
 
-const dirs = ["assets"];
+const dirs = ["assets", "public"];
 for (const d of dirs) {
   const src = path.join(root, d);
   const out = path.join(dest, d);
   if (!fs.existsSync(src)) continue;
+  fs.rmSync(out, { recursive: true, force: true });
   fs.cpSync(src, out, { recursive: true });
   console.log("copy", d + "/");
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标前景安全区：108dp 画布内约 66dp 直径关键区 → 四边各 21dp 留白 -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@mipmap/ic_launcher_foreground"
+    android:insetLeft="21dp"
+    android:insetTop="21dp"
+    android:insetRight="21dp"
+    android:insetBottom="21dp" />

@@ -150,7 +150,7 @@
 │       │   … 工具条 / 翻章 / 收藏带 …
 │       │   ├── .page-title-block             ← 章号 + 书名大标题
 │       │   ├── #chapterVideosSlot            ← 本章视频（大标题下、正文区上）
-│       │   └── … 重复词、配图、#leftBlocks …
+│       │   └── … 重复词、#leftBlocks …
 │       └── section.book-page.right-page      ← 右页：副列 + 贡献区 + 底导航
 └── footer.site-footer.askbible-chrome-footer-slot  ← 底栏（接口注入，默认可 hidden）</pre>
         <p class="layout-map-note">
@@ -204,11 +204,6 @@
                 <td>重复词行</td>
                 <td><code>#repeatedWordsLine</code></td>
                 <td>查经内容中的重复词提示</td>
-              </tr>
-              <tr>
-                <td>配图</td>
-                <td><code>#chapterArtSlot</code></td>
-                <td>由 <code>main.js</code> 根据已发布 JSON 中 <code>chapterArt</code> 渲染</td>
               </tr>
               <tr>
                 <td>查经卡片主列</td>
@@ -347,6 +342,6 @@
       </div>
     </div>
 
-    <script src="/admin-shell.js?v=3" defer></script>
+    <script src="/admin-shell.js?v=4" defer></script>
   </body>
 </html>

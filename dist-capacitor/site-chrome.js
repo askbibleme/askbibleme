@@ -618,6 +618,83 @@
     } catch (e) {}
   }
 
+  function isShareNavAnchor(a) {
+    if (!a || !a.getAttribute) return false;
+    var hrefRaw = String(a.getAttribute("href") || "").trim();
+    var abs;
+    try {
+      abs = new URL(hrefRaw || "#", window.location.href);
+    } catch (err) {
+      return false;
+    }
+    return abs.hash === "#openSharePage";
+  }
+
+  /**
+   * 小屏顶栏导航为横向 overflow-x: auto 时，轻点常被当成滚动手势而不产生 click。
+   * 在短距离 touchstart→touchend 上直接触发分享，并 preventDefault 避免重复合成 click。
+   */
+  function initSharePageTouchWorkaround() {
+    if (document.body.dataset.shareTouchWorkaround === "1") return;
+    document.body.dataset.shareTouchWorkaround = "1";
+    var startX = 0;
+    var startY = 0;
+    var startAnchor = null;
+    document.addEventListener(
+      "touchstart",
+      function (e) {
+        if (e.touches.length !== 1) return;
+        var t = e.target;
+        if (!t || typeof t.closest !== "function") return;
+        var a = t.closest("a[href]");
+        if (!a || !a.closest(".askbible-chrome-nav")) return;
+        if (!isShareNavAnchor(a)) return;
+        var touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        startAnchor = a;
+      },
+      { passive: true, capture: true }
+    );
+    document.addEventListener(
+      "touchmove",
+      function (e) {
+        if (!startAnchor || e.touches.length !== 1) return;
+        var touch = e.touches[0];
+        var dx = Math.abs(touch.clientX - startX);
+        var dy = Math.abs(touch.clientY - startY);
+        if (dx > 14 || dy > 14) startAnchor = null;
+      },
+      { passive: true, capture: true }
+    );
+    document.addEventListener(
+      "touchcancel",
+      function () {
+        startAnchor = null;
+      },
+      { passive: true, capture: true }
+    );
+    document.addEventListener(
+      "touchend",
+      function (e) {
+        if (!startAnchor) return;
+        var a = startAnchor;
+        startAnchor = null;
+        if (e.changedTouches.length !== 1) return;
+        var touch = e.changedTouches[0];
+        var dx = Math.abs(touch.clientX - startX);
+        var dy = Math.abs(touch.clientY - startY);
+        if (dx > 14 || dy > 14) return;
+        try {
+          e.preventDefault();
+        } catch (err) {}
+        e.stopPropagation();
+        void shareCurrentPage();
+      },
+      { passive: false, capture: true }
+    );
+  }
+
   function initSharePageNavAction() {
     tryConsumeShareDeepLink();
     window.addEventListener("hashchange", function () {
@@ -642,14 +719,7 @@
         if (!t || typeof t.closest !== "function") return;
         var a = t.closest("a[href]");
         if (!a || !a.closest(".askbible-chrome-nav")) return;
-        var hrefRaw = String(a.getAttribute("href") || "").trim();
-        var abs;
-        try {
-          abs = new URL(hrefRaw || "#", window.location.href);
-        } catch (err) {
-          return;
-        }
-        if (abs.hash !== "#openSharePage") return;
+        if (!isShareNavAnchor(a)) return;
         /* 必须在用户手势内同步拦截并分享；勿依赖改 hash（否则部分环境下 Web Share / 剪贴板无手势会失败）。不校验链接 origin：分享对象始终为当前页。 */
         e.preventDefault();
         e.stopPropagation();
@@ -657,6 +727,7 @@
       },
       true
     );
+    initSharePageTouchWorkaround();
   }
 
   initSharePageNavAction();
