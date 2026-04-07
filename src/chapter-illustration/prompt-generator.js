@@ -30,6 +30,7 @@ export function generateIllustrationPrompt(config) {
           ...characterLines.map((line) => "- " + line),
           "",
           "Render each named person exactly matching the descriptions above.",
+          "Ancient Near Eastern biblical-era garments only (wool/linen tunics, mantles, cloaks, sashes, veils as fitting) — never medieval European, Renaissance, or modern dress. When multiple named people appear, differentiate drapery, layering, and garment silhouette between them so costumes are not copy-pasted clones; period-plausible variety, not identical default robes on every figure.",
         ]
       : [];
 

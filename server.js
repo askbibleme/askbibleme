@@ -14,6 +14,7 @@ import Database from "better-sqlite3";
 import multer from "multer";
 import AdmZip from "adm-zip";
 import OpenAI from "openai";
+import sharp from "sharp";
 import { testamentOptions } from "./src/books.js";
 import {
   BUILTIN_COLOR_THEME_VARIABLES,
@@ -1654,6 +1655,9 @@ async function handleCharacterProfileGenerate(req, res) {
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
       "shortSceneTagEn: one short English phrase (about one sentence) for scene tags beside Chinese scene text.",
       "appearanceEn: detailed English visual description for image generation. Include stable facial identity cues (face shape, eye spacing, nose, distinctive traits) so the same figure can be recognized if more life stages are added later. Ancient Near Eastern or period-appropriate styling; no modern items.",
+      "Cross-cast distinctiveness (mandatory): This person will be shown in a roster beside many other named biblical figures. The face and build must be clearly UNIQUE — not interchangeable with a generic handsome-bearded patriarch or stock template. Deliberately vary face shape, nose bridge and tip, eye shape and spacing, brows, jaw width, cheek volume, ears, hairline, beard density and pattern, stature, and age-appropriate details within believable ancient Levant / broader MENA diversity. A viewer comparing lineup images must not confuse this character with a different named person.",
+      "Clothing must match biblical social standing: figures Scripture shows as wealthy or high-status — patriarchs with large herds and households (e.g. Abraham, Isaac), chiefs, kings, courtiers, priests — wear well-made layered robes, quality textiles, tasteful dye or trim, dignified draping; do NOT default to drab sackcloth or generic impoverished peasant garb unless the narrative clearly demands poverty, mourning, or deliberate humility. Infer from story cues (flocks, wells, servants, gifts).",
+      "Garment variety within era (mandatory for appearanceEn): Stay strictly ancient Near Eastern / eastern Mediterranean biblical-era dress — wool, linen, tunics, mantles, cloaks, sashes, veils where fitting; NO medieval European, NO Renaissance, NO modern or fantasy costume. Avoid generic roster sameness: do NOT default every male to the same undyed tunic + identical brown outer wrap. Name specific, plausible variety in cut, layering, drape, weave, trim, and head covering for THIS person. Period dyes only (indigo/blue, madder/rust red, purple for elite, undyed cream/gray, olive, terracotta, subtle stripes) — distinct palette vs a monochrome beige cast, but never neon or anachronistic fashion colors.",
       "Respond with ONLY valid JSON, no markdown fences, no commentary.",
     ].join(" ");
     const userParts = [`Chinese name: ${chineseName}`];
@@ -1746,7 +1750,10 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       "CRITICAL — ONE PERSON, NOT SEPARATE CAST: Every stage describes the SAME biological individual. You must NOT write descriptions that imply different unrelated faces or different ethnicities between stages.",
       "Facial identity lock (mandatory for multi-stage outputs): Pick ONE stable facial blueprint for this figure — face shape, eye spacing and shape, nose and brow, jaw, ear shape, baseline skin tone family, any distinctive mark. Copy this SAME blueprint into EVERY stage's appearanceEn as an opening clause (use identical wording for the shared traits). After that clause, describe ONLY what changes in THIS stage: age, wrinkles, hair/beard length and color, body build, clothing, setting. Later stages show aging or context change on the SAME face, like one actor in makeup, not three different actors.",
       "If stages.length === 1, the single appearanceEn should still name clear facial identity traits for future consistency.",
+      "Cross-cast distinctiveness (mandatory): The facial blueprint you lock for this figure must be visually UNIQUE in the project's character roster — not the same generic face as other biblical portraits. When inventing the shared blueprint, deliberately differentiate face shape, nose, eyes, brows, jaw, ears, hairline, beard pattern, and stature from a stock patriarch template, while staying coherent across this person's own stages.",
       "Ancient Near Eastern or period-appropriate styling; no modern items.",
+      "Clothing per stage must match biblical social standing: wealthy patriarchs, tribal leaders, kings, officials, and priests should look appropriately prosperous — layered robes, quality woven garments, tasteful dye or ornament where fitting; avoid a generic drab peasant default when Scripture presents the person as rich or honored (e.g. Abraham, Isaac with flocks and household). Use humbler dress only when the text clearly indicates poverty, exile, mourning, or similar.",
+      "Garment variety within era (mandatory for each appearanceEn): Strictly biblical-era Near Eastern / eastern Mediterranean garments only; forbidden medieval, Renaissance, modern, or fantasy dress. Across the project many figures exist — do NOT reuse one stock costume description for every patriarch. For this figure, specify concrete variety (layering, mantle vs wrap, sleeve, sash, trim, head covering) and period-plausible colors (undyed wool, indigo, madder red, purple accents if elite, olive, terracotta, etc.) so they are not interchangeable with a generic beige-brown template, without breaking historical plausibility.",
       "Respond with ONLY valid JSON. No markdown fences, no commentary.",
     ].join(" ");
     const userParts = [`Chinese name: ${chineseName}`];
@@ -6891,11 +6898,17 @@ function handleCharacterIllustrationProfilesPost(req, res) {
     if (!characters || typeof characters !== "object" || Array.isArray(characters)) {
       return res.status(400).json({ error: "profiles 须包含 characters 对象（键为中文名）。" });
     }
+    const existingRoot = loadCharacterIllustrationProfiles();
+    const existingChars =
+      existingRoot.characters && typeof existingRoot.characters === "object"
+        ? existingRoot.characters
+        : {};
     const out = { characters: {} };
     for (const [zh, entry] of Object.entries(characters)) {
       const key = safeText(zh).slice(0, 32);
       if (!key) continue;
       if (!entry || typeof entry !== "object") continue;
+      const prev = existingChars[key] && typeof existingChars[key] === "object" ? existingChars[key] : {};
       const row = {
         englishName: safeText(entry.englishName || "").slice(0, 80),
         shortSceneTagEn: safeText(entry.shortSceneTagEn || "").slice(0, 160),
@@ -6909,8 +6922,17 @@ function handleCharacterIllustrationProfilesPost(req, res) {
       if (plz) row.periodLabelZh = plz;
       const img0 = safeText(entry.imageUrl || "").slice(0, 400);
       if (img0) row.imageUrl = img0;
-      const cmp = safeText(entry.comparisonSheetUrl || "").slice(0, 400);
-      if (cmp) row.comparisonSheetUrl = cmp;
+      const sentComparisonSheet = Object.prototype.hasOwnProperty.call(
+        entry,
+        "comparisonSheetUrl"
+      );
+      if (sentComparisonSheet) {
+        const cmp = safeText(String(entry.comparisonSheetUrl ?? "")).slice(0, 400);
+        if (cmp) row.comparisonSheetUrl = cmp;
+      } else {
+        const cmp = safeText(entry.comparisonSheetUrl || "").slice(0, 400);
+        if (cmp) row.comparisonSheetUrl = cmp;
+      }
       const hero = safeText(entry.heroImageUrl || "").slice(0, 400);
       if (hero) row.heroImageUrl = hero;
       const smartGenNotes = safeText(entry.smartGenNotes || "").slice(0, 400);
@@ -6932,6 +6954,29 @@ function handleCharacterIllustrationProfilesPost(req, res) {
         periods.push(slot);
       }
       if (periods.length) row.periods = periods;
+      if (!row.heroImageUrl && prev.heroImageUrl) {
+        row.heroImageUrl = safeText(prev.heroImageUrl).slice(0, 400);
+      }
+      if (
+        !sentComparisonSheet &&
+        !row.comparisonSheetUrl &&
+        prev.comparisonSheetUrl
+      ) {
+        row.comparisonSheetUrl = safeText(prev.comparisonSheetUrl).slice(0, 400);
+      }
+      if (!row.imageUrl && prev.imageUrl) {
+        row.imageUrl = safeText(prev.imageUrl).slice(0, 400);
+      }
+      if (Array.isArray(row.periods) && Array.isArray(prev.periods)) {
+        for (let pi = 0; pi < row.periods.length; pi++) {
+          const rp = row.periods[pi];
+          const pp = prev.periods[pi];
+          if (!rp || !pp || typeof rp !== "object" || typeof pp !== "object") continue;
+          if (!rp.imageUrl && pp.imageUrl) {
+            rp.imageUrl = safeText(pp.imageUrl).slice(0, 400);
+          }
+        }
+      }
       out.characters[key] = row;
     }
     ensureDir(ADMIN_DIR);
@@ -7072,11 +7117,390 @@ const CHAPTER_ILLUSTRATION_GENERATED_DIR = path.join(
   "generated"
 );
 
+function resolveSafeGeneratedPngPath(urlPath) {
+  const s = String(urlPath || "").trim();
+  if (!s.startsWith("/generated/")) return null;
+  const name = path.basename(s);
+  if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(name)) return null;
+  const full = path.resolve(path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, name));
+  const root = path.resolve(CHAPTER_ILLUSTRATION_GENERATED_DIR) + path.sep;
+  if (!full.startsWith(root)) return null;
+  try {
+    if (!fs.statSync(full).isFile()) return null;
+  } catch {
+    return null;
+  }
+  return full;
+}
+
+function bcdRgbDist2(r1, g1, b1, r2, g2, b2) {
+  const dr = r1 - r2;
+  const dg = g1 - g2;
+  const db = b1 - b2;
+  return dr * dr + dg * dg + db * db;
+}
+
+/**
+ * 从裁切条四边向内做「与角点平均色接近」的 flood，将背景变透明（不调用 AI）。
+ * tol2 为 RGB 欧氏距离平方阈值。
+ */
+function applyBcdEdgeFloodTransparent(rgba, subW, h, tol2) {
+  let br = 0;
+  let bg = 0;
+  let bb = 0;
+  const corners = [
+    [0, 0],
+    [subW - 1, 0],
+    [0, h - 1],
+    [subW - 1, h - 1],
+  ];
+  for (let i = 0; i < corners.length; i++) {
+    const cx = corners[i][0];
+    const cy = corners[i][1];
+    const o = (cy * subW + cx) * 4;
+    br += rgba[o];
+    bg += rgba[o + 1];
+    bb += rgba[o + 2];
+  }
+  br = Math.round(br / 4);
+  bg = Math.round(bg / 4);
+  bb = Math.round(bb / 4);
+  const visited = new Uint8Array(subW * h);
+  const qx = [];
+  const qy = [];
+  function tryEnqueue(x, y) {
+    if (x < 0 || x >= subW || y < 0 || y >= h) return;
+    const idx = y * subW + x;
+    if (visited[idx]) return;
+    const o = idx * 4;
+    if (bcdRgbDist2(rgba[o], rgba[o + 1], rgba[o + 2], br, bg, bb) > tol2)
+      return;
+    visited[idx] = 1;
+    qx.push(x);
+    qy.push(y);
+  }
+  for (let x = 0; x < subW; x++) {
+    tryEnqueue(x, 0);
+    tryEnqueue(x, h - 1);
+  }
+  for (let y = 0; y < h; y++) {
+    tryEnqueue(0, y);
+    tryEnqueue(subW - 1, y);
+  }
+  let qi = 0;
+  while (qi < qx.length) {
+    const x = qx[qi];
+    const y = qy[qi];
+    qi++;
+    const o = (y * subW + x) * 4;
+    rgba[o + 3] = 0;
+    tryEnqueue(x + 1, y);
+    tryEnqueue(x - 1, y);
+    tryEnqueue(x, y + 1);
+    tryEnqueue(x, y - 1);
+  }
+}
+
+/**
+ * 非透明像素的轴对齐包围盒（用于裁切并列图单列：去掉四周留白再缩放，否则 fit:contain 会把「小人+大透明」整体缩小）。
+ */
+function bcdAlphaBoundingBox(rgba, subW, h, alphaMin = 14) {
+  let minX = subW;
+  let minY = h;
+  let maxX = -1;
+  let maxY = -1;
+  let x;
+  let y;
+  for (y = 0; y < h; y++) {
+    for (x = 0; x < subW; x++) {
+      const o = (y * subW + x) * 4;
+      if (rgba[o + 3] > alphaMin) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < minX) return null;
+  return {
+    left: minX,
+    top: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
+
+function resolveBcdComparisonCropPrescale(body) {
+  const b = body && typeof body === "object" ? body : {};
+  const raw = b.comparisonCropPrescale ?? b.comparisonDetailScale;
+  let n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) {
+    const env = Number(process.env.BCD_COMPARISON_CROP_PRESCALE);
+    n = Number.isFinite(env) && env >= 1 ? env : 1;
+  }
+  if (n > 2.5) n = 2.5;
+  if (n < 1) n = 1;
+  return n;
+}
+
+async function bcdExtractHeroPngFromComparisonBuffer(
+  inputBuf,
+  periodCount,
+  columnIndex,
+  opts
+) {
+  opts = opts && typeof opts === "object" ? opts : {};
+  const skipFlood = opts.skipFlood === true;
+  let preScale = Number(opts.preScale);
+  if (!Number.isFinite(preScale) || preScale < 1) preScale = 1;
+  if (preScale > 2.5) preScale = 2.5;
+
+  let buf = inputBuf;
+  let meta = await sharp(buf).metadata();
+  let w = meta.width || 0;
+  let h = meta.height || 0;
+  if (w < 32 || h < 32) {
+    throw new Error("对比图尺寸过小");
+  }
+  if (preScale > 1.001) {
+    const tw = Math.min(4096, Math.max(1, Math.round(w * preScale)));
+    const th = Math.max(1, Math.round(h * preScale));
+    buf = await sharp(buf)
+      .resize(tw, th, { kernel: sharp.kernel.lanczos3 })
+      .png()
+      .toBuffer();
+    meta = await sharp(buf).metadata();
+    w = meta.width || 0;
+    h = meta.height || 0;
+  }
+  const n = Math.min(3, Math.max(1, Math.floor(periodCount)));
+  const col = Math.min(n - 1, Math.max(0, Math.floor(columnIndex)));
+  const colW = Math.floor(w / n);
+  const x0 = col * colW;
+  const x1 = col === n - 1 ? w : (col + 1) * colW;
+  const subW = x1 - x0;
+  if (subW < 16) {
+    throw new Error("裁切列宽过小");
+  }
+  const { data, info } = await sharp(buf)
+    .extract({ left: x0, top: 0, width: subW, height: h })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const rgba = Buffer.from(data);
+  if (!skipFlood) {
+    const tol2 = 42 * 42;
+    applyBcdEdgeFloodTransparent(rgba, info.width, info.height, tol2);
+  }
+  const subH = info.height;
+  const box = bcdAlphaBoundingBox(rgba, subW, subH);
+  const pad = 6;
+  let left = 0;
+  let top = 0;
+  let extW = subW;
+  let extH = subH;
+  if (
+    box &&
+    box.width >= 24 &&
+    box.height >= 48 &&
+    box.width <= subW &&
+    box.height <= subH
+  ) {
+    left = Math.max(0, box.left - pad);
+    top = Math.max(0, box.top - pad);
+    extW = Math.min(subW - left, box.width + 2 * pad);
+    extH = Math.min(subH - top, box.height + 2 * pad);
+  }
+  if (extW < 16 || extH < 16) {
+    left = 0;
+    top = 0;
+    extW = subW;
+    extH = subH;
+  }
+  const tightPng = await sharp(rgba, {
+    raw: { width: subW, height: subH, channels: 4 },
+  })
+    .extract({ left, top, width: extW, height: extH })
+    .png()
+    .toBuffer();
+  return sharp(tightPng)
+    .resize(1024, 1536, {
+      fit: "contain",
+      position: "bottom",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
+    .toBuffer();
+}
+
+async function bcdExtractHeroPngFromComparisonFile(
+  absPngPath,
+  periodCount,
+  columnIndex,
+  opts
+) {
+  const inputBuf = fs.readFileSync(absPngPath);
+  return bcdExtractHeroPngFromComparisonBuffer(
+    inputBuf,
+    periodCount,
+    columnIndex,
+    opts
+  );
+}
+
+async function handleBcdExtractHeroFromComparison(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const body = req.body || {};
+    const comparisonImageUrl = safeText(body.comparisonImageUrl || "").trim();
+    let periodCount = Number(body.periodCount);
+    let columnIndex = Number(body.columnIndex);
+    if (!Number.isFinite(periodCount) || periodCount < 1 || periodCount > 3) {
+      return res.status(400).json({
+        success: false,
+        error: "periodCount 应为 1～3",
+      });
+    }
+    periodCount = Math.floor(periodCount);
+    if (!Number.isFinite(columnIndex) || columnIndex < 0 || columnIndex >= periodCount) {
+      return res.status(400).json({
+        success: false,
+        error: "columnIndex 与时期数不匹配",
+      });
+    }
+    columnIndex = Math.floor(columnIndex);
+    const abs = resolveSafeGeneratedPngPath(comparisonImageUrl);
+    if (!abs) {
+      return res.status(400).json({
+        success: false,
+        error: "无效的对比图路径（仅允许 /generated/*.png）",
+      });
+    }
+    const skipFlood =
+      body.skipFlood === true ||
+      body.skipFlood === "true" ||
+      body.skipFlood === 1 ||
+      body.skipFlood === "1";
+    const preScale = resolveBcdComparisonCropPrescale(body);
+    let outBuf;
+    try {
+      outBuf = await bcdExtractHeroPngFromComparisonFile(
+        abs,
+        periodCount,
+        columnIndex,
+        { skipFlood, preScale }
+      );
+    } catch (e) {
+      console.error("[bcd-extract-hero]", e);
+      return res.status(500).json({
+        success: false,
+        error: String(e.message || e) || "裁切去底失败",
+      });
+    }
+    ensureDir(CHAPTER_ILLUSTRATION_GENERATED_DIR);
+    const filename = `ill-bcd-hero-crop-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.png`;
+    const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
+    fs.writeFileSync(filePath, outBuf);
+    res.json({
+      success: true,
+      imageUrl: `/generated/${filename}`,
+      localPath: `public/generated/${filename}`,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "失败",
+    });
+  }
+}
+
+app.post(
+  "/api/admin/bcd-extract-hero-from-comparison",
+  handleBcdExtractHeroFromComparison
+);
+
+async function handleBcdExtractAllPeriodsFromComparison(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const body = req.body || {};
+    const comparisonImageUrl = safeText(body.comparisonImageUrl || "").trim();
+    let periodCount = Number(body.periodCount);
+    if (!Number.isFinite(periodCount) || periodCount < 1 || periodCount > 3) {
+      return res.status(400).json({
+        success: false,
+        error: "periodCount 应为 1～3",
+      });
+    }
+    periodCount = Math.floor(periodCount);
+    const abs = resolveSafeGeneratedPngPath(comparisonImageUrl);
+    if (!abs) {
+      return res.status(400).json({
+        success: false,
+        error: "无效的对比图路径（仅允许 /generated/*.png）",
+      });
+    }
+    const skipFlood =
+      body.skipFlood === true ||
+      body.skipFlood === "true" ||
+      body.skipFlood === 1 ||
+      body.skipFlood === "1";
+    const preScale = resolveBcdComparisonCropPrescale(body);
+    const imageUrls = [];
+    const ts = Date.now();
+    const rand = crypto.randomBytes(4).toString("hex");
+    try {
+      for (let col = 0; col < periodCount; col++) {
+        const outBuf = await bcdExtractHeroPngFromComparisonFile(
+          abs,
+          periodCount,
+          col,
+          { skipFlood, preScale }
+        );
+        ensureDir(CHAPTER_ILLUSTRATION_GENERATED_DIR);
+        const filename = `ill-bcd-period-${ts}-${col}-${rand}.png`;
+        const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
+        fs.writeFileSync(filePath, outBuf);
+        imageUrls.push(`/generated/${filename}`);
+      }
+    } catch (e) {
+      console.error("[bcd-extract-all-periods]", e);
+      return res.status(500).json({
+        success: false,
+        error: String(e.message || e) || "批量裁切失败",
+      });
+    }
+    res.json({ success: true, imageUrls });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "失败",
+    });
+  }
+}
+
+app.post(
+  "/api/admin/bcd-extract-all-periods-from-comparison",
+  handleBcdExtractAllPeriodsFromComparison
+);
+/** 短路径：个别反代对长 URL 段返回 404（与 sitechrome、genlifestages 同理） */
+app.post("/api/admin/bcd-cut-periods", handleBcdExtractAllPeriodsFromComparison);
+app.post("/api/admin/bcd-cut-hero", handleBcdExtractHeroFromComparison);
+
+/** 降低图像安全策略误判：明确教育/端庄语境，避免与「裸露/性感」类提示混淆。 */
+const OPENAI_IMAGE_SAFETY_PREFIX =
+  "[Educational family-safe historical illustration] Wholesome museum-style Bible reference art: every person fully clothed in modest period dress; dignified standing or calm narrative poses; focus on costume, face, and hands. Absolutely no nudity, no sensual or romanticized anatomy, no fetish content. ";
+
 /**
  * POST /api/generate-illustration
  * Body: { prompt: string, transparent: boolean }
  * Key 与全站一致：环境变量 OPENAI_API_KEY 优先，否则管理后台「系统密钥」。
  * 成功：{ success: true, imageUrl, transparentPng }（transparentPng 为 boolean，表示是否请求透明背景）。
+ * 尺寸与 quality：transparent 与 opaque 仅 background 不同，不传 imageSize 时默认竖版 1024×1536（总像素高于 1024²）。
  */
 app.post("/api/generate-illustration", async (req, res) => {
   try {
@@ -7087,24 +7511,32 @@ app.post("/api/generate-illustration", async (req, res) => {
       body.bcdNeutralColor === true ||
       body.bcdNeutralColor === "true" ||
       body.bcdNeutralColor === 1;
-    let prompt = safeText(body.prompt || "");
-    if (bcdNeutral) {
-      prompt =
-        "COLOR LOCK (highest priority — apply before any artistic or historical style): Neutral daylight white balance (~5200K), like an overcast day or north-window studio — NOT golden hour, NOT sunset warmth. Absolutely NO yellow, amber, gold, or sepia cast on skin or across the image; NO brown oil-painting glaze or aged varnish look. Whites and linens read as clean neutral white unless the text specifies a dyed color. Skin: natural realistic human tones, not orange, not jaundiced, not honey-filtered. " +
-        prompt +
-        " COLOR LOCK (repeat): If the result looks warm-yellow or vintage-brown overall, it is wrong — rebalance to neutral, true-to-life color.";
-    }
     const transparent =
       body.transparent === true ||
       body.transparent === "true" ||
       body.transparent === 1 ||
       body.transparent === "1";
-    if (!prompt) {
+    let prompt = safeText(body.prompt || "");
+    if (bcdNeutral) {
+      const colorLockTransparentPng =
+        transparent &&
+        " CUTOUT / TRANSPARENT PNG (critical): No background means no sky bounce or warm ambient fill — models often fake “golden” key on cutouts. Light the figure like a neutral softbox product shot on gray (D65 / ~6500K feel): white and gray hair and beard must read neutral white-to-silver, NOT butter-cream, NOT golden highlights; off-white robes stay neutral paper-white, not ivory-yellow. Browns and earth tones are desaturated neutral brown, NOT orange-umber or honey glaze. No amber rim light, no campfire warmth, no “museum oil” varnish cast over the full costume and visible face and hands. ";
+      prompt =
+        "COLOR LOCK (highest priority — apply before any artistic or historical style): Neutral daylight white balance (~5200K), like an overcast day or north-window studio — NOT golden hour, NOT sunset warmth. Absolutely NO yellow, amber, gold, or sepia cast on faces, hands, or across the image; NO brown oil-painting glaze or aged varnish look. Whites and linens read as clean neutral white unless the text specifies a dyed color. Complexion (faces and hands only): natural realistic human tones, not orange, not jaundiced, not honey-filtered. " +
+        (colorLockTransparentPng || "") +
+        prompt +
+        " COLOR LOCK (repeat): If the result looks warm-yellow or vintage-brown overall, it is wrong — rebalance to neutral, true-to-life color." +
+        (transparent
+          ? " FINAL CHECK (transparent PNG): If white hair or pale cloth looks cream or tan on screen, shift white balance cooler — same figure should match sRGB-neutral reference, not a sepia photograph."
+          : "");
+    }
+    if (!prompt.trim()) {
       return res.status(400).json({
         success: false,
         error: "缺少 prompt",
       });
     }
+    prompt = OPENAI_IMAGE_SAFETY_PREFIX + prompt;
 
     const apiKey = getCurrentOpenAiApiKey();
     if (!apiKey) {
@@ -7119,9 +7551,18 @@ app.post("/api/generate-illustration", async (req, res) => {
 
     let imgResp;
     try {
-      const imgSize = safeText(body.imageSize || "") || "1024x1024";
-      const allowedSizes = new Set(["1024x1024", "1536x1024", "1024x1536"]);
-      const size = allowedSizes.has(imgSize) ? imgSize : "1024x1024";
+      const imgSizeRaw = safeText(body.imageSize || "").trim();
+      const allowedSizes = new Set([
+        "1024x1024",
+        "1536x1024",
+        "1024x1536",
+        "auto",
+      ]);
+      const size = allowedSizes.has(imgSizeRaw)
+        ? imgSizeRaw
+        : imgSizeRaw === ""
+          ? "1024x1536"
+          : "1024x1024";
       const imgQ = safeText(body.imageQuality || "").toLowerCase();
       const quality =
         imgQ === "low" || imgQ === "medium" || imgQ === "high" ? imgQ : "high";
@@ -7134,11 +7575,32 @@ app.post("/api/generate-illustration", async (req, res) => {
         output_format: "png",
       });
     } catch (apiErr) {
-      const msg =
+      const rawMsg =
         safeText(apiErr?.message || "") ||
         safeText(apiErr?.error?.message || "") ||
-        "OpenAI 图片接口调用失败";
-      return res.status(502).json({ success: false, error: msg });
+        safeText(
+          apiErr?.error && typeof apiErr.error === "object"
+            ? apiErr.error.message || apiErr.error.code
+            : ""
+        ) ||
+        "";
+      let msg = rawMsg || "OpenAI 图片接口调用失败";
+      let httpStatus = 502;
+      if (
+        /safety_violations|safety system|rejected by the safety|content_policy|content policy/i.test(
+          rawMsg
+        )
+      ) {
+        httpStatus = 400;
+        const reqM = /\breq_[a-f0-9]{20,}\b/i.exec(rawMsg);
+        const sexual = /sexual/i.test(rawMsg);
+        msg =
+          "图片请求被 OpenAI 安全策略拦截" +
+          (sexual ? "（标记为敏感类）" : "") +
+          "，多为误判。可尝试：① 精简外观描写，避免涉及裸露、身材曲线、情色联想词；② 女性与未成年人用「端庄长袖长袍、遮盖头发」等中性表述；③ 删除英文描述中的 bare、chest、breast、naked、seductive、virgin（可改为 young unmarried woman）等词后重试。" +
+          (reqM ? " 请求 ID：" + reqM[0] + "（可向 help.openai.com 申诉）" : "");
+      }
+      return res.status(httpStatus).json({ success: false, error: msg });
     }
 
     const d0 = imgResp?.data?.[0];

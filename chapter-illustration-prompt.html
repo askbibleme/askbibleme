@@ -8,7 +8,7 @@
     <title>章节插画 Prompt 生成 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css?v=110" />
-    <link rel="stylesheet" href="/admin-shell.css?v=10" />
+    <link rel="stylesheet" href="/admin-shell.css?v=12" />
     <link rel="stylesheet" href="/public/styles.css?v=8" />
     <script src="/theme-apply.js?v=2"></script>
   </head>
@@ -151,9 +151,11 @@
             </details>
 
             <p class="cp-note-footer">
-              出图默认使用 OpenAI <code>quality=high</code>（更细、更少糊边；耗时与费用高于 medium）。尺寸默认
-              <code>1024×1024</code>；可在请求体传 <code>imageSize</code> 为 <code>1536x1024</code> 或
-              <code>1024x1536</code>。文件名为 <code>ill-&lt;bookId&gt;-&lt;chapter&gt;-&lt;timestamp&gt;.png</code>。API Key：
+              出图默认使用 OpenAI <code>quality=high</code>（更细、更少糊边；耗时与费用高于 medium）。未传
+              <code>imageSize</code> 时服务端默认 <code>1024×1536</code>（透明底与有背景仅 <code>background</code> 不同，尺寸一致）；亦可显式传
+              <code>imageSize</code> 为 <code>1024×1024</code>、<code>1536x1024</code>、
+              <code>1024x1536</code> 或 <code>auto</code>（横排并列对比建议固定 <code>1536x1024</code>，已是该模型横图最大边）。人物设计器裁切接口可传
+              <code>comparisonCropPrescale</code>（1～2.5，默认可由环境变量 <code>BCD_COMPARISON_CROP_PRESCALE</code> 覆盖）：裁切前服务端对整幅对比图做 Lanczos 放大，不增加图片 AI。文件名为 <code>ill-&lt;bookId&gt;-&lt;chapter&gt;-&lt;timestamp&gt;.png</code>。API Key：
               <code>OPENAI_API_KEY</code> 或后台「系统密钥」。插画状态：<code>GET/POST /api/chapter-illustration/state</code>。
             </p>
           </div>
@@ -224,7 +226,7 @@
       </div>
     </div>
 
-    <script src="/admin-shell.js?v=5" defer></script>
+    <script src="/admin-shell.js?v=6" defer></script>
     <script src="/public/main.js?v=13" defer></script>
   </body>
 </html>

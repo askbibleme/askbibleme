@@ -8,7 +8,7 @@
     <title>顶栏与底栏 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css?v=110" />
-    <link rel="stylesheet" href="/admin-shell.css?v=10" />
+    <link rel="stylesheet" href="/admin-shell.css?v=12" />
     <script src="/theme-apply.js?v=2"></script>
     <!-- 不用 defer：保证内联脚本执行前已注册 ASKBIBLE_CHROME_NAV_ICON_OPTIONS（顶栏图标下拉） -->
     <script src="/site-chrome.js?v=19"></script>
@@ -327,8 +327,10 @@
       <main class="sc-doc">
         <h1>顶栏与底栏</h1>
         <p class="sc-lead">
-          配置写入 <code>admin_data/site_chrome.json</code>，全站通过 <code>site-chrome.js</code> 统一渲染。主页顶栏默认使用站内<strong>横版透明字标</strong>
-          <code>/assets/brand/askbible-wordmark.svg</code>（无需上传、勿复制外链）；亦可改为其他本站路径或 https 地址。
+          配置写入 <code>admin_data/site_chrome.json</code>，全站通过 <code>site-chrome.js</code> 统一渲染；<strong>管理后台左侧 LOGO</strong>也读同一字段（浅色侧栏会自动把
+          <code>askbible-wordmark.svg</code> 换成深色字版 <code>askbible-wordmark-ink.svg</code>）。主页顶栏默认使用站内<strong>横版透明字标</strong>
+          <code>/assets/brand/askbible-wordmark.svg</code>（无需上传、勿复制外链）；若要侧栏与顶栏都用深色字标，可把下方地址直接改为
+          <code>/assets/brand/askbible-wordmark-ink.svg</code>。亦可改为其他本站路径或 https 地址。
         </p>
         <p class="sc-hint" id="scAdminPageRev" data-sc-page-rev="2026-04-04" style="margin: -6px 0 14px; font-size: 12px">
           本页修订 <code>2026-04-04</code>：导航「图标」为<strong>下拉菜单</strong>+左侧预览（不再是一整片图标按钮）。若你仍看到旧界面，多半是
@@ -344,13 +346,16 @@
           </p>
 
         <div class="sc-field">
-          <label for="scLogoUrl">LOGO 图片地址（可留空则只显示文字品牌）</label>
+          <label for="scLogoUrl">LOGO 图片地址（可留空则只显示文字品牌；同步管理后台侧栏）</label>
           <input
             type="text"
             id="scLogoUrl"
             placeholder="/assets/brand/askbible-wordmark.svg"
             autocomplete="off"
           />
+          <p class="sc-hint" style="margin: 6px 0 0; font-size: 12px">
+            侧栏浅色背景推荐 <code>/assets/brand/askbible-wordmark-ink.svg</code>；若图片裂了会自动改用应用图标 PNG 再退回「Ask Bible .me」文字。
+          </p>
         </div>
         <div class="sc-row2">
           <div class="sc-field">
@@ -1068,6 +1073,6 @@
         document.getElementById("scReloadBtn").click();
       })();
     </script>
-    <script src="/admin-shell.js?v=5" defer></script>
+    <script src="/admin-shell.js?v=6" defer></script>
   </body>
 </html>

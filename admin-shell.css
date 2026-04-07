@@ -16,12 +16,13 @@ body.admin-shell-page {
   box-sizing: border-box;
 }
 
+/* 整栏与读经主页顶栏同色（深底） */
 .admin-shell-aside {
   box-sizing: border-box;
   width: 232px;
   flex-shrink: 0;
-  border-right: 1px solid var(--line, rgba(120, 100, 80, 0.22));
-  background: var(--paper-soft, rgba(255, 252, 246, 0.96));
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--topbar-bg, #4a443f);
   padding: 22px 12px 20px;
   display: flex;
   flex-direction: column;
@@ -29,7 +30,7 @@ body.admin-shell-page {
   z-index: 210;
 }
 
-/* 与读经顶栏字标同结构（.brand-ask / .brand-bible / .brand-me）；侧栏浅色底，Ask/.me 用墨色以保证对比 */
+/* 字标：深侧栏上 Ask/.me 用浅字，Bible 保持品牌金 */
 .admin-shell-brand-title {
   margin: 0 4px 14px;
   padding: 0;
@@ -62,7 +63,7 @@ body.admin-shell-page {
 
 .admin-shell-brand .brand-ask,
 .admin-shell-brand .brand-me {
-  color: var(--ink, #2c2824);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .admin-shell-brand .brand-bible {
@@ -72,7 +73,7 @@ body.admin-shell-page {
 .admin-shell-nav-sub {
   font-size: 10px;
   font-weight: 800;
-  color: var(--muted, #6f655a);
+  color: rgba(255, 255, 255, 0.42);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   margin: 16px 8px 6px;
@@ -86,7 +87,7 @@ body.admin-shell-page {
   display: block;
   padding: 10px 12px;
   border-radius: 10px;
-  color: var(--ink, #2c2824);
+  color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
   font-size: calc(13px * var(--font-scale, 1));
   font-weight: 600;
@@ -99,14 +100,23 @@ body.admin-shell-page {
 }
 
 .admin-shell-nav-link:hover {
-  background: rgba(201, 162, 39, 0.12);
-  border-color: rgba(190, 170, 140, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
+/* 当前页：浅一层高亮，仍在深侧栏内 */
 .admin-shell-nav-link.is-current {
-  background: rgba(201, 162, 39, 0.22);
-  border-color: rgba(180, 140, 60, 0.42);
-  color: #5c4810;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.admin-shell-nav-link.is-current:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
 }
 
 .admin-shell-spacer {
@@ -121,16 +131,17 @@ body.admin-shell-page {
   border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
-  color: #8b6914;
+  color: rgba(255, 255, 255, 0.92);
   text-decoration: none;
-  border: 1px solid rgba(190, 170, 140, 0.45);
-  background: rgba(255, 251, 242, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
   text-align: center;
 }
 
 .admin-shell-back:hover {
-  background: rgba(255, 248, 232, 0.98);
-  color: #6b5010;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
 }
 
 .admin-shell-main {
@@ -149,8 +160,8 @@ body.admin-shell-page {
   gap: 10px;
   padding: 10px 12px;
   padding-top: calc(10px + env(safe-area-inset-top, 0px));
-  border-bottom: 1px solid var(--line, rgba(120, 100, 80, 0.18));
-  background: var(--paper-soft, rgba(255, 252, 246, 0.98));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--topbar-bg, #4a443f);
   position: sticky;
   top: 0;
   z-index: 120;
@@ -162,9 +173,9 @@ body.admin-shell-page {
   font-weight: 700;
   padding: 8px 14px;
   border-radius: 10px;
-  border: 1px solid var(--line, rgba(120, 100, 80, 0.28));
-  background: var(--paper, #faf8f5);
-  color: var(--ink, #2c2824);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
   cursor: pointer;
 }
 
@@ -175,7 +186,7 @@ body.admin-shell-page {
 .admin-shell-mobile-title {
   font-size: 14px;
   font-weight: 800;
-  color: var(--muted, #6f655a);
+  color: rgba(255, 255, 255, 0.75);
   letter-spacing: 0.02em;
 }
 

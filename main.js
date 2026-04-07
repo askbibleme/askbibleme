@@ -2448,6 +2448,7 @@ async function init() {
     focusPendingFavoriteIfAny();
     focusPendingQuestionIfAny();
     restoreViewportScroll();
+    initPwaInstallPrompt();
   } catch (error) {
     console.error("初始化失败:", error);
   }
@@ -10209,6 +10210,160 @@ function registerServiceWorker() {
       console.warn("Service worker register failed:", error);
     });
   });
+}
+
+/** PWA / 安装应用（Chrome·Edge·Android）与 iOS Safari「添加到主屏幕」轻提示 */
+function initPwaInstallPrompt() {
+  if (typeof document === "undefined") return;
+  if (document.body.dataset.pwaPromptInit === "1") return;
+  document.body.dataset.pwaPromptInit = "1";
+
+  const DISMISS_KEY = "bible_pwa_prompt_dismiss_until";
+  const INSTALLED_KEY = "bible_pwa_prompt_installed";
+  const DISMISS_MS = 1000 * 60 * 60 * 24 * 90;
+
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: minimal-ui)").matches ||
+    window.navigator.standalone === true;
+  if (isStandalone) return;
+
+  let dismissUntil = 0;
+  try {
+    dismissUntil = parseInt(localStorage.getItem(DISMISS_KEY) || "0", 10) || 0;
+  } catch {
+    dismissUntil = 0;
+  }
+  if (Date.now() < dismissUntil) return;
+
+  try {
+    if (localStorage.getItem(INSTALLED_KEY) === "1") return;
+  } catch {
+    /* ignore */
+  }
+
+  const ua = navigator.userAgent || "";
+  const isIos =
+    /iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isIosBrowserUi =
+    isIos && !/CriOS|FxiOS|EdgiOS|OPiOS|OPT\//i.test(ua);
+
+  let deferredPrompt = null;
+  let bannerEl = null;
+  let shown = false;
+
+  function dismissForAWhile() {
+    try {
+      localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_MS));
+    } catch {
+      /* ignore */
+    }
+    hideBanner();
+  }
+
+  function hideBanner() {
+    if (bannerEl && bannerEl.parentNode) {
+      bannerEl.parentNode.removeChild(bannerEl);
+    }
+    bannerEl = null;
+  }
+
+  function mountBanner(opts) {
+    if (shown) return;
+    if (Date.now() < dismissUntil) return;
+    shown = true;
+
+    bannerEl = document.createElement("div");
+    bannerEl.id = "pwaInstallBanner";
+    bannerEl.className = "pwa-install-banner";
+    bannerEl.setAttribute("role", "region");
+    bannerEl.setAttribute("aria-label", "安装到设备");
+
+    const inner = document.createElement("div");
+    inner.className = "pwa-install-banner__inner";
+
+    const text = document.createElement("p");
+    text.className = "pwa-install-banner__text";
+    text.textContent = opts.text;
+
+    const actions = document.createElement("div");
+    actions.className = "pwa-install-banner__actions";
+
+    if (opts.onInstall) {
+      const installBtn = document.createElement("button");
+      installBtn.type = "button";
+      installBtn.className = "pwa-install-banner__btn pwa-install-banner__btn--primary";
+      installBtn.textContent = opts.installLabel || "安装";
+      installBtn.addEventListener("click", () => {
+        opts.onInstall();
+      });
+      actions.appendChild(installBtn);
+    }
+
+    const laterBtn = document.createElement("button");
+    laterBtn.type = "button";
+    laterBtn.className = "pwa-install-banner__btn pwa-install-banner__btn--ghost";
+    laterBtn.textContent = "暂不";
+    laterBtn.addEventListener("click", dismissForAWhile);
+    actions.appendChild(laterBtn);
+
+    inner.appendChild(text);
+    inner.appendChild(actions);
+    bannerEl.appendChild(inner);
+    document.body.appendChild(bannerEl);
+  }
+
+  async function runChromeInstall() {
+    if (!deferredPrompt) return;
+    try {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      if (choice && choice.outcome === "accepted") {
+        try {
+          localStorage.setItem(INSTALLED_KEY, "1");
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch {
+      deferredPrompt = null;
+    }
+    hideBanner();
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    mountBanner({
+      text: "将 AskBible 安装到桌面或主屏幕，像应用一样快速打开读经（Chrome / Edge / Android）。",
+      installLabel: "安装",
+      onInstall: () => {
+        runChromeInstall();
+      },
+    });
+  });
+
+  window.addEventListener("appinstalled", () => {
+    try {
+      localStorage.setItem(INSTALLED_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    hideBanner();
+  });
+
+  if (isIosBrowserUi) {
+    window.setTimeout(() => {
+      if (shown || deferredPrompt) return;
+      if (Date.now() < dismissUntil) return;
+      mountBanner({
+        text: "在 Safari 中：点底栏「分享」，再点「添加到主屏幕」，然后轻点「添加」，即可将 AskBible 固定到主屏幕。",
+        onInstall: null,
+      });
+    }, 5500);
+  }
 }
 
 registerServiceWorker();

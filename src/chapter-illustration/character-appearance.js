@@ -1,6 +1,9 @@
 /**
  * 角色外观档案（与 admin_data/character_illustration_profiles.json 对应）及地名英文化。
  * 用于场景句与出图 prompt 中的跨章一致性描述。
+ *
+ * 档案内各时期 `imageUrl` / `heroImageUrl` 可为透明全身参考图；章节插画当前仅把外观写入英文 prompt 锁脸。
+ * 若将来图片 API 支持参考图输入，可在此层按叙事时期选用对应 `periods[i].imageUrl` 做模板。
  */
 
 /** 无档案时的默认英文称呼（仍比 "robed figures" 具体） */
@@ -55,6 +58,9 @@ export const DEFAULT_ENGLISH_NAME_BY_ZH = {
   法老: "Pharaoh",
   波提乏: "Potiphar",
   波提非拉: "Potiphera",
+  波提乏的妻子: "Potiphar's wife",
+  该隐: "Cain",
+  亚伯: "Abel",
 };
 
 const LOCATION_ZH_TO_EN = {
@@ -151,9 +157,19 @@ export function buildCharacterLockLines(keyPeople, profilesRoot, maxPeople = 4) 
       lines.push(`${en}: ${lockBody}`);
     } else if (en && en !== z) {
       lines.push(
-        `${en}: same recognizable face and body type as in other chapters of this Bible project; ancient Near Eastern biblical clothing; age-appropriate for the narrative`
+        `${en}: same recognizable face and body type as in other chapters of this Bible project; ancient Near Eastern biblical-era clothing suited to social standing (prosperous figures: layered quality robes with period-plausible dyes and varied cut — not the same default costume as every other character, and not medieval or modern dress); age-appropriate for the narrative`
       );
     }
+  }
+  if (lines.length > 1) {
+    lines.unshift(
+      "Distinct faces within this scene (mandatory): Each named figure below must be visually distinguishable from every other person in the same frame — unique facial bone structure, nose, eyes, brows, jaw, hair/beard pattern, stature, and age; do NOT reuse one generic template face for multiple different people."
+    );
+  }
+  if (lines.length >= 1) {
+    lines.unshift(
+      "Cross-roster distinctiveness (mandatory): Primary named figure(s) below belong to a project with many biblical characters. Each must look like a specific individual, NOT a generic interchangeable face that could stand in for Abraham, Moses, or another unrelated roster portrait. Honor locked appearance text when provided; otherwise infer clearly differentiated facial structure (bone shape, nose, eyes, brows, jaw, ears, hairline, beard pattern, wrinkles, stature, age) within believable ancient Near Eastern regional diversity."
+    );
   }
   return lines;
 }
@@ -190,7 +206,11 @@ export function buildFiguresLeadPhrase(keyPeople, profilesRoot, maxPeople = 3) {
       String(entry?.shortSceneTagEn || "").trim() ||
       (String(entry?.appearanceEn || "").trim().slice(0, 72) || "");
     if (en && short) parts.push(`${en}, ${short.replace(/\.$/, "")}`);
-    else if (en) parts.push(`${en} in period-appropriate ancient biblical dress`);
+    else if (en) {
+      parts.push(
+        `${en} in period-appropriate ancient biblical dress suited to narrative standing (wealthy or honored figures: dignified layered garments, not undifferentiated drab sackcloth)`
+      );
+    }
   }
   if (parts.length === 0) return "";
   if (parts.length === 1) return parts[0];

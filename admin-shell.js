@@ -10,7 +10,14 @@
   const NAV_GROUPS = [
     {
       sub: "总览",
-      items: [{ href: "/admin-hub.html", label: "管理首页" }],
+      items: [
+        { href: "/admin-hub.html", label: "管理首页" },
+        {
+          href: "/#openMemberHub",
+          label: "会员登录",
+          note: "进入读经首页并打开会员/登录",
+        },
+      ],
     },
     {
       sub: "站点与展示",
@@ -57,16 +64,12 @@
     }
   }
 
-  /** 侧栏浅色底：主页字标 askbible-wordmark.svg 为浅色字，换用同构图深色字 askbible-wordmark-ink.svg；自定义 https 图保持原 URL */
+  /** 侧栏深底（同顶栏）：用浅字 askbible-wordmark.svg；站点若配 ink 版则改为 .svg；其它 URL 原样 */
   function adminShellBrandImageUrl(logoUrl) {
     const u = String(logoUrl || "").trim();
-    if (!u) return "/assets/brand/askbible-wordmark-ink.svg";
-    const needle = "askbible-wordmark.svg";
-    const i = u.indexOf(needle);
-    if (i === -1) return u;
-    const after = u.slice(i + needle.length);
-    if (after.startsWith("?") || after === "") {
-      return u.slice(0, i) + "askbible-wordmark-ink.svg" + after;
+    if (!u) return "/assets/brand/askbible-wordmark.svg";
+    if (u.includes("askbible-wordmark-ink.svg")) {
+      return u.replace(/askbible-wordmark-ink\.svg/g, "askbible-wordmark.svg");
     }
     return u;
   }
@@ -78,37 +81,87 @@
     return /^https?:\/\//i.test(s);
   }
 
-  function applyAdminShellBrand(top) {
-    const t = top && typeof top === "object" ? top : {};
-    const rawLogo = String(t.logoUrl || "").trim();
-    brand.title =
-      String(t.brandTitleAttr || "AskBible.me 首页").trim() || "AskBible.me 首页";
+  const ADMIN_SHELL_BRAND_TEXT_DEFAULT = {
+    brandAsk: "Ask",
+    brandBible: "Bible",
+    brandMe: ".me",
+  };
 
-    brand.replaceChildren();
+  /**
+   * 横版字标 SVG 加载失败时：ink 路径会改试浅字 .svg；浅字版失败则不再换 ink（深底不可读），回退文字品牌。
+   * 不使用应用方形图标（icon-180），避免侧栏误显示「四方大 LOGO」。
+   */
+  function wordmarkAlternateSvgPath(fromSrc) {
+    try {
+      const u = new URL(String(fromSrc || ""), window.location.origin);
+      let p = u.pathname;
+      if (p.includes("askbible-wordmark-ink.svg")) {
+        return (
+          p.replace("askbible-wordmark-ink.svg", "askbible-wordmark.svg") +
+          u.search +
+          u.hash
+        );
+      }
+      /* 深侧栏上浅字版失败时不再换 ink（墨色在深色底不可读），由逻辑回退到文字品牌 */
+      if (
+        p.includes("askbible-wordmark.svg") &&
+        !p.includes("askbible-wordmark-ink")
+      ) {
+        return "";
+      }
+    } catch (_) {}
+    return "";
+  }
 
-    if (!rawLogo) {
-      const mk = (cls, text) => {
-        const s = document.createElement("span");
-        s.className = cls;
-        s.textContent = text;
-        return s;
-      };
-      brand.appendChild(mk("brand-ask", String(t.brandAsk || "Ask")));
-      brand.appendChild(mk("brand-bible", String(t.brandBible || "Bible")));
-      brand.appendChild(mk("brand-me", String(t.brandMe || ".me")));
-      return;
-    }
+  function mergeBrandParts(t) {
+    return Object.assign({}, ADMIN_SHELL_BRAND_TEXT_DEFAULT, t && typeof t === "object" ? t : {});
+  }
 
-    const imgUrl = adminShellBrandImageUrl(rawLogo);
-    if (!isSafeBrandImgSrc(imgUrl)) return;
+  function appendTextBrand(t) {
+    const tp = mergeBrandParts(t);
+    const mk = (cls, text) => {
+      const s = document.createElement("span");
+      s.className = cls;
+      s.textContent = text;
+      return s;
+    };
+    brand.appendChild(mk("brand-ask", String(tp.brandAsk || "Ask")));
+    brand.appendChild(mk("brand-bible", String(tp.brandBible || "Bible")));
+    brand.appendChild(mk("brand-me", String(tp.brandMe || ".me")));
+  }
 
-    const h = Math.max(20, Math.min(80, Number(t.logoHeight) || 36));
-    const sideH = Math.min(32, h);
+  function wireAdminShellWordmarkFallback(img, t) {
+    const tp = mergeBrandParts(t);
+    img.addEventListener(
+      "error",
+      function () {
+        const step = img.dataset.abShellFb || "";
+        if (step === "") {
+          const alt = wordmarkAlternateSvgPath(img.src);
+          if (alt) {
+            img.dataset.abShellFb = "altSvg";
+            img.src = alt;
+            return;
+          }
+          img.remove();
+          appendTextBrand(tp);
+          return;
+        }
+        if (step === "altSvg") {
+          img.remove();
+          appendTextBrand(tp);
+        }
+      },
+      { once: false }
+    );
+  }
+
+  function appendWordmarkImg(t, imgUrl, sideH) {
+    const tp = mergeBrandParts(t);
     const alt =
-      String(t.brandAsk || "Ask") +
-      String(t.brandBible || "Bible") +
-      String(t.brandMe || ".me");
-
+      String(tp.brandAsk || "Ask") +
+      String(tp.brandBible || "Bible") +
+      String(tp.brandMe || ".me");
     const img = document.createElement("img");
     img.className = "admin-shell-brand-wordmark";
     img.src = imgUrl;
@@ -119,7 +172,32 @@
     img.style.display = "block";
     img.loading = "eager";
     img.decoding = "async";
+    wireAdminShellWordmarkFallback(img, t);
     brand.appendChild(img);
+  }
+
+  function applyAdminShellBrand(top) {
+    const t = top && typeof top === "object" ? top : {};
+    const rawLogo = String(t.logoUrl || "").trim();
+    brand.title =
+      String(t.brandTitleAttr || "AskBible.me 首页").trim() || "AskBible.me 首页";
+
+    brand.replaceChildren();
+
+    if (!rawLogo) {
+      appendTextBrand(t);
+      return;
+    }
+
+    const imgUrl = adminShellBrandImageUrl(rawLogo);
+    if (!isSafeBrandImgSrc(imgUrl)) {
+      appendTextBrand(t);
+      return;
+    }
+
+    const h = Math.max(20, Math.min(80, Number(t.logoHeight) || 36));
+    const sideH = Math.min(32, h);
+    appendWordmarkImg(t, imgUrl, sideH);
   }
 
   const root = document.createElement("div");
@@ -138,16 +216,19 @@
   brand.href = "/";
   brand.title = "AskBible.me 首页";
   {
+    const boot = mergeBrandParts({});
     const preload = document.createElement("img");
     preload.className = "admin-shell-brand-wordmark";
-    preload.src = "/assets/brand/askbible-wordmark-ink.svg";
-    preload.alt = "AskBible.me";
+    preload.src = "/assets/brand/askbible-wordmark.svg";
+    preload.alt =
+      String(boot.brandAsk) + String(boot.brandBible) + String(boot.brandMe);
     preload.height = 28;
     preload.style.height = "28px";
     preload.style.width = "auto";
     preload.style.display = "block";
     preload.loading = "eager";
     preload.decoding = "async";
+    wireAdminShellWordmarkFallback(preload, boot);
     brand.appendChild(preload);
   }
 
@@ -180,6 +261,7 @@
       a.className = "admin-shell-nav-link";
       a.href = it.href;
       a.textContent = it.label;
+      if (it.note) a.title = String(it.note);
       if (pathMatchesCurrent(it.href)) {
         a.classList.add("is-current");
         a.setAttribute("aria-current", "page");

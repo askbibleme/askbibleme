@@ -601,6 +601,8 @@
           bookId: String(bookSel.value || "").trim(),
           chapter: String(chapterSel.value || ""),
           sceneDescription: String(sceneEl.value || "").trim(),
+          imageSize: "1024x1536",
+          imageQuality: "high",
         }),
       });
       const rawI = await resImg.text();
