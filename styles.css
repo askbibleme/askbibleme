@@ -226,17 +226,22 @@ body:has(
   .page-shell > .site-topbar:has(+ .book-layout) {
     align-items: flex-end;
   }
+
+  /* 大屏：顶栏右侧菜单图标整体略向左，避免贴边 */
+  .askbible-chrome-nav {
+    transform: translateX(-20px);
+  }
 }
 
 .site-topbar-title {
   min-width: 0;
   /* 固定内边距：与书页左内边距一致，宽屏不随 vw 漂移（较书页左 pad 少 10px）；较最初再左移 25px */
-  margin-left: -1px;
+  margin-left: 7px;
   margin-top: -1px;
 }
 
 .notebook-topbar .site-topbar-title {
-  margin-left: 0;
+  margin-left: 8px;
   margin-top: -5px;
 }
 
@@ -316,10 +321,10 @@ body:has(
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0;
+  gap: 15px;
   justify-content: flex-end;
   padding: 0;
-  margin: 0;
+  margin: 0 0 0 8px;
 }
 
 .askbible-chrome-nav .askbible-chrome-nav-pill {
@@ -5668,7 +5673,9 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .askbible-chrome-nav {
-    transform: none;
+    /* 中屏（平板等）：与大屏一致略左移；≤700 在小屏规则里恢复 transform:none */
+    transform: translateX(-20px);
+    gap: 7px;
     /* 禁止 pill 竖排换行盖住 Logo：单行 + 横向滑动 */
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -5687,8 +5694,8 @@ a.admin-modal-hub-link.primary-btn {
 
   .askbible-chrome-nav .askbible-chrome-nav-pill {
     flex-shrink: 0;
-    padding: 10px 3px;
-    min-width: 44px;
+    padding: 10px 4px;
+    min-width: 36px;
     min-height: 44px;
     box-sizing: border-box;
     border-radius: 10px;
@@ -5733,7 +5740,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .askbible-chrome-nav .askbible-chrome-nav-pill:has(.askbible-chrome-nav-pill-icon) .askbible-chrome-nav-pill-icon {
-    transform: translateY(5px);
+    transform: translateY(8px);
     opacity: 1;
   }
 
@@ -5747,7 +5754,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
-    margin-left: -1px;
+    margin-left: 7px;
     margin-top: -5px;
     flex: 1 1 0;
     min-width: 0;
@@ -5878,12 +5885,12 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .site-topbar-title {
-    margin-left: -7px;
+    margin-left: -1px;
     margin-top: 5px;
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
-    margin-left: -1px;
+    margin-left: 5px;
     margin-top: -5px;
   }
 
@@ -5915,9 +5922,11 @@ a.admin-modal-hub-link.primary-btn {
     justify-content: flex-end;
   }
 
-  /* 小屏：顶栏图标带再收紧（pill 间距 + 左右内边距，仍满足 min 44×44 点击区） */
+  /* 小屏：顶栏图标保留间距；右移/下移用 margin 与 translateY，避免 translateX 与横滑抢位 */
   .askbible-chrome-nav {
-    gap: 0;
+    gap: 6px;
+    margin-left: 10px;
+    transform: translateY(4px);
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
@@ -5926,7 +5935,8 @@ a.admin-modal-hub-link.primary-btn {
 
   .askbible-chrome-nav .askbible-chrome-nav-pill {
     font-size: calc(13px * var(--font-scale));
-    padding: 8px 0;
+    padding: 8px 3px;
+    min-width: 34px;
   }
 
   .askbible-chrome-nav .askbible-chrome-nav-pill--icon-only {
@@ -6184,12 +6194,12 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .site-topbar-title {
-    margin-left: -13px;
+    margin-left: -7px;
     margin-top: 0;
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
-    margin-left: -1px;
+    margin-left: 5px;
     margin-top: -5px;
   }
 
@@ -6206,8 +6216,13 @@ a.admin-modal-hub-link.primary-btn {
     gap: 4px;
   }
 
+  .askbible-chrome-nav {
+    gap: 6px;
+  }
+
   .askbible-chrome-nav .askbible-chrome-nav-pill {
-    padding: 8px 0;
+    padding: 8px 2px;
+    min-width: 32px;
   }
 
   .askbible-chrome-nav .askbible-chrome-nav-pill--icon-only {
