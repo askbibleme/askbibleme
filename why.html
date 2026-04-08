@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-askbible-seo-page="promo">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="AskBible" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- 自托管：请把下方 canonical、og:*、twitter:*、JSON-LD 中的 https://askbible.me 改为你的站点根 URL；服务器设 PUBLIC_SITE_URL 以生成 robots/sitemap -->
+    <title>AskBible.me｜宣传页</title>
+    <meta name="description" content="AskBible.me 宣传页。" />
+    <meta name="keywords" content="读经平台,查经软件,查经工具,在线圣经,圣经阅读,小组聚会,小组查经,灵修笔记,AskBible" />
+    <link rel="canonical" href="https://askbible.me/why.html" />
+    <link rel="alternate" hreflang="zh-CN" href="https://askbible.me/why.html" />
+    <meta property="og:site_name" content="AskBible.me" />
+    <meta property="og:title" content="AskBible.me｜宣传页" />
+    <meta property="og:description" content="AskBible.me 宣传页。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://askbible.me/why.html" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:image" content="https://askbible.me/assets/icons/icon-maskable.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AskBible.me｜宣传页" />
+    <meta name="twitter:description" content="AskBible.me 宣传页。" />
+    <script type="application/ld+json" id="askbibleSeoJsonLd">
+      {"@context":"https://schema.org","@graph":[
+        {"@type":"WebSite","@id":"https://askbible.me/#website","url":"https://askbible.me/","name":"AskBible.me","alternateName":["Ask Bible","AskBible 查经"],"description":"在线读经平台与查经工具，支持书页式阅读、问题式查经与小组聚会场景下的经文讨论。","inLanguage":"zh-CN","publisher":{"@id":"https://askbible.me/#org"}},
+        {"@type":"Organization","@id":"https://askbible.me/#org","name":"AskBible.me","url":"https://askbible.me/"},
+        {"@type":"SoftwareApplication","name":"AskBible.me","applicationCategory":"LifestyleApplication","operatingSystem":"Web","browserRequirements":"Requires JavaScript. Modern browser.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"读经平台、查经软件与小组聚会可用的在线圣经阅读工具。","url":"https://askbible.me/"},
+        {"@type":"WebPage","@id":"https://askbible.me/why.html#webpage","url":"https://askbible.me/why.html","name":"AskBible.me 宣传页","description":"AskBible.me 宣传页。","inLanguage":"zh-CN","isPartOf":{"@id":"https://askbible.me/#website"}}
+      ]}
+    </script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
+    <link rel="stylesheet" href="/styles.css?v=156" />
+    <script src="/theme-apply.js?v=3"></script>
+    <script src="/site-chrome.js?v=19" defer></script>
+    <script src="/seo-apply.js?v=4" defer></script>
+    <link rel="stylesheet" href="/promo.css?v=26" />
+  </head>
+  <body class="promo-page-body">
+    <div class="page-shell">
+      <header class="site-topbar">
+        <div class="site-topbar-title">
+          <div class="askbible-chrome-brand-slot"></div>
+          <!-- 仅供「账户菜单 → 管理后台」程序化触发，勿删 id -->
+          <button type="button" id="openAdminBtn" hidden aria-hidden="true" tabindex="-1"></button>
+        </div>
+        <div class="site-topbar-actions">
+          <div class="askbible-chrome-nav-slot"></div>
+          <!-- 宣传页不展示会员书签；保留隐藏锚点供脚本与 deep link（/#openMemberHub） -->
+          <div class="member-hub member-hub--anchor-only" id="memberHub">
+            <button
+              type="button"
+              id="memberHubTrigger"
+              class="member-hub-trigger member-hub-trigger--guest-label"
+              hidden
+              aria-hidden="true"
+              tabindex="-1"
+              aria-expanded="false"
+              aria-controls="memberHubPanel"
+              aria-haspopup="true"
+            >
+              <span id="memberHubLabel" class="member-hub-label">免费注册</span>
+              <span id="memberHubTriggerGlyph" class="member-hub-trigger-glyph" aria-hidden="true"></span>
+              <span
+                id="memberHubTriggerStarsWrap"
+                class="member-hub-trigger-stars-wrap"
+                hidden
+                aria-hidden="true"
+              ></span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="book-layout promo-book-layout">
+        <div class="book-spread promo-book-spread promo-custom-css-scope">
+          <section class="book-page promo-book-page" aria-label="宣传页">
+            <div class="promo-md-shell" id="promoMdShell">
+              <p id="promoMarkdownStatus" class="promo-md-status" aria-live="polite">加载正文…</p>
+              <p id="promoMarkdownError" class="promo-md-error" hidden></p>
+              <div id="promoMarkdownView" class="promo-md-root markdown-body" hidden></div>
+              <p id="promoMarkdownEmpty" class="promo-md-empty" hidden>暂无正文</p>
+              <div id="promoMarkdownEditorWrap" class="promo-markdown-editor-wrap" hidden>
+                <label class="promo-editor-label" for="promoMarkdownEditor">Markdown 正文</label>
+                <textarea id="promoMarkdownEditor" class="promo-markdown-editor" spellcheck="false" rows="6"></textarea>
+              </div>
+              <div id="promoCssEditorWrap" class="promo-css-editor-wrap" hidden>
+                <label class="promo-editor-label" for="promoCustomCssEditor">自定义 CSS：默认整卡宽度 680px。单独一行 <code>===layout===</code> 之上可写整页规则（含顶栏/页脚对齐），其下仅作用于中间正文框。</label>
+                <textarea
+                  id="promoCustomCssEditor"
+                  class="promo-custom-css-editor"
+                  spellcheck="false"
+                  rows="10"
+                  placeholder="改宽度示例（写在第一行分隔符上方）：&#10;.promo-page-body { --promo-shell-max-width: 720px; }&#10;===layout===&#10;.promo-md-root p { margin-bottom: 0.75em; }"
+                ></textarea>
+              </div>
+              <!-- 仅管理员显示：文章区右下角 -->
+              <div id="promoInlineAdminBar" class="promo-inline-admin-bar" hidden>
+                <span id="promoInlineStatus" class="promo-inline-status" role="status"></span>
+                <div class="promo-inline-btns-row">
+                  <button type="button" id="promoInlineEditBtn" class="secondary-btn promo-inline-btn">编辑</button>
+                  <button type="button" id="promoInlineCssBtn" class="secondary-btn promo-inline-btn">CSS定义</button>
+                  <button type="button" id="promoInlineSaveBtn" class="primary-btn promo-inline-btn" hidden>保存</button>
+                  <button type="button" id="promoInlineCancelBtn" class="secondary-btn promo-inline-btn" hidden>取消</button>
+                  <button type="button" id="promoInlineCssSaveBtn" class="primary-btn promo-inline-btn" hidden>保存样式</button>
+                  <button type="button" id="promoInlineCssCancelBtn" class="secondary-btn promo-inline-btn" hidden>取消</button>
+                </div>
+              </div>
+            </div>
+            <div class="promo-read-bible-wrap">
+              <a href="/" class="primary-btn promo-read-bible-btn">阅读圣经</a>
+            </div>
+          </section>
+        </div>
+      </main>
+      <footer class="site-footer askbible-chrome-footer-slot" hidden></footer>
+    </div>
+
+    <div
+      id="memberHubPanel"
+      class="verse-search-overlay member-hub-overlay"
+      hidden
+      role="presentation"
+    >
+      <button
+        type="button"
+        class="verse-search-backdrop"
+        tabindex="-1"
+        aria-label="关闭账户菜单"
+        id="memberHubBackdropBtn"
+        data-close-panel="memberHubPanel"
+      ></button>
+      <div
+        class="verse-search-card member-hub-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="memberHubModalTitle"
+      >
+        <div class="toolbar-panel-inner toolbar-panel-simple">
+          <div class="toolbar-panel-head">
+            <div class="toolbar-panel-title" id="memberHubModalTitle">账户</div>
+            <button
+              type="button"
+              class="toolbar-panel-close"
+              id="memberHubCloseBtn"
+              data-close-panel="memberHubPanel"
+            >
+              关闭
+            </button>
+          </div>
+
+          <div id="memberHubGuest" class="member-hub-state member-hub-state--guest">
+            <div class="chapter-grid-wrap">
+              <div class="chapter-grid-title">登录后可使用</div>
+              <p class="member-hub-guest-hint">
+                登录后可提交问题、收藏与社区互动。
+              </p>
+            </div>
+            <div class="chapter-grid-wrap">
+              <div class="chapter-grid-title">进入账户</div>
+              <div class="member-hub-actions-row member-hub-actions-row--solo">
+                <button type="button" class="member-hub-primary" data-member-action="login">登录</button>
+                <button type="button" class="member-hub-secondary" data-member-action="register">
+                  免费注册
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="memberHubMember" class="member-hub-state member-hub-state--member" hidden>
+            <div class="chapter-grid-wrap member-hub-member-sheet">
+              <div class="member-hub-member-sheet__label">当前账户</div>
+              <div class="member-hub-identity member-hub-identity--in-sheet">
+                <div class="member-hub-avatar" id="memberHubAvatar" aria-hidden="true">?</div>
+                <div class="member-hub-identity-text">
+                  <div class="member-hub-display-name" id="memberHubDisplayName">—</div>
+                  <div class="member-hub-email" id="memberHubEmail">—</div>
+                  <div class="member-hub-online-total" id="memberHubOnlineTotal">累计在线 —</div>
+                </div>
+              </div>
+            </div>
+            <div
+              id="memberHubQianfuzhangSection"
+              class="chapter-grid-wrap member-hub-qian-section"
+              hidden
+            >
+              <div class="chapter-grid-title member-hub-qian-section__title">站点管理（千夫长）</div>
+              <nav
+                class="version-grid member-hub-link-grid member-hub-link-grid--qian"
+                aria-label="站点管理"
+              >
+                <button
+                  type="button"
+                  class="member-hub-menu-item member-hub-menu-item--admin"
+                  data-member-action="admin"
+                  id="memberHubAdminBtn"
+                >
+                  管理后台
+                </button>
+              </nav>
+            </div>
+            <div class="chapter-grid-wrap member-hub-logout-wrap">
+              <button
+                type="button"
+                class="member-hub-menu-item member-hub-menu-item--danger"
+                data-member-action="logout"
+              >
+                退出登录
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="authModal" class="modal-mask auth-modal-mask" style="display: none">
+      <div
+        class="modal-card modal-card-sm modal-card-auth"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="authModalTitle"
+      >
+        <div class="modal-head auth-modal-head">
+          <h2 id="authModalTitle">用户登录</h2>
+          <button id="closeAuthBtn" class="auth-modal-close" type="button">关闭</button>
+        </div>
+        <div class="auth-mode-switch" role="tablist" aria-label="登录或注册">
+          <button type="button" id="authModeLoginBtn" class="auth-mode-btn active">登录</button>
+          <button type="button" id="authModeRegisterBtn" class="auth-mode-btn">免费注册</button>
+        </div>
+        <form id="authForm" class="auth-modal-form" novalidate>
+          <div class="auth-modal-body">
+            <div id="authNameField">
+              <div class="section-title">用户昵称</div>
+              <input
+                id="authNameInput"
+                class="custom-textarea single-input"
+                type="text"
+                placeholder="你的称呼，如：小雅（勿用「昵称」占位）"
+                autocomplete="nickname"
+              />
+            </div>
+            <div class="section-title">邮箱</div>
+            <input
+              id="authEmailInput"
+              class="custom-textarea single-input"
+              type="email"
+              placeholder="name@example.com"
+              autocomplete="email"
+              required
+            />
+            <div class="section-title">密码</div>
+            <input
+              id="authPasswordInput"
+              class="custom-textarea single-input"
+              type="password"
+              placeholder="至少 6 位"
+              autocomplete="current-password"
+              required
+            />
+            <div id="authErrorText" class="error-text"></div>
+          </div>
+          <div class="modal-actions auth-modal-submit-row">
+            <button id="authSubmitBtn" class="auth-submit-btn" type="submit">登录</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="adminModal" class="modal-mask" style="display: none">
+      <div class="modal-card modal-card-admin">
+        <div class="modal-head">
+          <h2>后台管理</h2>
+          <button
+            id="closeAdminBtn"
+            class="top-action-btn modal-dark-btn"
+            type="button"
+          >
+            关闭
+          </button>
+        </div>
+
+        <div class="admin-modal-landing">
+          <p class="admin-modal-landing-lead">
+            站点外观、SEO、配色、宣传页、文章与配图等已迁至<strong>独立管理页</strong>（全屏、左侧目录，无内嵌框架）。
+          </p>
+          <div class="admin-modal-landing-actions">
+            <a href="/admin-hub.html" class="primary-btn admin-modal-hub-link">打开管理后台</a>
+          </div>
+          <p class="admin-modal-landing-hint">
+            下方标签页仍在本窗口：<strong>规则编辑、测试生成、发布与任务队列</strong>等读经内容流水线。
+          </p>
+        </div>
+
+        <div class="admin-tabs">
+          <button
+            type="button"
+            class="admin-tab-btn active"
+            data-admin-tab="ruleEditor"
+          >
+            规则编辑
+          </button>
+          <button
+            type="button"
+            class="admin-tab-btn"
+            data-admin-tab="testGenerate"
+          >
+            测试生成
+          </button>
+        </div>
+
+        <section class="admin-tab-panel active" id="adminTab-ruleEditor">
+          <div class="admin-two-col">
+            <div class="admin-left-col">
+              <div class="section-title">选择内容版本</div>
+              <select id="adminRuleVersionSelect"></select>
+
+              <div class="section-title">基础信息</div>
+              <div class="toolbar-stack">
+                <input
+                  id="adminRuleLabel"
+                  class="custom-textarea single-input"
+                  placeholder="版本名称"
+                />
+                <input
+                  id="adminRuleScene"
+                  class="custom-textarea single-input"
+                  placeholder="场景"
+                />
+                <input
+                  id="adminRuleTemplate"
+                  class="custom-textarea single-input"
+                  placeholder="模板"
+                />
+                <input
+                  id="adminRuleStyleTags"
+                  class="custom-textarea single-input"
+                  placeholder="风格标签，逗号分隔"
+                />
+              </div>
+
+              <div class="section-title">基础规则</div>
+              <div class="admin-grid">
+                <div>
+                  <div class="label">每段最少问题数</div>
+                  <input
+                    id="adminMinQuestions"
+                    type="number"
+                    class="custom-textarea single-input"
+                  />
+                </div>
+
+                <div>
+                  <div class="label">每段最多问题数</div>
+                  <input
+                    id="adminMaxQuestions"
+                    type="number"
+                    class="custom-textarea single-input"
+                  />
+                </div>
+
+                <div>
+                  <div class="label">每章最少总问题数</div>
+                  <input
+                    id="adminChapterQuestionMin"
+                    type="number"
+                    class="custom-textarea single-input"
+                  />
+                </div>
+
+                <div>
+                  <div class="label">每章最多总问题数</div>
+                  <input
+                    id="adminChapterQuestionMax"
+                    type="number"
+                    class="custom-textarea single-input"
+                  />
+                </div>
+              </div>
+
+              <div class="section-title">规则开关</div>
+              <div class="check-grid">
+                <label>
+                  <input type="checkbox" id="adminLeaderHint" />
+                  输出带领提示
+                </label>
+                <label>
+                  <input type="checkbox" id="adminAvoidRepeat" />
+                  避免重复句式
+                </label>
+                <label>
+                  <input type="checkbox" id="adminAllowLightApplication" />
+                  允许轻度应用
+                </label>
+                <label>
+                  <input type="checkbox" id="adminAllowGospelEmphasis" />
+                  强调福音线索
+                </label>
+                <label>
+                  <input type="checkbox" id="adminAllowChildrenTone" />
+                  儿童语气
+                </label>
+                <label>
+                  <input type="checkbox" id="adminAllowYouthTone" />
+                  青少年向
+                </label>
+                <label>
+                  <input type="checkbox" id="adminAllowCoupleTone" />
+                  夫妇关系向
+                </label>
+                <label>
+                  <input type="checkbox" id="adminAllowWorkplaceTone" />
+                  职场应用向
+                </label>
+              </div>
+
+              <div class="section-title">按语言补充要求</div>
+              <div class="admin-grid">
+                <div>
+                  <div class="label">中文补充要求</div>
+                  <textarea
+                    id="adminPromptZh"
+                    class="custom-textarea"
+                  ></textarea>
+                </div>
+
+                <div>
+                  <div class="label">英文补充要求</div>
+                  <textarea
+                    id="adminPromptEn"
+                    class="custom-textarea"
+                  ></textarea>
+                </div>
+
+                <div>
+                  <div class="label">西语补充要求</div>
+                  <textarea
+                    id="adminPromptEs"
+                    class="custom-textarea"
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="section-title">系统提示词覆盖（可留空）</div>
+              <textarea
+                id="adminSystemPromptOverride"
+                class="custom-textarea"
+                placeholder="留空则使用程序自动拼接规则；填写后将完全覆盖默认系统提示词。"
+              ></textarea>
+
+              <div class="modal-actions">
+                <button id="saveRuleBtn" class="primary-btn" type="button">
+                  保存规则
+                </button>
+                <button id="reloadRuleBtn" class="secondary-btn" type="button">
+                  重新读取
+                </button>
+              </div>
+            </div>
+
+            <div class="admin-right-col">
+              <div class="section-title">当前规则预览</div>
+              <pre id="adminRulePreview" class="admin-preview-box"></pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-tab-panel" id="adminTab-testGenerate">
+          <div class="admin-two-col">
+            <div class="admin-left-col">
+              <div class="section-title">测试条件</div>
+
+              <div class="admin-grid">
+                <div>
+                  <div class="label">内容版本</div>
+                  <select id="testVersionSelect"></select>
+                </div>
+
+                <div>
+                  <div class="label">输出语言</div>
+                  <select id="testLangSelect"></select>
+                </div>
+
+                <div>
+                  <div class="label">书卷</div>
+                  <select id="testBookSelect"></select>
+                </div>
+
+                <div>
+                  <div class="label">章节</div>
+                  <select id="testChapterSelect"></select>
+                </div>
+              </div>
+
+              <div class="modal-actions">
+                <button
+                  id="runTestGenerateBtn"
+                  class="primary-btn"
+                  type="button"
+                >
+                  测试生成
+                </button>
+                <button
+                  id="saveTestResultBtn"
+                  class="secondary-btn"
+                  type="button"
+                >
+                  保存此章内容
+                </button>
+              </div>
+
+              <div class="section-title">测试状态</div>
+              <div id="testGenerateStatus" class="result-box">
+                尚未开始测试。
+              </div>
+
+              <div class="section-title">保存状态</div>
+              <div id="saveTestResultStatus" class="result-box">尚未保存。</div>
+            </div>
+
+            <div class="admin-right-col">
+              <div class="section-title">测试结果</div>
+              <div id="testGenerateResult" class="admin-preview-result">
+                <div class="empty-state">
+                  点击“测试生成”后，这里会显示结果。
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script>
+(function () {
+  var USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+
+  function getToken() {
+    return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+  }
+
+  function authHeaders() {
+    var t = getToken();
+    var h = { "Content-Type": "application/json" };
+    if (t) h.Authorization = "Bearer " + t;
+    return h;
+  }
+
+  function sessionUserIsSiteAdmin(user) {
+    if (!user || typeof user !== "object") return false;
+    if (user.isAdmin === true || user.isAdmin === 1) return true;
+    var r = String(user.adminRole || "").toLowerCase();
+    return ["shifuzhang", "baifuzhang", "qianfuzhang"].indexOf(r) !== -1;
+  }
+
+  async function fetchJson(path, init) {
+    var res = await fetch(path, init || {});
+    var raw = await res.text();
+    var data = {};
+    if (raw.trim()) {
+      try {
+        data = JSON.parse(raw);
+      } catch (_) {
+        data = {};
+      }
+    }
+    if (!res.ok) {
+      var detail = (data && (data.error || data.message)) || "";
+      throw new Error(detail || "请求失败（HTTP " + res.status + "）");
+    }
+    return data;
+  }
+
+  function purifyHtml(html) {
+    if (typeof DOMPurify === "undefined") return "";
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "ul", "ol", "li", "strong", "em", "b", "i", "u",
+        "a", "blockquote", "pre", "code", "hr", "table", "thead", "tbody", "tr", "th", "td", "span", "div", "img",
+      ],
+      ALLOWED_ATTR: ["href", "title", "target", "rel", "class", "id", "src", "alt", "loading"],
+      ADD_ATTR: ["target"],
+    });
+  }
+
+  function afterSanitize(root) {
+    if (!root) return;
+    root.querySelectorAll("a[href]").forEach(function (a) {
+      var href = a.getAttribute("href") || "";
+      if (/^https?:\/\//i.test(href)) {
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener noreferrer");
+      }
+    });
+  }
+
+  function wrapSections(root) {
+    var nodes = Array.from(root.childNodes);
+    var frag = document.createDocumentFragment();
+    var buf = [];
+    function flush() {
+      if (!buf.length) return;
+      var art = document.createElement("article");
+      art.className = "promo-block";
+      buf.forEach(function (n) {
+        art.appendChild(n);
+      });
+      frag.appendChild(art);
+      buf = [];
+    }
+    nodes.forEach(function (n) {
+      if (n.nodeType !== 1) {
+        if (n.textContent && String(n.textContent).trim()) buf.push(n);
+        return;
+      }
+      var el = n;
+      if (el.classList && el.classList.contains("promo-kicker")) {
+        flush();
+        frag.appendChild(el);
+        return;
+      }
+      if (/^H2$/i.test(el.tagName)) {
+        flush();
+        buf.push(el);
+        return;
+      }
+      buf.push(el);
+    });
+    flush();
+    root.textContent = "";
+    root.appendChild(frag);
+  }
+
+  function renderMarkdownToView(md, viewEl) {
+    if (typeof marked === "undefined" || typeof DOMPurify === "undefined") return;
+    marked.setOptions({ gfm: true, breaks: true, headerIds: true, mangle: false });
+    var raw = marked.parse(String(md || ""));
+    viewEl.innerHTML = purifyHtml(raw);
+    afterSanitize(viewEl);
+    wrapSections(viewEl);
+  }
+
+  function autosizeTextarea(ta) {
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + "px";
+  }
+
+  var PROMO_CUSTOM_CSS_SCOPE = ".promo-custom-css-scope";
+
+  var PROMO_LAYOUT_CSS_MARKER = "===layout===";
+
+  function applyPromoCustomCss(css) {
+    var id = "promoUserCustomStyle";
+    var el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement("style");
+      el.id = id;
+      document.head.appendChild(el);
+    }
+    var raw = String(css || "").trim();
+    if (!raw) {
+      el.textContent = "";
+      return;
+    }
+    var layoutPart = "";
+    var scopedPart = raw;
+    var cut = raw.indexOf(PROMO_LAYOUT_CSS_MARKER);
+    if (cut !== -1) {
+      layoutPart = raw.slice(0, cut).trim();
+      scopedPart = raw.slice(cut + PROMO_LAYOUT_CSS_MARKER.length).trim();
+    }
+    var blocks = [];
+    if (layoutPart) {
+      blocks.push(layoutPart);
+    }
+    if (scopedPart) {
+      blocks.push(
+        "@scope (" +
+          PROMO_CUSTOM_CSS_SCOPE +
+          ") {\n" +
+          scopedPart +
+          "\n}"
+      );
+    }
+    el.textContent = blocks.join("\n\n");
+  }
+
+  var statusEl = document.getElementById("promoMarkdownStatus");
+  var errEl = document.getElementById("promoMarkdownError");
+  var viewEl = document.getElementById("promoMarkdownView");
+  var emptyEl = document.getElementById("promoMarkdownEmpty");
+  var editorWrap = document.getElementById("promoMarkdownEditorWrap");
+  var ta = document.getElementById("promoMarkdownEditor");
+  var cssEditorWrap = document.getElementById("promoCssEditorWrap");
+  var cssTa = document.getElementById("promoCustomCssEditor");
+  var adminBar = document.getElementById("promoInlineAdminBar");
+  var mdShell = document.getElementById("promoMdShell");
+  var editBtn = document.getElementById("promoInlineEditBtn");
+  var cssDefBtn = document.getElementById("promoInlineCssBtn");
+  var saveBtn = document.getElementById("promoInlineSaveBtn");
+  var cancelBtn = document.getElementById("promoInlineCancelBtn");
+  var cssSaveBtn = document.getElementById("promoInlineCssSaveBtn");
+  var cssCancelBtn = document.getElementById("promoInlineCssCancelBtn");
+  var inlineStatus = document.getElementById("promoInlineStatus");
+
+  var lastMarkdown = "";
+  var lastCustomCss = "";
+  var isAdmin = false;
+  var editMode = "view";
+
+  function showErr(msg) {
+    if (statusEl) statusEl.hidden = true;
+    if (viewEl) viewEl.hidden = true;
+    if (emptyEl) emptyEl.hidden = true;
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = msg;
+    }
+  }
+
+  function updateEmptyVisibility() {
+    if (!emptyEl || !viewEl) return;
+    var has = viewEl.textContent && String(viewEl.textContent).trim();
+    emptyEl.hidden = has || editMode === "md";
+  }
+
+  function setViewMode() {
+    editMode = "view";
+    if (editorWrap) editorWrap.hidden = true;
+    if (cssEditorWrap) cssEditorWrap.hidden = true;
+    if (saveBtn) saveBtn.hidden = true;
+    if (cancelBtn) cancelBtn.hidden = true;
+    if (cssSaveBtn) cssSaveBtn.hidden = true;
+    if (cssCancelBtn) cssCancelBtn.hidden = true;
+    if (editBtn) editBtn.hidden = !isAdmin;
+    if (cssDefBtn) cssDefBtn.hidden = !isAdmin;
+    applyPromoCustomCss(lastCustomCss);
+    var md = lastMarkdown;
+    if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
+      if (String(md || "").trim()) {
+        renderMarkdownToView(md, viewEl);
+        if (viewEl) viewEl.hidden = false;
+      } else {
+        if (viewEl) {
+          viewEl.innerHTML = "";
+          viewEl.hidden = false;
+        }
+      }
+    }
+    updateEmptyVisibility();
+  }
+
+  function setEditMode() {
+    if (!isAdmin) return;
+    editMode = "md";
+    if (cssEditorWrap) cssEditorWrap.hidden = true;
+    if (emptyEl) emptyEl.hidden = true;
+    if (viewEl) viewEl.hidden = true;
+    if (editorWrap) editorWrap.hidden = false;
+    if (ta) {
+      ta.value = lastMarkdown;
+      autosizeTextarea(ta);
+    }
+    if (editBtn) editBtn.hidden = true;
+    if (cssDefBtn) cssDefBtn.hidden = true;
+    if (saveBtn) saveBtn.hidden = false;
+    if (cancelBtn) cancelBtn.hidden = false;
+    if (cssSaveBtn) cssSaveBtn.hidden = true;
+    if (cssCancelBtn) cssCancelBtn.hidden = true;
+    if (inlineStatus) inlineStatus.textContent = "";
+  }
+
+  function setCssEditMode() {
+    if (!isAdmin) return;
+    editMode = "css";
+    if (editorWrap) editorWrap.hidden = true;
+    if (cssEditorWrap) cssEditorWrap.hidden = false;
+    if (cssTa) {
+      cssTa.value = lastCustomCss;
+      autosizeTextarea(cssTa);
+    }
+    var mdTrim = String(lastMarkdown || "").trim();
+    if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
+      if (mdTrim) {
+        renderMarkdownToView(lastMarkdown, viewEl);
+        if (viewEl) viewEl.hidden = false;
+      } else if (viewEl) {
+        viewEl.innerHTML = "";
+        viewEl.hidden = true;
+      }
+    }
+    updateEmptyVisibility();
+    if (editBtn) editBtn.hidden = true;
+    if (cssDefBtn) cssDefBtn.hidden = true;
+    if (saveBtn) saveBtn.hidden = true;
+    if (cancelBtn) cancelBtn.hidden = true;
+    if (cssSaveBtn) cssSaveBtn.hidden = false;
+    if (cssCancelBtn) cssCancelBtn.hidden = false;
+    if (inlineStatus) inlineStatus.textContent = "";
+  }
+
+  async function checkAdmin() {
+    var token = getToken();
+    if (!token) {
+      isAdmin = false;
+      return false;
+    }
+    try {
+      var me = await fetchJson("/api/auth/me", {
+        headers: { Authorization: "Bearer " + token },
+        cache: "no-store",
+      });
+      var user = me && typeof me === "object" ? me.user || null : null;
+      isAdmin = sessionUserIsSiteAdmin(user);
+      return isAdmin;
+    } catch (_) {
+      isAdmin = false;
+      return false;
+    }
+  }
+
+  async function loadPublic() {
+    if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+      showErr("无法加载 Markdown 排版组件，请检查网络后刷新。");
+      return;
+    }
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.textContent = "加载正文…";
+    }
+    if (errEl) errEl.hidden = true;
+    try {
+      var data = await fetchJson("/api/promo-page?t=" + encodeURIComponent(String(Date.now())), {
+        cache: "no-store",
+      });
+      lastMarkdown = String((data && data.markdown) || "");
+      lastCustomCss = String((data && data.customCss) || "");
+      applyPromoCustomCss(lastCustomCss);
+    } catch (e) {
+      showErr("加载失败：" + (e && e.message ? e.message : String(e)));
+      return;
+    }
+    if (statusEl) statusEl.hidden = true;
+    setViewMode();
+  }
+
+  async function pullPromoFromServerQuiet() {
+    var data = await fetchJson("/api/promo-page?t=" + encodeURIComponent(String(Date.now())), {
+      cache: "no-store",
+    });
+    lastMarkdown = String((data && data.markdown) || "");
+    lastCustomCss = String((data && data.customCss) || "");
+    applyPromoCustomCss(lastCustomCss);
+  }
+
+  async function refreshAdminUi() {
+    await checkAdmin();
+    if (!isAdmin) {
+      setViewMode();
+    }
+    if (adminBar) {
+      adminBar.hidden = !isAdmin;
+      adminBar.setAttribute("aria-hidden", isAdmin ? "false" : "true");
+    }
+    if (mdShell) mdShell.classList.toggle("promo-md-shell--admin", isAdmin);
+    if (editMode === "view") {
+      if (editBtn) editBtn.hidden = !isAdmin;
+      if (cssDefBtn) cssDefBtn.hidden = !isAdmin;
+    }
+  }
+
+  function bind() {
+    if (ta) {
+      ta.addEventListener("input", function () {
+        autosizeTextarea(ta);
+      });
+    }
+    if (editBtn) {
+      editBtn.addEventListener("click", function () {
+        setEditMode();
+      });
+    }
+    if (cssDefBtn) {
+      cssDefBtn.addEventListener("click", function () {
+        setCssEditMode();
+      });
+    }
+    if (cssTa) {
+      cssTa.addEventListener("input", function () {
+        autosizeTextarea(cssTa);
+      });
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", function () {
+        setViewMode();
+      });
+    }
+    if (cssCancelBtn) {
+      cssCancelBtn.addEventListener("click", function () {
+        setViewMode();
+      });
+    }
+    if (saveBtn) {
+      saveBtn.addEventListener("click", async function () {
+        if (!isAdmin) return;
+        if (inlineStatus) inlineStatus.textContent = "保存中…";
+        saveBtn.disabled = true;
+        try {
+          var body = JSON.stringify({ markdown: ta ? ta.value : "" });
+          await fetchJson("/api/admin/promo-page", {
+            method: "POST",
+            headers: authHeaders(),
+            body: body,
+          });
+          try {
+            await pullPromoFromServerQuiet();
+          } catch (_) {
+            lastMarkdown = ta ? ta.value : "";
+          }
+          if (inlineStatus) {
+            inlineStatus.textContent = "已保存";
+          }
+          setViewMode();
+        } catch (e) {
+          if (inlineStatus) {
+            inlineStatus.textContent = e && e.message ? e.message : "保存失败";
+          }
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+    }
+    if (cssSaveBtn) {
+      cssSaveBtn.addEventListener("click", async function () {
+        if (!isAdmin) return;
+        if (inlineStatus) inlineStatus.textContent = "保存中…";
+        cssSaveBtn.disabled = true;
+        try {
+          var body = JSON.stringify({ customCss: cssTa ? cssTa.value : "" });
+          await fetchJson("/api/admin/promo-page/custom-css", {
+            method: "POST",
+            headers: authHeaders(),
+            body: body,
+          });
+          try {
+            await pullPromoFromServerQuiet();
+          } catch (_) {
+            lastCustomCss = cssTa ? cssTa.value : "";
+            applyPromoCustomCss(lastCustomCss);
+          }
+          if (inlineStatus) {
+            inlineStatus.textContent = "样式已保存";
+          }
+          setViewMode();
+        } catch (e) {
+          if (inlineStatus) {
+            inlineStatus.textContent = e && e.message ? e.message : "保存失败";
+          }
+        } finally {
+          cssSaveBtn.disabled = false;
+        }
+      });
+    }
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") {
+        void refreshAdminUi();
+      }
+    });
+    window.addEventListener("storage", function (ev) {
+      if (ev.key === USER_AUTH_TOKEN_KEY) void refreshAdminUi();
+    });
+    var focusTimer = null;
+    window.addEventListener("focus", function () {
+      clearTimeout(focusTimer);
+      focusTimer = setTimeout(function () {
+        void refreshAdminUi();
+      }, 350);
+    });
+  }
+
+  bind();
+  void (async function init() {
+    await loadPublic();
+    await refreshAdminUi();
+  })();
+})();
+    </script>
+    <script type="module" src="/main.js"></script>
+    <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
+    <script>
+      (function () {
+        var host = location.hostname;
+        if (host !== "localhost" && host !== "127.0.0.1") return;
+        fetch("/api/dev/livereload-status", { credentials: "same-origin", cache: "no-store" })
+          .then(function (r) {
+            return r.ok ? r.json() : { enabled: false };
+          })
+          .then(function (j) {
+            if (!j || !j.enabled) return;
+            var s = document.createElement("script");
+            s.src = "http://" + host + ":35729/livereload.js?snipver=1";
+            s.async = true;
+            document.body.appendChild(s);
+          })
+          .catch(function () {});
+      })();
+    </script>
+  </body>
+</html>
