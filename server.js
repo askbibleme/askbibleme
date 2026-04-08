@@ -969,6 +969,25 @@ const chapterVideoPosterMulter = multer({
   },
 });
 
+/** 章节插图 / 人物透明参考图：管理员上传外部图片，归一化为 PNG 写入 public/generated */
+const illustrationImageUploadMulter = multer({
+  dest: CHAPTER_VIDEO_UPLOAD_TMP,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/(jpeg|png|webp|gif)$/i.test(String(file.mimetype || ""));
+    cb(null, ok);
+  },
+});
+
+function illustrationImageUploadMiddleware(req, res, next) {
+  try {
+    fs.mkdirSync(CHAPTER_VIDEO_UPLOAD_TMP, { recursive: true });
+  } catch {
+    /* ignore */
+  }
+  illustrationImageUploadMulter.single("file")(req, res, next);
+}
+
 /* =========================================================
    配置读取
    ========================================================= */
@@ -7871,6 +7890,169 @@ const CHAPTER_ILLUSTRATION_GENERATED_DIR = path.join(
   __dirname,
   "public",
   "generated"
+);
+
+async function finalizeIllustrationUploadToPngBuffer(buf) {
+  const meta = await sharp(buf).metadata();
+  if (!meta.width || !meta.height) {
+    throw new Error("无法读取图片尺寸");
+  }
+  const maxDim = 4096;
+  let pipeline = sharp(buf).rotate();
+  if (meta.width > maxDim || meta.height > maxDim) {
+    pipeline = pipeline.resize(maxDim, maxDim, {
+      fit: "inside",
+      withoutEnlargement: true,
+    });
+  }
+  return pipeline.png({ compressionLevel: 9, effort: 6 }).toBuffer();
+}
+
+async function handleChapterIllustrationFileUpload(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  const file = req.file;
+  if (!file || !file.path) {
+    return res.status(400).json({
+      ok: false,
+      success: false,
+      error: "请选择图片文件（表单字段名 file）",
+    });
+  }
+  const bookId = safeText(req.body?.bookId || "")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 16);
+  const bookTok = bookId || "bk";
+  const chRaw = req.body?.chapter;
+  const chNum = Number(chRaw);
+  const chTok = Number.isFinite(chNum)
+    ? String(Math.max(0, Math.floor(chNum)))
+    : "0";
+  try {
+    const buf = fs.readFileSync(file.path);
+    const pngBuf = await finalizeIllustrationUploadToPngBuffer(buf);
+    ensureDir(CHAPTER_ILLUSTRATION_GENERATED_DIR);
+    const filename = `ill-upload-${bookTok}-${chTok}-${Date.now()}.png`;
+    const dest = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
+    fs.writeFileSync(dest, pngBuf);
+    try {
+      fs.unlinkSync(file.path);
+    } catch {
+      /* ignore */
+    }
+    const imageUrl = `/generated/${filename}`;
+    res.json({ ok: true, success: true, imageUrl });
+  } catch (e) {
+    try {
+      fs.unlinkSync(file.path);
+    } catch {
+      /* ignore */
+    }
+    console.error(e);
+    res.status(500).json({
+      ok: false,
+      success: false,
+      error: e.message || "处理图片失败",
+    });
+  }
+}
+
+async function handleBibleCharacterPortraitUpload(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  const file = req.file;
+  if (!file || !file.path) {
+    return res.status(400).json({
+      ok: false,
+      success: false,
+      error: "请选择图片文件（表单字段名 file）",
+    });
+  }
+  const englishName = safeText(req.body?.englishName || "");
+  const nameEnTok = englishName.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 36);
+  if (!nameEnTok) {
+    try {
+      fs.unlinkSync(file.path);
+    } catch {
+      /* ignore */
+    }
+    return res.status(400).json({
+      ok: false,
+      success: false,
+      error: "请填写有效英文名 englishName（用于文件名）",
+    });
+  }
+  let slotIndex = Number(req.body?.slotIndex);
+  if (!Number.isFinite(slotIndex) || slotIndex < 0 || slotIndex > 2) {
+    slotIndex = 0;
+  }
+  slotIndex = Math.floor(slotIndex);
+  const nameSlotTok = "p" + String(slotIndex);
+  try {
+    const buf = fs.readFileSync(file.path);
+    const pngBuf = await finalizeIllustrationUploadToPngBuffer(buf);
+    ensureDir(CHAPTER_ILLUSTRATION_GENERATED_DIR);
+    const filename = `ill-char-${nameEnTok}-${nameSlotTok}-up-${Date.now()}.png`;
+    const dest = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
+    fs.writeFileSync(dest, pngBuf);
+    try {
+      fs.unlinkSync(file.path);
+    } catch {
+      /* ignore */
+    }
+    const imageUrl = `/generated/${filename}`;
+    res.json({ ok: true, success: true, imageUrl });
+  } catch (e) {
+    try {
+      fs.unlinkSync(file.path);
+    } catch {
+      /* ignore */
+    }
+    console.error(e);
+    res.status(500).json({
+      ok: false,
+      success: false,
+      error: e.message || "处理图片失败",
+    });
+  }
+}
+
+function chapterIllustrationUploadPostRoute(req, res) {
+  void handleChapterIllustrationFileUpload(req, res).catch((err) => {
+    console.error(err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        ok: false,
+        success: false,
+        error: err.message || "上传失败",
+      });
+    }
+  });
+}
+
+function bibleCharacterPortraitUploadPostRoute(req, res) {
+  void handleBibleCharacterPortraitUpload(req, res).catch((err) => {
+    console.error(err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        ok: false,
+        success: false,
+        error: err.message || "上传失败",
+      });
+    }
+  });
+}
+
+/** 与 chapter-illustration 同前缀，便于反代放行 */
+app.post(
+  "/api/chapter-illustration/upload-file",
+  illustrationImageUploadMiddleware,
+  chapterIllustrationUploadPostRoute
+);
+app.post(
+  "/api/admin/bible-character/upload-portrait",
+  illustrationImageUploadMiddleware,
+  bibleCharacterPortraitUploadPostRoute
 );
 
 function resolveSafeGeneratedPngPath(urlPath) {

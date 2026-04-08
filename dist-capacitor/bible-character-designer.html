@@ -421,6 +421,29 @@
         color: var(--muted);
         margin: 0;
       }
+      .bcd-portrait-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .bcd-btn-upload-portrait {
+        padding: 8px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: rgba(255, 251, 242, 0.65);
+        color: var(--ink);
+        font-weight: 700;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .bcd-btn-upload-portrait:hover:not(:disabled) {
+        border-color: rgba(200, 155, 60, 0.5);
+      }
+      .bcd-btn-upload-portrait:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
       .bcd-btn-portrait {
         padding: 8px 14px;
         border-radius: 10px;
@@ -3031,6 +3054,60 @@
           }
         }
 
+        async function uploadPortraitFileForSlot(card, slotEl, file) {
+          if (!getToken()) {
+            setStatus("请先登录。", "err");
+            return false;
+          }
+          const en = String(card.querySelector(".bcd-en").value || "").trim();
+          if (!en) {
+            setStatus("请先填写英文名。", "err");
+            return false;
+          }
+          const slotIdx = Number(slotEl.getAttribute("data-slot") || "0");
+          const upBtn = slotEl.querySelector(".bcd-btn-upload-portrait");
+          const genBtn = slotEl.querySelector(".bcd-btn-portrait");
+          if (upBtn) upBtn.disabled = true;
+          if (genBtn) genBtn.disabled = true;
+          setStatus("正在上传外部参考图…", null);
+          try {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("englishName", en);
+            fd.append("slotIndex", String(slotIdx));
+            const res = await fetch(apiUrl("/api/admin/bible-character/upload-portrait"), {
+              method: "POST",
+              headers: { Authorization: "Bearer " + getToken() },
+              body: fd,
+            });
+            const raw = await res.text();
+            let d = {};
+            try {
+              d = raw.trim() ? JSON.parse(raw) : {};
+            } catch (_) {
+              d = {};
+            }
+            if (!res.ok) {
+              throw new Error(d.error || "上传失败 HTTP " + res.status);
+            }
+            const url = String(d.imageUrl || "").trim();
+            if (!url) throw new Error("接口未返回 imageUrl");
+            setPortraitPreviewForSlot(slotEl, url);
+            const heroSrc = getHeroAppearanceSource(card);
+            if (heroSrc.slotIndex === slotIdx) {
+              setHeroImageData(card, url);
+            }
+            setStatus("已上传外部图（服务端已转为 PNG）；请点「保存全部」写入档案。", "ok");
+            return true;
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+            return false;
+          } finally {
+            if (upBtn) upBtn.disabled = false;
+            if (genBtn) genBtn.disabled = false;
+          }
+        }
+
         function getStageHeading(slotIndex, periodCount) {
           if (periodCount === 1) {
             return "主要时期（全书统一形象）";
@@ -3142,14 +3219,18 @@
             '<div class="bcd-portrait">' +
             '<div class="bcd-portrait-head">' +
             "<label>单时期参考图（可选）</label>" +
+            '<div class="bcd-portrait-actions">' +
             '<button type="button" class="bcd-btn-portrait">生成画像</button>' +
+            '<button type="button" class="bcd-btn-upload-portrait">上传外部图</button>' +
+            "</div>" +
+            '<input type="file" class="bcd-portrait-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />' +
             "</div>" +
             '<div class="bcd-portrait-preview-wrap bcd-portrait-preview-wrap--empty" data-img-url="' +
             imgStored +
             '">' +
             '<img class="bcd-portrait-img" alt="" hidden />' +
             "</div>" +
-            '<p class="bcd-hint">点「生成画像」调用一次图片 AI 出本时期透明全身（1024×1536）；若本栏为「主参考时期」会同步页顶主图。也可用上方「一键生成」一次出全时期。保存后写入 imageUrl。</p>' +
+            '<p class="bcd-hint">点「生成画像」调用 AI 出本时期透明全身；「上传外部图」可用手工透明 PNG/JPEG/WebP 替换本栏。若本栏为「主参考时期」会同步页顶主图。保存后写入 imageUrl。</p>' +
             "</div>" +
             "</div>"
           );
@@ -3729,6 +3810,22 @@
             btn.addEventListener("click", function () {
               const slotEl = btn.closest(".bcd-period-slot");
               if (slotEl) generatePortraitForSlot(card, slotEl, {});
+            });
+          });
+          card.querySelectorAll(".bcd-btn-upload-portrait").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              const slotEl = btn.closest(".bcd-period-slot");
+              const finp = slotEl && slotEl.querySelector(".bcd-portrait-file");
+              if (finp) finp.click();
+            });
+          });
+          card.querySelectorAll(".bcd-portrait-file").forEach(function (finp) {
+            finp.addEventListener("change", function () {
+              const f = finp.files && finp.files[0];
+              finp.value = "";
+              if (!f) return;
+              const slotEl = finp.closest(".bcd-period-slot");
+              if (slotEl) void uploadPortraitFileForSlot(card, slotEl, f);
             });
           });
           const pcSel = card.querySelector(".bcd-period-count");

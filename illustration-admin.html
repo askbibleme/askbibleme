@@ -490,6 +490,24 @@ watermark / text / logo</pre>
             <button type="button" id="iaSaveBtn">保存</button>
             <button type="button" id="iaInsertBtn">插入页面</button>
           </div>
+          <div class="ia-field" style="margin-top: 12px">
+            <span class="ia-row-label" style="display: block; margin-bottom: 6px"
+              >上传外部插图（替换当前预览，无需 AI）</span
+            >
+            <input
+              type="file"
+              id="iaChapterIllFile"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              hidden
+            />
+            <div class="ia-actions">
+              <button type="button" id="iaChapterIllUploadBtn">选择图片并上传</button>
+            </div>
+            <p class="ia-hint" style="margin-top: 8px; margin-bottom: 0">
+              支持 PNG / JPEG / WebP / GIF，服务端转为 PNG 存入
+              <code>/generated/</code>。上传后更新预览与「插入页面」所用地址；建议再点「保存」写入插画草稿。
+            </p>
+          </div>
           <p id="iaStatus" class="ia-status" role="status"></p>
           <div class="ia-preview" id="iaPreviewBox">
             <div class="ia-preview-placeholder" id="iaPreviewPh">生成预览后在此显示图片。</div>
@@ -1188,6 +1206,59 @@ watermark / text / logo</pre>
             previewBtn.disabled = false;
           }
         });
+
+        const iaChapterIllFile = document.getElementById("iaChapterIllFile");
+        const iaChapterIllUploadBtn = document.getElementById("iaChapterIllUploadBtn");
+        if (iaChapterIllUploadBtn && iaChapterIllFile) {
+          iaChapterIllUploadBtn.addEventListener("click", function () {
+            iaChapterIllFile.click();
+          });
+          iaChapterIllFile.addEventListener("change", async function () {
+            const f = iaChapterIllFile.files && iaChapterIllFile.files[0];
+            iaChapterIllFile.value = "";
+            if (!f) return;
+            const { version, lang, bookId, chapter } = selectionParams();
+            if (!version || !lang || !bookId) {
+              setStatus("请先选择版本、语言与书卷。", "err");
+              return;
+            }
+            iaChapterIllUploadBtn.disabled = true;
+            setStatus("正在上传外部插图…", null);
+            try {
+              const fd = new FormData();
+              fd.append("file", f);
+              fd.append("bookId", bookId);
+              fd.append("chapter", String(chapter));
+              const res = await fetch(iaReq("/api/chapter-illustration/upload-file"), {
+                method: "POST",
+                headers: authHeadersBare(),
+                body: fd,
+              });
+              const raw = await res.text();
+              let d = {};
+              try {
+                d = raw.trim() ? JSON.parse(raw) : {};
+              } catch (_) {
+                d = {};
+              }
+              if (!res.ok) {
+                setStatus(apiFailMessage(res, d) || d.error || "上传失败", "err");
+                return;
+              }
+              const url = String(d.imageUrl || "").trim();
+              if (!url) {
+                setStatus("上传成功但未返回图片路径。", "err");
+                return;
+              }
+              applyPreviewUrl(url);
+              setStatus("已上传外部插图并更新预览；可点「保存」或「插入页面」。", "ok");
+            } catch (e) {
+              setStatus(String(e && e.message ? e.message : e), "err");
+            } finally {
+              iaChapterIllUploadBtn.disabled = false;
+            }
+          });
+        }
 
         if (promptCopyBtn) {
           promptCopyBtn.addEventListener("click", async function () {
