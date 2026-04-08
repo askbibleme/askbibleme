@@ -140,6 +140,17 @@
     return s === "true" || s === "1" || s === "yes" || s === "on";
   }
 
+  function isIPadDevice() {
+    try {
+      var ua = String((navigator && navigator.userAgent) || "").toLowerCase();
+      var platform = String((navigator && navigator.platform) || "").toLowerCase();
+      var maxTouch = Number((navigator && navigator.maxTouchPoints) || 0);
+      if (ua.indexOf("ipad") >= 0) return true;
+      if (platform === "macintel" && maxTouch > 1) return true;
+    } catch (e) {}
+    return false;
+  }
+
   var __askbibleFixedTopbarRo = null;
 
   function syncFixedTopbarSpacer() {
@@ -528,7 +539,9 @@
     var omitDismissChrome = isSiteChromeAdminPage();
     var renderOpts = { omitDismissChrome: omitDismissChrome };
     var top = cfg && cfg.topbar ? cfg.topbar : {};
-    var stickyOn = topbarStickyViewportTrue(top.topbarSticky);
+    var stickyRequested = topbarStickyViewportTrue(top.topbarSticky);
+    /* iPad（横竖屏）禁用 fixed 顶栏，避免内容区与菜单叠层和滚动体验问题 */
+    var stickyOn = stickyRequested && !isIPadDevice();
     if (!stickyOn) {
       unbindFixedTopbarSpacer();
     }
