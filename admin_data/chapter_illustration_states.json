@@ -1,0 +1,274 @@
+{
+  "chapters": {
+    "default:zh:GEN:26": {
+      "bookName": "创世记",
+      "chapterNumber": 26,
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "theme": "这一章围绕以撒在饥荒中的选择、在惧怕中的软弱、在争竞中的退让，以及在神同在中的安稳展开，显出神对亚伯拉罕之约的持续信实，也让人看见人如何在现实压力中学习顺服与信靠。",
+      "summary": "饥荒中仍留在应许之地",
+      "chapterType": "narrative",
+      "sceneDescription": "Several robed figures gather in open biblical hills in a hushed tableau, standing still in quiet conversation or prayer, suggesting 饥荒中仍留在应许之地 without showing text or symbols.",
+      "prompt": "",
+      "imageUrl": "",
+      "localPath": "",
+      "confidence": 0.72,
+      "warning": null,
+      "transparentBackground": true,
+      "overlayOpacity": 85,
+      "stylePreset": "biblical_semi_real_character",
+      "sceneVariant": 1,
+      "analysis": {
+        "chapterType": "narrative",
+        "storyUnits": [
+          {
+            "id": "seg_0",
+            "title": "饥荒中仍留在应许之地",
+            "rangeStart": 1,
+            "rangeEnd": 6
+          },
+          {
+            "id": "seg_1",
+            "title": "惧怕让人重复旧有的失败",
+            "rangeStart": 7,
+            "rangeEnd": 11
+          },
+          {
+            "id": "seg_2",
+            "title": "蒙福之后也会引来嫉妒与压力",
+            "rangeStart": 12,
+            "rangeEnd": 17
+          },
+          {
+            "id": "seg_3",
+            "title": "一口一口井挖出忍让与空间",
+            "rangeStart": 18,
+            "rangeEnd": 22
+          },
+          {
+            "id": "seg_4",
+            "title": "神再次显现，坚固惧怕中的人",
+            "rangeStart": 23,
+            "rangeEnd": 25
+          },
+          {
+            "id": "seg_5",
+            "title": "从被赶逐到被求和",
+            "rangeStart": 26,
+            "rangeEnd": 33
+          },
+          {
+            "id": "seg_6",
+            "title": "家庭中的另一处隐忧",
+            "rangeStart": 34,
+            "rangeEnd": 35
+          }
+        ],
+        "candidateScenes": [
+          {
+            "id": "c_0",
+            "scene": "covenant_open_sky",
+            "priority": 85,
+            "reason": "covenant or sign in open air",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_1",
+            "scene": "segment_0",
+            "priority": 70,
+            "reason": "story unit: 饥荒中仍留在应许之地",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_2",
+            "scene": "segment_1",
+            "priority": 65,
+            "reason": "story unit: 惧怕让人重复旧有的失败",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_3",
+            "scene": "segment_2",
+            "priority": 60,
+            "reason": "story unit: 蒙福之后也会引来嫉妒与压力",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_4",
+            "scene": "segment_3",
+            "priority": 55,
+            "reason": "story unit: 一口一口井挖出忍让与空间",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_5",
+            "scene": "generic_open_land",
+            "priority": 30,
+            "reason": "fallback — figure in open biblical land",
+            "source": "heuristic"
+          }
+        ],
+        "visualAnchors": [
+          "well"
+        ],
+        "difficultyLevel": "low"
+      },
+      "selection": {
+        "selectedScene": "segment_0",
+        "reason": "story unit: 饥荒中仍留在应许之地",
+        "characters": "one or two robed figures",
+        "location": "open biblical hills",
+        "action": "standing still in quiet conversation or prayer",
+        "anchorObject": "story moment",
+        "candidateId": "c_1",
+        "variantIndex": 1,
+        "candidatePickIndex": 1,
+        "confidence": 0.72,
+        "warning": null
+      },
+      "updatedAt": "2026-04-07T02:42:50.765Z"
+    },
+    "default:zh:GEN:27": {
+      "bookName": "创世记",
+      "chapterNumber": 27,
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "theme": "在争夺祝福的过程中，这个家庭里每个人都带着自己的欲望、偏爱和惧怕行事，结果带来更深的伤害与分裂。",
+      "summary": "以撒要单独给以扫祝福",
+      "chapterType": "narrative",
+      "sceneDescription": "Several robed figures gather in open biblical hills in a hushed tableau, standing still in quiet conversation or prayer, suggesting 利百加策划，雅各犹豫却顺从 without showing text or symbols.",
+      "prompt": "",
+      "imageUrl": "",
+      "localPath": "",
+      "confidence": 0.72,
+      "warning": null,
+      "transparentBackground": true,
+      "overlayOpacity": 85,
+      "stylePreset": "biblical_semi_real_character",
+      "sceneVariant": 1,
+      "analysis": {
+        "chapterType": "narrative",
+        "storyUnits": [
+          {
+            "id": "seg_0",
+            "title": "以撒要单独给以扫祝福",
+            "rangeStart": 1,
+            "rangeEnd": 5
+          },
+          {
+            "id": "seg_1",
+            "title": "利百加策划，雅各犹豫却顺从",
+            "rangeStart": 6,
+            "rangeEnd": 17
+          },
+          {
+            "id": "seg_2",
+            "title": "雅各欺骗父亲并得了祝福",
+            "rangeStart": 18,
+            "rangeEnd": 29
+          },
+          {
+            "id": "seg_3",
+            "title": "真相揭开，以扫痛哭",
+            "rangeStart": 30,
+            "rangeEnd": 40
+          },
+          {
+            "id": "seg_4",
+            "title": "怨恨升级，雅各被迫逃走",
+            "rangeStart": 41,
+            "rangeEnd": 46
+          }
+        ],
+        "candidateScenes": [
+          {
+            "id": "c_0",
+            "scene": "segment_0",
+            "priority": 70,
+            "reason": "story unit: 以撒要单独给以扫祝福",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_1",
+            "scene": "segment_1",
+            "priority": 65,
+            "reason": "story unit: 利百加策划，雅各犹豫却顺从",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_2",
+            "scene": "segment_2",
+            "priority": 60,
+            "reason": "story unit: 雅各欺骗父亲并得了祝福",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_3",
+            "scene": "segment_3",
+            "priority": 55,
+            "reason": "story unit: 真相揭开，以扫痛哭",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_4",
+            "scene": "generic_open_land",
+            "priority": 30,
+            "reason": "fallback — figure in open biblical land",
+            "source": "heuristic"
+          }
+        ],
+        "visualAnchors": [],
+        "difficultyLevel": "low"
+      },
+      "selection": {
+        "selectedScene": "segment_1",
+        "reason": "story unit: 利百加策划，雅各犹豫却顺从",
+        "characters": "one or two robed figures",
+        "location": "open biblical hills",
+        "action": "standing still in quiet conversation or prayer",
+        "anchorObject": "story moment",
+        "candidateId": "c_1",
+        "variantIndex": 1,
+        "candidatePickIndex": 1,
+        "confidence": 0.72,
+        "warning": null
+      },
+      "updatedAt": "2026-04-07T02:19:40.898Z"
+    },
+    "default:zh:GEN:28": {
+      "bookName": "创世记",
+      "chapterNumber": 28,
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "theme": "雅各在离家、未知和孤单中，领受神延续亚伯拉罕之约的应许，并开始学习以敬畏和许愿回应神。",
+      "summary": "以撒差派雅各，并把应许的福传给他",
+      "chapterType": "narrative",
+      "sceneDescription": "In a quiet, moonlit wilderness, Jacob kneels on the ground, his face illuminated by a soft glow from above. He gazes upward, awe and fear etched on his features as he contemplates a dream of angels ascending and descending a celestial ladder. Surrounding him, the dark silhouettes of distant mountains create an atmosphere of solitude and reflection. The night sky is filled with stars, symbolizing the vast promises of God bestowed upon him.",
+      "sceneDescriptionZh": "本插画展示了雅各在离家旅途中，面临未知与孤独之感，同时得到了神的应许。画面重心是雅各跪祷的姿态，透露出敬畏的情绪和内心的反思。",
+      "keywordsZh": "雅各, 神的应许, 孤独, 跪祷, 夜空, 梦境, 敬畏, 应许之地, 祝福, 旅途",
+      "characterRefSelections": [
+        {
+          "zhName": "雅各",
+          "slotIndex": 0
+        }
+      ],
+      "prompt": "[SCENE]\nIn a quiet, moonlit wilderness, Jacob kneels on the ground, his face illuminated by a soft glow from above. He gazes upward, awe and fear etched on his features as he contemplates a dream of angels ascending and descending a celestial ladder. Surrounding him, the dark silhouettes of distant mountains create an atmosphere of solitude and reflection. The night sky is filled with stars, symbolizing the vast promises of God bestowed upon him.\n\n[STYLE]\nsemi-realistic biblical illustration, historically grounded, ancient Near Eastern clothing (tunic, shawl, sandals), linen and wool fabric texture, earth-tone color palette (low saturation), soft natural lighting, calm and restrained emotional tone, no dramatic action,\nbackground rule: clean, plain, light background (beige or light gray), avoid clutter unless explicitly required by scene,\ncharacter rule: modest and simple clothing, natural standing/resting pose, full body when character-focused,\n\n[COMPOSITION]\nsingle focal point,\n\n[CONSTRAINTS]\nno modern elements, no fantasy armor or decorative fantasy styling, no bright saturated colors, no cinematic lighting, no exaggerated expressions or action, no anime / cartoon / stylized fantasy, no sci-fi effects, single clear narrative moment only, no symbolic abstraction, not crowded,\nno text, letters, symbols, watermark or logo\n\nSTYLE PRESET TAG: biblical_semi_real_character\nOUTPUT: PNG, transparent background (alpha channel), clean plain light backdrop impression\n\nCHARACTER CONSISTENCY (same look in every chapter for this project):\n- Reference portraits: The descriptions below come from the project character library (generated reference art). Honor them for facial consistency; when the scene implies a different age than the library sheet, still keep the SAME identity — adjust wrinkles, hair color, and skin texture, not bone structure.\n- Jacob: Match the project's existing reference art for this character at this life stage — same facial identity (eyes, nose, jaw, brows, hairline) as the library portrait; Life-stage label [成年]: Jacob has a strong and determined face with a prominent jawline and deep-set, thoughtful eyes. His hair is long and dark, reflecting his prime age, and he has a neatly trimmed beard. He is of a robust build, typical for a man in his prime. For clothing, Jacob wears a richly woven tunic in shades of deep indigo, with intricate patterns that signify his status as a patriarch. Over this, he has a layered mantle draped over his shoulders, symbolizing his wealth and authority, and leather sandals complete his attire. Age/stature for THIS image: mature adult face and build in narrative prime Scripture-based demeanor: Known for his cunning and resourcefulness, Jacob is a key patriarch in biblical history. His transformative encounters with God shape his faith and legacy.\n\nRender each named person exactly matching the descriptions above.\nAncient Near Eastern biblical-era garments only (wool/linen tunics, mantles, cloaks, sashes, veils as fitting) — never medieval European, Renaissance, or modern dress. When multiple named people appear, differentiate drapery, layering, and garment silhouette between them so costumes are not copy-pasted clones; period-plausible variety, not identical default robes on every figure.\nWhen multiple standing adults appear, keep natural height variation (adult women typically shorter than adult men in the same scene unless the narrative specifies otherwise); do not equalize everyone to the same silhouette height.\nCostume: primeval Adam/Eve-era figures in simple animal-hide dress only; from later narrative layers use era- and office-appropriate garb (priestly, royal, wealthy patriarch, poor or mourning) per the beat — never one generic costume for every named person.",
+      "imageUrl": "/generated/ill-GEN-28-1775635751344.png",
+      "localPath": "",
+      "confidence": 0,
+      "warning": null,
+      "warningZh": null,
+      "transparentBackground": true,
+      "overlayOpacity": 85,
+      "stylePreset": "biblical_semi_real_character",
+      "sceneVariant": 0,
+      "analysis": null,
+      "selection": null,
+      "characterAppearanceLines": [],
+      "updatedAt": "2026-04-08T08:11:22.101Z"
+    }
+  }
+}
