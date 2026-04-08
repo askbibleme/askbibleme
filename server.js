@@ -909,6 +909,40 @@ function handleAdminAnalyticsOverviewGet(req, res) {
   }
 }
 
+/** 管理员：用户列表（用于统计页报告） */
+function handleAdminAnalyticsUsersGet(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const rawLimit = Number(req.query?.limit || 50);
+    const limit = Math.max(1, Math.min(200, Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 50));
+    const rows = authDb
+      .prepare(
+        `SELECT id, name, email, is_admin, admin_role, created_at, updated_at,
+                COALESCE(online_seconds_total, 0) AS online_seconds_total
+         FROM users
+         ORDER BY created_at DESC
+         LIMIT ?`
+      )
+      .all(limit);
+    const users = (Array.isArray(rows) ? rows : []).map((r) => ({
+      id: String(r?.id || ""),
+      name: String(r?.name || ""),
+      email: String(r?.email || ""),
+      isAdmin: Number(r?.is_admin || 0) === 1,
+      adminRole: String(r?.admin_role || ""),
+      onlineSecondsTotal: Number(r?.online_seconds_total || 0),
+      createdAt: String(r?.created_at || ""),
+      updatedAt: String(r?.updated_at || ""),
+    }));
+    res.set("Cache-Control", "no-store");
+    res.json({ ok: true, users });
+  } catch (e) {
+    console.error("[admin/analytics/users]", e);
+    res.status(500).json({ error: e.message || "用户列表读取失败" });
+  }
+}
+
 const upload = multer({
   dest: DEPLOY_UPLOADS_DIR,
   limits: { fileSize: 1024 * 1024 * 200 },
@@ -1096,7 +1130,7 @@ function getDefaultSiteChrome() {
           icon: "plus",
           iconOnly: true,
         },
-        { href: "/promo.html", label: "介绍", icon: "doc", iconOnly: true },
+        { href: "/why.html", label: "介绍", icon: "doc", iconOnly: true },
         { href: "/#openMemberHub", label: "会员", icon: "user", iconOnly: true },
       ],
     },
@@ -8507,6 +8541,7 @@ app.post("/api/admin/sitechrome", handleSiteChromeAdminPost);
 
 app.post("/api/analytics/collect", handleAnalyticsCollectPost);
 app.get("/api/admin/analytics/overview", handleAdminAnalyticsOverviewGet);
+app.get("/api/admin/analytics/users", handleAdminAnalyticsUsersGet);
 
 function handleSiteSeoPublicGet(_req, res) {
   try {
@@ -11119,7 +11154,7 @@ app.get("/sitemap.xml", (req, res) => {
   const origin = getPublicSiteOrigin();
   const paths = [
     { path: "/", priority: "1.0", changefreq: "weekly" },
-    { path: "/promo.html", priority: "0.9", changefreq: "weekly" },
+    { path: "/why.html", priority: "0.9", changefreq: "weekly" },
     { path: "/download.html", priority: "0.85", changefreq: "monthly" },
     { path: "/vision.html", priority: "0.75", changefreq: "monthly" },
   ];

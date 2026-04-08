@@ -10,6 +10,273 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css?v=110" />
     <link rel="stylesheet" href="/admin-shell.css?v=12" />
+    <style>
+      .admin-analytics-page {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      .admin-analytics-content {
+        border: 1px solid rgba(74, 68, 63, 0.12);
+        background:
+          radial-gradient(1200px 300px at 10% -120px, rgba(255, 184, 46, 0.1), transparent 60%),
+          linear-gradient(180deg, #fffefc 0%, #ffffff 100%);
+        border-radius: 18px;
+        padding: 20px 18px 18px;
+        box-shadow:
+          0 10px 28px rgba(74, 68, 63, 0.08),
+          0 1px 0 rgba(255, 255, 255, 0.7) inset;
+      }
+      .admin-analytics-content .article-studio-heading {
+        position: relative;
+        margin-bottom: 10px;
+        padding-left: 12px;
+      }
+      .admin-analytics-content .article-studio-heading::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 3px;
+        bottom: 3px;
+        width: 4px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #ffb82e 0%, #e39f1b 100%);
+      }
+      .admin-analytics-lead {
+        margin-bottom: 8px;
+      }
+      .admin-analytics-meta {
+        margin: 0 0 6px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(74, 68, 63, 0.06);
+        color: rgba(74, 68, 63, 0.8);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .admin-analytics-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 10px 0 14px;
+      }
+      .admin-analytics-status {
+        font-size: 12px;
+        color: rgba(74, 68, 63, 0.72);
+      }
+      .admin-analytics-refresh-btn {
+        border: 1px solid rgba(74, 68, 63, 0.2);
+        background: linear-gradient(180deg, #ffffff 0%, #f9f5ee 100%);
+        color: #3f3a35;
+        border-radius: 9px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      .admin-analytics-refresh-btn:hover {
+        border-color: rgba(74, 68, 63, 0.36);
+        background: linear-gradient(180deg, #fffdfa 0%, #f5eee4 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 14px rgba(74, 68, 63, 0.12);
+      }
+      .admin-analytics-refresh-btn:disabled {
+        opacity: 0.6;
+        cursor: wait;
+        transform: none;
+        box-shadow: none;
+      }
+      .admin-analytics-cards {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        margin: 12px 0 20px;
+      }
+      .admin-analytics-viz-grid {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr;
+        gap: 10px;
+        margin: 0 0 16px;
+      }
+      .admin-analytics-panel {
+        border: 1px solid rgba(74, 68, 63, 0.12);
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px;
+      }
+      .admin-analytics-panel-title {
+        margin: 0 0 10px;
+        font-size: 13px;
+        color: rgba(74, 68, 63, 0.8);
+      }
+      .admin-analytics-spark-wrap svg {
+        display: block;
+        width: 100%;
+        height: 92px;
+      }
+      .admin-analytics-insight-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .admin-analytics-insight-item {
+        border-radius: 10px;
+        background: rgba(255, 184, 46, 0.08);
+        padding: 8px 10px;
+      }
+      .admin-analytics-insight-label {
+        color: rgba(74, 68, 63, 0.65);
+        font-size: 11px;
+      }
+      .admin-analytics-insight-value {
+        margin-top: 3px;
+        color: #3f3a35;
+        font-size: 16px;
+        font-weight: 800;
+      }
+      .admin-analytics-card {
+        border: 1px solid rgba(74, 68, 63, 0.12);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #fdfbf7 100%);
+        padding: 12px 12px 10px;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+        transition:
+          transform 0.16s ease,
+          box-shadow 0.16s ease,
+          border-color 0.16s ease;
+      }
+      .admin-analytics-card:hover {
+        border-color: rgba(74, 68, 63, 0.22);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(74, 68, 63, 0.1);
+      }
+      .admin-analytics-card-label {
+        color: rgba(74, 68, 63, 0.68);
+        font-size: 12px;
+        line-height: 1.3;
+      }
+      .admin-analytics-card-value {
+        margin-top: 6px;
+        color: #3d3732;
+        font-size: 22px;
+        line-height: 1.2;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      .admin-analytics-card-sub {
+        margin-top: 6px;
+        color: rgba(74, 68, 63, 0.6);
+        font-size: 11px;
+      }
+      .admin-analytics-subheading {
+        margin: 0 0 10px;
+        font-size: 15px;
+        color: #3f3a35;
+      }
+      .admin-analytics-table-wrap {
+        border: 1px solid rgba(74, 68, 63, 0.12);
+        border-radius: 12px;
+        overflow: auto;
+        background: #fff;
+      }
+      .admin-analytics-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 620px;
+      }
+      .admin-analytics-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: linear-gradient(180deg, #fbf7ef 0%, #f2eadf 100%);
+        color: #4a443f;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .admin-analytics-table th,
+      .admin-analytics-table td {
+        border-bottom: 1px solid rgba(74, 68, 63, 0.1);
+        padding: 10px 12px;
+        text-align: left;
+        white-space: nowrap;
+      }
+      .admin-analytics-table tbody tr:nth-child(even) {
+        background: rgba(255, 184, 46, 0.04);
+      }
+      .admin-analytics-table tbody tr:hover {
+        background: rgba(255, 184, 46, 0.1);
+      }
+      .admin-analytics-empty {
+        text-align: center !important;
+        color: rgba(74, 68, 63, 0.65);
+        padding: 18px 10px !important;
+      }
+      .admin-analytics-users-heading {
+        margin-top: 18px;
+      }
+      .admin-analytics-users-meta {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: rgba(74, 68, 63, 0.65);
+      }
+      .admin-analytics-user-name {
+        font-weight: 700;
+        color: #3f3a35;
+      }
+      .admin-analytics-user-id {
+        margin-top: 3px;
+        font-size: 11px;
+        color: rgba(74, 68, 63, 0.56);
+      }
+      .admin-analytics-role-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(74, 68, 63, 0.15);
+        padding: 3px 9px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .admin-analytics-role-badge.is-admin {
+        border-color: rgba(255, 184, 46, 0.45);
+        background: rgba(255, 184, 46, 0.14);
+        color: #7a5400;
+      }
+      @media (max-width: 1080px) {
+        .admin-analytics-cards {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .admin-analytics-viz-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 760px) {
+        .admin-analytics-content {
+          padding: 14px 12px 12px;
+          border-radius: 12px;
+        }
+        .admin-analytics-content .article-studio-heading {
+          padding-left: 10px;
+        }
+        .admin-analytics-toolbar {
+          flex-direction: column;
+          align-items: stretch;
+          margin-bottom: 12px;
+        }
+        .admin-analytics-refresh-btn {
+          width: 100%;
+        }
+        .admin-analytics-cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .admin-analytics-card-value {
+          font-size: 19px;
+        }
+      }
+    </style>
     <script src="/theme-apply.js?v=2"></script>
   </head>
   <body class="admin-shell-page" data-admin-current="/admin-analytics.html">
@@ -24,8 +291,22 @@
                 统计口径按 <strong>Asia/Shanghai</strong> 自然日汇总；在线时长由页面打开时的心跳估算（约每 45 秒累计一次），仅供参考。
               </p>
               <p class="admin-analytics-meta" id="adminAnalyticsMeta"></p>
+              <div class="admin-analytics-toolbar">
+                <span class="admin-analytics-status" id="adminAnalyticsStatus">准备加载…</span>
+                <button type="button" class="admin-analytics-refresh-btn" id="adminAnalyticsRefreshBtn">刷新数据</button>
+              </div>
 
               <div class="admin-analytics-cards" id="adminAnalyticsCards"></div>
+              <div class="admin-analytics-viz-grid">
+                <section class="admin-analytics-panel">
+                  <h4 class="admin-analytics-panel-title">14 日趋势</h4>
+                  <div class="admin-analytics-spark-wrap" id="adminAnalyticsSparkWrap"></div>
+                </section>
+                <section class="admin-analytics-panel">
+                  <h4 class="admin-analytics-panel-title">关键洞察</h4>
+                  <div class="admin-analytics-insight-list" id="adminAnalyticsInsights"></div>
+                </section>
+              </div>
 
               <h3 class="admin-analytics-subheading">最近 14 日</h3>
               <div class="admin-analytics-table-wrap">
@@ -39,6 +320,22 @@
                     </tr>
                   </thead>
                   <tbody id="adminAnalyticsTbody"></tbody>
+                </table>
+              </div>
+              <h3 class="admin-analytics-subheading admin-analytics-users-heading">用户列表</h3>
+              <p class="admin-analytics-users-meta" id="adminAnalyticsUsersMeta">加载中…</p>
+              <div class="admin-analytics-table-wrap">
+                <table class="admin-analytics-table admin-analytics-users-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">用户</th>
+                      <th scope="col">邮箱</th>
+                      <th scope="col">角色</th>
+                      <th scope="col">累计在线</th>
+                      <th scope="col">创建时间</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminAnalyticsUsersTbody"></tbody>
                 </table>
               </div>
             </div>
@@ -131,22 +428,261 @@
       const authBar = document.getElementById("adminAnalyticsAuthBar");
       const content = document.getElementById("adminAnalyticsContent");
       const meta = document.getElementById("adminAnalyticsMeta");
+      const statusEl = document.getElementById("adminAnalyticsStatus");
+      const refreshBtn = document.getElementById("adminAnalyticsRefreshBtn");
       const cards = document.getElementById("adminAnalyticsCards");
       const tbody = document.getElementById("adminAnalyticsTbody");
+      const sparkWrap = document.getElementById("adminAnalyticsSparkWrap");
+      const insightsWrap = document.getElementById("adminAnalyticsInsights");
+      const usersMetaEl = document.getElementById("adminAnalyticsUsersMeta");
+      const usersTbody = document.getElementById("adminAnalyticsUsersTbody");
+      const overviewUrl = apiUrl("/api/admin/analytics/overview");
+      const usersUrl = apiUrl("/api/admin/analytics/users?limit=50");
+      const REQUEST_TIMEOUT_MS = 12000;
+      let inflightController = null;
+
+      function setStatus(text) {
+        if (!statusEl) return;
+        statusEl.textContent = String(text || "");
+      }
+
+      function setLoading(isLoading) {
+        if (refreshBtn) refreshBtn.disabled = !!isLoading;
+        setStatus(isLoading ? "正在加载…" : "已就绪");
+      }
+
+      function setAuthBarHtml(html) {
+        authBar.hidden = false;
+        authBar.innerHTML = html;
+      }
+
+      function renderCards(cardItems) {
+        cards.replaceChildren();
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < cardItems.length; i++) {
+          const x = cardItems[i];
+          const card = document.createElement("div");
+          card.className = "admin-analytics-card";
+
+          const label = document.createElement("div");
+          label.className = "admin-analytics-card-label";
+          label.textContent = x.label;
+          card.appendChild(label);
+
+          const value = document.createElement("div");
+          value.className = "admin-analytics-card-value";
+          value.textContent = String(x.value);
+          card.appendChild(value);
+
+          if (x.sub) {
+            const sub = document.createElement("div");
+            sub.className = "admin-analytics-card-sub";
+            sub.textContent = x.sub;
+            card.appendChild(sub);
+          }
+          frag.appendChild(card);
+        }
+        cards.appendChild(frag);
+      }
+
+      function appendTableRow(cells, cls) {
+        const tr = document.createElement("tr");
+        if (cls) tr.className = cls;
+        for (let i = 0; i < cells.length; i++) {
+          const td = document.createElement("td");
+          td.textContent = String(cells[i]);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+
+      function renderRows(rows) {
+        tbody.replaceChildren();
+        if (!rows.length) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 4;
+          td.className = "admin-analytics-empty";
+          td.textContent = "尚无汇总数据（部署采集脚本后，随访问会逐步累积）。";
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+          return;
+        }
+        const displayRows = rows.slice().reverse();
+        for (let i = 0; i < displayRows.length; i++) {
+          const r = displayRows[i] || {};
+          appendTableRow(
+            [r.date || "—", r.uniqueVisitors ?? "—", r.pageViews ?? "—", formatSeconds(r.onlineSeconds)],
+            ""
+          );
+        }
+      }
+
+      function calcTrendPoints(rows, key) {
+        let max = 0;
+        for (let i = 0; i < rows.length; i++) {
+          const n = Number(rows[i]?.[key]) || 0;
+          if (n > max) max = n;
+        }
+        const den = max || 1;
+        const out = [];
+        for (let i = 0; i < rows.length; i++) out.push((Number(rows[i]?.[key]) || 0) / den);
+        return out;
+      }
+
+      function linePath(points, w, h, pad) {
+        const innerW = w - pad * 2;
+        const innerH = h - pad * 2;
+        if (!points.length) return "";
+        let d = "";
+        for (let i = 0; i < points.length; i++) {
+          const x = pad + (innerW * i) / Math.max(1, points.length - 1);
+          const y = pad + innerH * (1 - points[i]);
+          d += (i === 0 ? "M" : " L") + x.toFixed(1) + " " + y.toFixed(1);
+        }
+        return d;
+      }
+
+      function renderSparks(rows) {
+        if (!sparkWrap) return;
+        const uvPts = calcTrendPoints(rows, "uniqueVisitors");
+        const pvPts = calcTrendPoints(rows, "pageViews");
+        const osPts = calcTrendPoints(rows, "onlineSeconds");
+        const w = 560;
+        const h = 92;
+        const p = 10;
+        const mk = function (label, color, pts) {
+          return (
+            '<div style="margin:0 0 8px;">' +
+            '<div style="font-size:11px;color:rgba(74,68,63,.66);margin:0 0 4px;">' +
+            label +
+            "</div>" +
+            '<svg viewBox="0 0 ' +
+            w +
+            " " +
+            h +
+            '" preserveAspectRatio="none" aria-hidden="true">' +
+            '<path d="' +
+            linePath(pts, w, h, p) +
+            '" fill="none" stroke="' +
+            color +
+            '" stroke-width="2.6" stroke-linecap="round" />' +
+            "</svg></div>"
+          );
+        };
+        sparkWrap.innerHTML =
+          mk("独立访客", "#b97a00", uvPts) + mk("页面浏览", "#7c6df5", pvPts) + mk("在线时长", "#1f9d73", osPts);
+      }
+
+      function renderInsights(rows) {
+        if (!insightsWrap) return;
+        const total = rows.length || 1;
+        let uv = 0;
+        let pv = 0;
+        let os = 0;
+        let peak = { date: "—", pageViews: 0 };
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i] || {};
+          uv += Number(r.uniqueVisitors) || 0;
+          pv += Number(r.pageViews) || 0;
+          os += Number(r.onlineSeconds) || 0;
+          if ((Number(r.pageViews) || 0) >= peak.pageViews) peak = { date: r.date || "—", pageViews: Number(r.pageViews) || 0 };
+        }
+        const items = [
+          { label: "14 日累计 UV", value: String(uv) },
+          { label: "14 日累计 PV", value: String(pv) },
+          { label: "人均页浏览(估)", value: (pv / Math.max(1, uv)).toFixed(2) },
+          { label: "日均在线时长", value: formatSeconds(Math.round(os / total)) },
+          { label: "流量峰值日", value: peak.date + " · PV " + peak.pageViews },
+        ];
+        insightsWrap.replaceChildren();
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          const box = document.createElement("div");
+          box.className = "admin-analytics-insight-item";
+          const a = document.createElement("div");
+          a.className = "admin-analytics-insight-label";
+          a.textContent = it.label;
+          const b = document.createElement("div");
+          b.className = "admin-analytics-insight-value";
+          b.textContent = it.value;
+          box.append(a, b);
+          insightsWrap.appendChild(box);
+        }
+      }
+
+      function renderUsers(users) {
+        usersTbody.replaceChildren();
+        const list = Array.isArray(users) ? users : [];
+        if (usersMetaEl) usersMetaEl.textContent = "共 " + list.length + " 位（最近创建优先）";
+        if (!list.length) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 5;
+          td.className = "admin-analytics-empty";
+          td.textContent = "暂无用户数据";
+          tr.appendChild(td);
+          usersTbody.appendChild(tr);
+          return;
+        }
+        for (let i = 0; i < list.length; i++) {
+          const u = list[i] || {};
+          const tr = document.createElement("tr");
+
+          const tdUser = document.createElement("td");
+          const nm = document.createElement("div");
+          nm.className = "admin-analytics-user-name";
+          nm.textContent = String(u.name || "未命名用户");
+          const uid = document.createElement("div");
+          uid.className = "admin-analytics-user-id";
+          uid.textContent = "ID: " + String(u.id || "—");
+          tdUser.append(nm, uid);
+
+          const tdMail = document.createElement("td");
+          tdMail.textContent = String(u.email || "—");
+
+          const tdRole = document.createElement("td");
+          const role = document.createElement("span");
+          role.className = "admin-analytics-role-badge" + (u.isAdmin ? " is-admin" : "");
+          role.textContent = u.isAdmin ? "管理员" : "用户";
+          tdRole.appendChild(role);
+
+          const tdOnline = document.createElement("td");
+          tdOnline.textContent = formatSeconds(Number(u.onlineSecondsTotal) || 0);
+
+          const tdCreated = document.createElement("td");
+          tdCreated.textContent = String(u.createdAt || "—");
+
+          tr.append(tdUser, tdMail, tdRole, tdOnline, tdCreated);
+          usersTbody.appendChild(tr);
+        }
+      }
 
       async function load() {
         const token = getToken();
         if (!token) {
-          authBar.hidden = false;
-          authBar.innerHTML = '请先 <a href="/">返回首页</a> 登录；本页仅管理员可见。';
+          setAuthBarHtml('请先 <a href="/">返回首页</a> 登录；本页仅管理员可见。');
           content.hidden = true;
           return;
         }
+        if (inflightController) inflightController.abort();
+        inflightController = typeof AbortController === "function" ? new AbortController() : null;
+        const timeoutId = setTimeout(function () {
+          if (inflightController) inflightController.abort();
+        }, REQUEST_TIMEOUT_MS);
+        setLoading(true);
         try {
-          const url = apiUrl("/api/admin/analytics/overview");
-          const res = await fetch(url, {
+          const res = await fetch(overviewUrl, {
             headers: { Authorization: "Bearer " + token },
             cache: "no-store",
+            signal: inflightController ? inflightController.signal : undefined,
+          });
+          const usersResPromise = fetch(usersUrl, {
+            headers: { Authorization: "Bearer " + token },
+            cache: "no-store",
+            signal: inflightController ? inflightController.signal : undefined,
+          }).catch(function () {
+            return null;
           });
           const raw = await res.text();
           let data = {};
@@ -156,14 +692,12 @@
             data = {};
           }
           if (res.status === 401) {
-            authBar.hidden = false;
-            authBar.innerHTML = '请先 <a href="/">返回首页</a> 登录。';
+            setAuthBarHtml('请先 <a href="/">返回首页</a> 登录。');
             content.hidden = true;
             return;
           }
           if (res.status === 403) {
-            authBar.hidden = false;
-            authBar.innerHTML = "需要管理员权限。若你应为管理员，请联系千夫长账号在后台授权。";
+            setAuthBarHtml("需要管理员权限。若你应为管理员，请联系千夫长账号在后台授权。");
             content.hidden = true;
             return;
           }
@@ -185,34 +719,33 @@
             (data.serverBootIso || "") +
             " · 时区 " +
             (data.timezone || "");
-          cards.innerHTML = [
+          renderCards([
             { label: "今日日期", value: t.date || "—", sub: "" },
             { label: "今日独立访客", value: String(t.uniqueVisitors ?? "—"), sub: "按访客 ID 去重" },
             { label: "今日页面浏览", value: String(t.pageViews ?? "—"), sub: "含重复加载" },
             { label: "今日估算在线总时长", value: formatSeconds(t.onlineSeconds), sub: "全站合计" },
             { label: "注册用户总数", value: String(data.registeredUsers ?? "—"), sub: "用户表人数" },
-          ]
-            .map(
-              (x) =>
-                `<div class="admin-analytics-card"><div class="admin-analytics-card-label">${x.label}</div><div class="admin-analytics-card-value">${x.value}</div>${
-                  x.sub ? `<div class="admin-analytics-card-sub">${x.sub}</div>` : ""
-                }</div>`
-            )
-            .join("");
+          ]);
           const rows = Array.isArray(data.daily) ? data.daily : [];
-          tbody.innerHTML = rows
-            .map(
-              (r) =>
-                `<tr><td>${r.date}</td><td>${r.uniqueVisitors}</td><td>${r.pageViews}</td><td>${formatSeconds(
-                  r.onlineSeconds
-                )}</td></tr>`
-            )
-            .join("");
-          if (!rows.length) {
-            tbody.innerHTML =
-              '<tr><td colspan="4" class="admin-analytics-empty">尚无汇总数据（部署采集脚本后，随访问会逐步累积）。</td></tr>';
+          renderRows(rows);
+          renderSparks(rows);
+          renderInsights(rows);
+          const usersRes = await usersResPromise;
+          if (usersRes && usersRes.ok) {
+            const usersData = await usersRes.json().catch(function () {
+              return {};
+            });
+            renderUsers(Array.isArray(usersData.users) ? usersData.users : []);
+          } else {
+            renderUsers([]);
+            if (usersMetaEl) usersMetaEl.textContent = "用户列表暂不可用";
           }
+          setStatus("最近更新：" + new Date().toLocaleString("zh-CN"));
         } catch (e) {
+          if (e && e.name === "AbortError") {
+            setStatus("请求超时，请重试");
+            return;
+          }
           authBar.hidden = false;
           authBar.textContent = "";
           const m = String(e?.message || "").trim() || "加载失败";
@@ -224,12 +757,21 @@
           authBar.appendChild(document.createTextNode(" · 请求："));
           const code = document.createElement("code");
           code.className = "admin-analytics-code";
-          code.textContent = apiUrl("/api/admin/analytics/overview");
+          code.textContent = overviewUrl;
           authBar.appendChild(code);
           content.hidden = true;
+        } finally {
+          clearTimeout(timeoutId);
+          inflightController = null;
+          if (!content.hidden) setLoading(false);
         }
       }
 
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", function () {
+          void load();
+        });
+      }
       void load();
     </script>
     <script src="/admin-shell.js?v=6" defer></script>
