@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <!-- 与 API 不同源时填写站点根，例如 https://askbible.me（不要以 /api 结尾） -->
+    <meta name="askbible-api-base" content="" />
+    <title>插画管理 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=12" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .ia-wrap {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 22px 18px 56px;
+        box-sizing: border-box;
+      }
+      .ia-wrap h1 {
+        margin: 0 0 6px;
+        font-size: calc(22px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+      .ia-lead {
+        margin: 0 0 20px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+      .ia-auth {
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        font-size: 14px;
+        color: var(--muted-soft);
+      }
+      .ia-auth a {
+        color: #8b6914;
+        font-weight: 700;
+      }
+      .ia-row {
+        margin-bottom: 16px;
+      }
+      .ia-row-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .ia-grid4 {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px;
+      }
+      .ia-field select,
+      .ia-field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        padding: 8px 10px;
+      }
+      .ia-field textarea {
+        min-height: 88px;
+        resize: vertical;
+        line-height: 1.5;
+      }
+      #iaSceneEn {
+        min-height: 120px;
+      }
+      .ia-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 18px 0 14px;
+      }
+      .ia-actions button {
+        font-size: 14px;
+        font-weight: 700;
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, #faf7f0, #f0ebe2);
+        color: var(--ink);
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+      .ia-actions button:hover {
+        border-color: rgba(200, 155, 60, 0.45);
+      }
+      .ia-actions button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .ia-actions button.ia-btn-primary {
+        background: linear-gradient(180deg, #c9a227, #a67c00);
+        color: #fff;
+        border-color: #8a6600;
+      }
+      .ia-status {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted-soft);
+        min-height: 1.4em;
+      }
+      .ia-status.err {
+        color: #a33;
+      }
+      .ia-status.err a.ia-status-alternate-port,
+      .ia-gpt-route-warn a.ia-status-alternate-port {
+        color: #8b6914;
+        font-weight: 800;
+        text-decoration: underline;
+      }
+      .ia-gpt-route-warn a.ia-status-alternate-port {
+        display: inline-block;
+        margin-top: 10px;
+      }
+      .ia-status.ok {
+        color: #2d6a2d;
+      }
+      .ia-preview {
+        margin-top: 16px;
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px dashed var(--line);
+        background: rgba(255, 251, 242, 0.6);
+        text-align: center;
+      }
+      .ia-preview img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        vertical-align: middle;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+      }
+      .ia-preview-placeholder {
+        font-size: 13px;
+        color: var(--muted);
+        padding: 24px 8px;
+      }
+      .ia-gpt-route-warn {
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #c4a574;
+        background: rgba(196, 165, 116, 0.14);
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--ink);
+      }
+      .ia-hint {
+        margin: 0 0 10px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted-soft);
+      }
+      .ia-hint a {
+        color: #8b6914;
+        font-weight: 700;
+      }
+      .ia-char-ref-list {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0 0;
+      }
+      .ia-char-ref-list li {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .ia-char-ref-list li.ia-char-ref-empty {
+        color: var(--muted-soft);
+        font-style: italic;
+        border-bottom: none;
+      }
+      .ia-rules-panel {
+        margin: 0 0 18px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: rgba(255, 251, 242, 0.75);
+      }
+      .ia-rules-title {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--ink);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .ia-rules-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px 14px;
+      }
+      .ia-rules-block strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ia-rules-block p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--muted-soft);
+      }
+      .ia-rules-note {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--line);
+      }
+      .ia-rules-note strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ia-rules-note pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 11px;
+        line-height: 1.45;
+        color: var(--muted-soft);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/illustration-admin.html">
+    <div class="ia-wrap">
+      <h1>插画管理</h1>
+      <p class="ia-lead">
+        选择书卷与章节，在备注里写下你的画面要求（会按章节保存在本机浏览器）。点
+        <strong>GPT 生成文案</strong>会一并<strong>自动选配</strong>人物库锁脸与时期；可改中文说明、关键词与英文场景；<strong>保存</strong>写入本章插画状态；再<strong>生成预览</strong>出图、<strong>插入页面</strong>让读经页显示该图。
+      </p>
+      <div class="ia-rules-panel" aria-label="AI 生成规则总览">
+        <p class="ia-rules-title">AI 规则约束（当前生效）</p>
+        <div class="ia-rules-grid">
+          <div class="ia-rules-block">
+            <strong>STYLE（全局风格锁）</strong>
+            <p>半写实、历史感、古代近东服饰、亚麻羊毛质感、低饱和土色、柔和自然光、克制安静，不走动漫/奇幻。</p>
+          </div>
+          <div class="ia-rules-block">
+            <strong>SCENE（章节内容）</strong>
+            <p>单一叙事瞬间，来自本章主题与段落，并结合编辑备注与人物库自动匹配。</p>
+          </div>
+          <div class="ia-rules-block">
+            <strong>COMPOSITION（构图）</strong>
+            <p>默认横幅 banner；当前预览默认尺寸 1536x1024。画面不拥挤，主体清晰。</p>
+          </div>
+          <div class="ia-rules-block">
+            <strong>CONSTRAINTS（强制限制）</strong>
+            <p>无现代元素、无科幻效果、无夸张表情/动作、无多场景拼贴、无符号化抽象。</p>
+          </div>
+          <div class="ia-rules-block">
+            <strong>FORBIDDEN（禁止）</strong>
+            <p>anime/cartoon、fantasy armor、高饱和霓虹、电影镜头特效、3D 渲染风、文字水印。</p>
+          </div>
+        </div>
+        <div class="ia-rules-note">
+          <strong>备注模板（系统拼装逻辑）</strong>
+          <pre>[SCENE]
+章节主题 + 段落叙事 + 你在“编辑备注”里给出的补充要求
+
+[STYLE LOCK]
+semi-realistic biblical character illustration
+historically grounded
+ancient Near Eastern clothing
+linen and wool fabric texture
+low-saturation earth-tone palette
+soft natural lighting
+calm and restrained expression
+simple and dignified presentation
+
+[COMPOSITION]
+默认 banner（横幅）构图
+imageSize = 1536x1024
+single clear narrative moment
+not crowded
+
+[CONSTRAINTS]
+transparent PNG required (alpha 0 for non-subject pixels)
+no rectangular backdrop fill
+no modern elements
+no symbolic abstraction
+no multi-scene collage
+
+[CHARACTER CONSISTENCY]
+由人物设计库自动匹配角色与时期（可多人）
+同一人物不同年龄：保持同脸可辨，只变皱纹/发色/肤质
+
+[FORBIDDEN]
+anime, cartoon, stylized fantasy
+fantasy armor
+bright saturated neon colors
+cinematic lens effects / bokeh
+sci-fi effects
+watermark / text / logo</pre>
+        </div>
+      </div>
+
+      <div id="iaAuth" class="ia-auth" hidden></div>
+
+      <div id="iaApp" hidden>
+        <div id="iaGptRouteWarn" class="ia-gpt-route-warn" hidden></div>
+        <div class="ia-row">
+          <span class="ia-row-label">1 · 书卷与章节 · 备注（本机持久保存）</span>
+          <div class="ia-grid4 ia-field">
+            <select id="iaVersion" aria-label="内容版本"></select>
+            <select id="iaLang" aria-label="语言"></select>
+            <select id="iaBook" aria-label="书卷"></select>
+            <select id="iaChapter" aria-label="章节"></select>
+          </div>
+          <div class="ia-field" style="margin-top: 10px">
+            <textarea
+              id="iaEditorNotes"
+              placeholder="我的要求：例如构图、人物数量、避免出现的元素…（按版本/语言/书卷/章自动记住）"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="ia-row">
+          <span class="ia-row-label">1b · 人物库参考（GPT 自动匹配）</span>
+          <p class="ia-hint">
+            与 <a href="/bible-character-designer.html" target="_blank" rel="noopener">圣经人物设计器</a>
+            档案一致。点击下文「<strong>GPT 生成文案</strong>」时，模型会根据本章主题与画面需要，<strong>自动</strong>从库中挑选出镜人物及年龄时期（可多人）；无需手工选择。生成预览与保存时会用下列匹配结果锁脸。
+          </p>
+          <ul id="iaCharRefList" class="ia-char-ref-list" aria-label="GPT 匹配的人物参考"></ul>
+        </div>
+
+        <div class="ia-row">
+          <span class="ia-row-label">2 · GPT 生成文案与关键词（可改）</span>
+          <div class="ia-actions">
+            <button type="button" id="iaGptBtn" class="ia-btn-primary">GPT 生成文案</button>
+          </div>
+          <div class="ia-field">
+            <label class="ia-row-label" for="iaBriefZh" style="text-transform: none; letter-spacing: 0"
+              >插画创意说明（中文）</label
+            >
+            <textarea id="iaBriefZh" placeholder="点击上方按钮后自动填写，也可手写"></textarea>
+          </div>
+          <div class="ia-field">
+            <label class="ia-row-label" for="iaKeywordsZh" style="text-transform: none; letter-spacing: 0"
+              >中文关键词</label
+            >
+            <textarea id="iaKeywordsZh" placeholder="关键词，可修改"></textarea>
+          </div>
+          <div class="ia-field">
+            <label class="ia-row-label" for="iaSceneEn" style="text-transform: none; letter-spacing: 0"
+              >英文场景 / 出图描述（用于生成 Prompt 与预览）</label
+            >
+            <textarea id="iaSceneEn" placeholder="英文具象场景，可修改"></textarea>
+          </div>
+        </div>
+
+        <div class="ia-row">
+          <span class="ia-row-label">3 · 预览与发布</span>
+          <div class="ia-actions">
+            <button type="button" id="iaPreviewBtn">生成预览</button>
+            <button type="button" id="iaSaveBtn">保存</button>
+            <button type="button" id="iaInsertBtn">插入页面</button>
+          </div>
+          <p id="iaStatus" class="ia-status" role="status"></p>
+          <div class="ia-preview" id="iaPreviewBox">
+            <div class="ia-preview-placeholder" id="iaPreviewPh">生成预览后在此显示图片。</div>
+            <img id="iaPreviewImg" alt="" decoding="async" hidden />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/admin-shell.js?v=6" defer></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+        const NOTES_PREFIX = "illustration_admin_notes_v1:";
+        const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+
+        function getToken() {
+          return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+        }
+        function authHeadersBare() {
+          const t = getToken();
+          return t ? { Authorization: "Bearer " + t } : {};
+        }
+        function normalizeApiOrigin(raw) {
+          let s = String(raw || "").trim();
+          if (!s) return "";
+          s = s.replace(/\/+$/, "");
+          if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+          return s.replace(/\/+$/, "");
+        }
+        function isPrivateLanHostname(h) {
+          const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(
+            String(h || "").toLowerCase()
+          );
+          if (!m) return false;
+          const a = Number(m[1]);
+          const b = Number(m[2]);
+          if (![a, b, Number(m[3]), Number(m[4])].every((n) => n >= 0 && n <= 255))
+            return false;
+          if (a === 10) return true;
+          if (a === 172 && b >= 16 && b <= 31) return true;
+          if (a === 192 && b === 168) return true;
+          return false;
+        }
+        /** Vite / Live Server 等：页面非 Node 同站时把 API 指到本机 :3000；勿把 3001 等列入，否则与「另一项目占 3000、AskBible 用 PORT=3001」冲突 */
+        function isLikelyStaticDevServerPort(port) {
+          const p = String(port || "").trim();
+          if (!p) return false;
+          if (p === "5173" || p === "4173" || p === "8081" || p === "8080") return true;
+          if (/^55\d{2}$/.test(p)) return true;
+          return false;
+        }
+        function getApiBase() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          const fromMeta = m && String(m.getAttribute("content") || "").trim();
+          if (fromMeta) return normalizeApiOrigin(fromMeta);
+          if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+            return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+          }
+          try {
+            const proto = window.location.protocol || "";
+            if (proto === "capacitor:" || proto === "file:") {
+              return DEFAULT_PRODUCTION_ORIGIN;
+            }
+            const h = String(window.location.hostname || "");
+            const loopback = h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (loopback || isPrivateLanHostname(h)) {
+              const port = String(window.location.port || "");
+              if (port && port !== "3000" && isLikelyStaticDevServerPort(port)) {
+                const scheme = proto === "https:" ? "https" : "http";
+                return scheme + "://" + h + ":3000";
+              }
+            }
+          } catch (_) {}
+          return "";
+        }
+        function apiUrl(path) {
+          const p = path.startsWith("/") ? path : "/" + path;
+          const base = getApiBase();
+          if (!base) return p;
+          try {
+            const origin = normalizeApiOrigin(base);
+            return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+          } catch {
+            return base.replace(/\/$/, "") + p;
+          }
+        }
+
+        /** bootstrap 成功后写入：与 /api/admin/bootstrap 实际响应 URL 同源，避免后续请求与 meta 推断不一致 */
+        let iaApiResolvedOrigin = "";
+
+        function iaReq(path) {
+          const p = path.startsWith("/") ? path : "/" + path;
+          const o = String(iaApiResolvedOrigin || "").trim();
+          if (o) {
+            try {
+              return new URL(p, o.endsWith("/") ? o : o + "/").href;
+            } catch (_) {
+              return o.replace(/\/$/, "") + p;
+            }
+          }
+          return apiUrl(path);
+        }
+
+        const authEl = document.getElementById("iaAuth");
+        const appEl = document.getElementById("iaApp");
+        const versionSel = document.getElementById("iaVersion");
+        const langSel = document.getElementById("iaLang");
+        const bookSel = document.getElementById("iaBook");
+        const chapterSel = document.getElementById("iaChapter");
+        const notesEl = document.getElementById("iaEditorNotes");
+        const briefZhEl = document.getElementById("iaBriefZh");
+        const keywordsZhEl = document.getElementById("iaKeywordsZh");
+        const sceneEnEl = document.getElementById("iaSceneEn");
+        const gptBtn = document.getElementById("iaGptBtn");
+        const previewBtn = document.getElementById("iaPreviewBtn");
+        const saveBtn = document.getElementById("iaSaveBtn");
+        const insertBtn = document.getElementById("iaInsertBtn");
+        const statusEl = document.getElementById("iaStatus");
+        const previewImg = document.getElementById("iaPreviewImg");
+        const previewPh = document.getElementById("iaPreviewPh");
+        const charRefListUl = document.getElementById("iaCharRefList");
+
+        let books = [];
+        let lastPrompt = "";
+        let lastImageUrl = "";
+        let publishedCache = null;
+        let publishedCacheKey = "";
+        let characterProfilesRoot = { characters: {} };
+        let iaCharSelections = [];
+
+        function setStatus(msg, kind) {
+          statusEl.textContent = msg || "";
+          statusEl.classList.remove("err", "ok");
+          if (kind === "err") statusEl.classList.add("err");
+          if (kind === "ok") statusEl.classList.add("ok");
+        }
+
+        function isLoopbackOriginPort3000(originStr) {
+          try {
+            const s = String(originStr || "").trim();
+            if (!s) return false;
+            const u = new URL(s);
+            const host = (u.hostname || "").toLowerCase();
+            const loop =
+              host === "localhost" ||
+              host === "127.0.0.1" ||
+              host === "[::1]" ||
+              host === "::1";
+            if (!loop) return false;
+            return String(u.port || "") === "3000";
+          } catch (_) {
+            return false;
+          }
+        }
+
+        function illustrationAdminOn301Url() {
+          return "http://localhost:3001/illustration-admin.html";
+        }
+
+        /** 在 :3000 上误连错项目时给出可点击跳转 3001 */
+        function setStatusErrWith3001Hint(msg) {
+          statusEl.classList.remove("err", "ok");
+          statusEl.classList.add("err");
+          statusEl.replaceChildren();
+          const span = document.createElement("span");
+          span.textContent = msg || "";
+          statusEl.appendChild(span);
+          if (
+            isLoopbackOriginPort3000(iaApiResolvedOrigin) ||
+            isLoopbackOriginPort3000(window.location.origin)
+          ) {
+            statusEl.appendChild(document.createElement("br"));
+            statusEl.appendChild(document.createElement("br"));
+            const a = document.createElement("a");
+            a.href = illustrationAdminOn301Url();
+            a.className = "ia-status-alternate-port";
+            a.textContent =
+              "→ 点此在 3001 打开插画管理（需先在 askbible 目录执行 PORT=3001 npm start）";
+            statusEl.appendChild(a);
+          }
+        }
+
+        function apiFailMessage(res, data) {
+          if (data && typeof data.error === "string" && data.error.trim()) {
+            return data.error.trim();
+          }
+          if (res.status === 404) {
+            if (iaApiResolvedOrigin) {
+              return (
+                "接口 404：已向 " +
+                iaApiResolvedOrigin +
+                " 依次请求 gpt-copy 三条路径仍失败。若本机同时跑多个 Node 项目，:3000 可能被占用——请执行 lsof -i :3000 确认，或对 AskBible 使用 PORT=3001 npm start 并用 http://localhost:3001/illustration-admin.html 打开。请在本仓库根目录 npm start 并确认日志含 [routes] 插画 GPT；仍异常则 npm run check:gpt-route。"
+              );
+            }
+            return (
+              "接口 404：请求多半未到 Node。请部署并重启含插画管理 API 的 server.js；本页需与 API 同源，或在 head 设置 meta[name=askbible-api-base] 为站点根（如 https://你的域名）。"
+            );
+          }
+          if (res.status === 401) return "请先登录。";
+          if (res.status === 403) return "需要管理员权限。";
+          return "请求失败（HTTP " + res.status + "）";
+        }
+
+        function ctxKey() {
+          const v = String(versionSel.value || "").trim();
+          const l = String(langSel.value || "").trim();
+          const b = String(bookSel.value || "").trim();
+          const c = String(chapterSel.value || "").trim();
+          return v && l && b ? NOTES_PREFIX + v + ":" + l + ":" + b + ":" + c : "";
+        }
+
+        function loadNotesFromStorage() {
+          const k = ctxKey();
+          if (!k) return;
+          const v = localStorage.getItem(k);
+          notesEl.value = v != null ? v : "";
+        }
+
+        function saveNotesToStorage() {
+          const k = ctxKey();
+          if (!k) return;
+          localStorage.setItem(k, notesEl.value);
+        }
+
+        function selectedBookLabel() {
+          const bookId = String(bookSel.value || "").trim();
+          const b = books.find((x) => x.bookId === bookId);
+          const cn = b && b.bookCn ? String(b.bookCn) : bookId;
+          return cn + (bookId ? " (" + bookId + ")" : "");
+        }
+
+        function fillChapterSelectForBook(bookId) {
+          const b = books.find((x) => x.bookId === bookId);
+          const nRaw = b ? Number(b.chapters) : NaN;
+          const n = Number.isFinite(nRaw) && nRaw >= 0 ? nRaw : 1;
+          chapterSel.innerHTML = "";
+          const introOpt = document.createElement("option");
+          introOpt.value = "0";
+          introOpt.textContent = "卷首页";
+          chapterSel.appendChild(introOpt);
+          for (let c = 1; c <= n; c += 1) {
+            const opt = document.createElement("option");
+            opt.value = String(c);
+            opt.textContent = "第 " + c + " 章";
+            chapterSel.appendChild(opt);
+          }
+        }
+
+        function selectionParams() {
+          return {
+            version: String(versionSel.value || "").trim(),
+            lang: String(langSel.value || "").trim(),
+            bookId: String(bookSel.value || "").trim(),
+            chapter: String(chapterSel.value || "0"),
+          };
+        }
+
+        async function fetchPublishedChapter() {
+          const { version, lang, bookId, chapter } = selectionParams();
+          const key = version + "|" + lang + "|" + bookId + "|" + chapter;
+          if (publishedCacheKey === key && publishedCache) return publishedCache;
+          const q = new URLSearchParams({ version, lang, bookId, chapter });
+          const res = await fetch(iaReq("/api/admin/published/chapter?" + q.toString()), {
+            headers: authHeadersBare(),
+            cache: "no-store",
+          });
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) {
+            publishedCache = null;
+            publishedCacheKey = "";
+            return { _error: data.error || "HTTP " + res.status };
+          }
+          publishedCache = data;
+          publishedCacheKey = key;
+          return data;
+        }
+
+        function invalidatePublishedCache() {
+          publishedCache = null;
+          publishedCacheKey = "";
+        }
+
+        function applyPreviewUrl(url) {
+          const u = String(url || "").trim();
+          lastImageUrl = u;
+          if (!u) {
+            previewImg.hidden = true;
+            previewImg.removeAttribute("src");
+            previewPh.hidden = false;
+            return;
+          }
+          const src = u.startsWith("http") ? u : iaReq(u.startsWith("/") ? u : "/" + u);
+          previewImg.src = src;
+          previewImg.hidden = false;
+          previewPh.hidden = true;
+        }
+
+        function getCharacterRefPayload() {
+          return iaCharSelections
+            .map(function (r) {
+              const zh = String(r && r.zhName ? r.zhName : "").trim();
+              if (!zh) return null;
+              let si = Number(r.slotIndex);
+              if (!Number.isFinite(si)) si = 0;
+              return { zhName: zh, slotIndex: Math.max(0, Math.min(2, si)) };
+            })
+            .filter(Boolean);
+        }
+
+        function slotLabelForCharRef(zh, slotIndex) {
+          const ch = characterProfilesRoot.characters || {};
+          const entry = ch[zh];
+          const si = Number(slotIndex) || 0;
+          if (!entry || typeof entry !== "object") return si === 0 ? "根档案" : "时期 " + si;
+          if (si === 0) {
+            const pl = String(entry.periodLabelZh || "").trim();
+            return pl ? "根 · " + pl : "根档案";
+          }
+          const periods = Array.isArray(entry.periods) ? entry.periods : [];
+          const p = periods[si - 1];
+          if (p && typeof p === "object" && String(p.labelZh || "").trim()) {
+            return String(p.labelZh).trim();
+          }
+          return "时期 " + si;
+        }
+
+        function renderCharRefList() {
+          if (!charRefListUl) return;
+          charRefListUl.innerHTML = "";
+          if (!iaCharSelections.length) {
+            const li = document.createElement("li");
+            li.className = "ia-char-ref-empty";
+            li.textContent =
+              "尚未生成：点击「GPT 生成文案」后，将自动列出本章匹配的人物与时期（可与多人）。未点 GPT 前，「生成预览」仍可按章节自动推断人物。";
+            charRefListUl.appendChild(li);
+            return;
+          }
+          iaCharSelections.forEach(function (row) {
+            const li = document.createElement("li");
+            const span = document.createElement("span");
+            span.textContent = row.zhName + " · " + slotLabelForCharRef(row.zhName, row.slotIndex);
+            li.appendChild(span);
+            charRefListUl.appendChild(li);
+          });
+        }
+
+        async function fetchCharacterProfilesForLabels() {
+          try {
+            const r = await fetch(iaReq("/api/admin/bible-character-profiles"), {
+              headers: authHeadersBare(),
+              cache: "no-store",
+            });
+            const d = await r.json().catch(function () {
+              return {};
+            });
+            if (!r.ok) return;
+            characterProfilesRoot =
+              d.profiles && typeof d.profiles === "object" ? d.profiles : { characters: {} };
+          } catch (_) {}
+        }
+
+        async function loadIllustrationStateForContext() {
+          const { version, lang, bookId, chapter } = selectionParams();
+          if (!version || !lang || !bookId) return;
+          try {
+            const qs = new URLSearchParams({ version, lang, bookId, chapter });
+            const gr = await fetch(iaReq("/api/chapter-illustration/state?" + qs.toString()), {
+              headers: authHeadersBare(),
+              cache: "no-store",
+            });
+            const gd = await gr.json().catch(function () {
+              return {};
+            });
+            const st = gd.chapterState && typeof gd.chapterState === "object" ? gd.chapterState : null;
+            if (!st) {
+              briefZhEl.value = "";
+              keywordsZhEl.value = "";
+              sceneEnEl.value = "";
+              lastPrompt = "";
+              iaCharSelections = [];
+              renderCharRefList();
+              lastImageUrl = "";
+              previewImg.hidden = true;
+              previewImg.removeAttribute("src");
+              previewPh.hidden = false;
+              return;
+            }
+            briefZhEl.value =
+              typeof st.sceneDescriptionZh === "string" ? st.sceneDescriptionZh : "";
+            keywordsZhEl.value = typeof st.keywordsZh === "string" ? st.keywordsZh : "";
+            sceneEnEl.value = typeof st.sceneDescription === "string" ? st.sceneDescription : "";
+            lastPrompt = typeof st.prompt === "string" ? st.prompt : "";
+            const refs = st.characterRefSelections;
+            iaCharSelections = Array.isArray(refs)
+              ? refs
+                  .map(function (x) {
+                    if (!x || typeof x !== "object") return null;
+                    const zh = String(x.zhName || "").trim();
+                    if (!zh) return null;
+                    let si = Number(x.slotIndex);
+                    if (!Number.isFinite(si)) si = 0;
+                    return { zhName: zh, slotIndex: Math.max(0, Math.min(2, si)) };
+                  })
+                  .filter(Boolean)
+              : [];
+            renderCharRefList();
+            if (typeof st.imageUrl === "string" && st.imageUrl.trim()) {
+              applyPreviewUrl(st.imageUrl.trim());
+            } else {
+              lastImageUrl = "";
+              previewImg.hidden = true;
+              previewImg.removeAttribute("src");
+              previewPh.hidden = false;
+            }
+          } catch (_) {}
+        }
+
+        gptBtn.addEventListener("click", async function () {
+          const { version, lang, bookId, chapter } = selectionParams();
+          if (!version || !lang || !bookId) {
+            setStatus("请先选择版本、语言与书卷。", "err");
+            return;
+          }
+          gptBtn.disabled = true;
+          setStatus("正在请求 GPT 生成文案…");
+          try {
+            const gptInit = {
+              method: "POST",
+              headers: {
+                ...authHeadersBare(),
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                version,
+                lang,
+                bookId,
+                chapter: Number(chapter),
+                editorNotes: notesEl.value.trim(),
+              }),
+            };
+            /* 优先与 scene/state 同前缀，避免反代只放行 /api/chapter-illustration/* */
+            let res = await fetch(iaReq("/api/chapter-illustration/gpt-copy"), gptInit);
+            if (res.status === 404) {
+              res = await fetch(iaReq("/api/admin/illustration-admin/gpt-copy"), gptInit);
+            }
+            if (res.status === 404) {
+              res = await fetch(iaReq("/api/admin/ill-adm-gptcopy"), gptInit);
+            }
+            const raw = await res.text();
+            let data = {};
+            try {
+              data = raw.trim() ? JSON.parse(raw) : {};
+            } catch (_) {
+              data = {};
+            }
+            if (!res.ok) {
+              if (
+                res.status === 404 &&
+                (isLoopbackOriginPort3000(iaApiResolvedOrigin) ||
+                  isLoopbackOriginPort3000(window.location.origin))
+              ) {
+                setStatusErrWith3001Hint(apiFailMessage(res, data));
+              } else {
+                setStatus(apiFailMessage(res, data), "err");
+              }
+              return;
+            }
+            briefZhEl.value = data.illustrationBriefZh || "";
+            keywordsZhEl.value = data.keywordsZh || "";
+            sceneEnEl.value = data.sceneEnglish || "";
+            const cr = data.characterRefSelections;
+            iaCharSelections = Array.isArray(cr)
+              ? cr
+                  .map(function (x) {
+                    if (!x || typeof x !== "object") return null;
+                    const zh = String(x.zhName || "").trim();
+                    if (!zh) return null;
+                    let si = Number(x.slotIndex);
+                    if (!Number.isFinite(si)) si = 0;
+                    return { zhName: zh, slotIndex: Math.max(0, Math.min(2, si)) };
+                  })
+                  .filter(Boolean)
+              : [];
+            renderCharRefList();
+            setStatus("已生成（含人物库自动匹配），可修改文案后再生成预览。", "ok");
+          } catch (e) {
+            setStatus(String(e && e.message ? e.message : e), "err");
+          } finally {
+            gptBtn.disabled = false;
+          }
+        });
+
+        previewBtn.addEventListener("click", async function () {
+          const { version, lang, bookId, chapter } = selectionParams();
+          if (!version || !lang || !bookId) {
+            setStatus("请先选择版本、语言与书卷。", "err");
+            return;
+          }
+          const scene = sceneEnEl.value.trim();
+          if (!scene) {
+            setStatus("请先填写英文场景，或点击 GPT 生成文案。", "err");
+            return;
+          }
+          invalidatePublishedCache();
+          const pub = await fetchPublishedChapter();
+          if (pub._error) {
+            setStatus(pub._error, "err");
+            return;
+          }
+          previewBtn.disabled = true;
+          setStatus("正在生成 Prompt …");
+          try {
+            const resP = await fetch(iaReq("/api/generate-prompt"), {
+              method: "POST",
+              headers: {
+                ...authHeadersBare(),
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                book: selectedBookLabel(),
+                bookId,
+                version,
+                lang,
+                chapter,
+                theme: pub.theme,
+                scene,
+                compositionMode: "banner",
+                sceneVariant: 0,
+                stylePreset: "biblical_semi_real_character",
+                transparentBackground: true,
+                overlayOpacity: 85,
+                characterRefSelections: getCharacterRefPayload(),
+              }),
+            });
+            const rawP = await resP.text();
+            let promptData = {};
+            try {
+              promptData = rawP.trim() ? JSON.parse(rawP) : {};
+            } catch (_) {
+              promptData = {};
+            }
+            if (!resP.ok) {
+              setStatus(apiFailMessage(resP, promptData), "err");
+              return;
+            }
+            const prompt = String(promptData.prompt || "").trim();
+            if (!prompt) {
+              setStatus("未返回 Prompt。", "err");
+              return;
+            }
+            lastPrompt = prompt;
+            setStatus("正在生成插画预览 …");
+            const resI = await fetch(iaReq("/api/generate-illustration"), {
+              method: "POST",
+              headers: {
+                ...authHeadersBare(),
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                prompt,
+                transparent: true,
+                bookId,
+                chapter,
+                imageSize: "1536x1024",
+                imageQuality: "high",
+              }),
+            });
+            const rawI = await resI.text();
+            let imgData = {};
+            try {
+              imgData = rawI.trim() ? JSON.parse(rawI) : {};
+            } catch (_) {
+              imgData = {};
+            }
+            if (!resI.ok) {
+              setStatus(
+                imgData.error || apiFailMessage(resI, imgData),
+                "err"
+              );
+              return;
+            }
+            if (!imgData.success) {
+              setStatus(imgData.error || "出图失败", "err");
+              return;
+            }
+            const url = String(imgData.imageUrl || "").trim();
+            if (!url) {
+              setStatus("成功但未返回图片地址。", "err");
+              return;
+            }
+            applyPreviewUrl(url);
+            setStatus("预览已生成，可保存或插入读经页。", "ok");
+          } catch (e) {
+            setStatus(String(e && e.message ? e.message : e), "err");
+          } finally {
+            previewBtn.disabled = false;
+          }
+        });
+
+        saveBtn.addEventListener("click", async function () {
+          const { version, lang, bookId, chapter } = selectionParams();
+          if (!version || !lang || !bookId) {
+            setStatus("请先选择版本、语言与书卷。", "err");
+            return;
+          }
+          const pub = await fetchPublishedChapter();
+          if (pub._error) {
+            setStatus(pub._error, "err");
+            return;
+          }
+          const chNum = Number(chapter);
+          saveBtn.disabled = true;
+          setStatus("正在保存到插画状态…");
+          try {
+            const qs = new URLSearchParams({ version, lang, bookId, chapter });
+            const gr = await fetch(iaReq("/api/chapter-illustration/state?" + qs.toString()), {
+              headers: authHeadersBare(),
+              cache: "no-store",
+            });
+            const gd = await gr.json().catch(() => ({}));
+            const prev = gd.chapterState && typeof gd.chapterState === "object" ? gd.chapterState : {};
+            const seg0 =
+              Array.isArray(pub.segments) && pub.segments[0]
+                ? String(pub.segments[0].title || "").trim()
+                : "";
+            const chapterState = Object.assign({}, prev, {
+              versionId: version,
+              lang,
+              bookId,
+              chapterNumber: chNum,
+              bookName: String(pub.bookLabel || "").trim(),
+              theme: pub.theme,
+              summary: seg0,
+              sceneDescription: sceneEnEl.value.trim(),
+              sceneDescriptionZh: briefZhEl.value.trim(),
+              keywordsZh: keywordsZhEl.value.trim(),
+              characterRefSelections: getCharacterRefPayload(),
+              prompt: lastPrompt,
+              imageUrl: lastImageUrl,
+              transparentBackground: true,
+              overlayOpacity: 85,
+              stylePreset: "biblical_semi_real_character",
+            });
+            const res = await fetch(iaReq("/api/chapter-illustration/state"), {
+              method: "POST",
+              headers: {
+                ...authHeadersBare(),
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ chapterState }),
+            });
+            const raw = await res.text();
+            let data = {};
+            try {
+              data = raw.trim() ? JSON.parse(raw) : {};
+            } catch (_) {
+              data = {};
+            }
+            if (!res.ok) {
+              setStatus(apiFailMessage(res, data), "err");
+              return;
+            }
+            setStatus("已保存到 admin_data/chapter_illustration_states.json。", "ok");
+          } catch (e) {
+            setStatus(String(e && e.message ? e.message : e), "err");
+          } finally {
+            saveBtn.disabled = false;
+          }
+        });
+
+        insertBtn.addEventListener("click", async function () {
+          const { version, lang, bookId, chapter } = selectionParams();
+          if (!version || !lang || !bookId) {
+            setStatus("请先选择版本、语言与书卷。", "err");
+            return;
+          }
+          if (!lastImageUrl) {
+            setStatus("请先生成预览，再插入读经页。", "err");
+            return;
+          }
+          insertBtn.disabled = true;
+          setStatus("正在写入已发布章节…");
+          try {
+            const res = await fetch(iaReq("/api/admin/published/chapter-illustration"), {
+              method: "POST",
+              headers: {
+                ...authHeadersBare(),
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                version,
+                lang,
+                bookId,
+                chapter: Number(chapter),
+                imageUrl: lastImageUrl,
+              }),
+            });
+            const raw = await res.text();
+            let data = {};
+            try {
+              data = raw.trim() ? JSON.parse(raw) : {};
+            } catch (_) {
+              data = {};
+            }
+            if (!res.ok) {
+              setStatus(apiFailMessage(res, data), "err");
+              return;
+            }
+            invalidatePublishedCache();
+            setStatus("已插入读经页：刷新首页并打开该章即可看到插画（缓存数秒内失效）。", "ok");
+          } catch (e) {
+            setStatus(String(e && e.message ? e.message : e), "err");
+          } finally {
+            insertBtn.disabled = false;
+          }
+        });
+
+        let notesTimer = null;
+        notesEl.addEventListener("input", function () {
+          if (notesTimer) clearTimeout(notesTimer);
+          notesTimer = setTimeout(saveNotesToStorage, 300);
+        });
+
+        function onChapterContextChanged() {
+          loadNotesFromStorage();
+          invalidatePublishedCache();
+          void loadIllustrationStateForContext();
+        }
+
+        versionSel.addEventListener("change", onChapterContextChanged);
+        langSel.addEventListener("change", onChapterContextChanged);
+        bookSel.addEventListener("change", function () {
+          fillChapterSelectForBook(String(bookSel.value || ""));
+          onChapterContextChanged();
+        });
+        chapterSel.addEventListener("change", onChapterContextChanged);
+
+        async function checkIllustrationGptRouteProbe() {
+          const warnEl = document.getElementById("iaGptRouteWarn");
+          if (!warnEl) return;
+          warnEl.hidden = true;
+          warnEl.textContent = "";
+          const originHint = iaApiResolvedOrigin || window.location.origin || "";
+          try {
+            const r = await fetch(iaReq("/api/chapter-illustration/gpt-copy-probe"), {
+              method: "GET",
+              cache: "no-store",
+            });
+            if (r.ok) return;
+          } catch (_) {}
+          warnEl.hidden = false;
+          warnEl.replaceChildren();
+          const w1 = document.createElement("div");
+          w1.textContent =
+            "当前 API 根 " +
+            originHint +
+            " 未注册插画 GPT（GET /api/chapter-illustration/gpt-copy-probe 失败）。常见原因：本机 :3000 被其它 Node 项目占用，或运行的不是本仓库最新 server.js。请在 askbible 目录执行 PORT=3001 npm start，或释放 :3000 后在该目录 npm start。终端应出现 [routes] 插画 GPT；命令行可运行 npm run check:gpt-route。";
+          warnEl.appendChild(w1);
+          if (isLoopbackOriginPort3000(originHint)) {
+            const a = document.createElement("a");
+            a.href = illustrationAdminOn301Url();
+            a.className = "ia-status-alternate-port";
+            a.textContent = "→ 点此在 3001 打开插画管理";
+            warnEl.appendChild(a);
+          }
+        }
+
+        async function init() {
+          if (!getToken()) {
+            authEl.hidden = false;
+            authEl.innerHTML =
+              '请先 <a href="/">返回首页</a> 登录管理员账号，再使用本页。';
+            return;
+          }
+          const res = await fetch(apiUrl("/api/admin/bootstrap"), {
+            headers: authHeadersBare(),
+            cache: "no-store",
+          });
+          const raw = await res.text();
+          let payload = {};
+          try {
+            payload = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            payload = {};
+          }
+          if (res.status === 401) {
+            authEl.hidden = false;
+            authEl.innerHTML = '请先 <a href="/">返回首页</a> 登录。';
+            return;
+          }
+          if (res.status === 403) {
+            authEl.hidden = false;
+            authEl.innerHTML = "需要管理员权限。";
+            return;
+          }
+          if (!res.ok) {
+            authEl.hidden = false;
+            authEl.innerHTML =
+              "无法加载后台数据：" + (payload.error || "HTTP " + res.status);
+            return;
+          }
+
+          try {
+            iaApiResolvedOrigin = new URL(res.url).origin;
+          } catch (_) {
+            iaApiResolvedOrigin = "";
+          }
+
+          const contentVersions = Array.isArray(payload.contentVersions)
+            ? payload.contentVersions
+            : [];
+          const langs = Array.isArray(payload.languages) ? payload.languages : [];
+          books = Array.isArray(payload.books) ? payload.books : [];
+
+          versionSel.innerHTML = "";
+          contentVersions
+            .filter((x) => x && x.enabled !== false && x.id)
+            .sort((a, b) => Number(a.order || 999) - Number(b.order || 999))
+            .forEach((x) => {
+              const opt = document.createElement("option");
+              opt.value = String(x.id);
+              opt.textContent = String(x.label || x.id);
+              versionSel.appendChild(opt);
+            });
+
+          langSel.innerHTML = "";
+          langs
+            .filter((x) => x && x.enabled !== false && (x.id || x.code))
+            .forEach((x) => {
+              const id = String(x.id || x.code || "").trim();
+              if (!id) return;
+              const opt = document.createElement("option");
+              opt.value = id;
+              opt.textContent = String(x.label || id);
+              langSel.appendChild(opt);
+            });
+
+          bookSel.innerHTML = "";
+          books.forEach((b) => {
+            const opt = document.createElement("option");
+            opt.value = String(b.bookId);
+            opt.textContent = String(b.bookCn || b.bookId) + " (" + String(b.bookId) + ")";
+            bookSel.appendChild(opt);
+          });
+
+          if (bookSel.options.length) fillChapterSelectForBook(bookSel.value);
+
+          authEl.hidden = true;
+          appEl.hidden = false;
+          loadNotesFromStorage();
+          await fetchCharacterProfilesForLabels();
+          await loadIllustrationStateForContext();
+          void checkIllustrationGptRouteProbe();
+        }
+
+        void init();
+      })();
+    </script>
+  </body>
+</html>

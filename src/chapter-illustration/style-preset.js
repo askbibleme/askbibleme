@@ -1,26 +1,24 @@
 /**
- * Global engraving style preset — all chapters share this base unless overridden later.
+ * Global semi-real biblical character preset — keep unified with character designer direction.
  */
 export const STYLE_PRESET_ENGRAVING = {
-  id: "biblical_copperplate_engraving",
-  name: "biblical_copperplate_engraving",
-  lineQuality: "precise_controlled",
-  shading: "cross_hatching",
-  colorMode: "black_ink_monochrome",
-  fillMode: "no_fill",
-  textureMode: "transparent_background_clean",
+  id: "biblical_semi_real_character",
+  name: "biblical_semi_real_character",
+  lineQuality: "semi_real_clean",
+  shading: "soft_natural",
+  colorMode: "earth_tone_low_saturation",
+  fillMode: "natural_material",
+  textureMode: "linen_wool_detail",
   era: "ancient_biblical",
-  /** 目标：古典版画中「可放大细看」的写实精细线刻，非朦胧示意 */
-  renderingGoal: "fine_realistic_engraving",
+  renderingGoal: "semi_realistic_character_concept",
   exclusions: [
     "modern_objects",
     "typography",
     "crowd_scene",
-    "comic_style",
-    "painterly_style",
+    "anime_style",
+    "cartoon_style",
+    "fantasy_armor",
     "cinematic_lighting",
-    "blur",
-    "soft_focus",
-    "low_detail",
+    "sci_fi_fx",
   ],
 };

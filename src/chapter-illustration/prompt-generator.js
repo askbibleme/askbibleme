@@ -1,27 +1,54 @@
 import { STYLE_PRESET_ENGRAVING } from "./style-preset.js";
 
+const STYLE_LOCK_GLOBAL = `
+semi-realistic biblical illustration,
+historically grounded,
+ancient Near Eastern clothing (tunic, shawl, sandals),
+linen and wool fabric texture,
+earth-tone color palette (low saturation),
+soft natural lighting,
+calm and restrained emotional tone,
+no dramatic action
+`
+  .trim()
+  .replace(/\s+/g, " ");
+
+const CONSTRAINTS_GLOBAL = `
+no modern elements,
+no fantasy armor or decorative fantasy styling,
+no bright saturated colors,
+no cinematic lighting,
+no exaggerated expressions or action,
+no anime / cartoon / stylized fantasy,
+no sci-fi effects,
+single clear narrative moment only,
+no symbolic abstraction,
+not crowded
+`
+  .trim()
+  .replace(/\s+/g, " ");
+
+function compositionForMode(mode, fallbackComposition) {
+  const m = String(mode || "").trim().toLowerCase();
+  const custom = String(fallbackComposition || "").trim();
+  if (custom) return custom;
+  if (m === "banner" || m === "wide") {
+    return "wide horizontal layout, balanced left-right narrative placement, large breathing space, not crowded";
+  }
+  return "single clear narrative moment, centered and balanced layout, readable full-body figures when character-focused";
+}
+
 /**
  * Stage 5 — full engraving prompt from concrete scene description.
  */
 export function generateIllustrationPrompt(config) {
   const sceneDescription = String(config?.sceneDescription || "").trim();
   const transparent = config?.transparentBackground !== false;
-  const composition =
-    String(config?.composition || "").trim() || "single focal point";
+  const composition = compositionForMode(config?.compositionMode, config?.composition);
   const stylePreset = config?.stylePreset || STYLE_PRESET_ENGRAVING.id;
   const characterLines = Array.isArray(config?.characterAppearanceLines)
     ? config.characterAppearanceLines.map((x) => String(x || "").trim()).filter(Boolean)
     : [];
-
-  const visual =
-    sceneDescription +
-    ", one frozen story moment with readable faces, hands, and props as named, " +
-    "figures and objects drawn with convincing real-world proportion and weight, " +
-    "AI-generated interpretive scene (not a photograph); where the composition allows, focal figures may use calm dignified gaze toward the viewer for engagement alongside text or display";
-
-  const outputBlock = transparent
-    ? "isolated illustration,\ntransparent background,\nPNG,\nalpha channel"
-    : "isolated illustration,\nopaque background,\nPNG";
 
   const charBlock =
     characterLines.length > 0
@@ -37,47 +64,33 @@ export function generateIllustrationPrompt(config) {
         ]
       : [];
 
+  const outputBlock = transparent
+    ? "PNG, transparent background (alpha channel), all non-subject pixels must be fully transparent (alpha 0), no rectangular backdrop fill"
+    : "PNG, opaque plain light beige or light gray background";
+
   const lines = [
-    "a biblical scene in open land,",
-    visual + ",",
-    "literal narrative illustration of this exact beat, not an abstract allegory,",
-    "the moment is still and calm,",
+    "[SCENE]",
+    sceneDescription || "single biblical narrative moment, calm and restrained",
     "",
+    "[STYLE]",
+    STYLE_LOCK_GLOBAL + ",",
+    "background rule: clean, plain, light background (beige or light gray), avoid clutter unless explicitly required by scene,",
+    "character rule: modest and simple clothing, natural standing/resting pose, full body when character-focused,",
+    "",
+    "[COMPOSITION]",
     composition + ",",
-    "single focal point,",
-    "balanced composition,",
-    "clear foreground, midground, background,",
     "",
-    "STYLE (" + stylePreset + "):",
-    "museum-quality antique biblical copperplate engraving,",
-    "European master-printmaker fineness in the lineage of Dürer and Doré,",
-    "hand-engraved linework: razor-sharp edges, crisp silhouettes, high micro-contrast,",
-    "dense fine parallel hatching and cross-hatching to model form, never mushy or smeared,",
-    "every fold of fabric, facial feature, hand, weapon, and ground texture resolved with tight deliberate strokes,",
-    "black ink only, monochrome line art,",
-    "subtle stippling allowed for tone,",
-    "lines only, no flat airbrush fill,",
-    "no soft gradients, no wash,",
-    "no painterly blur, no impressionist looseness,",
-    "no sketchy scribble or simplified blob shapes,",
-    "no modern flat vector or digital softness,",
-    "photographically sharp at print scale: if enlarged, detail remains legible,",
+    "[CONSTRAINTS]",
+    CONSTRAINTS_GLOBAL + ",",
+    "no text, letters, symbols, watermark or logo",
+    ...(transparent
+      ? [
+          "transparent mode required: isolate subject cleanly, no painted sky/wall/ground panel, no beige paper block, no solid background tint",
+        ]
+      : []),
     "",
-    "NEGATIVE:",
-    "no text, no letters, no symbols,",
-    "no modern objects,",
-    "no modern clothing,",
-    "no anonymous silhouettes when the scene names specific people,",
-    "no multiple unrelated scenes in one frame,",
-    "no blur, no soft focus, no dreamy haze, no foggy atmosphere,",
-    "no low resolution, no pixelation, no muddy shading,",
-    "no motion blur,",
-    "no comic style,",
-    "no cinematic lens effects, depth-of-field blur, or bokeh,",
-    "",
-    "OUTPUT:",
-    outputBlock + ",",
-    "no paper texture inside the artwork,",
+    "STYLE PRESET TAG: " + stylePreset,
+    "OUTPUT: " + outputBlock,
     ...charBlock,
   ];
 

@@ -15,6 +15,9 @@ export { generateSceneDescriptionZh } from "./scene-description-zh.js";
 export { generateIllustrationPrompt } from "./prompt-generator.js";
 export {
   buildCharacterLockLines,
+  buildCharacterLockLinesForRefSelections,
+  appearanceEnForSlot,
+  periodLabelZhForSlot,
   DEFAULT_ENGLISH_NAME_BY_ZH,
 } from "./character-appearance.js";
 
@@ -83,8 +86,8 @@ export function buildIllustrationSpecFromPipeline(body, sceneDescription) {
     scene: String(sceneDescription || "").trim(),
     composition: String(body?.composition || "").trim() || "single focal point",
     mood: String(body?.mood || "").trim() || "calm, spacious, peaceful",
-    style: "antique engraving",
-    stylePreset: String(body?.stylePreset || "biblical_copperplate_engraving"),
+    style: "semi-realistic biblical character",
+    stylePreset: String(body?.stylePreset || "biblical_semi_real_character"),
     transparent: body?.transparentBackground !== false,
     overlayOpacity:
       body?.overlayOpacity != null ? Number(body.overlayOpacity) : 100,
@@ -169,7 +172,7 @@ export function stateFromPipelineRun(
     warningZh: run.warningZh,
     transparentBackground: body?.transparentBackground !== false,
     overlayOpacity: Number(body?.overlayOpacity) || 85,
-    stylePreset: String(body?.stylePreset || "biblical_copperplate_engraving"),
+    stylePreset: String(body?.stylePreset || "biblical_semi_real_character"),
     analysis: run.analysis,
     selection: run.selection,
     sceneVariant: Number(extra.sceneVariant || 0) || 0,

@@ -4,11 +4,13 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "check:gpt-route": "node scripts/check-gpt-copy-route.mjs",
     "dev": "DEV_LIVE_RELOAD=1 node server.js",
     "cap:sync": "npx cap sync",
     "cap:copy-web": "node scripts/copy-web-to-dist-capacitor.mjs",
     "build:deploy-zip": "npm run cap:copy-web && node scripts/build-deploy-upgrade-zip.mjs",
     "build:deploy-full-slim": "npm run cap:copy-web && node scripts/build-deploy-full-slim-zip.mjs",
+    "deploy:remote": "node scripts/deploy-remote.mjs",
     "cap:android": "npx cap open android",
     "icons:from-svg": "node scripts/generate-app-icons-from-svg.mjs",
     "android:icons": "node scripts/generate-app-icons-from-svg.mjs",
@@ -18,7 +20,8 @@
     "trim:png": "node scripts/trim-transparent-generated-pngs.mjs --all-generated",
     "rename:char-pngs": "node scripts/rename-legacy-char-pngs.mjs",
     "cleanup:nontransparent-png": "node scripts/cleanup-nontransparent-generated.mjs",
-    "cleanup:legacy-char": "node scripts/cleanup-legacy-char-generated.mjs"
+    "cleanup:legacy-char": "node scripts/cleanup-legacy-char-generated.mjs",
+    "migrate:illustration-style-preset": "node scripts/migrate-illustration-style-preset.mjs --write"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

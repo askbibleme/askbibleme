@@ -172,6 +172,98 @@ export function appearanceTextForPromptLock(entry) {
 }
 
 /**
+ * slotIndex：0 = 根档案（第一时期）；1 = periods[0]；2 = periods[1]。
+ */
+export function appearanceEnForSlot(entry, slotIndex) {
+  if (!entry || typeof entry !== "object") return "";
+  const si = Math.max(0, Number(slotIndex) || 0);
+  if (si === 0) return String(entry.appearanceEn || "").trim();
+  const periods = Array.isArray(entry.periods) ? entry.periods : [];
+  const p = periods[si - 1];
+  if (!p || typeof p !== "object") return String(entry.appearanceEn || "").trim();
+  const a = String(p.appearanceEn || "").trim();
+  return a || String(entry.appearanceEn || "").trim();
+}
+
+export function periodLabelZhForSlot(entry, slotIndex) {
+  if (!entry || typeof entry !== "object") return "";
+  const si = Math.max(0, Number(slotIndex) || 0);
+  if (si === 0) return String(entry.periodLabelZh || "").trim();
+  const periods = Array.isArray(entry.periods) ? entry.periods : [];
+  const p = periods[si - 1];
+  return p && typeof p === "object" ? String(p.labelZh || "").trim() : "";
+}
+
+const STATURE_SCENE_EN = {
+  child:
+    "visibly younger — child or young-adolescent facial proportions and softer features (same bone structure as adult portraits of this person, not a different actor)",
+  youth:
+    "younger face — late-teen to twenties maturity, not a small child (keep recognizable identity vs. elder portraits)",
+  adult: "mature adult face and build in narrative prime",
+  elder:
+    "older — deeper lines, greyer hair or beard as appropriate; same underlying facial structure and identity as younger project portraits, not a different person",
+};
+
+/**
+ * 插画管理页：从人物设计库勾选「本场景」要锁脸的人物与时期（年龄阶段），写入出图 prompt。
+ */
+export function buildCharacterLockLinesForRefSelections(
+  selections,
+  profilesRoot,
+  maxPeople = 6
+) {
+  const raw = Array.isArray(selections) ? selections : [];
+  const lines = [];
+  const seen = new Set();
+  for (const row of raw) {
+    if (lines.length >= maxPeople) break;
+    if (!row || typeof row !== "object") continue;
+    const zh = String(row.zhName || row.nameZh || "").trim();
+    if (!zh || seen.has(zh)) continue;
+    seen.add(zh);
+    const slotIndex = Math.max(0, Number(row.slotIndex) || 0);
+    const entry = getCharacterEntry(profilesRoot, zh);
+    const en = englishNameForPerson(zh, profilesRoot) || zh;
+    const app = appearanceEnForSlot(entry, slotIndex).trim();
+    const st = entry ? statureClassForSlot(entry, slotIndex) : "adult";
+    const ageLine = STATURE_SCENE_EN[st] || STATURE_SCENE_EN.adult;
+    const lb = periodLabelZhForSlot(entry, slotIndex);
+    const persEn = entry ? String(entry.scripturePersonalityEn || "").trim() : "";
+    const lockParts = [];
+    if (app) {
+      lockParts.push(
+        lb
+          ? `Life-stage label [${lb}]: ${app}`
+          : app
+      );
+    }
+    lockParts.push(`Age/stature for THIS image: ${ageLine}`);
+    if (persEn) lockParts.push(`Scripture-based demeanor: ${persEn}`);
+    const lockBody = lockParts.join(" ");
+    if (lockBody.trim()) {
+      lines.push(
+        `${en}: Match the project's existing reference art for this character at this life stage — same facial identity (eyes, nose, jaw, brows, hairline) as the library portrait; ${lockBody}`
+      );
+    } else if (en && en !== zh) {
+      lines.push(
+        `${en}: same recognizable face as other chapters in this Bible project; ${ageLine}; ancient Near Eastern dress suited to the narrative`
+      );
+    }
+  }
+  if (lines.length > 1) {
+    lines.unshift(
+      "Distinct faces within this scene (mandatory): Each named figure below must be visually distinguishable — unique facial structure; do NOT reuse one generic face for different people."
+    );
+  }
+  if (lines.length >= 1) {
+    lines.unshift(
+      "Reference portraits: The descriptions below come from the project character library (generated reference art). Honor them for facial consistency; when the scene implies a different age than the library sheet, still keep the SAME identity — adjust wrinkles, hair color, and skin texture, not bone structure."
+    );
+  }
+  return lines;
+}
+
+/**
  * 供最终 prompt 使用的「角色锁定」行（完整外观，跨章复用）。
  */
 export function buildCharacterLockLines(keyPeople, profilesRoot, maxPeople = 4) {

@@ -12,6 +12,12 @@ export function defaultChapterIllustrationState(overrides = {}) {
     chapterType: "narrative",
     sceneDescription: "",
     sceneDescriptionZh: "",
+    /** 插画管理页：中文关键词（与 sceneDescriptionZh 一并保存） */
+    keywordsZh: "",
+    /**
+     * 插画管理页：人物库参考 [{ zhName, slotIndex }]，slotIndex 0=根时期，1+=periods[i-1]
+     */
+    characterRefSelections: [],
     prompt: "",
     imageUrl: "",
     localPath: "",

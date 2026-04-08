@@ -39,13 +39,19 @@
       items: [{ href: "/admin-analytics.html", label: "访问统计" }],
     },
     {
+      sub: "插画",
+      items: [
+        {
+          href: "/illustration-admin.html",
+          label: "插画管理",
+        },
+        { href: "/bible-character-designer.html", label: "圣经人物设计器" },
+      ],
+    },
+    {
       sub: "读经页内",
       items: [
         { href: "/video-center.html", label: "章节视频上传" },
-        {
-          href: "/chapter-illustration-prompt.html",
-          label: "章节插画 Prompt",
-        },
         {
           href: "/bible-character-designer.html",
           label: "圣经人物设计器",

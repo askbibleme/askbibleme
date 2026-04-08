@@ -26,6 +26,7 @@ import {
   analyzeChapterForIllustration,
   buildChapterPayloadFromPublished,
   buildCharacterLockLines,
+  buildCharacterLockLinesForRefSelections,
   stateStorageKey,
   defaultChapterIllustrationState,
   mergeChapterIllustrationState,
@@ -3647,8 +3648,18 @@ function listChapterVideosOverview(versionId, lang) {
   return out;
 }
 
-function normalizeStudyContentForSave(input) {
+function normalizeChapterIllustrationForSave(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const imageUrl = safeText(raw.imageUrl || "");
+  if (!imageUrl) return null;
   return {
+    imageUrl,
+    updatedAt: safeText(raw.updatedAt || ""),
+  };
+}
+
+function normalizeStudyContentForSave(input) {
+  const out = {
     version: safeText(input.version),
     versionLabel: safeText(input.versionLabel),
     contentLang: safeText(input.contentLang),
@@ -3669,6 +3680,9 @@ function normalizeStudyContentForSave(input) {
     savedAt: nowIso(),
     chapterVideos: normalizeChapterVideosForSave(input.chapterVideos),
   };
+  const ill = normalizeChapterIllustrationForSave(input.chapterIllustration);
+  if (ill) out.chapterIllustration = ill;
+  return out;
 }
 
 function saveStudyContentToBuild(studyContent, buildId) {
@@ -3704,6 +3718,10 @@ function mergePublishOneChapter(studyContent) {
     studyContent &&
     typeof studyContent === "object" &&
     Object.prototype.hasOwnProperty.call(studyContent, "chapterVideos");
+  const hadChapterIllustrationKey =
+    studyContent &&
+    typeof studyContent === "object" &&
+    Object.prototype.hasOwnProperty.call(studyContent, "chapterIllustration");
   const normalized = normalizeStudyContentForSave(studyContent);
 
   const filePath = getPublishedContentFilePath({
@@ -3722,6 +3740,15 @@ function mergePublishOneChapter(studyContent) {
   ) {
     normalized.chapterVideos = normalizeChapterVideosForSave(
       existing.chapterVideos
+    );
+  }
+  if (
+    !hadChapterIllustrationKey &&
+    existing &&
+    normalizeChapterIllustrationForSave(existing.chapterIllustration)
+  ) {
+    normalized.chapterIllustration = normalizeChapterIllustrationForSave(
+      existing.chapterIllustration
     );
   }
 
@@ -6645,6 +6672,87 @@ function loadCharacterIllustrationProfiles() {
   return readJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, { characters: {} });
 }
 
+function normalizeCharacterRefSelectionsFromBody(body) {
+  const raw = body && body.characterRefSelections;
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  const out = [];
+  for (const r of raw) {
+    if (!r || typeof r !== "object") continue;
+    const zhName = safeText(r.zhName || r.nameZh || "").slice(0, 32);
+    if (!zhName) continue;
+    let slotIndex = Number(r.slotIndex);
+    if (!Number.isFinite(slotIndex)) slotIndex = 0;
+    slotIndex = Math.max(0, Math.min(2, Math.floor(slotIndex)));
+    out.push({ zhName, slotIndex });
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+/** 供 GPT 从档案中多选人物与时期：校验 zhName 存在且 slot 对该人物有效 */
+function sanitizeGptCharacterRefSelections(parsed, profilesRoot) {
+  const raw = parsed && parsed.characterRefSelections;
+  if (!Array.isArray(raw)) return [];
+  const ch =
+    profilesRoot &&
+    profilesRoot.characters &&
+    typeof profilesRoot.characters === "object"
+      ? profilesRoot.characters
+      : {};
+  const out = [];
+  const seen = new Set();
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const zhName = safeText(row.zhName || row.nameZh || "").slice(0, 32);
+    if (!zhName || !Object.prototype.hasOwnProperty.call(ch, zhName)) continue;
+    const entry = ch[zhName];
+    if (!entry || typeof entry !== "object") continue;
+    let slotIndex = Number(row.slotIndex);
+    if (!Number.isFinite(slotIndex)) slotIndex = 0;
+    slotIndex = Math.max(0, Math.min(2, Math.floor(slotIndex)));
+    const periods = Array.isArray(entry.periods) ? entry.periods : [];
+    const maxSlotExclusive = 1 + Math.min(periods.length, 2);
+    if (slotIndex >= maxSlotExclusive) slotIndex = 0;
+    const key = zhName + "\0" + slotIndex;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ zhName, slotIndex });
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+function buildCharacterRosterForGptPrompt(profilesRoot) {
+  const ch =
+    profilesRoot &&
+    profilesRoot.characters &&
+    typeof profilesRoot.characters === "object"
+      ? profilesRoot.characters
+      : {};
+  const names = Object.keys(ch).sort();
+  if (!names.length) {
+    return "（当前人物设计库为空：characterRefSelections 请输出 []）";
+  }
+  const lines = [];
+  for (const name of names) {
+    const e = ch[name];
+    if (!e || typeof e !== "object") continue;
+    const en = safeText(e.englishName || "").slice(0, 80);
+    const pl0 = safeText(e.periodLabelZh || "").trim() || "第一时期";
+    const slotParts = [`slotIndex=0（根档案 · ${pl0}）`];
+    const periods = Array.isArray(e.periods) ? e.periods.slice(0, 2) : [];
+    periods.forEach((p, i) => {
+      if (!p || typeof p !== "object") return;
+      const lb = safeText(p.labelZh || "").trim() || "时期 " + (i + 1);
+      slotParts.push(`slotIndex=${i + 1}（${lb}）`);
+    });
+    lines.push(
+      `- 「${name}」${en ? " / " + en : ""}：可选时期 — ${slotParts.join("；")}`
+    );
+  }
+  return lines.join("\n");
+}
+
 function characterLockLinesForPublishedChapter(body) {
   const version = safeText(body.version || "");
   const lang = safeText(body.lang || "");
@@ -6671,6 +6779,19 @@ function characterLockLinesForPublishedChapter(body) {
     loadCharacterIllustrationProfiles(),
     6
   );
+}
+
+/** 插画管理页勾选人物库时优先用勾选时期；否则按已发布章节 keyPeople 自动推断 */
+function resolveCharacterLockLinesForGeneratePrompt(body) {
+  const picks = normalizeCharacterRefSelectionsFromBody(body);
+  if (picks.length) {
+    return buildCharacterLockLinesForRefSelections(
+      picks,
+      loadCharacterIllustrationProfiles(),
+      6
+    );
+  }
+  return characterLockLinesForPublishedChapter(body);
 }
 
 function ensureChapterIllustrationStateFile() {
@@ -6798,21 +6919,23 @@ function buildIllustrationSpec(body) {
   const scene = safeText(body?.scene || "");
   const theme = themeToFlatString(body?.theme);
   const transparent = body?.transparentBackground !== false;
+  const compositionMode = safeText(body?.compositionMode || body?.mode || "");
   return {
     book: safeText(body?.book || ""),
     bookId: safeText(body?.bookId || extractBookIdFromChapterBody(body)),
     chapter: safeText(body?.chapter || ""),
     theme,
     scene,
+    compositionMode,
     composition: safeText(body?.composition || "") || "single focal point",
     mood: safeText(body?.mood || "") || "calm, spacious, peaceful",
     elements: mergeSpecKeywordLists([
       extractKeywordsFromSceneText(theme),
       extractKeywordsFromSceneText(scene),
     ]),
-    style: "antique engraving",
+    style: "semi-realistic biblical character",
     stylePreset:
-      safeText(body?.stylePreset || "") || "biblical_copperplate_engraving",
+      safeText(body?.stylePreset || "") || "biblical_semi_real_character",
     transparent,
     overlayOpacity: clampChapterPromptOverlayOpacity(
       body?.overlayOpacity != null ? body.overlayOpacity : 100
@@ -6830,9 +6953,10 @@ function buildPrompt(spec) {
   return generateIllustrationPrompt({
     sceneDescription: safeText(spec?.scene || ""),
     transparentBackground: spec?.transparent !== false,
+    compositionMode: safeText(spec?.compositionMode || ""),
     composition: spec?.composition,
     stylePreset:
-      safeText(spec?.stylePreset || "") || "biblical_copperplate_engraving",
+      safeText(spec?.stylePreset || "") || "biblical_semi_real_character",
     characterAppearanceLines: lines,
   });
 }
@@ -7240,10 +7364,11 @@ app.post("/api/generate-prompt", (req, res) => {
     }
     const bodyResolved = { ...body, scene };
     const illustrationSpec = buildIllustrationSpec(bodyResolved);
-    illustrationSpec.characterAppearanceLines = characterLockLinesForPublishedChapter(
-      bodyResolved
-    );
+    illustrationSpec.characterAppearanceLines =
+      resolveCharacterLockLinesForGeneratePrompt(bodyResolved);
     const prompt = buildPrompt(illustrationSpec);
+    console.log("=== FINAL PROMPT ===");
+    console.log(prompt);
     const imageUrl = safeText(body.imageUrl || "");
     const transparentPng = safeText(body.transparentPng || "");
     ensureChapterPromptLogFile();
@@ -7286,6 +7411,156 @@ app.post("/api/generate-prompt", (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || "生成失败" });
+  }
+});
+
+/**
+ * POST /api/admin/illustration-admin/gpt-copy
+ * POST /api/admin/ill-adm-gptcopy（短路径别名）
+ * POST /api/chapter-illustration/gpt-copy（与 scene/state 同前缀，反代/路由表易放行）
+ * 根据已发布章节与编辑备注，GPT 生成插画说明与英文场景（供插画管理页）。
+ */
+async function handleIllustrationAdminGptCopy(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const version = safeText(body.version || "");
+    const lang = safeText(body.lang || "");
+    const bookId = safeText(body.bookId || "");
+    const chapter = Number(body.chapter);
+    const editorNotes = safeText(body.editorNotes || "");
+    if (!version || !lang || !bookId || !Number.isFinite(chapter)) {
+      return res
+        .status(400)
+        .json({ error: "缺少 version / lang / bookId 或 chapter 无效" });
+    }
+    const published = readPublishedContent({
+      versionId: version,
+      lang,
+      bookId,
+      chapter,
+    });
+    if (!published) {
+      return res.status(400).json({
+        error: "未找到已发布章节，请先在后台发布该章后再生成文案。",
+      });
+    }
+    const profilesRoot = loadCharacterIllustrationProfiles();
+    const themeStr = themeToFlatString(published.theme);
+    const segTitles = (Array.isArray(published.segments) ? published.segments : [])
+      .slice(0, 14)
+      .map((s) => safeText(s?.title || ""))
+      .filter(Boolean)
+      .join("；");
+    const bookLabel = safeText(published.bookLabel || bookId);
+    const rosterBlock = buildCharacterRosterForGptPrompt(profilesRoot);
+    const userBlockParts = [
+      `书卷：${bookLabel}（${bookId}）`,
+      `章节：${chapter === 0 ? "卷首页" : "第 " + chapter + " 章"}`,
+      `主题(theme)：${themeStr || "（无）"}`,
+      `段落标题摘要：${segTitles || "（无）"}`,
+      editorNotes ? `编辑备注与画面要求：${editorNotes}` : "",
+      `【人物设计库 — 须由你为本章插画自动选配】\n下面列出档案中已有的人物及可选时期（slotIndex）。请根据本章叙事与你要写的画面，选出所有需要在图中具名呈现、且须与库中参考脸一致的人物（0～6 人）；同一人若在本章应以更年轻或更年长样貌出现，选对应 slotIndex。纯风景、无具名人物、或档案中无此人时，characterRefSelections 输出空数组 []。\n${rosterBlock}`,
+    ];
+    const userBlock = userBlockParts.filter(Boolean).join("\n");
+
+    const system = `你是圣经读物插画策划编辑。根据已发布章节的主题与段落标题，为一幅「仿古铜板刻线、透明背景 PNG」插画写说明与出图用词；并**自动**从给定「人物设计库」名单中选配本章出镜人物的锁脸参考（可多选）。
+只输出一个 JSON 对象（不要 Markdown 代码围栏），键如下：
+- illustrationBriefZh：string，2～4 句中文，概括本图画什么、情绪与构图重心（不罗列经文编号）。
+- keywordsZh：string，中文关键词，逗号或顿号分隔，约 8～16 个（环境、人物关系、道具、光线氛围等）。
+- sceneEnglish：string，一段英文，单一冻结瞬间的具象画面描写，可直接作为图像模型的场景指令；不要出现章节号或书名；人物为古朴中东服饰、端庄得体；适合 semi-realistic biblical character illustration。约 40～120 个英文单词。
+- characterRefSelections：array，每项为 { "zhName": string（必须与用户消息中人物库条目的中文名「」内文字完全一致）, "slotIndex": number（0=根档案第一时期，1=第二时期…，以库中说明为准）}。须与 sceneEnglish 中出现的主要人物一致；无具名人物时 []。
+
+sceneEnglish 必须与 characterRefSelections 中每张脸的年龄阶段一致；同一人物在不同人生阶段须「同脸可辨」（仅皱纹/发色/肤质等变化）。
+若备注与经文叙事冲突，以经文为主，备注仅作补充。`;
+
+    const raw = await openAiChatHelper({
+      system,
+      messages: [{ role: "user", content: userBlock }],
+    });
+    const parsed = tryParseJsonLoose(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return res.status(502).json({
+        error: "模型未返回有效 JSON，请重试或缩短备注",
+        rawPreview: String(raw || "").slice(0, 400),
+      });
+    }
+    const characterRefSelections = sanitizeGptCharacterRefSelections(
+      parsed,
+      profilesRoot
+    );
+    res.json({
+      ok: true,
+      illustrationBriefZh: safeText(parsed.illustrationBriefZh || ""),
+      keywordsZh: safeText(parsed.keywordsZh || ""),
+      sceneEnglish: safeText(parsed.sceneEnglish || ""),
+      characterRefSelections,
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message || "GPT 请求失败" });
+  }
+}
+
+app.post("/api/chapter-illustration/gpt-copy", handleIllustrationAdminGptCopy);
+app.post("/api/admin/illustration-admin/gpt-copy", handleIllustrationAdminGptCopy);
+app.post("/api/admin/ill-adm-gptcopy", handleIllustrationAdminGptCopy);
+
+/** 无需登录：供插画管理页与本机自检，确认当前 Node 进程已注册 gpt-copy（非 404） */
+app.get("/api/chapter-illustration/gpt-copy-probe", (_req, res) => {
+  res.json({ ok: true, illustrationAdminGptCopy: true });
+});
+
+/**
+ * POST /api/admin/published/chapter-illustration
+ * 将插画 URL 写入已发布章节 JSON（读经页展示）；imageUrl 空字符串则清除。
+ */
+app.post("/api/admin/published/chapter-illustration", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const version = safeText(body.version || "");
+    const lang = safeText(body.lang || "");
+    const bookId = safeText(body.bookId || "");
+    const chapter = Number(body.chapter);
+    const imageUrl = safeText(body.imageUrl || "");
+    if (!version || !lang || !bookId || !Number.isFinite(chapter)) {
+      return res
+        .status(400)
+        .json({ error: "缺少 version / lang / bookId 或 chapter 无效" });
+    }
+    const filePath = getPublishedContentFilePath({
+      versionId: version,
+      lang,
+      bookId,
+      chapter,
+    });
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "未找到已发布章节文件" });
+    }
+    const data = readJson(filePath, null);
+    if (!data || typeof data !== "object") {
+      return res.status(500).json({ error: "章节 JSON 无效" });
+    }
+    const next = { ...data };
+    if (imageUrl) {
+      next.chapterIllustration = {
+        imageUrl,
+        updatedAt: nowIso(),
+      };
+    } else {
+      delete next.chapterIllustration;
+    }
+    writeJson(filePath, next);
+    clearReadCacheByPrefix(
+      `study:${String(version)}:${String(lang)}:${String(bookId)}:${Number(chapter)}`
+    );
+    res.json({ ok: true, chapterIllustration: next.chapterIllustration || null });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message || "写入失败" });
   }
 });
 
@@ -10896,7 +11171,7 @@ app.get("/api/dev/livereload-status", (_req, res) => {
     ["seo-settings.html", false],
     ["home-layout-map.html", false],
     ["video-center.html", false],
-    ["chapter-illustration-prompt.html", false],
+    ["illustration-admin.html", false],
     ["bible-character-designer.html", false],
   ];
   for (const [name, qianOnly] of adminToolHtml) {
@@ -10934,6 +11209,9 @@ const listenHost =
     : "0.0.0.0";
 app.listen(port, listenHost, () => {
   console.log(`http://localhost:${port}/`);
+  console.log(
+    "[routes] 插画 GPT 文案: POST /api/chapter-illustration/gpt-copy；自检 GET /api/chapter-illustration/gpt-copy-probe"
+  );
   if (listenHost === "0.0.0.0") {
     console.log(
       "[listen] 0.0.0.0:" +

@@ -349,8 +349,8 @@
       scene: String(sceneEl.value || "").trim(),
       sceneVariant,
       stylePreset: stylePresetEl
-        ? String(stylePresetEl.value || "biblical_copperplate_engraving")
-        : "biblical_copperplate_engraving",
+        ? String(stylePresetEl.value || "biblical_semi_real_character")
+        : "biblical_semi_real_character",
       transparentBackground: Boolean(transparentEl.checked),
       overlayOpacity: Number(opacityEl.value) || 0,
     };
