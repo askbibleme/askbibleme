@@ -5902,6 +5902,13 @@ a.admin-modal-hub-link.primary-btn {
     padding: 12px 12px 16px;
   }
 
+  /* 窄屏：顶栏左右内边距收紧（仍不小于安全区） */
+  .page-shell > .site-topbar:not(.site-topbar--sticky):has(.askbible-chrome-brand-slot),
+  .page-shell > .site-topbar.site-topbar--sticky {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
   .site-topbar {
     align-items: flex-start;
     gap: 4px;
@@ -6224,7 +6231,14 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell {
-    padding: 9px 5px 12px;
+    padding: 9px 2px 12px;
+  }
+
+  /* 极窄屏：顶栏再收紧，与 shell 2px 左右协调 */
+  .page-shell > .site-topbar:not(.site-topbar--sticky):has(.askbible-chrome-brand-slot),
+  .page-shell > .site-topbar.site-topbar--sticky {
+    padding-left: max(6px, env(safe-area-inset-left, 0px));
+    padding-right: max(6px, env(safe-area-inset-right, 0px));
   }
 
   .site-topbar-title {
@@ -6270,8 +6284,8 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .book-page {
-    padding: 14px 10px 18px;
-    --book-pad-left: 10px;
+    padding: 14px 8px 18px;
+    --book-pad-left: 8px;
   }
 
   /* 最小屏：翻章行再缩一档 */

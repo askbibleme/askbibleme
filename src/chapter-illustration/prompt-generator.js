@@ -16,7 +16,8 @@ export function generateIllustrationPrompt(config) {
   const visual =
     sceneDescription +
     ", one frozen story moment with readable faces, hands, and props as named, " +
-    "figures and objects drawn with convincing real-world proportion and weight";
+    "figures and objects drawn with convincing real-world proportion and weight, " +
+    "AI-generated interpretive scene (not a photograph); where the composition allows, focal figures may use calm dignified gaze toward the viewer for engagement alongside text or display";
 
   const outputBlock = transparent
     ? "isolated illustration,\ntransparent background,\nPNG,\nalpha channel"
@@ -31,6 +32,8 @@ export function generateIllustrationPrompt(config) {
           "",
           "Render each named person exactly matching the descriptions above.",
           "Ancient Near Eastern biblical-era garments only (wool/linen tunics, mantles, cloaks, sashes, veils as fitting) — never medieval European, Renaissance, or modern dress. When multiple named people appear, differentiate drapery, layering, and garment silhouette between them so costumes are not copy-pasted clones; period-plausible variety, not identical default robes on every figure.",
+          "When multiple standing adults appear, keep natural height variation (adult women typically shorter than adult men in the same scene unless the narrative specifies otherwise); do not equalize everyone to the same silhouette height.",
+          "Costume: primeval Adam/Eve-era figures in simple animal-hide dress only; from later narrative layers use era- and office-appropriate garb (priestly, royal, wealthy patriarch, poor or mourning) per the beat — never one generic costume for every named person.",
         ]
       : [];
 

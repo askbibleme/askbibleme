@@ -478,6 +478,18 @@
         font: inherit;
         font-size: 13px;
       }
+      select.bcd-stature {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+        background: var(--paper);
+        color: var(--ink);
+      }
       .bcd-period-slot {
         margin-top: 12px;
         padding: 12px 12px 10px;
@@ -560,6 +572,24 @@
         opacity: 0.55;
         cursor: not-allowed;
       }
+      .bcd-btn-auto-pipeline {
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(13, 116, 104, 0.5);
+        background: linear-gradient(180deg, #b8f0e8 0%, #5ec4b6 100%);
+        color: #062e2a;
+        font-weight: 800;
+        font-size: 13px;
+        cursor: pointer;
+        box-sizing: border-box;
+      }
+      .bcd-btn-auto-pipeline:hover:not(:disabled) {
+        filter: brightness(1.02);
+      }
+      .bcd-btn-auto-pipeline:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
       .bcd-card-gen-row {
         display: flex;
         flex-wrap: wrap;
@@ -567,12 +597,54 @@
         align-items: stretch;
         margin: 0 0 12px;
       }
+      .bcd-card-gen-row .bcd-btn-auto-pipeline,
       .bcd-card-gen-row .bcd-btn-gpt-full,
-      .bcd-card-gen-row .bcd-btn-comparison {
-        flex: 1 1 220px;
+      .bcd-card-gen-row .bcd-btn-comparison,
+      .bcd-card-gen-row .bcd-btn-batch-preset-gpt {
+        flex: 1 1 200px;
         width: auto;
         min-width: 0;
         margin-top: 0;
+      }
+      .bcd-btn-batch-preset-gpt {
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(45, 90, 120, 0.45);
+        background: linear-gradient(180deg, #d8eef8 0%, #9ec9e8 100%);
+        color: #0d2a3d;
+        font-weight: 800;
+        font-size: 13px;
+        cursor: pointer;
+        box-sizing: border-box;
+      }
+      .bcd-btn-batch-preset-gpt:hover:not(:disabled) {
+        filter: brightness(1.02);
+      }
+      .bcd-btn-batch-preset-gpt:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .bcd-comparison-panel .bcd-card-gen-row {
+        margin: 8px 0 0;
+      }
+      @media (max-width: 400px) {
+        .bcd-comparison-panel {
+          padding-left: 2px;
+          padding-right: 2px;
+        }
+        .bcd-comparison-panel .bcd-card-gen-row {
+          gap: 6px;
+        }
+        .bcd-comparison-panel .bcd-card-gen-row .bcd-btn-auto-pipeline,
+        .bcd-comparison-panel .bcd-card-gen-row .bcd-btn-gpt-full,
+        .bcd-comparison-panel .bcd-card-gen-row .bcd-btn-comparison,
+        .bcd-comparison-panel .bcd-card-gen-row .bcd-btn-batch-preset-gpt {
+          flex: 1 1 0;
+          min-width: 0;
+          padding-left: 6px;
+          padding-right: 6px;
+          font-size: 12px;
+        }
       }
       .bcd-card-head + .bcd-comparison-panel {
         margin-top: 0;
@@ -688,24 +760,19 @@
         line-height: 1.5;
         color: var(--muted-soft);
       }
+      /* 灰底与圆角在外层：内层横条仅用 max-content 宽度，避免「整行 flex + 子项 width:100%」把每人拉成等宽栏、人物像贴在左右两端。 */
       .bcd-hero-strip-wrap {
+        --bcd-hero-strip-h: 400px;
+        /* 固定栏宽（px）：不依赖 max-content / grid 列算法，避免整行被拉成「两巨栏」。小屏略缩。 */
+        --bcd-hero-col-w: clamp(104px, 26vw, 136px);
         overflow-x: auto;
         padding-bottom: 2px;
         -webkit-overflow-scrolling: touch;
-      }
-      /* 同一平面：整块浅灰底纹。列宽须 ≥ 画布区高度×(主图宽/高)，竖版 1024×1536 才不会被「先卡宽度」压矮；168px 时 contain 后高度只有 ~250px，在 500px 横条里会像小人 */
-      .bcd-hero-strip {
-        --bcd-hero-slot-w: min(292px, max(200px, calc((100% - 12px) / 6)));
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        gap: 0;
-        justify-content: flex-start;
-        align-items: stretch;
-        height: 500px;
+        width: 100%;
+        text-align: left;
         box-sizing: border-box;
-        min-height: 0;
-        padding: 10px 6px 8px;
+        height: var(--bcd-hero-strip-h);
+        min-height: var(--bcd-hero-strip-h);
         border-radius: 10px;
         border: 1px solid rgba(0, 0, 0, 0.1);
         background-color: #cfcfcf;
@@ -728,23 +795,64 @@
           linear-gradient(175deg, #d6d6d6 0%, #bcbcbc 48%, #c5c5c5 100%);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
       }
+      /* 内层：横向 flex + 每格固定宽度，彻底避免子项被均分整行。 */
+      .bcd-hero-strip {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 0;
+        width: max-content;
+        max-width: none;
+        min-width: 0;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 0 6px 0 0;
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      .bcd-hero-strip:has(> .bcd-hero-empty:only-child) {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+      }
+      .bcd-hero-strip > .bcd-hero-tile {
+        flex: 0 0 var(--bcd-hero-col-w) !important;
+        flex-grow: 0 !important;
+        flex-shrink: 0 !important;
+        width: var(--bcd-hero-col-w) !important;
+        min-width: var(--bcd-hero-col-w) !important;
+        max-width: var(--bcd-hero-col-w) !important;
+      }
       .bcd-hero-tile {
-        flex: 0 0 var(--bcd-hero-slot-w);
-        width: var(--bcd-hero-slot-w);
-        min-width: var(--bcd-hero-slot-w);
-        max-width: var(--bcd-hero-slot-w);
+        flex: 0 0 var(--bcd-hero-col-w) !important;
+        flex-grow: 0 !important;
+        flex-shrink: 0 !important;
+        width: var(--bcd-hero-col-w) !important;
+        min-width: var(--bcd-hero-col-w) !important;
+        max-width: var(--bcd-hero-col-w) !important;
         min-height: 0;
+        margin: 0;
+        padding: 0;
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
         align-items: stretch;
-        gap: 6px;
+        gap: 0;
         box-sizing: border-box;
       }
       .bcd-hero-tile-canvas {
         flex: 1 1 0;
+        align-self: stretch;
         min-height: 0;
         width: 100%;
+        max-width: 100%;
         border: none;
         border-radius: 0;
         overflow: hidden;
@@ -757,26 +865,61 @@
         box-sizing: border-box;
       }
       .bcd-hero-thumb-wrap {
+        position: relative;
         flex: 1 1 0;
         width: 100%;
+        max-width: 100%;
+        align-self: stretch;
         min-width: 0;
         min-height: 0;
         height: 100%;
         margin: 0;
         box-sizing: border-box;
-        padding: 4px 0 0;
+        padding: 0;
+        display: block;
+        overflow: hidden;
+      }
+      /* 底边锚在栏底、水平居中；transform 只作用在此层，避免写在 img 上与 object-fit 叠加导致各浏览器脚底错位 */
+      .bcd-hero-thumb-stack {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        top: 0;
+        width: max-content;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        box-sizing: border-box;
+        transform-origin: 50% 100%;
+        will-change: transform;
+        pointer-events: none;
+      }
+      .bcd-hero-thumb-stack .bcd-hero-thumb {
+        pointer-events: auto;
+      }
+      .bcd-hero-thumb-wrap:has(.bcd-hero-missing) {
+        min-width: 0;
+        width: 100%;
         display: flex;
         align-items: flex-end;
         justify-content: center;
       }
-      /* 竖向全身 PNG：以「高度撑满画布」为准，宽度随比例；勿 max-width:100% 否则窄列会以宽为准把人压矮 */
+      .bcd-hero-thumb-wrap .bcd-hero-missing {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
       .bcd-hero-thumb {
         display: block;
         width: auto;
-        height: 100%;
+        max-width: 100%;
+        height: auto;
         max-height: 100%;
-        max-width: none;
         min-height: 0;
+        margin: 0;
         object-fit: contain;
         object-position: bottom center;
         filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.08));
@@ -789,9 +932,11 @@
       }
       .bcd-hero-name-jump {
         display: block;
-        width: 100%;
+        width: auto;
+        max-width: 100%;
+        align-self: center;
         margin: 0;
-        padding: 6px 4px;
+        padding: 2px 0;
         border: none;
         border-radius: 8px;
         background: transparent;
@@ -834,7 +979,7 @@
       <div class="bcd-doc">
         <h1>圣经人物设计器</h1>
         <p class="bcd-lead">
-          编辑插画用<strong>角色外观档案</strong>（中文名为键，与章节 theme 里的人名一致时才会自动套用）。左侧<strong>备选人物库</strong>按经卷列出，每行显示是否已建档、透明主图是否已生成；点击姓名打开编辑（未建档则先加入）。<strong>GPT 智能生成</strong>与各栏 GPT <strong>只自动填入</strong>气质、各时期英文与外貌描述等，<strong>不会自动出图</strong>；出图请点卡片上方的<strong>一键生成各时期透明全身像</strong>（每期单独 1024×1536，几期则几次图片 AI），或分栏「生成画像」。<strong>智能生成</strong>时由 AI 依圣经判断该人物需 1、2 还是 3 套时期——常因叙事里<strong>年龄跨度大</strong>才分阶段，并非人人三期。并列区会<strong>横排展示</strong>各期全身像；页顶主图按<strong>中期 / 成年中位</strong>规则取自其中一期。数据保存在服务器
+          编辑插画用<strong>角色外观档案</strong>（中文名为键，与章节 theme 里的人名一致时才会自动套用）。左侧<strong>备选人物库</strong>按经卷列出，每行显示是否已建档、透明主图是否已生成；点击姓名打开编辑（未建档则先加入）。<strong>GPT 智能生成</strong>与各栏 GPT <strong>只自动填入</strong>气质、各时期英文与外貌描述等，<strong>不会自动出图</strong>（英文外观仅写人物与衣着体态，勿写花园/天空等背景；叙事地点写在<strong>场景短标签（英文）</strong>）；并列预览区可点<strong>GPT 智能生成</strong>（只填字）与<strong>一键生成</strong>（每期单独 1024×1536 透明全身，几期则几次图片 AI），或分栏「生成画像」。<strong>智能生成默认只判 1 套时期</strong>：壮年/成年标准参考脸与体态，作为全书场景的人脸锚点。若确需 2～3 期，请在卡片「GPT 备注」写明如<strong>两期、三期、多期</strong>等，AI 才会返回多套英文描述；再手动把「时期数量」调到 2 或 3 后出图。并列区会<strong>横排展示</strong>各期全身像；页顶主图按<strong>中期 / 成年中位</strong>规则取自其中一期。数据保存在服务器
           <code>admin_data/character_illustration_profiles.json</code>。<strong>出图后会自动保存</strong>；仅改文字描述时仍可点「保存全部」。
           <strong>请用 Node 启动站点后访问</strong>
           <code>/bible-character-designer.html</code>（默认 <code>http://localhost:3000/…</code>），否则接口 <code>/api/admin/bible-character-profiles</code> 会 404；静态站需在 head 配置 <code>askbible-api-base</code> 指向 API。
@@ -1116,6 +1261,140 @@
           return o;
         }
 
+        /** 备选库人物按经卷与名单顺序（不含「其他人物」） */
+        function getAllPresetZhInOrder() {
+          var out = [];
+          var b;
+          for (b = 0; b < CHARACTER_PRESET_BY_BOOK.length; b++) {
+            var names = CHARACTER_PRESET_BY_BOOK[b].names || [];
+            var i;
+            for (i = 0; i < names.length; i++) {
+              var zh = String(names[i] || "").trim();
+              if (zh) out.push(zh);
+            }
+          }
+          return out;
+        }
+
+        /** 为批量任务静默插入卡片（不切换当前选中编辑项） */
+        function ensureCardForPresetZh(zh) {
+          var k = String(zh || "").trim();
+          if (!k) return null;
+          var found = findCardByZh(k);
+          if (found) return found;
+          var wrap = document.createElement("div");
+          wrap.innerHTML = cardTemplate(k, {}, { isNew: true });
+          var card = wrap.firstElementChild;
+          if (!card) return null;
+          listEl.insertBefore(card, listEl.firstChild);
+          bindCardEvents(card);
+          applySideFilter();
+          renderPresetExtraSection();
+          syncPresetRowStatuses();
+          renderHeroGallery();
+          return card;
+        }
+
+        var bcdBatchPresetPipelineRunning = false;
+
+        /**
+         * 按备选库顺序：尚无透明主图的人物（未添加则先建档）依次执行 GPT 智能生成 + 一键生成。
+         */
+        async function runBatchPresetMissingHeroPipeline() {
+          if (bcdBatchPresetPipelineRunning) {
+            setStatus("批量任务正在运行，请稍候。", "err");
+            return;
+          }
+          if (!getToken()) {
+            setStatus("请先登录。", "err");
+            return;
+          }
+          var order = getAllPresetZhInOrder();
+          var queue = [];
+          var qi;
+          for (qi = 0; qi < order.length; qi++) {
+            var zh = order[qi];
+            var card = findCardByZh(zh);
+            if (!card) {
+              queue.push(zh);
+              continue;
+            }
+            var hero = String(card.getAttribute("data-hero-image-url") || "").trim();
+            if (!hero) queue.push(zh);
+          }
+          if (!queue.length) {
+            setStatus("备选库中人物均已具备主图，无需批量补全。", "ok");
+            return;
+          }
+          if (
+            !window.confirm(
+              "将对备选库中 " +
+                queue.length +
+                " 人依次执行「GPT 智能生成」与「一键生成」（可能较久并消耗 API）。是否继续？"
+            )
+          ) {
+            return;
+          }
+          bcdBatchPresetPipelineRunning = true;
+          var batchBtns = document.querySelectorAll(".bcd-btn-batch-preset-gpt");
+          batchBtns.forEach(function (b) {
+            b.disabled = true;
+          });
+          var total = queue.length;
+          var ok = 0;
+          var fail = 0;
+          var zh;
+          var card;
+          try {
+            for (qi = 0; qi < queue.length; qi++) {
+              zh = queue[qi];
+              setStatus("批量 " + (qi + 1) + "/" + total + "：「" + zh + "」…", null);
+              card = findCardByZh(zh) || ensureCardForPresetZh(zh);
+              if (!card) {
+                fail += 1;
+                setStatus("批量：无法为「" + zh + "」创建卡片，已跳过。", "err");
+                continue;
+              }
+              if (String(card.getAttribute("data-hero-image-url") || "").trim()) {
+                ok += 1;
+                continue;
+              }
+              setStatus(
+                "批量 " + (qi + 1) + "/" + total + "：「" + zh + "」GPT 智能生成中…",
+                null
+              );
+              var gptOk = await generateFullLifeStagesForCard(card, {
+                quietCompletionStatus: true,
+              });
+              if (!gptOk) {
+                fail += 1;
+                continue;
+              }
+              setStatus(
+                "批量 " + (qi + 1) + "/" + total + "：「" + zh + "」一键生成中…",
+                null
+              );
+              var cmpRes = await generateComparisonSheet(card, { quietStatus: true });
+              if (cmpRes && cmpRes.cmp) {
+                ok += 1;
+              } else {
+                fail += 1;
+              }
+              syncPresetRowStatuses();
+              renderHeroGallery();
+            }
+            setStatus(
+              "批量结束：成功 " + ok + "，失败/跳过 " + fail + "（共 " + total + " 人）。",
+              fail ? "err" : "ok"
+            );
+          } finally {
+            bcdBatchPresetPipelineRunning = false;
+            batchBtns.forEach(function (b) {
+              b.disabled = false;
+            });
+          }
+        }
+
         function syncPresetRowStatuses() {
           if (!presetInnerEl) return;
           presetInnerEl.querySelectorAll(".bcd-preset-name[data-zh]").forEach(function (btn) {
@@ -1369,13 +1648,21 @@
         var BCD_IMAGE_COLOR_RULE_EN =
           "Lighting and color (mandatory): soft overcast daylight or north-facing window light — NOT golden hour, NOT low warm sun. White balance ~5200K neutral; slightly cool-neutral is OK if it removes yellow; do NOT push warm. Faces and hands: accurate real-world complexion, varied undertone, never uniform yellow-orange or Instagram tan filter. Garments: true hue, no umber/ochre glaze over everything. Style may be painterly, but colors must match a modern museum catalog photograph of a figure, NOT a varnished warm oil reproduction. Forbidden: yellow fog, buttery yellow cast on faces, sepia, amber shadows, brown vignette warmth, teal–orange blockbuster grade, vintage photo yellowing. Moderate saturation; crisp neutral whites in any white cloth.";
 
+        /** 多期分开出图时模型常把前几张某次画成蜜糖黄；强制各期同一中性白平衡。 */
+        var BCD_UNIFIED_NEUTRAL_COLOR_ACROSS_STAGES_EN =
+          "UNIFIED color grade (critical when this character has multiple life-stage renders): Use the SAME neutral white balance on EVERY stage — cool-neutral daylight ~5200K for skin, cloth, and highlights across all panels. Do NOT apply golden-hour amber, honey glaze, butter-yellow skin, or warm oil-varnish cast on earlier stages only. Earlier figures must match the neutral look of the oldest stage — no progressive yellowing toward youth. If any garment reads cream-ochre or skin reads orange-tan, correct toward neutral — like a single studio session with consistent lights.";
+
         /** 透明底无环境参考时模型易加「蜂蜜光」；单独再钉一次。 */
         var BCD_TRANSPARENT_PNG_ANTI_WARM_EN =
           "This render uses TRUE TRANSPARENT alpha — no backdrop. Do NOT paint the figure with a global warm key, golden rim, or honey glaze to fake atmosphere. White or gray beard and hair: neutral silver-white (RGB balanced), NOT cream-butter yellow highlights. Pale robes: paper-white or cool off-white, NOT ivory-ochre. Earth-tone outer garments: neutral brown, NOT orange-umber. The composite must match a gray-card color reference, not a sepia oil painting.";
 
+        /** 该隐之前（创1–3 亚当夏娃）：仅兽皮；其后按祭司/君王/贫富与时代配装。与 server 档案 GPT 一致。 */
+        var BCD_COSTUME_CHRONOLOGY_EN =
+          "COSTUME CHRONOLOGY & OFFICE (mandatory): (A) PRIMEVAL — BEFORE Cain in Genesis (creation through chapter 3: Adam and Eve, Eden and immediate expulsion): ONLY simple tanned animal hides, fur, or minimal primitive skin wraps — NO woven priestly vestments, NO royal court robes, NO crown, NO fine dyed palace linens. (B) FROM CAIN through the rest of Scripture: do NOT put everyone in animal skins. Match dress to Scripture — role (HIGH PRIEST / priests at worship: plausible biblical-era priestly linen layers and ephod-like elements; KINGS / QUEENS / high court: layered quality robes and fitting regalia when the story warrants; wealthy patriarchs / chiefs / officials: well-made tunics and mantles, tasteful dyes; poor, captives, mourners: simpler or rough cloth when the text indicates). Wealth, social rank, and era (tabernacle / monarchy / exile / return / Second Temple / Gospel Palestine) must all inform textile quality, cut, and ornament.";
+
         /** 族长/富豪等不宜被画成粗布穷苦默认装；与档案 appearance 一致时仍须体现体面。 */
         var BCD_CLOTHING_STATUS_RULE_EN =
-          "Costume standing (mandatory): Infer wealth and rank from Scripture and from the locked appearance text. Patriarchs and others shown as prosperous (e.g. Abraham, Isaac — large flocks, household, wells), plus chiefs, kings, priests, and court figures, must wear well-made ancient Near Eastern dress — layered robes, quality weave, tasteful dye or trim, dignified draping — not a generic drab peasant or sackcloth default unless poverty, mourning, or humility is explicit in the story or in the lock text.";
+          "Costume standing (mandatory; does NOT override primeval animal-skin rule for Adam/Eve): Infer wealth and rank from Scripture and from the locked appearance text. Patriarchs and others shown as prosperous (e.g. Abraham, Isaac — large flocks, household, wells), plus chiefs, kings, priests, and court figures, must wear well-made ancient Near Eastern dress suited to their office and period — layered robes, quality weave, tasteful dye or trim, dignified draping — not a generic drab peasant or sackcloth default unless poverty, mourning, or humility is explicit in the story or in the lock text.";
 
         /** 时代正确前提下避免全卡司同款同色；与 server GPT 规则一致。 */
         var BCD_CLOTHING_ERA_VARIETY_EN =
@@ -1384,6 +1671,55 @@
         /** 多人 roster 中每人脸相不可混同；与 GPT 侧 cross-cast 规则一致。 */
         var BCD_DISTINCT_ROSTER_FACE_EN =
           "CAST DISTINCTIVENESS (critical): This is ONE named biblical individual in a large cast. Do NOT render a generic interchangeable template face shared with other biblical figures. Give a memorably individual likeness: vary facial bone structure, nose, eye shape and spacing, brows, jaw, cheek volume, ears, hairline, beard shape and density, wrinkles, and subtle complexion undertone within a realistic ancient Near Eastern / regional range. Avoid repeating the same idealized symmetrical male face for every patriarch; viewers must be able to tell this person apart from other roster portraits unless Scripture explicitly identifies them as the same individual.";
+
+        /** AI 生成诠释图（非史实照片）；与观者眼神交流为刻意设计，便于文章/展陈共读。 */
+        var BCD_AI_VIEWER_ENGAGEMENT_EN =
+          "DISCLOSURE & INTENT (mandatory): AI-generated interpretive biblical portrait — not a photograph or guaranteed likeness of any historical person. Viewer engagement is intentional: primary faces should favor calm, dignified eye contact toward the viewer when pose allows (soft direct or gentle three-quarter gaze), so the figure feels present and speaking alongside article or museum-style display — warm and human, never aggressive glaring, never empty or glassy stare.";
+
+        /** 多期或补生成另一期：脸必须跟锚点一致；服装随阶段与财富明显变化（晚年富有要更华贵）。 */
+        var BCD_MULTI_STAGE_FACE_COSTUME_LOCK_EN =
+          "Multi-stage / secondary generation (critical): This figure may already have a primary adult reference — the face MUST stay the SAME biological individual. Lock to the same facial bone structure, eye spacing and shape, nose, jaw, ears, and baseline skin-tone family; only age lines, graying, beard length, and body mass may evolve. NEVER generate a different person. COSTUME must change MEANINGFULLY per stage — do NOT reuse the same outfit description across stages. When Scripture shows later life as materially blessed (large flocks, household, covenant honor, court or high office), OLDER / LATER stages must wear VISIBLY RICHER, higher-status ancient Near Eastern dress than earlier humbler phases: more layered robes, finer weave, tasteful dyes or trim, dignified mantle — the prosperity gap must be obvious, not the same tunic with extra wrinkles.";
+
+        /** 透明全身并列时勿把每人竖向拉满同一像素身高；女性成年通常略矮于同龄男性。 */
+        var BCD_NATURAL_STATURE_SPRITE_EN =
+          "Natural stature in frame (mandatory): Do NOT vertically stretch or upscale the body to fill the entire canvas height. Preserve believable human proportions. For an adult woman, crown-to-heel standing height should be only slightly less than a typical adult man from the same narrative — target about a 5% difference (≈95% of his silhouette), barely noticeable eye-level gap, NOT a large or cartoonish height gap; leave only modest transparent alpha above the head as needed. For a child or youth, use clearly shorter stature than a full-grown adult. Roster sprites will be shown side by side — never normalize every character to identical standing height in the image.";
+
+        function bcdNormalizeStatureClass(raw) {
+          var s = String(raw || "")
+            .trim()
+            .toLowerCase();
+          if (s === "child" || s === "youth" || s === "adult" || s === "elder") return s;
+          return "adult";
+        }
+
+        /** 主图横排相对身高（1≈成年男性基准；女性常见 ~0.92；孩童 ~0.55；巨人可 &gt;1.1）。与自动留白补偿 scale 相乘，脚底对齐。 */
+        function bcdNormalizeHeroRosterHeight(raw) {
+          var n = parseFloat(String(raw == null ? "" : raw));
+          if (!Number.isFinite(n) || n <= 0) n = 1;
+          return Math.min(2.5, Math.max(0.35, n));
+        }
+
+        function bcdStaturePromptEn(cls) {
+          var c = bcdNormalizeStatureClass(cls);
+          if (c === "child") {
+            return (
+              "STATURE / FRAME SCALE (mandatory — child): Real child body proportions (larger head-to-body ratio than adults). Standing full-length child: total crown-to-heel silhouette must be clearly SHORT — target roughly 52–60% of the crown-to-heel height of a same-width adult reference in this project (NOT a shrunken adult face on a tall body). Feet on the bottom of the sprite; leave generous transparent alpha ABOVE the head — do NOT upscale the child to fill the full canvas height. "
+            );
+          }
+          if (c === "youth") {
+            return (
+              "STATURE / FRAME SCALE (mandatory — youth/adolescent): Visibly shorter than prime adult but taller than a young child — target roughly 72–80% of adult crown-to-heel extent; feet at bottom, transparent padding above head OK. Real adolescent proportions, not an adult compressed horizontally. "
+            );
+          }
+          if (c === "elder") {
+            return (
+              "STATURE / FRAME SCALE (mandatory — elder): Same adult height class as prime years; posture may show age (slight stoop) but crown-to-heel extent remains comparable to adult stage — NOT shortened to child scale. "
+            );
+          }
+          return (
+            "STATURE / FRAME SCALE (mandatory — adult prime): Full adult standing height reference for this character; normal adult head-to-body proportions. "
+          );
+        }
 
         /**
          * 横排多期一张出图：每人只占画布一小条时面部像素不足，易糊眼、歪嘴；并易把两人挤到左右两端、中间大片透明空档。
@@ -1399,8 +1735,8 @@
             bands +
             ". Place exactly " +
             n +
-            " full-length clothed figures so each one stands in its own band and fills most of that band’s width and height (large on canvas). Do NOT shrink everyone into tiny silhouettes hugging the far left and far right with a huge empty transparent void in the middle — that wastes resolution and ruins faces. Keep transparent gaps between neighbors modest: just enough to read two separate clothed people, not a wide empty prairie. " +
-            "FACE / GAZE (critical): Each head must be large enough that eyes, pupils, eyelids, and mouth read clearly at full output resolution. Natural symmetric eyes; both eyes share one coherent gaze direction (toward viewer or the same gentle three-quarter angle). No wall-eyed misalignment, no glassy unfocused stare, no mismatched iris direction. Mouth and lip line anatomically coherent; avoid smeared or melted features. "
+            " full-length clothed figures so each one stands in its own band and fills most of that band’s width. SHARED FOOT BASELINE (mandatory): align all figures on one invisible horizontal foot line at the bottom of each band — soles rest on the same conceptual ground. HEIGHT RATIO vs tallest adult in the row: CHILD must read ~52–60% of that adult’s crown-to-heel extent with real child proportions (bigger head relative to body); YOUTH ~72–80%; ADULT/ELDER near 100% (elder may stoop slightly but NOT child-short). Do NOT stretch every figure to equal band height — that turns a child into a tall adult. Do NOT shrink everyone into tiny silhouettes hugging the far left and far right with a huge empty transparent void in the middle — that wastes resolution and ruins faces. Keep transparent gaps between neighbors modest: just enough to read two separate clothed people, not a wide empty prairie. " +
+            "FACE / GAZE (critical): Each head must be large enough that eyes, pupils, eyelids, and mouth read clearly at full output resolution. Natural symmetric eyes; both eyes share one coherent gaze direction (toward viewer or the same gentle three-quarter angle). Prefer calm dignified eye contact toward the viewer — deliberate engagement for readers, not a vacant prop portrait. No wall-eyed misalignment, no glassy unfocused stare, no mismatched iris direction. Mouth and lip line anatomically coherent; avoid smeared or melted features. "
           );
         }
 
@@ -1426,6 +1762,8 @@
               slotEl.querySelector(".bcd-period-label").value) ||
               ""
           ).trim();
+          var stSel = slotEl.querySelector(".bcd-stature");
+          var statureVal = stSel ? String(stSel.value || "").trim() : "adult";
           if (!app && !en) return "";
           var pc = card.querySelector(".bcd-period-count");
           var n = pc
@@ -1433,10 +1771,13 @@
             : 1;
           var identityRule =
             n > 1
-              ? "CRITICAL — ONE INDIVIDUAL ACROSS LIFE STAGES: This portrait must depict the SAME person as this character's other life-stage reference images (identical underlying facial bone structure, face shape, eyes, nose, proportions, ethnicity; same actor continuity, not a different face). Only age, hair, beard, wrinkles, and costume may differ by stage. "
+              ? "CRITICAL — ONE INDIVIDUAL ACROSS LIFE STAGES: This portrait must depict the SAME person as this character's other life-stage reference images (identical underlying facial bone structure, face shape, eyes, nose, proportions, ethnicity; same actor continuity, not a different face). Only age, hair, beard, wrinkles, and costume may differ by stage. " +
+                BCD_MULTI_STAGE_FACE_COSTUME_LOCK_EN +
+                " "
               : "One consistent, recognizable individual for repeat depiction across chapters. ";
           const parts = [
             "Biblical character portrait reference for consistent illustration across chapters.",
+            BCD_AI_VIEWER_ENGAGEMENT_EN,
             identityRule,
             en ? "English name: " + en + "." : "",
             zh ? "Figure (Chinese): " + zh + "." : "",
@@ -1444,14 +1785,18 @@
             persEn ? "Demeanor / inner character for expression (English): " + persEn + "." : "",
             pl ? "Life stage: " + pl + "." : "",
             shortT ? "Typical scene / role: " + shortT + "." : "",
+            bcdStaturePromptEn(statureVal),
             app ? "Appearance — lock these details: " + app : "",
             "Roster sprite — single full-length STANDING figure in modest historic dress, head to sandals visible, calm posture facing viewer or slight three-quarter; painterly historical Bible illustration, ancient Near Eastern period, neutral non-yellow color (no warm oil varnish), clear face, no text, no watermark, no modern objects.",
+            BCD_NATURAL_STATURE_SPRITE_EN,
             "TRUE transparent PNG (alpha): no sky, horizon, scenery, or extended ground plane — only the figure plus the small allowed foot contact patch below.",
             BCD_TRANSPARENT_PNG_ANTI_WARM_EN,
             BCD_TRANSPARENT_FOOT_SHADOW_EN,
             BCD_DISTINCT_ROSTER_FACE_EN,
+            BCD_COSTUME_CHRONOLOGY_EN,
             BCD_CLOTHING_STATUS_RULE_EN,
             BCD_CLOTHING_ERA_VARIETY_EN,
+            n > 1 ? BCD_UNIFIED_NEUTRAL_COLOR_ACROSS_STAGES_EN : "",
             BCD_IMAGE_COLOR_RULE_EN,
           ];
           return parts.filter(Boolean).join(" ");
@@ -1475,22 +1820,31 @@
             if (!slot) continue;
             var pl = String(slot.querySelector(".bcd-period-label").value || "").trim();
             var app = String(slot.querySelector(".bcd-appearance").value || "").trim();
+            var stS = slot.querySelector(".bcd-stature");
+            var stV = stS ? String(stS.value || "").trim() : "adult";
             if (!app) continue;
             blocks.push({
               label: pl,
               app: app,
+              stature: stV,
             });
           }
           if (blocks.length === 0) return "";
           const identity =
-            "CRITICAL — ONE PERSON ONLY: The same individual in every panel; identical facial bone structure, eyes, nose, proportions, and ethnicity across all figures; only age, hair, beard, wrinkles, and costume change. Not different actors. ";
+            "CRITICAL — ONE PERSON ONLY: The same individual in every panel; identical facial bone structure, eyes, nose, proportions, and ethnicity across all figures; only age, hair, beard, wrinkles, and costume change. Not different actors. " +
+            BCD_MULTI_STAGE_FACE_COSTUME_LOCK_EN +
+            " ";
           if (blocks.length === 1) {
             return [
               "Biblical character reference — single full-length STANDING figure in modest historic dress, front or three-quarter view, feet and entire clothed silhouette visible head to sandals, ancient Near Eastern biblical dress, painterly historical style with neutral color (not sepia-warm), no text, no watermark.",
+              BCD_AI_VIEWER_ENGAGEMENT_EN,
+              bcdStaturePromptEn(blocks[0].stature),
+              BCD_NATURAL_STATURE_SPRITE_EN,
               "TRUE transparent PNG (alpha): no backdrop, scenery, or ground plane — only the figure plus the allowed small foot contact patch below.",
               BCD_TRANSPARENT_PNG_ANTI_WARM_EN,
               BCD_TRANSPARENT_FOOT_SHADOW_EN,
               BCD_DISTINCT_ROSTER_FACE_EN,
+              BCD_COSTUME_CHRONOLOGY_EN,
               BCD_CLOTHING_STATUS_RULE_EN,
               BCD_CLOTHING_ERA_VARIETY_EN,
               BCD_IMAGE_COLOR_RULE_EN,
@@ -1510,12 +1864,16 @@
               "Figure " +
                 (i + 1) +
                 " (left-to-right chronological order): " +
-                (blocks[i].label ? "[" + blocks[i].label + "] " : "") +
+                bcdStaturePromptEn(blocks[i].stature) +
+                (blocks[i].label ? " [" + blocks[i].label + "] " : " ") +
                 blocks[i].app
             );
           }
           return [
             "ONE single wide landscape transparent PNG — a biblical character life-stage comparison sheet. Entire canvas uses TRUE alpha transparency (no studio backdrop, sky, horizon, or extended ground).",
+            BCD_AI_VIEWER_ENGAGEMENT_EN,
+            BCD_UNIFIED_NEUTRAL_COLOR_ACROSS_STAGES_EN,
+            BCD_NATURAL_STATURE_SPRITE_EN,
             BCD_TRANSPARENT_PNG_ANTI_WARM_EN,
             BCD_DISTINCT_ROSTER_FACE_EN +
               " Each life-stage panel shows the same biological person aging — still, that shared face must remain distinctive from OTHER biblical characters in the project roster, not a generic reused template.",
@@ -1524,13 +1882,15 @@
             "Show exactly " +
               blocks.length +
               " full-length STANDING human figures in one row, left to right in chronological life order (often reflecting a large age span in Scripture); ",
-            "each figure upright, entire clothed silhouette from head to sandals visible; same recognizable face across all figures; modest fully transparent gaps between adjacent figures only (no painted gutters) — not a vast empty center; ",
-            "ancient Near Eastern period-appropriate clothing per stage; painterly historical Bible illustration, neutral colors without yellow cast. ",
+            "each figure upright, entire clothed silhouette from head to sandals visible; same recognizable face across all figures; modest fully transparent gaps between adjacent figures only (no painted gutters) — not a vast empty center; life-stage height must vary realistically (child shorter than adult — never equalize all stages to one tall silhouette); ",
+            "ancient Near Eastern period-appropriate clothing per stage; painterly historical Bible illustration; every panel same neutral white balance — no honey-yellow cast on earlier figures only. ",
             "Under EACH figure’s feet (and under staff tips on the ground) include only a compact soft neutral-gray contact-shadow / ambient-occlusion patch on transparency — NOT a shared floor plane. " +
               BCD_TRANSPARENT_FOOT_SHADOW_EN,
-            BCD_CLOTHING_STATUS_RULE_EN + " " + BCD_CLOTHING_ERA_VARIETY_EN + " ",
+            BCD_COSTUME_CHRONOLOGY_EN + " " + BCD_CLOTHING_STATUS_RULE_EN + " " + BCD_CLOTHING_ERA_VARIETY_EN + " ",
             BCD_IMAGE_COLOR_RULE_EN +
-              " No text, no captions, no labels, no watermark, no modern objects.",
+              " Repeat: identical neutral grade on all " +
+              blocks.length +
+              " figures — no golden-hour bias on left panels. No text, no captions, no labels, no watermark, no modern objects.",
             en ? "English name: " + en + "." : "",
             zh ? "Figure (Chinese): " + zh + "." : "",
             persZh ? "Scripture-based character (Chinese): " + persZh + "." : "",
@@ -1671,6 +2031,11 @@
               if (!String(merged[field] || "").trim() && String(cr[field] || "").trim()) {
                 merged[field] = cr[field];
               }
+            }
+            var mrh = Number(merged.heroRosterHeight);
+            var crh = Number(cr.heroRosterHeight);
+            if ((!Number.isFinite(mrh) || mrh <= 0) && Number.isFinite(crh) && crh > 0) {
+              merged.heroRosterHeight = crh;
             }
             if (Array.isArray(merged.periods) && Array.isArray(cr.periods)) {
               merged.periods = merged.periods.map(function (sp, idx) {
@@ -1841,6 +2206,57 @@
           return false;
         }
 
+        /** 已知女性中文名：供出图身高等规则（bcdLikelyAdultWomanRoster）使用。 */
+        var BCD_FEMALE_ROSTER_ZH = {
+          夏娃: 1,
+          撒拉: 1,
+          撒莱: 1,
+          利百加: 1,
+          拉结: 1,
+          利亚: 1,
+          辟拉: 1,
+          悉帕: 1,
+          底拿: 1,
+          喇合: 1,
+          路得: 1,
+          拿俄米: 1,
+          哈拿: 1,
+          亚比该: 1,
+          拔示巴: 1,
+          耶洗别: 1,
+          以斯帖: 1,
+          马利亚: 1,
+          抹大拉的马利亚: 1,
+          以利沙伯: 1,
+          友尼基: 1,
+          吕底亚: 1,
+          多加: 1,
+          百基拉: 1,
+          夏甲: 1,
+          罗得的妻子: 1,
+          波提乏的妻子: 1,
+        };
+
+        /** 主图横排与男性并列时：成年女性应略矮（非未成年人逻辑）。 */
+        function bcdLikelyAdultWomanRoster(zh, en, appearanceEn) {
+          var z = String(zh || "").trim();
+          var e = String(en || "").trim().toLowerCase();
+          var a = String(appearanceEn || "").toLowerCase();
+          if (appearanceSuggestsMinorForHeroRoster(appearanceEn, "", "")) return false;
+          if (/\b(infant|toddler|child|children|kid|girl\b.*\b(young|little|small)|boy\b.*\b(young|little))\b/.test(a))
+            return false;
+          if (/\b(adult\s+)?woman\b|\bher\s+(face|hair|eyes|hands)\b|\bfemale\s+figure\b/.test(a)) return true;
+          if (BCD_FEMALE_ROSTER_ZH[z]) return true;
+          var enFirst = (e.split(/[\s,]+/)[0] || e).replace(/^the\s+/i, "");
+          if (
+            /^(eve|sarah|rebekah|rebekkah|rachel|leah|bilhah|zilpah|dinah|ruth|naomi|hannah|abigail|bathsheba|jezebel|esther|deborah|jael|delilah|mary|miriam|elisabeth|elizabeth|lydia|priscilla|phoebe|euodia|syntyche|joanna|susanna|martha|hagar|agar|rahab|tamar|orpah|lois|eunice|anna)$/i.test(
+              enFirst
+            )
+          )
+            return true;
+          return false;
+        }
+
         function buildHeroImagePrompt(card) {
           const zh = cardZhDisplayKey(card);
           const en = String(card.querySelector(".bcd-en").value || "").trim();
@@ -1853,7 +2269,16 @@
           const shortT = src.shortSceneTagEn;
           const pl = src.labelZh;
           if (!app && !en) return "";
-          var youthRosterScale = heroUsesYouthRosterScale(src, app, pl, shortT);
+          var heroSl = card.querySelector('.bcd-period-slot[data-slot="' + src.slotIndex + '"]');
+          var heroStPick = heroSl && heroSl.querySelector(".bcd-stature");
+          var explicitStature = bcdNormalizeStatureClass(
+            heroStPick ? heroStPick.value : "adult"
+          );
+          var youthRosterScale =
+            explicitStature === "child" ||
+            explicitStature === "youth" ||
+            heroUsesYouthRosterScale(src, app, pl, shortT);
+          var adultWomanRoster = !youthRosterScale && bcdLikelyAdultWomanRoster(zh, en, app);
           var stageRuleEn;
           if (src.n <= 1) {
             stageRuleEn =
@@ -1869,10 +2294,27 @@
           }
           var rosterScaleEn = youthRosterScale
             ? "ROSTER HEIGHT — SAME IMAGINARY SCENE AS ADULTS: this figure is a child or adolescent (or only the earliest youth stage is available). Full-length clothed figure head-to-toe must remain visible and feet sit on the SAME bottom margin rule as adult roster PNGs, but the character’s total silhouette must be SHORTER in the canvas than a typical adult sprite — about 0.58–0.85× the vertical span an adult would occupy (young children toward the lower end, teens toward the upper end). Do NOT fake shortness by zooming out to a tiny distant figure; keep normal subject closeness, just a physically shorter person. Slightly larger head-to-torso proportion is fine for younger children. When bottom-aligned next to adult lineup sprites, the height gap must look like real-world standing together."
-            : "ROSTER HEIGHT — ADULT: use the standard adult vertical proportion in the frame (similar to other mature figures in the cast — roughly most of the usable height between bottom margin and headroom), so peer adults match height when composited.";
+            : adultWomanRoster
+              ? "ROSTER HEIGHT — ADULT WOMAN: feet align to the SAME bottom margin as adult male roster PNGs; crown-to-heel silhouette only slightly shorter — target ~5% less than a typical adult man in this cast (≈95% of his standing height), subtle lower eye level. Do NOT depict a large shoulder-to-shoulder or half-head gap. Small transparent margin above the head is enough; do NOT vertically stretch to match male lineup height."
+              : "ROSTER HEIGHT — ADULT MAN (or default): use a tall adult vertical proportion in the frame (most of the usable height between bottom margin and headroom). Do NOT shrink below typical adult male roster scale.";
+          var verticalFillEn = youthRosterScale
+            ? "VERTICAL FILL (youth lineup PNG): follow ROSTER HEIGHT — youth above; full figure visible, shorter canvas span than adults, feet near bottom."
+            : adultWomanRoster
+              ? "VERTICAL FILL (adult woman lineup PNG): bottom-align feet with modest margin. Crown-to-heel ~5% shorter than male roster sprites (≈95% of male silhouette height): typical canvas use ~90–94% of image height while men use ~92–96% — keep the difference subtle, NOT an 80%-vs-96% dramatic gap. Small extra transparent alpha above the head only."
+              : "VERTICAL FILL (adult lineup PNG): The clothed figure occupies roughly 88–96% of total image height (crown near top margin, feet on bottom). Do NOT leave a large empty transparent area far below the feet — tight vertical use keeps male-adult roster scale consistent.";
+          var zhKey = String(zh || "").trim();
+          var eveVsAdamEn =
+            zhKey === "夏娃" && !youthRosterScale
+              ? "PRIMEVAL PAIR VS ADAM (mandatory): This figure is Eve — when lined up with Adam, she is only slightly shorter (~5% / ≈95% of his crown-to-heel), same foot baseline; subtle lower crown and eye level. Do NOT make Eve half a head shorter or match Adam’s height exactly; only a small transparent margin above her head."
+              : "";
+          var adamVsEveEn =
+            zhKey === "亚当" && !youthRosterScale
+              ? "PRIMEVAL PAIR VS EVE (mandatory): This figure is Adam — use full adult male roster height and vertical span in the canvas. Eve is only ~5% shorter; Adam must NOT be downscaled to match her — his crown stays only slightly above Eve’s when bottom-aligned, not dramatically taller."
+              : "";
           return [
             "Roster / lineup sprite — ONE person only. This PNG will be shown side-by-side with other biblical figures on one shared visual ground; follow the same conventions so all figures align when composited horizontally.",
             BCD_DISTINCT_ROSTER_FACE_EN,
+            explicitStature !== "adult" ? bcdStaturePromptEn(explicitStature) : "",
             BCD_TRANSPARENT_PNG_ANTI_WARM_EN,
             youthRosterScale
               ? "This entry is a minor / youth stage or only the earliest stage is available — stay faithful to age; apply the shorter roster height rule below so scale matches adults in the same scene."
@@ -1884,14 +2326,21 @@
               : "",
             youthRosterScale
               ? "Framing: full-length clothed figure visible; shorter overall stature per ROSTER HEIGHT rule above; modest headroom; not cropped at ankles or crown."
-              : "Framing: full-length clothed figure head to sandals visible; figure height should use a similar vertical proportion of the canvas as typical adult lineup sprites (not tiny in the frame, not cropped tight to edges). Leave modest headroom above the head.",
+              : adultWomanRoster
+                ? "Framing: full-length clothed woman head to sandals; crown-to-heel ~5% less than male roster sprites; modest headroom (slightly more transparent margin above head than on male PNGs, not a large gap)."
+                : "Framing: full-length clothed figure head to sandals visible; use tall adult vertical proportion (not tiny in the frame, not cropped tight to edges). Leave modest headroom above the head.",
             "Baseline: place feet near the BOTTOM edge of the image with a small, even bottom margin so when multiple PNGs are bottom-aligned they read as standing on the same plane. No extra empty space far below the feet.",
-            "VERTICAL FILL (mandatory for lineup PNG): The clothed figure must occupy roughly 88–96% of total image height (crown near the top margin, feet on the bottom). Do NOT leave a large empty transparent area above the head — tight framing keeps roster scale consistent when images are composited.",
+            verticalFillEn,
+            eveVsAdamEn,
+            adamVsEveEn,
             "Pose: calm standing posture, weight balanced; face the viewer or a slight three-quarter toward camera (consistent with a cast lineup). Avoid strong profile, back view, extreme perspective, large props, or action poses that break scale.",
+            src.n > 1 ? BCD_UNIFIED_NEUTRAL_COLOR_ACROSS_STAGES_EN : "",
             "Lighting direction for roster PNG: soft even key, slightly from above-front if helpful for clarity. " +
               BCD_IMAGE_COLOR_RULE_EN,
             BCD_TRANSPARENT_FOOT_SHADOW_EN,
             "Painterly historical Bible illustration with neutral accurate color (not warm yellow glaze); ancient Near Eastern period-appropriate clothing per description. " +
+              BCD_COSTUME_CHRONOLOGY_EN +
+              " " +
               BCD_CLOTHING_STATUS_RULE_EN +
               " " +
               BCD_CLOTHING_ERA_VARIETY_EN +
@@ -1946,6 +2395,8 @@
                 transparent: true,
                 bookId: "char",
                 chapter: chSlug,
+                englishName: en,
+                nameSlot: "hero",
                 imageSize: "1024x1536",
                 imageQuality: "high",
               }),
@@ -2049,8 +2500,245 @@
           }
         }
 
+        /** 不透明 bbox 高度 / 画布高度，目标约此值则横条里视觉身高一致 */
+        var BCD_HERO_STRIP_REF_FILL_Y = 0.78;
+        var BCD_HERO_STRIP_FILL_CLAMP_LO = 0.34;
+        var BCD_HERO_STRIP_FILL_CLAMP_HI = 0.97;
+        /** 单人 (auto×userH) 上限；整条再按比例压，避免裁切 */
+        var BCD_HERO_STRIP_COMBINED_CAP = 1.42;
+
+        /**
+         * 主图横条：扫描 Alpha 水平居中；竖直方向先按 PNG 内不透明占比 refFillY/fillY 拉齐，再按各图在栏内 contain 后的
+         * clientHeight 用中位数做 balance（导出裁切宽度不同会导致窄图被放得更高）；最后乘 heroRosterHeight 并整条压到上限内。
+         * 另用 alpha 脚底距画布底的留白做 translateY，使众人脚底对齐栏底（避免有人「悬空」）。
+         */
+        function bindHeroGalleryAlphaCenterNudges(container) {
+          if (!container || typeof document === "undefined") return;
+          var imgs = container.querySelectorAll("img.bcd-hero-thumb");
+          var idx;
+          for (idx = 0; idx < imgs.length; idx++) {
+            bindOneHeroThumbAlphaNudge(imgs[idx]);
+          }
+          if (typeof ResizeObserver !== "undefined") {
+            if (container._bcdHeroStripResizeRo) {
+              container._bcdHeroStripResizeRo.disconnect();
+            }
+            container._bcdHeroStripResizeRo = new ResizeObserver(function () {
+              bcdScheduleHeroStripScaleSync(container);
+            });
+            container._bcdHeroStripResizeRo.observe(container);
+          }
+        }
+
+        function bcdMedianSorted(nums) {
+          if (!nums.length) return 0;
+          var s = nums.slice().sort(function (a, b) {
+            return a - b;
+          });
+          var m = Math.floor(s.length / 2);
+          return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+        }
+
+        function bcdScheduleHeroStripScaleSync(strip) {
+          if (!strip) return;
+          if (strip._bcdHeroStripSyncRaf != null) {
+            cancelAnimationFrame(strip._bcdHeroStripSyncRaf);
+          }
+          strip._bcdHeroStripSyncRaf = requestAnimationFrame(function () {
+            strip._bcdHeroStripSyncRaf = null;
+            bcdSyncHeroStripScales(strip);
+          });
+        }
+
+        /**
+         * 先按 PNG 内不透明竖向占比 refFillY/fillY 拉齐；再按「栏内 contain 后的实际渲染高度」用中位数做 balance
+         *（导出裁切宽度不一 → 窄条在等宽栏里会被放得更高，亚伯拉罕类宽图会显得矮 — 与 fillY 无关）。
+         */
+        function bcdSyncHeroStripScales(strip) {
+          if (!strip) return;
+          var imgs = strip.querySelectorAll("img.bcd-hero-thumb");
+          var autoScaled = [];
+          var ii;
+          for (ii = 0; ii < imgs.length; ii++) {
+            var im = imgs[ii];
+            var fyRaw = parseFloat(im.dataset.bcdHeroFillY || "");
+            if (!Number.isFinite(fyRaw) || fyRaw <= 0) continue;
+            var wwrap = im.closest(".bcd-hero-thumb-wrap");
+            if (!wwrap) continue;
+            var ttile = wwrap.closest(".bcd-hero-tile");
+            var uH = ttile
+              ? bcdNormalizeHeroRosterHeight(ttile.getAttribute("data-hero-roster-height"))
+              : 1;
+            var fy = Math.min(BCD_HERO_STRIP_FILL_CLAMP_HI, Math.max(BCD_HERO_STRIP_FILL_CLAMP_LO, fyRaw));
+            var fillAuto = BCD_HERO_STRIP_REF_FILL_Y / fy;
+            var rendH = im.clientHeight;
+            autoScaled.push({
+              wrap: wwrap,
+              img: im,
+              fillAuto: fillAuto,
+              userH: uH,
+              rendH: rendH,
+            });
+          }
+          var rendList = [];
+          for (ii = 0; ii < autoScaled.length; ii++) {
+            if (autoScaled[ii].rendH >= 4) rendList.push(autoScaled[ii].rendH);
+          }
+          var refRendH = bcdMedianSorted(rendList);
+          var maxComb = 1;
+          for (ii = 0; ii < autoScaled.length; ii++) {
+            var row = autoScaled[ii];
+            var balance = 1;
+            if (refRendH > 0 && row.rendH >= 4) {
+              balance = refRendH / row.rendH;
+              if (balance > 1.4) balance = 1.4;
+              if (balance < 0.65) balance = 0.65;
+            }
+            row.auto = row.fillAuto * balance;
+            var pr = row.auto * row.userH;
+            if (pr > maxComb) maxComb = pr;
+          }
+          var down =
+            maxComb > BCD_HERO_STRIP_COMBINED_CAP
+              ? BCD_HERO_STRIP_COMBINED_CAP / maxComb
+              : 1;
+          for (ii = 0; ii < autoScaled.length; ii++) {
+            var ent = autoScaled[ii];
+            var fin = ent.auto * ent.userH * down;
+            if (fin > BCD_HERO_STRIP_COMBINED_CAP) fin = BCD_HERO_STRIP_COMBINED_CAP;
+            ent.wrap.setAttribute("data-bcd-hero-final-scale", String(fin));
+            if (typeof ent.wrap._bcdApplyHeroLayout === "function") ent.wrap._bcdApplyHeroLayout();
+          }
+          if (autoScaled.length && refRendH <= 0) {
+            strip._bcdHeroStripLateSync = strip._bcdHeroStripLateSync || 0;
+            if (strip._bcdHeroStripLateSync < 4) {
+              strip._bcdHeroStripLateSync++;
+              setTimeout(function () {
+                bcdSyncHeroStripScales(strip);
+              }, 80);
+            }
+          }
+        }
+
+        function bindOneHeroThumbAlphaNudge(img) {
+          if (!img || img.dataset.heroAlphaNudgeBound === "1") return;
+          img.dataset.heroAlphaNudgeBound = "1";
+          function run() {
+            var w = img.naturalWidth;
+            var h = img.naturalHeight;
+            if (!w || !h) return;
+            var scanW = Math.min(220, w);
+            var scanH = Math.max(1, Math.round(h * (scanW / w)));
+            var c = document.createElement("canvas");
+            c.width = scanW;
+            c.height = scanH;
+            var ctx = c.getContext("2d");
+            if (!ctx) return;
+            try {
+              ctx.drawImage(img, 0, 0, scanW, scanH);
+              var data = ctx.getImageData(0, 0, scanW, scanH).data;
+            } catch (e) {
+              return;
+            }
+            var alphaMin = 18;
+            var minX = scanW;
+            var maxX = -1;
+            var minY = scanH;
+            var maxY = -1;
+            var x;
+            var y;
+            var o;
+            for (y = 0; y < scanH; y++) {
+              o = y * scanW * 4;
+              for (x = 0; x < scanW; x++) {
+                if (data[o + x * 4 + 3] > alphaMin) {
+                  if (x < minX) minX = x;
+                  if (x > maxX) maxX = x;
+                  if (y < minY) minY = y;
+                  if (y > maxY) maxY = y;
+                }
+              }
+            }
+            if (maxX < minX || maxY < minY) return;
+            var centerXScan = (minX + maxX + 1) / 2;
+            var centerIntrinsic = centerXScan * (w / scanW);
+            var bboxHScan = maxY - minY + 1;
+            var bboxHIntrinsic = bboxHScan * (h / scanH);
+            var fillY = bboxHIntrinsic / h;
+            img.dataset.bcdHeroFillY = String(fillY);
+            img.dataset.bcdHeroCenterX = String(centerIntrinsic);
+            /* 不透明区底边到整图底边的距离（像素）；脚下透明留白大时 flex-end 会对齐画布底而非脚底 */
+            var yOpaqueBottom = ((maxY + 1) * h) / scanH;
+            var footGapIntrinsic = Math.max(0, h - yOpaqueBottom);
+            img.dataset.bcdHeroFootGapIntrinsic = String(footGapIntrinsic);
+            var wrap = img.closest(".bcd-hero-thumb-wrap");
+            var stack = wrap ? wrap.querySelector(".bcd-hero-thumb-stack") : null;
+
+            function applyShift() {
+              if (!wrap || !stack) return;
+              var cw = img.clientWidth;
+              var ch = img.clientHeight;
+              if (cw < 2 || ch < 2) return;
+              var scale = Math.min(cw / w, ch / h);
+              if (!scale || !Number.isFinite(scale)) return;
+              var cx = parseFloat(img.dataset.bcdHeroCenterX || "");
+              if (!Number.isFinite(cx)) cx = w / 2;
+              var shift = (w / 2 - cx) * scale;
+              var cap = wrap.clientWidth * 0.45;
+              if (shift > cap) shift = cap;
+              if (shift < -cap) shift = -cap;
+              var combinedScale = parseFloat(wrap.getAttribute("data-bcd-hero-final-scale") || "");
+              if (!Number.isFinite(combinedScale) || combinedScale <= 0) combinedScale = 1;
+              var fg = parseFloat(img.dataset.bcdHeroFootGapIntrinsic || "0");
+              if (!Number.isFinite(fg) || fg < 0) fg = 0;
+              var footTy = fg * scale * combinedScale;
+              var oxPct = (cx / w) * 100;
+              if (oxPct < 4) oxPct = 4;
+              if (oxPct > 96) oxPct = 96;
+              img.style.transform = "";
+              img.style.transformOrigin = "";
+              stack.style.transformOrigin = oxPct + "% 100%";
+              stack.style.transform =
+                "translateX(calc(-50% + " +
+                shift +
+                "px)) translateY(" +
+                footTy +
+                "px) scale(" +
+                combinedScale +
+                ")";
+            }
+
+            wrap._bcdApplyHeroLayout = applyShift;
+            var strip = wrap.closest(".bcd-hero-strip");
+            bcdScheduleHeroStripScaleSync(strip);
+
+            function applyShiftSoon() {
+              requestAnimationFrame(function () {
+                requestAnimationFrame(applyShift);
+              });
+            }
+            applyShiftSoon();
+            if (wrap && typeof ResizeObserver !== "undefined") {
+              var ro = new ResizeObserver(function () {
+                applyShift();
+              });
+              ro.observe(wrap);
+            }
+          }
+          if (img.complete && img.naturalWidth) run();
+          else
+            img.addEventListener(
+              "load",
+              function () {
+                run();
+              },
+              { once: true }
+            );
+        }
+
         function renderHeroGallery() {
           if (!heroGalleryBodyEl) return;
+          heroGalleryBodyEl._bcdHeroStripLateSync = 0;
           var cards = listEl.querySelectorAll(".bcd-card");
           if (!cards.length) {
             heroGalleryBodyEl.innerHTML =
@@ -2072,21 +2760,30 @@
           for (idx = 0; idx < rows.length; idx++) {
             var key = rows[idx].key;
             var url = String(rows[idx].card.getAttribute("data-hero-image-url") || "").trim();
+            var rhTile = bcdNormalizeHeroRosterHeight(
+              rows[idx].card.getAttribute("data-hero-roster-height")
+            );
             var forAttr = escapePresetHtml(key);
+            var tileCls =
+              "bcd-hero-tile";
             var cellInner;
             if (url) {
               var full = url.indexOf("http") === 0 ? url : apiUrl(url);
               cellInner =
-                '<div class="bcd-hero-thumb-wrap"><img class="bcd-hero-thumb" src="' +
+                '<div class="bcd-hero-thumb-wrap"><div class="bcd-hero-thumb-stack"><img class="bcd-hero-thumb" src="' +
                 escapePresetHtml(full) +
                 '" alt="' +
                 escapePresetHtml(key) +
-                '" loading="eager" decoding="async" /></div>';
+                '" loading="eager" decoding="async" /></div></div>';
             } else {
               cellInner = '<div class="bcd-hero-thumb-wrap"><span class="bcd-hero-missing">未生成</span></div>';
             }
             parts.push(
-              '<div class="bcd-hero-tile" role="listitem">' +
+              '<div class="' +
+                tileCls +
+                '" role="listitem" data-hero-roster-height="' +
+                escapePresetHtml(String(rhTile)) +
+                '">' +
                 '<div class="bcd-hero-tile-canvas">' +
                 cellInner +
                 "</div>" +
@@ -2101,6 +2798,7 @@
           heroGalleryBodyEl.innerHTML =
             parts.join("") ||
             '<div class="bcd-hero-empty">暂无有效人物条目。</div>';
+          bindHeroGalleryAlphaCenterNudges(heroGalleryBodyEl);
         }
 
         if (heroGalleryBodyEl) {
@@ -2131,13 +2829,16 @@
           }
           var slotsOrder = bcdSlotsWithAppearanceInOrder(card);
           if (!slotsOrder.length) {
-            setStatus("请至少一栏填写外观描述，再一键生成各时期全身像。", "err");
+            setStatus("请至少一栏填写外观描述，再点「一键生成」。", "err");
             return false;
           }
           const btn = card.querySelector(".bcd-btn-comparison");
           const heroBtn = card.querySelector(".bcd-btn-hero");
-          if (btn) btn.disabled = true;
-          if (heroBtn) heroBtn.disabled = true;
+          const skipBtnToggle = opts.noButtonToggle === true;
+          if (!skipBtnToggle) {
+            if (btn) btn.disabled = true;
+            if (heroBtn) heroBtn.disabled = true;
+          }
           var h = card.querySelector(".bcd-comparison-strip-host");
           if (h) {
             h.removeAttribute("data-legacy-wide-cut-url");
@@ -2201,8 +2902,10 @@
             renderComparisonStrip(card);
             return false;
           } finally {
-            if (btn) btn.disabled = false;
-            if (heroBtn) heroBtn.disabled = false;
+            if (!skipBtnToggle) {
+              if (btn) btn.disabled = false;
+              if (heroBtn) heroBtn.disabled = false;
+            }
           }
         }
 
@@ -2278,6 +2981,8 @@
                 transparent: true,
                 bookId: "char",
                 chapter: chSlug,
+                englishName: en,
+                nameSlot: "p" + si,
                 imageSize: "1024x1536",
                 imageQuality: "high",
               }),
@@ -2349,6 +3054,27 @@
           return "后期（叙事较后阶段）";
         }
 
+        function bcdStatureSelectOptionsHtml(selectedRaw) {
+          var cur = bcdNormalizeStatureClass(selectedRaw);
+          function opt(val, lab) {
+            return (
+              '<option value="' +
+              val +
+              '"' +
+              (cur === val ? " selected" : "") +
+              ">" +
+              lab +
+              "</option>"
+            );
+          }
+          return (
+            opt("child", "孩童（画中明显较矮，约成人的一半多高）") +
+            opt("youth", "少年/青年（矮于成年）") +
+            opt("adult", "成年/壮年（默认）") +
+            opt("elder", "老年（成人身高，可略佝偻）")
+          );
+        }
+
         function periodSlotHtml(slotIndex, data, periodCount, isNew, k) {
           const hidden = slotIndex >= periodCount ? " hidden" : "";
           const stageTitle = getStageHeading(slotIndex, periodCount);
@@ -2367,6 +3093,7 @@
           const shortTag = safeTextarea(data.short || "");
           const appearance = safeTextarea(data.app || "");
           const imgStored = safe(data.img || "");
+          const statureSel = bcdStatureSelectOptionsHtml(data.stature || "");
           var gptBlock = "";
           if (slotIndex === 0) {
             gptBlock =
@@ -2375,7 +3102,7 @@
               '<textarea class="bcd-gpt-notes" rows="2" maxlength="500" placeholder="例如：只要老年形象 / 某章场景…"></textarea>' +
               '<div class="bcd-gpt-actions">' +
               '<button type="button" class="bcd-btn-gpt">GPT 本栏英文</button>' +
-              '<span class="bcd-hint" style="margin:0">整人生成用下方绿色按钮（只填字）；出图请点上文「一键生成各时期透明全身像」</span>' +
+              '<span class="bcd-hint" style="margin:0">一键走完：青绿「自动」（智能填字+出图）；或分步：「GPT 智能生成」再「一键生成」</span>' +
               "</div>" +
               "</div>";
           } else {
@@ -2403,13 +3130,20 @@
             '" placeholder="如：蒙召离哈兰 / 以撒出生时 / 晚年" />' +
             "</div>" +
             '<div class="bcd-field-block">' +
+            "<label>体态比例 <code>statureClass</code>（出图提示 + 存档 JSON，供前端并列排版）</label>" +
+            '<select class="bcd-stature" aria-label="体态比例">' +
+            statureSel +
+            "</select>" +
+            '<p class="bcd-hint">多期「一键生成」是<strong>分期各出一张</strong>，模型易把孩童拉成成人身高；请把童年栏设为「孩童」。色偏请用「重新生成画像」单栏重出。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
             "<label>场景短标签（英文，一句内）</label>" +
             '<textarea class="bcd-short" rows="2" maxlength="500">' +
             shortTag +
             "</textarea>" +
             "</div>" +
             '<div class="bcd-field-block">' +
-            "<label>外观长描述（英文）</label>" +
+            "<label>外观长描述（英文，透明全身：只写人物相貌与衣着体态，勿写花园/天空/地面等背景）</label>" +
             '<textarea class="bcd-appearance" rows="5" maxlength="2000">' +
             appearance +
             "</textarea>" +
@@ -2424,7 +3158,7 @@
             '">' +
             '<img class="bcd-portrait-img" alt="" hidden />' +
             "</div>" +
-            '<p class="bcd-hint">点「生成画像」调用一次图片 AI 出本时期透明全身（1024×1536）；若本栏为「主参考时期」会同步页顶主图。也可用上文一键生成全部时期。保存后写入 imageUrl。</p>' +
+            '<p class="bcd-hint">点「生成画像」调用一次图片 AI 出本时期透明全身（1024×1536）；若本栏为「主参考时期」会同步页顶主图。也可用上方「一键生成」一次出全时期。保存后写入 imageUrl。</p>' +
             "</div>" +
             "</div>"
           );
@@ -2445,6 +3179,7 @@
           const scripturePersonalityEn = safe(en.scripturePersonalityEn || "");
           const comparisonSheetUrl = safe(en.comparisonSheetUrl || "");
           const heroImageUrl = safe(en.heroImageUrl || "");
+          const heroRosterHeight = bcdNormalizeHeroRosterHeight(en.heroRosterHeight);
           const smartGenNotes = safe(en.smartGenNotes || "");
           const promptArchiveText = safe(en.promptArchiveText || "");
           const extras = Array.isArray(en.periods) ? en.periods.slice(0, 2) : [];
@@ -2455,6 +3190,7 @@
             short: en.shortSceneTagEn || "",
             app: en.appearanceEn || "",
             img: en.imageUrl || "",
+            stature: en.statureClass || "adult",
           };
           const e0 = extras[0] || {};
           const e1 = extras[1] || {};
@@ -2463,12 +3199,14 @@
             short: e0.shortSceneTagEn || "",
             app: e0.appearanceEn || "",
             img: e0.imageUrl || "",
+            stature: e0.statureClass || "adult",
           };
           const slot2 = {
             label: e1.labelZh || "",
             short: e1.shortSceneTagEn || "",
             app: e1.appearanceEn || "",
             img: e1.imageUrl || "",
+            stature: e1.statureClass || "adult",
           };
           var opts123 = "";
           var o;
@@ -2483,6 +3221,8 @@
             k +
             '" data-hero-image-url="' +
             heroImageUrl +
+            '" data-hero-roster-height="' +
+            heroRosterHeight +
             '">' +
             '<div class="bcd-card-head">' +
             '<div class="bcd-field-key">' +
@@ -2505,17 +3245,29 @@
             '<div class="bcd-comparison-panel">' +
             "<label>人生阶段并列预览（各期单独高清出图）</label>" +
             '<p class="bcd-hint">从左到右为叙事时间顺序。每期一张 <strong>1024×1536 透明全身</strong>，有几期就调用几次图片 AI，保证单人清晰度；生成后自动出现在下方横排，并按<strong>中期 / 成年中位</strong>规则更新页顶主图。</p>' +
-            '<button type="button" class="bcd-btn-comparison">一键生成各时期透明全身像</button>' +
+            '<div class="bcd-card-gen-row" role="group" aria-label="智能生成与一键出图">' +
+            '<button type="button" class="bcd-btn-auto-pipeline" title="先 GPT 智能生成（填各时期描述），再一键生成各期 1024×1536 透明全身">自动</button>' +
+            '<button type="button" class="bcd-btn-gpt-full">GPT 智能生成</button>' +
+            '<button type="button" class="bcd-btn-comparison" title="各时期各出一张 1024×1536 透明全身">一键生成</button>' +
+            '<button type="button" class="bcd-btn-batch-preset-gpt" title="按备选库顺序，对尚未生成透明主图的人物依次执行 GPT 智能生成与一键生成（未建档会先加入）">备选未主图→批量智能+出图</button>' +
+            "</div>" +
             '<div class="bcd-comparison-strip-host bcd-comparison-strip-host--empty" data-legacy-comparison-url="' +
             comparisonSheetUrl +
             '">' +
             '<div class="bcd-comparison-strip bcd-comparison-strip--empty" aria-label="各时期并列预览"></div>' +
             "</div>" +
-            '<p class="bcd-hint">也可在下方各栏点「生成画像」单独重出某一期。GPT 智能生成与各栏 GPT <strong>只填描述不出图</strong>；填完后点本按钮或分栏出图。</p>' +
+            '<p class="bcd-hint">也可在下方各栏点「生成画像」单独重出某一期。「GPT 智能生成」与各栏 GPT <strong>只填描述不出图</strong>；填完后点「一键生成」或分栏出图。</p>' +
             "</div>" +
             '<p class="bcd-hint bcd-hero-card-strip">' +
             "并列预览横排与各栏「单时期参考图」同源；保存后写入各期 <code>imageUrl</code> 与 <code>heroImageUrl</code>。" +
             "</p>" +
+            '<div class="bcd-field-block bcd-hero-roster-field">' +
+            "<label>主图横排 · 相对身高系数</label>" +
+            '<input type="number" class="bcd-hero-roster-height" min="0.35" max="2.5" step="0.01" value="' +
+            heroRosterHeight +
+            '" />' +
+            '<p class="bcd-hint">1.0 ≈ 成年男性基准；女性常见约 0.92–0.97；孩童约 0.5–0.65；巨人等可大于 1.1。与自动「补齐留白」相乘，脚底对齐。</p>' +
+            "</div>" +
             '<div class="bcd-field-block">' +
             "<label>英文姓名（共用）</label>" +
             '<input type="text" class="bcd-en" maxlength="200" value="' +
@@ -2542,11 +3294,10 @@
             '<select class="bcd-period-count" aria-label="时期数量">' +
             opts123 +
             "</select>" +
-            '<span class="bcd-hint" style="margin:0">不必固定三期；常因圣经里年龄跨度大才分阶段。可手改；顶部绿色按钮由 AI 判定套数</span>' +
+            '<span class="bcd-hint" style="margin:0">不必固定三期；常因圣经里年龄跨度大才分阶段。可手改；上方「GPT 智能生成」由 AI 判定套数</span>' +
             "</div>" +
             '<div class="bcd-full-stages-bar">' +
-            '<button type="button" class="bcd-btn-gpt-full">GPT 智能生成（AI 自动判定期数）</button>' +
-            "<p class=\"bcd-hint\">AI 依圣经记载与<strong>年龄跨度</strong>判断 1～3 个时期（未必三期）；各时期为<strong>同一人</strong>。<strong>仅自动填入</strong>气质与各时期英文、外貌描述等，<strong>不出图</strong>；填完后请在上文点「一键生成各时期透明全身像」或分栏出图。</p>" +
+            "<p class=\"bcd-hint\" style=\"margin-top:0\">AI 依圣经记载与<strong>年龄跨度</strong>判断 1～3 个时期（未必三期）；各时期为<strong>同一人</strong>。<strong>仅自动填入</strong>气质与各时期英文、外貌描述等，<strong>不出图</strong>；填完后请在上方并列区点「一键生成」或分栏出图。</p>" +
             '<textarea class="bcd-full-stages-notes" rows="2" maxlength="400" placeholder="可选：补充说明（如侧重某段经文章节）">' +
             smartGenNotes +
             "</textarea>" +
@@ -2574,6 +3325,8 @@
             if (pl) pl.value = "";
             slot.querySelector(".bcd-short").value = "";
             slot.querySelector(".bcd-appearance").value = "";
+            var stc = slot.querySelector(".bcd-stature");
+            if (stc) stc.value = "adult";
             setPortraitPreviewForSlot(slot, "");
           }
         }
@@ -2642,15 +3395,16 @@
           ta.value = lines.join("\n");
         }
 
-        async function generateFullLifeStagesForCard(card) {
+        async function generateFullLifeStagesForCard(card, gptOpts) {
+          gptOpts = gptOpts || {};
           if (!getToken()) {
             setStatus("请先登录。", "err");
-            return;
+            return false;
           }
           const chineseName = cardZhDisplayKey(card);
           if (!chineseName) {
             setStatus("请先填写中文名。", "err");
-            return;
+            return false;
           }
           const notes = String(
             (card.querySelector(".bcd-full-stages-notes") &&
@@ -2666,7 +3420,7 @@
             ? String(spEnPre.value || "").trim().slice(0, 600)
             : "";
           const btn = card.querySelector(".bcd-btn-gpt-full");
-          if (btn) btn.disabled = true;
+          if (!gptOpts.noGptButtonToggle && btn) btn.disabled = true;
           setStatus("AI 正在判定期数并生成英文描述…", null);
           try {
             const res = await fetch(
@@ -2732,19 +3486,23 @@
             setStatus("正在汇总提示词并请求中文参考译（备份区）…", null);
             await fillBcdPromptArchiveAfterSmartGen(card, data.promptLog);
             var saveTxtOk = await bcdTrySaveProfilesAfterImage();
-            if (!saveTxtOk) return;
-            setStatus(
-              n === 1
-                ? "AI 判定 1 套时期，已填入气质与各时期英文、外貌描述（未出图）。请在上文点「一键生成各时期透明全身像」或分栏出图；档案已自动保存。"
-                : "AI 判定 " +
-                    n +
-                    " 套时期，已填入各阶段描述（未出图）。请在上文点「一键生成各时期透明全身像」或分栏出图；档案已自动保存。",
-              "ok"
-            );
+            if (!saveTxtOk) return false;
+            if (!gptOpts.quietCompletionStatus) {
+              setStatus(
+                n === 1
+                  ? "已按默认填入 1 套成年/壮年时期（人脸锚点）。请点击「一键生成」或分栏出图；档案已自动保存。若需多期请在备注写「两期/三期」后再点智能生成。"
+                  : "已填入 " +
+                      n +
+                      " 套时期描述（未出图）。请点击「一键生成」或分栏出图；档案已自动保存。多期出图须保持同脸、服装随阶段与财富明显区分。",
+                "ok"
+              );
+            }
+            return true;
           } catch (e) {
             setStatus(String(e.message || e), "err");
+            return false;
           } finally {
-            if (btn) btn.disabled = false;
+            if (!gptOpts.noGptButtonToggle && btn) btn.disabled = false;
           }
         }
 
@@ -2826,7 +3584,7 @@
             var saveGptOk = await bcdTrySaveProfilesAfterImage();
             if (!saveGptOk) return;
             setStatus(
-              "已填入 GPT 本栏英文与外貌描述（未出图）。请在上文一键生成各期或本分栏「生成画像」；已自动保存。",
+              "已填入 GPT 本栏英文与外貌描述（未出图）。请点击「一键生成」或本分栏「生成画像」；已自动保存。",
               "ok"
             );
           } catch (e) {
@@ -2895,7 +3653,7 @@
             var saveExOk = await bcdTrySaveProfilesAfterImage();
             if (!saveExOk) return;
             setStatus(
-              "已填入本时期英文与外貌描述（未出图）。请在上文一键生成各期或本分栏「生成画像」；已自动保存。",
+              "已填入本时期英文与外貌描述（未出图）。请点击「一键生成」或本分栏「生成画像」；已自动保存。",
               "ok"
             );
           } catch (e) {
@@ -2988,13 +3746,62 @@
               updatePeriodSlotsVisibility(card);
             });
           }
-          const fullBtn = card.querySelector(".bcd-btn-gpt-full");
-          if (fullBtn) {
-            fullBtn.addEventListener("click", function () {
-              generateFullLifeStagesForCard(card);
+          var rosterIn = card.querySelector(".bcd-hero-roster-height");
+          if (rosterIn) {
+            rosterIn.addEventListener("input", function () {
+              var raw = parseFloat(String(rosterIn.value || ""));
+              var v = Number.isFinite(raw)
+                ? Math.min(2.5, Math.max(0.35, raw))
+                : bcdNormalizeHeroRosterHeight(card.getAttribute("data-hero-roster-height"));
+              card.setAttribute("data-hero-roster-height", String(v));
+              renderHeroGallery();
+            });
+            rosterIn.addEventListener("blur", function () {
+              var v = bcdNormalizeHeroRosterHeight(rosterIn.value);
+              rosterIn.value = String(v);
+              card.setAttribute("data-hero-roster-height", String(v));
+              renderHeroGallery();
             });
           }
+          const autoPipelineBtn = card.querySelector(".bcd-btn-auto-pipeline");
+          const fullBtn = card.querySelector(".bcd-btn-gpt-full");
           const cmpBtn = card.querySelector(".bcd-btn-comparison");
+          const batchPresetBtn = card.querySelector(".bcd-btn-batch-preset-gpt");
+          const heroBtnGen = card.querySelector(".bcd-btn-hero");
+          if (autoPipelineBtn) {
+            autoPipelineBtn.addEventListener("click", async function () {
+              if (!getToken()) {
+                setStatus("请先登录。", "err");
+                return;
+              }
+              var lockBtns = [autoPipelineBtn, fullBtn, cmpBtn, batchPresetBtn].filter(Boolean);
+              var hi;
+              for (hi = 0; hi < lockBtns.length; hi++) lockBtns[hi].disabled = true;
+              if (heroBtnGen) heroBtnGen.disabled = true;
+              try {
+                var gptOk = await generateFullLifeStagesForCard(card, {
+                  quietCompletionStatus: true,
+                  noGptButtonToggle: true,
+                });
+                if (!gptOk) return;
+                setStatus("智能填字已完成，正在一键生成各期全身像…", null);
+                await generateComparisonSheet(card, { noButtonToggle: true });
+              } finally {
+                for (hi = 0; hi < lockBtns.length; hi++) lockBtns[hi].disabled = false;
+                if (heroBtnGen) heroBtnGen.disabled = false;
+              }
+            });
+          }
+          if (fullBtn) {
+            fullBtn.addEventListener("click", function () {
+              generateFullLifeStagesForCard(card, {});
+            });
+          }
+          if (batchPresetBtn) {
+            batchPresetBtn.addEventListener("click", function () {
+              runBatchPresetMissingHeroPipeline();
+            });
+          }
           if (cmpBtn) {
             cmpBtn.addEventListener("click", function () {
               generateComparisonSheet(card, {});
@@ -3117,6 +3924,10 @@
               }
               var heroEarly = String(card.getAttribute("data-hero-image-url") || "").trim();
               if (heroEarly) characters[key].heroImageUrl = heroEarly;
+              var rhElE = card.querySelector(".bcd-hero-roster-height");
+              characters[key].heroRosterHeight = bcdNormalizeHeroRosterHeight(
+                rhElE ? rhElE.value : card.getAttribute("data-hero-roster-height")
+              );
               appendBcdPersistedMemoFields(card, characters[key]);
               continue;
             }
@@ -3139,6 +3950,10 @@
                 slot0.querySelector(".bcd-portrait-preview-wrap").getAttribute("data-img-url") ||
                   ""
               ).trim(),
+              statureClass: bcdNormalizeStatureClass(
+                (slot0.querySelector(".bcd-stature") && slot0.querySelector(".bcd-stature").value) ||
+                  "adult"
+              ),
             };
             const periods = [];
             if (n >= 2 && slot1) {
@@ -3150,6 +3965,10 @@
                   slot1.querySelector(".bcd-portrait-preview-wrap").getAttribute("data-img-url") ||
                     ""
                 ).trim(),
+                statureClass: bcdNormalizeStatureClass(
+                  (slot1.querySelector(".bcd-stature") && slot1.querySelector(".bcd-stature").value) ||
+                    "adult"
+                ),
               });
             }
             if (n >= 3 && slot2) {
@@ -3161,6 +3980,10 @@
                   slot2.querySelector(".bcd-portrait-preview-wrap").getAttribute("data-img-url") ||
                     ""
                 ).trim(),
+                statureClass: bcdNormalizeStatureClass(
+                  (slot2.querySelector(".bcd-stature") && slot2.querySelector(".bcd-stature").value) ||
+                    "adult"
+                ),
               });
             }
             if (periods.length) row.periods = periods;
@@ -3185,6 +4008,10 @@
             }
             const heroU = String(card.getAttribute("data-hero-image-url") || "").trim();
             if (heroU) row.heroImageUrl = heroU;
+            var rhEl = card.querySelector(".bcd-hero-roster-height");
+            row.heroRosterHeight = bcdNormalizeHeroRosterHeight(
+              rhEl ? rhEl.value : card.getAttribute("data-hero-roster-height")
+            );
             appendBcdPersistedMemoFields(card, row);
             characters[key] = row;
           }

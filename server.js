@@ -1593,29 +1593,138 @@ async function openAiChatHelper({ system, messages }) {
   }
 }
 
-function parseJsonObjectFromAiText(text) {
-  const raw = String(text || "").trim();
-  if (!raw) return null;
-  try {
-    const o = JSON.parse(raw);
-    if (o && typeof o === "object" && !Array.isArray(o)) return o;
-  } catch (_) {}
-  const fence = /```(?:json)?\s*([\s\S]*?)```/i.exec(raw);
-  if (fence) {
-    try {
-      const o = JSON.parse(fence[1].trim());
-      if (o && typeof o === "object" && !Array.isArray(o)) return o;
-    } catch (_) {}
-  }
-  const i = raw.indexOf("{");
-  const j = raw.lastIndexOf("}");
-  if (i !== -1 && j > i) {
-    try {
-      const o = JSON.parse(raw.slice(i, j + 1));
-      if (o && typeof o === "object" && !Array.isArray(o)) return o;
-    } catch (_) {}
+/** 从首个 `{` 起按括号深度截取，避免 JSON 字符串值内含 `}` 时 lastIndexOf 截断。 */
+function extractBalancedJsonObject(raw) {
+  const s = String(raw || "");
+  const start = s.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString) {
+      if (c === "\\") {
+        escape = true;
+        continue;
+      }
+      if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
   }
   return null;
+}
+
+/** 整段文本 → 解析后的 JSON 值（对象或数组），供多类 AI 输出共用。 */
+function tryParseJsonLoose(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+  const tryVal = (s) => {
+    try {
+      return JSON.parse(s);
+    } catch (_) {
+      return null;
+    }
+  };
+  let v = tryVal(raw);
+  if (v != null) return v;
+  const fence = /```(?:json)?\s*([\s\S]*?)```/i.exec(raw);
+  if (fence) {
+    v = tryVal(fence[1].trim());
+    if (v != null) return v;
+  }
+  const bal = extractBalancedJsonObject(raw);
+  if (bal) {
+    v = tryVal(bal);
+    if (v != null) return v;
+  }
+  return null;
+}
+
+function parseJsonObjectFromAiText(text) {
+  const v = tryParseJsonLoose(text);
+  if (v && typeof v === "object" && !Array.isArray(v)) return v;
+  return null;
+}
+
+/**
+ * 人生分期接口：兼容模型把分期放在 lifeStages / phases、根级数组、或仅顶层 appearanceEn 等形态。
+ */
+function coerceLifeStagesRoot(v) {
+  if (v == null) return null;
+  if (Array.isArray(v)) {
+    const arr = v
+      .filter((s) => s && typeof s === "object" && !Array.isArray(s))
+      .slice(0, 3);
+    if (arr.length < 1) return null;
+    return {
+      englishName: "",
+      scripturePersonalityZh: "",
+      scripturePersonalityEn: "",
+      stages: arr,
+    };
+  }
+  if (typeof v !== "object") return null;
+
+  let stages = null;
+  if (Array.isArray(v.stages) && v.stages.length > 0) {
+    stages = v.stages;
+  } else if (typeof v.stages === "string" && String(v.stages).trim()) {
+    try {
+      const inner = JSON.parse(v.stages);
+      if (Array.isArray(inner) && inner.length > 0) stages = inner;
+    } catch (_) {}
+  }
+  if (!stages) {
+    for (const k of ["lifeStages", "life_stages", "phases", "periods"]) {
+      const a = v[k];
+      if (Array.isArray(a) && a.length > 0) {
+        stages = a;
+        break;
+      }
+    }
+  }
+  if (!stages && v.data && Array.isArray(v.data.stages) && v.data.stages.length > 0) {
+    stages = v.data.stages;
+  }
+
+  if (!stages) {
+    const app = safeText(v.appearanceEn || "").trim();
+    if (app) {
+      return {
+        englishName: safeText(v.englishName || "").slice(0, 80),
+        scripturePersonalityZh: safeText(v.scripturePersonalityZh || "").slice(0, 500),
+        scripturePersonalityEn: safeText(v.scripturePersonalityEn || "").slice(0, 600),
+        stages: [
+          {
+            labelZh: safeText(v.labelZh || "").slice(0, 32),
+            shortSceneTagEn: safeText(v.shortSceneTagEn || "").slice(0, 160),
+            appearanceEn: app.slice(0, 1200),
+          },
+        ],
+      };
+    }
+    return null;
+  }
+
+  return { ...v, stages };
+}
+
+function parseLifeStagesPayloadFromAiText(text) {
+  return coerceLifeStagesRoot(tryParseJsonLoose(text));
 }
 
 /** 编辑预先填写的人物气质/性格：须保留在输出最前，AI 在其后补充，而非覆盖。 */
@@ -1653,10 +1762,13 @@ async function handleCharacterProfileGenerate(req, res) {
       "scripturePersonalityZh: concise Chinese — how Scripture portrays this person's character, virtues, and role (e.g. 被称为信心之父、信而顺服). Not physical appearance.",
       "scripturePersonalityEn: one or two English sentences — inner character, faith posture, demeanor for illustrators (e.g. 'father of faith', steadfast obedience); not clothing or face shape.",
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
-      "shortSceneTagEn: one short English phrase (about one sentence) for scene tags beside Chinese scene text.",
-      "appearanceEn: detailed English visual description for image generation. Include stable facial identity cues (face shape, eye spacing, nose, distinctive traits) so the same figure can be recognized if more life stages are added later. Ancient Near Eastern or period-appropriate styling; no modern items.",
+      "shortSceneTagEn: one short English phrase (about one sentence) for scene context beside Chinese scene text (e.g. at the well, before Pharaoh). Put story location or moment HERE — NOT inside appearanceEn.",
+      "appearanceEn: detailed English visual description for image generation. Include stable facial identity cues (face shape, eye spacing, nose, distinctive traits) so the same figure can be recognized if more life stages are added later. For roster, article, or museum-style use, describe expression and gaze so the figure can engage the reader: calm dignified eye contact toward the viewer when posture allows (soft direct or gentle three-quarter), warm and intentional — not an aggressive stare; this is AI-assisted interpretive illustration, not documentary photography. Ancient Near Eastern or period-appropriate styling; no modern items.",
+      "Transparent cutout rule (mandatory for appearanceEn): Renders are full-length character sprites on a TRUE transparent PNG — NO painted background. Describe ONLY what is ON the figure: face, hair, skin, build, posture, hands, garments, footwear, and small handheld props. Do NOT describe any environment: no garden, trees, sky, horizon, architecture, ground plane, landscape, indoor room, \"setting is\", \"surrounded by\", \"lush flora\", directional sunlight tied to a place, or backdrop of any kind. Convey era or story ONLY through clothing, age, and body — put named locations or beats in shortSceneTagEn, not as scenery in appearanceEn.",
+      "Stature for lineup (mandatory in appearanceEn when relevant): These sprites are shown bottom-aligned beside others. For an adult woman, note she is only slightly shorter than a typical adult man of the same narrative — about a 5% standing-height difference (≈95% of his crown-to-heel), subtle eye level, NOT a large or cartoonish gap. For an adult man, typical tall adult proportions. For minors, age-appropriate shorter stature versus adults. Never imply every character should be scaled to identical height in the frame.",
       "Cross-cast distinctiveness (mandatory): This person will be shown in a roster beside many other named biblical figures. The face and build must be clearly UNIQUE — not interchangeable with a generic handsome-bearded patriarch or stock template. Deliberately vary face shape, nose bridge and tip, eye shape and spacing, brows, jaw width, cheek volume, ears, hairline, beard density and pattern, stature, and age-appropriate details within believable ancient Levant / broader MENA diversity. A viewer comparing lineup images must not confuse this character with a different named person.",
-      "Clothing must match biblical social standing: figures Scripture shows as wealthy or high-status — patriarchs with large herds and households (e.g. Abraham, Isaac), chiefs, kings, courtiers, priests — wear well-made layered robes, quality textiles, tasteful dye or trim, dignified draping; do NOT default to drab sackcloth or generic impoverished peasant garb unless the narrative clearly demands poverty, mourning, or deliberate humility. Infer from story cues (flocks, wells, servants, gifts).",
+      "Costume chronology and office (mandatory for appearanceEn): (1) PRIMEVAL — BEFORE Cain in the Genesis story order (creation through Genesis 3: Adam and Eve as the first humans, Eden and immediate expulsion): garments MUST be simple tanned animal hides, fur, or minimal primitive skin wraps only — NOT woven priestly vestments, NOT royal court layered textiles, NOT crown or palace insignia, NOT fine dyed linens of later eras. (2) FROM CAIN ONWARD through all later Scripture: do NOT default the roster to primitive skins. Match clothing to Scripture-informed identity, wealth, social rank, and historical layer — HIGH PRIEST / priests at worship: plausible biblical-era priestly dress (linen layers, ephod-related elements, prescribed colors where fitting); KINGS / QUEENS / high court officials: dignified layered robes, quality weave, tasteful ornament or signs of rule when the narrative warrants; wealthy patriarchs, chiefs, merchants: well-made tunics, mantles, period-plausible dyes; poor, captives, mourners, or deliberate humility: simpler or rougher garb when the text signals. Differentiate tabernacle vs temple vs exile vs return vs Second Temple vs Gospel-era Palestine in plausible cut and textile when the figure’s story sits in that layer.",
+      "Clothing must match biblical social standing (apply ONLY outside the primeval Adam/Eve animal-skin rule above): figures Scripture shows as wealthy or high-status — patriarchs with large herds and households (e.g. Abraham, Isaac), chiefs, kings, courtiers, priests — wear well-made ancient Near Eastern dress appropriate to their office and era — layered robes, quality textiles, tasteful dye or trim, dignified draping; do NOT default to drab sackcloth or generic impoverished peasant garb unless the narrative clearly demands poverty, mourning, or deliberate humility. Infer from story cues (flocks, wells, servants, gifts, throne, altar service).",
       "Garment variety within era (mandatory for appearanceEn): Stay strictly ancient Near Eastern / eastern Mediterranean biblical-era dress — wool, linen, tunics, mantles, cloaks, sashes, veils where fitting; NO medieval European, NO Renaissance, NO modern or fantasy costume. Avoid generic roster sameness: do NOT default every male to the same undyed tunic + identical brown outer wrap. Name specific, plausible variety in cut, layering, drape, weave, trim, and head covering for THIS person. Period dyes only (indigo/blue, madder/rust red, purple for elite, undyed cream/gray, olive, terracotta, subtle stripes) — distinct palette vs a monochrome beige cast, but never neon or anachronistic fashion colors.",
       "Respond with ONLY valid JSON, no markdown fences, no commentary.",
     ].join(" ");
@@ -1713,6 +1825,38 @@ async function handleCharacterProfileGenerate(req, res) {
   }
 }
 
+/** Editor notes explicitly ask for 2–3 life stages (otherwise genlifestages defaults to 1 adult). */
+function bcdEditorNotesRequestMultiStage(raw) {
+  const s = safeText(raw || "");
+  if (!s) return false;
+  const lower = s.toLowerCase();
+  if (
+    /两期|二期|三期|2期|3期|多期|多个时期|分期|两个时期|三个时期|两阶段|三阶段|两套时期|三套时期/.test(
+      s
+    )
+  ) {
+    return true;
+  }
+  if (/\b(two|three)\s+stages?\b/i.test(lower)) return true;
+  if (/\b(2|3)\s*stages?\b/i.test(lower)) return true;
+  if (/\bmulti[-\s]?stages?\b/i.test(lower)) return true;
+  if (/\bmultiple\s+life\s+stages?\b/i.test(lower)) return true;
+  return false;
+}
+
+/**
+ * If the model returned multiple stages without an explicit editor multi-stage request,
+ * keep one canonical adult-oriented stage (middle of three, first of two).
+ */
+function bcdCoerceLifeStagesToDefaultSingle(stages, notes) {
+  const arr = Array.isArray(stages)
+    ? stages.filter((s) => s && typeof s === "object").slice(0, 3)
+    : [];
+  if (bcdEditorNotesRequestMultiStage(notes) || arr.length <= 1) return arr;
+  const pick = arr.length === 2 ? 0 : 1;
+  return [arr[pick]];
+}
+
 async function handleCharacterProfileGenerateLifeStages(req, res) {
   try {
     const authed = requireAdminUser(req, res);
@@ -1738,27 +1882,32 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       "scripturePersonalityZh: concise Chinese — character, virtues, and biblical reputation as Scripture presents them (e.g. 信心之父、信而顺服、柔和谦卑). Not physical appearance.",
       "scripturePersonalityEn: 1–3 English sentences — temperament, inner life, and narrative role for illustrators (e.g. 'known as the father of faith', 'courageous before giants'); do NOT repeat hair, face, or clothing (those go in appearanceEn per stage).",
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
-      "stages: array whose LENGTH YOU MUST CHOOSE as 1, 2, or 3 based ONLY on how this figure appears in Scripture:",
-      "- Use exactly 1 stage if the person appears in a single narrative moment or one consistent context, or Scripture gives no basis for multiple distinct visual phases (one-off, brief mention, or one stable depiction).",
-      "- Use 2 stages if the text clearly supports an earlier vs later phase with meaningfully different age, setting, or role (chronological order).",
-      "- Use 3 stages when the narrative supports three distinct life phases — often because the figure's biblical story spans a very large age range (early / mid / late); not every character needs three.",
-      "Never pad to 3 if the Bible material does not justify it. Never output more than 3 stages.",
+      "stages: array — DEFAULT is ONE adult canonical reference (see rules below).",
+      "- DEFAULT (when Editor notes do NOT explicitly request multiple life stages): Output exactly 1 stage. That stage MUST be a physically mature adult in prime years — the canonical face-and-body template for roster and downstream scene generation — NOT an infant or child, NOT extreme end-of-life frailty as the only output. labelZh may cue 成年 / 壮年 / 标准参考. shortSceneTagEn: one representative story beat. appearanceEn: lock clear, stable facial identity traits (bone structure, eyes, nose, jaw, skin-tone family) plus prime-adult hair, build, and costume that match Scripture office/wealth.",
+      "- MULTI-STAGE (2 or 3 stages) ONLY when Editor notes explicitly request it — e.g. Chinese: 两期、二期、三期、2期、3期、多期、多个时期、分期、两个时期、三个时期、两阶段、三阶段、两套时期、三套时期; English: two stages, three stages, multi-stage, 2 stages, 3 stages, multiple life stages. If there is NO such explicit request in the user message, you MUST output exactly 1 stage — never 2 or 3.",
+      "- When multi-stage IS requested: output 2 or 3 stages (chronological order; never more than 3; never padded). Each stage must differ in age and/or narrative role. COSTUMES must differ MEANINGFULLY between stages — never copy-paste the same garment description. When Scripture shows growing prosperity, covenant blessing, large household, or exalted office, LATER / OLDER stages must wear VISIBLY RICHER, higher-status dress than earlier humbler phases (more layered robes, finer weave, quality dyes or trim, dignified mantle) — the wealth/status jump must be obvious at a glance, not a near duplicate outfit with wrinkles added.",
       "Order stages chronologically by the biblical story. Each stage object must have:",
       "labelZh: concise Chinese label (e.g. 唯一出场 / 早期 / 中期 / 后期 plus a short biblical cue when helpful).",
-      "shortSceneTagEn: one short English phrase for scene tags for THAT stage.",
-      "appearanceEn: detailed English visual description for THAT stage.",
+      "shortSceneTagEn: one short English phrase for scene context for THAT stage (location or story beat). Put environment or place names HERE — NOT as background scenery inside appearanceEn.",
+      "appearanceEn: detailed English visual description for THAT stage. For each stage, when the face will be visible in portraits, note calm dignified gaze toward the viewer where posture allows (soft direct or gentle three-quarter) — intentional engagement for article or display; AI-assisted interpretive art, not a historical photograph.",
+      "Transparent cutout rule (mandatory for every appearanceEn): Outputs are full-length transparent-PNG character references — NO painted background. Describe ONLY the figure: face, hair, skin, build, posture, hands, clothing, footwear, small handheld props. NEVER describe gardens, skies, trees, buildings, ground, horizons, \"lush setting\", flora, rooms, or any backdrop; NEVER write \"the setting is\". Narrative place or moment belongs in shortSceneTagEn only.",
+      "Stature for lineup (mandatory in each appearanceEn when relevant): Sprites are composited bottom-aligned. For adult women, include only slightly shorter standing height than typical adult men in the same era (~5% / ≈95% of male crown-to-heel, subtle — not a dramatic gap). For adult men, full adult height class. For children or elders, age-appropriate height versus prime adults. Multi-stage same person: younger stages must be shorter than older adult stages — never equalize all stages to one height.",
       "CRITICAL — ONE PERSON, NOT SEPARATE CAST: Every stage describes the SAME biological individual. You must NOT write descriptions that imply different unrelated faces or different ethnicities between stages.",
-      "Facial identity lock (mandatory for multi-stage outputs): Pick ONE stable facial blueprint for this figure — face shape, eye spacing and shape, nose and brow, jaw, ear shape, baseline skin tone family, any distinctive mark. Copy this SAME blueprint into EVERY stage's appearanceEn as an opening clause (use identical wording for the shared traits). After that clause, describe ONLY what changes in THIS stage: age, wrinkles, hair/beard length and color, body build, clothing, setting. Later stages show aging or context change on the SAME face, like one actor in makeup, not three different actors.",
+      "Facial identity lock (mandatory for multi-stage outputs): Pick ONE stable facial blueprint for this figure — face shape, eye spacing and shape, nose and brow, jaw, ear shape, baseline skin tone family, any distinctive mark. Copy this SAME blueprint into EVERY stage's appearanceEn as an opening clause (use identical wording for the shared traits). After that clause, describe ONLY what changes in THIS stage: age, wrinkles, hair/beard length and color, body build, clothing, and pose. Later stages show aging or costume change on the SAME face, like one actor in makeup, not three different actors. Secondary-stage generation must never invent a new face — only age the same blueprint. Wealth progression: when later stages are materially richer in Scripture, spell out clearly upgraded textiles and layering vs earlier stages. Do not add environmental \"setting\" in appearanceEn (transparent sprite).",
       "If stages.length === 1, the single appearanceEn should still name clear facial identity traits for future consistency.",
       "Cross-cast distinctiveness (mandatory): The facial blueprint you lock for this figure must be visually UNIQUE in the project's character roster — not the same generic face as other biblical portraits. When inventing the shared blueprint, deliberately differentiate face shape, nose, eyes, brows, jaw, ears, hairline, beard pattern, and stature from a stock patriarch template, while staying coherent across this person's own stages.",
       "Ancient Near Eastern or period-appropriate styling; no modern items.",
-      "Clothing per stage must match biblical social standing: wealthy patriarchs, tribal leaders, kings, officials, and priests should look appropriately prosperous — layered robes, quality woven garments, tasteful dye or ornament where fitting; avoid a generic drab peasant default when Scripture presents the person as rich or honored (e.g. Abraham, Isaac with flocks and household). Use humbler dress only when the text clearly indicates poverty, exile, mourning, or similar.",
+      "Costume chronology and office (mandatory for each appearanceEn): Same rules as single-profile generation — PRIMEVAL BEFORE Cain (Adam, Eve in Genesis 1–3 / immediate expulsion): animal hides or primitive skin wraps only, no priestly or royal woven finery. FROM CAIN ONWARD: dress MUST reflect office (priest, king, prophet, soldier, slave, farmer, etc.), wealth, rank, and narrative era — priests at service in plausible biblical-era cultic dress; royalty and high court in layered quality robes and fitting insignia when warranted; wealthy households in good tunics and mantles; poverty, exile, mourning in humbler cloth when the text says so. Each stage’s clothing must evolve plausibly with that stage’s story moment.",
+      "Clothing per stage must match biblical social standing (outside primeval animal-skin-only cases): wealthy patriarchs, tribal leaders, kings, officials, and priests should look appropriately prosperous and role-specific — layered robes, quality woven garments, priestly or royal detail where Scripture places them; avoid a generic drab peasant default when the person is rich, honored, or holds sacred or royal office. Use humbler dress only when the text clearly indicates poverty, exile, mourning, or similar.",
       "Garment variety within era (mandatory for each appearanceEn): Strictly biblical-era Near Eastern / eastern Mediterranean garments only; forbidden medieval, Renaissance, modern, or fantasy dress. Across the project many figures exist — do NOT reuse one stock costume description for every patriarch. For this figure, specify concrete variety (layering, mantle vs wrap, sleeve, sash, trim, head covering) and period-plausible colors (undyed wool, indigo, madder red, purple accents if elite, olive, terracotta, etc.) so they are not interchangeable with a generic beige-brown template, without breaking historical plausibility.",
       "Respond with ONLY valid JSON. No markdown fences, no commentary.",
+      "Required root shape (mandatory): a single JSON object with keys englishName, scripturePersonalityZh, scripturePersonalityEn, and stages. The stages value MUST be a JSON array: default length 1 (single adult); length 2–3 ONLY when Editor notes explicitly request multi-stage. Each object MUST have labelZh, shortSceneTagEn, appearanceEn. Never omit the key \"stages\"; do not rename it (e.g. not lifeStages only); do not return the stages list as the root array without wrapping it in that object.",
     ].join(" ");
     const userParts = [`Chinese name: ${chineseName}`];
     userParts.push(
-      "Remember: all stages are the same person; facial identity must be unified and cross-stage recognizable."
+      bcdEditorNotesRequestMultiStage(notes)
+        ? "Remember: all stages are the same person; facial identity must be unified; costumes must differ stage to stage, with later wealthy phases visibly richer dress than earlier ones."
+        : "Remember: output exactly ONE adult prime-life stage unless Editor notes explicitly requested multiple stages; that single stage is the canonical face template."
     );
     if (notes) userParts.push(`Editor notes: ${notes}`);
     if (prefZh || prefEn) {
@@ -1766,23 +1915,36 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       if (prefZh) userParts.push(`scripturePersonalityZh: ${prefZh}`);
       if (prefEn) userParts.push(`scripturePersonalityEn: ${prefEn}`);
     }
-    let text;
-    try {
-      text = await openAiChatHelper({
-        system,
-        messages: [{ role: "user", content: userParts.join("\n") }],
-      });
-    } catch (err) {
-      const msg = err && err.message ? String(err.message) : "生成失败";
-      return res.status(500).json({ error: msg });
+    let text = "";
+    let parsed = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const userContent =
+        attempt === 0
+          ? userParts.join("\n")
+          : `${userParts.join("\n")}\n\nVALIDATION FAILED: Your last reply was not usable. Reply with ONLY one JSON object (no markdown, no prose). It MUST include top-level keys englishName, scripturePersonalityZh, scripturePersonalityEn, and stages. The value of stages MUST be a JSON array of 1 to 3 objects; each object MUST have labelZh, shortSceneTagEn, appearanceEn.`;
+      try {
+        text = await openAiChatHelper({
+          system,
+          messages: [{ role: "user", content: userContent }],
+        });
+      } catch (err) {
+        const msg = err && err.message ? String(err.message) : "生成失败";
+        return res.status(500).json({ error: msg });
+      }
+      parsed = parseLifeStagesPayloadFromAiText(text);
+      if (parsed && Array.isArray(parsed.stages) && parsed.stages.length > 0) break;
+      console.warn(
+        "[genlifestages] parse/coerce miss attempt",
+        attempt + 1,
+        String(text || "").slice(0, 500)
+      );
     }
-    const parsed = parseJsonObjectFromAiText(text);
-    if (!parsed || !Array.isArray(parsed.stages)) {
+    if (!parsed || !Array.isArray(parsed.stages) || parsed.stages.length < 1) {
       return res
         .status(500)
         .json({ error: "模型未返回含 stages 数组的 JSON，请重试。" });
     }
-    const rawStages = parsed.stages.filter((s) => s && typeof s === "object").slice(0, 3);
+    let rawStages = bcdCoerceLifeStagesToDefaultSingle(parsed.stages, notes);
     if (rawStages.length < 1 || rawStages.length > 3) {
       return res
         .status(500)
@@ -6874,6 +7036,12 @@ app.post("/api/chapter-illustration/state", (req, res) => {
   }
 });
 
+function normalizeBcdStatureClass(raw) {
+  const s = safeText(raw || "").toLowerCase();
+  if (s === "child" || s === "youth" || s === "adult" || s === "elder") return s;
+  return "";
+}
+
 function handleCharacterIllustrationProfilesGet(req, res) {
   try {
     const authed = requireAdminUser(req, res);
@@ -6922,6 +7090,8 @@ function handleCharacterIllustrationProfilesPost(req, res) {
       if (plz) row.periodLabelZh = plz;
       const img0 = safeText(entry.imageUrl || "").slice(0, 400);
       if (img0) row.imageUrl = img0;
+      const st0 = normalizeBcdStatureClass(entry.statureClass);
+      if (st0) row.statureClass = st0;
       const sentComparisonSheet = Object.prototype.hasOwnProperty.call(
         entry,
         "comparisonSheetUrl"
@@ -6935,6 +7105,12 @@ function handleCharacterIllustrationProfilesPost(req, res) {
       }
       const hero = safeText(entry.heroImageUrl || "").slice(0, 400);
       if (hero) row.heroImageUrl = hero;
+      let rosterH = Number(entry.heroRosterHeight);
+      if (!Number.isFinite(rosterH) || rosterH <= 0) {
+        const p = Number(prev.heroRosterHeight);
+        rosterH = Number.isFinite(p) && p > 0 ? p : 1;
+      }
+      row.heroRosterHeight = Math.min(2.5, Math.max(0.35, rosterH));
       const smartGenNotes = safeText(entry.smartGenNotes || "").slice(0, 400);
       if (smartGenNotes) row.smartGenNotes = smartGenNotes;
       const promptArchiveText = safeText(entry.promptArchiveText || "").slice(0, 200000);
@@ -6951,6 +7127,8 @@ function handleCharacterIllustrationProfilesPost(req, res) {
         };
         const img = safeText(p.imageUrl || "").slice(0, 400);
         if (img) slot.imageUrl = img;
+        const stp = normalizeBcdStatureClass(p.statureClass);
+        if (stp) slot.statureClass = stp;
         periods.push(slot);
       }
       if (periods.length) row.periods = periods;
@@ -7324,11 +7502,12 @@ async function bcdExtractHeroPngFromComparisonBuffer(
     .extract({ left, top, width: extW, height: extH })
     .png()
     .toBuffer();
+  // 紧裁后保持紧贴人物的宽高比，不再塞进固定 1024×1536 + contain（会在左右留透明）。
+  // 仅当超过 1024×1536 时等比缩小（fit: inside）；小于等于则不放大。
   return sharp(tightPng)
     .resize(1024, 1536, {
-      fit: "contain",
-      position: "bottom",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      fit: "inside",
+      withoutEnlargement: true,
     })
     .png()
     .toBuffer();
@@ -7491,16 +7670,49 @@ app.post(
 app.post("/api/admin/bcd-cut-periods", handleBcdExtractAllPeriodsFromComparison);
 app.post("/api/admin/bcd-cut-hero", handleBcdExtractHeroFromComparison);
 
+/**
+ * 透明 PNG 存盘前：按 Alpha 裁掉四周留白，使画布紧贴人物外轮廓（含左右宽度）。
+ * 失败或尺寸异常时返回原 buffer。可调 TRANSPARENT_PNG_TRIM_THRESHOLD（0–99，默认 14）或设 DISABLE_TRANSPARENT_PNG_TRIM=1 关闭。
+ */
+async function trimTransparentIllustrationPngBuffer(buf) {
+  try {
+    const meta = await sharp(buf).metadata();
+    const w0 = meta.width || 0;
+    const h0 = meta.height || 0;
+    if (w0 < 8 || h0 < 8) return buf;
+    const thrRaw = Number(process.env.TRANSPARENT_PNG_TRIM_THRESHOLD);
+    const threshold = Number.isFinite(thrRaw)
+      ? Math.min(99, Math.max(0, thrRaw))
+      : 14;
+    const trimmed = await sharp(buf)
+      .ensureAlpha()
+      .trim({ threshold })
+      .png()
+      .toBuffer();
+    const m2 = await sharp(trimmed).metadata();
+    const w = m2.width || 0;
+    const h = m2.height || 0;
+    if (w < 32 || h < 64) return buf;
+    if (w > w0 || h > h0) return buf;
+    return trimmed;
+  } catch (e) {
+    console.warn("[trimTransparentIllustrationPngBuffer]", e.message || e);
+    return buf;
+  }
+}
+
 /** 降低图像安全策略误判：明确教育/端庄语境，避免与「裸露/性感」类提示混淆。 */
 const OPENAI_IMAGE_SAFETY_PREFIX =
-  "[Educational family-safe historical illustration] Wholesome museum-style Bible reference art: every person fully clothed in modest period dress; dignified standing or calm narrative poses; focus on costume, face, and hands. Absolutely no nudity, no sensual or romanticized anatomy, no fetish content. ";
+  "[Educational family-safe historical illustration] AI-generated interpretive art — not a photograph or guaranteed likeness of any historical individual. Wholesome museum-style Bible reference art: every person fully clothed in modest period dress; dignified standing or calm narrative poses; focus on costume, face, and hands. Costume must follow the biblical narrative phase: primeval Adam/Eve (before Cain in Genesis order) in simple animal-hide dress only; from Cain onward match office and era — priests and kings in historically plausible biblical-era garb for their role, not generic identical tunics for everyone. Where faces are clearly visible, prefer calm dignified eye contact toward the viewer when the pose allows (soft direct or gentle three-quarter gaze) so figures feel present alongside text or in display — warm human engagement, never aggressive glaring, never vacant or unfocused eyes. When multiple standing adults appear in one image or roster-style row, preserve natural height differences (adult women typically shorter than adult men of the same setting unless the prompt specifies otherwise); do not stretch every figure to identical silhouette height. Absolutely no nudity, no sensual or romanticized anatomy, no fetish content. ";
 
 /**
  * POST /api/generate-illustration
- * Body: { prompt: string, transparent: boolean }
+ * Body: { prompt: string, transparent: boolean, skipTransparentTrim?: boolean, englishName?: string, nameSlot?: string }
+ * 人物档（bookId=char）：建议传 englishName + nameSlot（如 p0、hero），文件名 ill-char-{En}-{slot}-{ts}.png 便于检索。
  * Key 与全站一致：环境变量 OPENAI_API_KEY 优先，否则管理后台「系统密钥」。
  * 成功：{ success: true, imageUrl, transparentPng }（transparentPng 为 boolean，表示是否请求透明背景）。
  * 尺寸与 quality：transparent 与 opaque 仅 background 不同，不传 imageSize 时默认竖版 1024×1536（总像素高于 1024²）。
+ * 透明图：默认在写入前按 Alpha 裁边（紧贴人物左右与上下）；skipTransparentTrim 或 DISABLE_TRANSPARENT_PNG_TRIM=1 可跳过。
  */
 app.post("/api/generate-illustration", async (req, res) => {
   try {
@@ -7637,14 +7849,31 @@ app.post("/api/generate-illustration", async (req, res) => {
       });
     }
 
+    const skipTransparentTrim =
+      body.skipTransparentTrim === true ||
+      body.skipTransparentTrim === "true" ||
+      body.skipTransparentTrim === 1 ||
+      process.env.DISABLE_TRANSPARENT_PNG_TRIM === "1";
+    if (transparent && !skipTransparentTrim) {
+      buf = await trimTransparentIllustrationPngBuffer(buf);
+    }
+
     ensureDir(CHAPTER_ILLUSTRATION_GENERATED_DIR);
     const bookIdRaw = safeText(body.bookId || "");
     const chRaw = safeText(body.chapter ?? "");
+    const nameEnTok = safeText(body.englishName || "")
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .slice(0, 36);
+    const nameSlotTok = safeText(body.nameSlot || "")
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .slice(0, 16);
     let filename;
-    if (bookIdRaw && chRaw !== "") {
+    if (bookIdRaw === "char" && nameEnTok && nameSlotTok) {
+      filename = `ill-char-${nameEnTok}-${nameSlotTok}-${Date.now()}.png`;
+    } else if (bookIdRaw && chRaw !== "") {
       const safeBook =
         bookIdRaw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 16) || "bk";
-      const safeCh = chRaw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 8) || "0";
+      const safeCh = chRaw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || "0";
       filename = `ill-${safeBook}-${safeCh}-${Date.now()}.png`;
     } else {
       filename = `gen-${Date.now()}.png`;

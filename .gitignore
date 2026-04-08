@@ -20,5 +20,6 @@ admin_data/deploy/uploads/
 # 章节插画 prompt 生成记录（首次请求时由服务器创建；勿提交个人草稿）
 data/prompts.json
 
-# OpenAI 出图缓存（运行时写入 public/generated/）
+# OpenAI 出图缓存（运行时写入 public/generated/）；人物/插画发布用 ill- 前缀纳入版本库
 public/generated/*.png
+!public/generated/ill-*.png

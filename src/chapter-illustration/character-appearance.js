@@ -3,7 +3,12 @@
  * 用于场景句与出图 prompt 中的跨章一致性描述。
  *
  * 档案内各时期 `imageUrl` / `heroImageUrl` 可为透明全身参考图；章节插画当前仅把外观写入英文 prompt 锁脸。
+ * 可选 `statureClass`（根对象为第一时期，其余在 `periods[i]`）：`child` | `youth` | `adult` | `elder`，供前端并列时按年龄缩放参考高度（见 `layoutScaleHintForStature`）。
+ * 可选 `heroRosterHeight`（正数，约 0.35–2.5，默认 1）：圣经人物设计器主图横排的相对身高系数（女性略矮、巨人更高），与自动留白补偿相乘。
  * 若将来图片 API 支持参考图输入，可在此层按叙事时期选用对应 `periods[i].imageUrl` 做模板。
+ *
+ * 产品意图：人物为 AI 生成诠释性插画（非史实照片）。在构图允许时，主人物宜有镇定、庄重的眼神交流感，
+ * 便于放在文章或展陈中与读者「对话」；具体由全站出图前缀与下方英文锁定行共同约束。
  */
 
 /** 无档案时的默认英文称呼（仍比 "robed figures" 具体） */
@@ -107,6 +112,39 @@ export function englishNameForPerson(zhName, profilesRoot) {
   return DEFAULT_ENGLISH_NAME_BY_ZH[String(zhName).trim()] || "";
 }
 
+/** 与人物设计器 `statureClass` 一致；用于前端底对齐并列时的相对身高系数（非像素，仅提示）。 */
+export const BCD_STATURE_LAYOUT_SCALE = {
+  child: 0.56,
+  youth: 0.78,
+  adult: 1,
+  elder: 0.96,
+};
+
+const VALID_STATURE = new Set(["child", "youth", "adult", "elder"]);
+
+/**
+ * @param {number} slotIndex 0 = 第一时期（根上字段），1+ 对应 `periods[slotIndex - 1]`
+ */
+export function statureClassForSlot(entry, slotIndex) {
+  const si = Number(slotIndex) || 0;
+  if (!entry || typeof entry !== "object") return "adult";
+  if (si === 0) {
+    const s = String(entry.statureClass || "").trim().toLowerCase();
+    return VALID_STATURE.has(s) ? s : "adult";
+  }
+  const periods = Array.isArray(entry.periods) ? entry.periods : [];
+  const p = periods[si - 1];
+  if (!p || typeof p !== "object") return "adult";
+  const s = String(p.statureClass || "").trim().toLowerCase();
+  return VALID_STATURE.has(s) ? s : "adult";
+}
+
+export function layoutScaleHintForStature(statureClass) {
+  const k = String(statureClass || "").trim().toLowerCase();
+  if (VALID_STATURE.has(k)) return BCD_STATURE_LAYOUT_SCALE[k];
+  return BCD_STATURE_LAYOUT_SCALE.adult;
+}
+
 /**
  * 合并第一时期与可选的额外时期（periods[]）外观描述，供出图「锁定」一行使用。
  */
@@ -157,18 +195,21 @@ export function buildCharacterLockLines(keyPeople, profilesRoot, maxPeople = 4) 
       lines.push(`${en}: ${lockBody}`);
     } else if (en && en !== z) {
       lines.push(
-        `${en}: same recognizable face and body type as in other chapters of this Bible project; ancient Near Eastern biblical-era clothing suited to social standing (prosperous figures: layered quality robes with period-plausible dyes and varied cut — not the same default costume as every other character, and not medieval or modern dress); age-appropriate for the narrative`
+        `${en}: same recognizable face and body type as in other chapters of this Bible project; ancient Near Eastern biblical-era clothing suited to narrative phase and social standing — primeval pre-Cain figures (Adam/Eve): animal skins only; later figures: match office and wealth (priest, king, prosperous household, or humble/poor as the text implies) with period-plausible garments — not the same default costume as every other character, and not medieval or modern dress; age-appropriate for the narrative`
       );
     }
   }
   if (lines.length > 1) {
     lines.unshift(
-      "Distinct faces within this scene (mandatory): Each named figure below must be visually distinguishable from every other person in the same frame — unique facial bone structure, nose, eyes, brows, jaw, hair/beard pattern, stature, and age; do NOT reuse one generic template face for multiple different people."
+      "Distinct faces within this scene (mandatory): Each named figure below must be visually distinguishable from every other person in the same frame — unique facial bone structure, nose, eyes, brows, jaw, hair/beard pattern, stature, and age; do NOT reuse one generic template face for multiple different people. When adult men and women appear together, preserve believable standing-height difference (women typically shorter than men of the same setting); do not stretch all figures to one uniform height."
     );
   }
   if (lines.length >= 1) {
     lines.unshift(
       "Cross-roster distinctiveness (mandatory): Primary named figure(s) below belong to a project with many biblical characters. Each must look like a specific individual, NOT a generic interchangeable face that could stand in for Abraham, Moses, or another unrelated roster portrait. Honor locked appearance text when provided; otherwise infer clearly differentiated facial structure (bone shape, nose, eyes, brows, jaw, ears, hairline, beard pattern, wrinkles, stature, age) within believable ancient Near Eastern regional diversity."
+    );
+    lines.unshift(
+      "AI-generated interpretive illustration (not a historical photograph). Viewer engagement (intentional): for focal named figures whose faces read clearly, prefer calm dignified eye contact toward the viewer when the narrative moment allows — present alongside text or display; never vacant, wall-eyed, or aggressively glaring."
     );
   }
   return lines;

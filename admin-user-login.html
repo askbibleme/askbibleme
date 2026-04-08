@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>用户登录 · 管理后台</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=12" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .aul-inner {
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 22px 18px 40px;
+        box-sizing: border-box;
+      }
+      .aul-hero h1 {
+        margin: 0 0 8px;
+        font-size: calc(22px * var(--font-scale));
+        color: var(--ink);
+      }
+      .aul-hero p {
+        margin: 0 0 18px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--muted-soft);
+      }
+      .aul-card {
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--paper-soft);
+        padding: 18px 16px 16px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+        box-sizing: border-box;
+      }
+      .aul-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .aul-tab {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .aul-tab.active {
+        border-color: rgba(200, 155, 60, 0.55);
+        background: rgba(255, 248, 230, 0.65);
+        color: #6b4e0a;
+      }
+      .aul-field {
+        margin-bottom: 12px;
+      }
+      .aul-field label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .aul-field input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 14px;
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .aul-field input:focus {
+        outline: none;
+        border-color: rgba(200, 155, 60, 0.65);
+      }
+      .aul-submit {
+        width: 100%;
+        margin-top: 6px;
+        padding: 11px 14px;
+        border: none;
+        border-radius: 10px;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        color: #fff;
+        background: var(--topbar-bg, #4a443f);
+        cursor: pointer;
+      }
+      .aul-submit:hover {
+        filter: brightness(1.06);
+      }
+      .aul-submit:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .aul-error {
+        min-height: 1.25em;
+        margin-top: 10px;
+        font-size: 13px;
+        color: #a61b1b;
+      }
+      .aul-error.ok {
+        color: #2d6a3e;
+      }
+      .aul-logged {
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--ink);
+      }
+      .aul-logged strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 16px;
+      }
+      .aul-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .aul-actions a,
+      .aul-actions button {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 8px 14px;
+        border-radius: 10px;
+        text-decoration: none;
+        cursor: pointer;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .aul-actions a.primary {
+        border-color: rgba(200, 155, 60, 0.5);
+        background: rgba(255, 248, 230, 0.75);
+        color: #6b4e0a;
+      }
+      .aul-actions button.danger {
+        border-color: rgba(180, 35, 24, 0.35);
+        color: #7a1510;
+        background: #fff8f6;
+      }
+      .aul-note {
+        margin-top: 18px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/admin-user-login.html">
+    <div class="aul-inner">
+      <header class="aul-hero">
+        <h1>用户登录</h1>
+        <p>
+          使用读经站<strong>同一套账号</strong>（邮箱 + 密码）。登录成功后会把令牌写入本机
+          <code style="font-size: 11px">localStorage</code>，与首页「会员」登录一致，可直接使用读经、评论等功能。
+        </p>
+      </header>
+
+      <div id="aulLogged" class="aul-card" hidden>
+        <div class="aul-logged">
+          <strong id="aulUserName"></strong>
+          <span id="aulUserEmail"></span>
+        </div>
+        <div class="aul-actions">
+          <a class="primary" href="/">进入读经首页</a>
+          <button type="button" class="danger" id="aulLogoutBtn">退出登录</button>
+        </div>
+      </div>
+
+      <div id="aulFormCard" class="aul-card">
+        <div class="aul-tabs" role="tablist" aria-label="登录或注册">
+          <button type="button" class="aul-tab active" id="aulTabLogin" role="tab" aria-selected="true">
+            登录
+          </button>
+          <button type="button" class="aul-tab" id="aulTabRegister" role="tab" aria-selected="false">
+            注册
+          </button>
+        </div>
+        <form id="aulForm" novalidate>
+          <div class="aul-field" id="aulNameWrap" hidden>
+            <label for="aulName">昵称</label>
+            <input id="aulName" name="name" type="text" autocomplete="nickname" />
+          </div>
+          <div class="aul-field">
+            <label for="aulEmail">邮箱</label>
+            <input id="aulEmail" name="email" type="email" autocomplete="email" required />
+          </div>
+          <div class="aul-field">
+            <label for="aulPassword">密码</label>
+            <input
+              id="aulPassword"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+          <button type="submit" class="aul-submit" id="aulSubmit">登录</button>
+          <div id="aulError" class="aul-error" role="status"></div>
+        </form>
+      </div>
+
+      <p class="aul-note">
+        <strong>说明：</strong>若从静态文件打开本页，请在页面 <code>head</code> 配置
+        <code>meta[name=askbible-api-base]</code> 指向运行 <code>server.js</code> 的地址，否则无法连上
+        <code>/api/auth</code>。
+      </p>
+    </div>
+
+    <script src="/admin-shell.js?v=6" defer></script>
+    <script>
+      (function () {
+        const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+        const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
+
+        function normalizeApiOrigin(raw) {
+          let s = String(raw || "").trim();
+          if (!s) return "";
+          s = s.replace(/\/+$/, "");
+          if (/\/api$/i.test(s)) s = s.replace(/\/api$/i, "");
+          return s.replace(/\/+$/, "");
+        }
+
+        function getApiBase() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          const fromMeta = m && String(m.getAttribute("content") || "").trim();
+          if (fromMeta) return normalizeApiOrigin(fromMeta);
+          if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
+            return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
+          }
+          try {
+            const proto = window.location.protocol || "";
+            if (proto === "capacitor:" || proto === "file:") return DEFAULT_PRODUCTION_ORIGIN;
+          } catch (_) {}
+          return "";
+        }
+
+        function apiUrl(path) {
+          const p = path.startsWith("/") ? path : "/" + path;
+          const base = getApiBase();
+          if (!base) return p;
+          try {
+            const origin = normalizeApiOrigin(base);
+            return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+          } catch {
+            return base.replace(/\/$/, "") + p;
+          }
+        }
+
+        function getToken() {
+          return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
+        }
+
+        function setToken(t) {
+          if (t) localStorage.setItem(USER_AUTH_TOKEN_KEY, t);
+          else localStorage.removeItem(USER_AUTH_TOKEN_KEY);
+        }
+
+        function authHeaders(json) {
+          const t = getToken();
+          const h = {};
+          if (json) h["Content-Type"] = "application/json";
+          if (t) h.Authorization = "Bearer " + t;
+          return h;
+        }
+
+        const loggedEl = document.getElementById("aulLogged");
+        const formCardEl = document.getElementById("aulFormCard");
+        const nameWrap = document.getElementById("aulNameWrap");
+        const tabLogin = document.getElementById("aulTabLogin");
+        const tabRegister = document.getElementById("aulTabRegister");
+        const form = document.getElementById("aulForm");
+        const errEl = document.getElementById("aulError");
+        const submitBtn = document.getElementById("aulSubmit");
+        const pwdInput = document.getElementById("aulPassword");
+
+        let mode = "login";
+
+        function applyMode(m) {
+          mode = m === "register" ? "register" : "login";
+          tabLogin.classList.toggle("active", mode === "login");
+          tabRegister.classList.toggle("active", mode === "register");
+          tabLogin.setAttribute("aria-selected", mode === "login" ? "true" : "false");
+          tabRegister.setAttribute("aria-selected", mode === "register" ? "true" : "false");
+          nameWrap.hidden = mode !== "register";
+          submitBtn.textContent = mode === "register" ? "免费注册" : "登录";
+          pwdInput.setAttribute("autocomplete", mode === "register" ? "new-password" : "current-password");
+          errEl.textContent = "";
+          errEl.classList.remove("ok");
+        }
+
+        function showLoggedIn(user) {
+          document.getElementById("aulUserName").textContent = user.name || "已登录";
+          document.getElementById("aulUserEmail").textContent = user.email || "";
+          loggedEl.hidden = false;
+          formCardEl.hidden = true;
+        }
+
+        function showForm() {
+          loggedEl.hidden = true;
+          formCardEl.hidden = false;
+        }
+
+        async function refreshMe() {
+          const t = getToken();
+          if (!t) {
+            showForm();
+            return;
+          }
+          try {
+            const res = await fetch(apiUrl("/api/auth/me"), { headers: authHeaders(false) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "未登录");
+            const u = data.user;
+            if (u) showLoggedIn(u);
+            else showForm();
+          } catch {
+            setToken("");
+            showForm();
+          }
+        }
+
+        tabLogin.addEventListener("click", function () {
+          applyMode("login");
+        });
+        tabRegister.addEventListener("click", function () {
+          applyMode("register");
+        });
+
+        form.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const email = String(document.getElementById("aulEmail").value || "").trim();
+          const password = String(pwdInput.value || "").trim();
+          const name = String(document.getElementById("aulName").value || "").trim();
+          if (!email || !password) {
+            errEl.classList.remove("ok");
+            errEl.textContent = "请输入邮箱和密码";
+            return;
+          }
+          if (mode === "register" && !name) {
+            errEl.classList.remove("ok");
+            errEl.textContent = "注册时请填写昵称";
+            return;
+          }
+          errEl.classList.remove("ok");
+          errEl.textContent = "提交中…";
+          submitBtn.disabled = true;
+          const endpoint = mode === "register" ? "/api/auth/register" : "/api/auth/login";
+          const body =
+            mode === "register" ? { name, email, password } : { email, password };
+          try {
+            const res = await fetch(apiUrl(endpoint), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "请求失败");
+            if (mode === "register") {
+              errEl.classList.add("ok");
+              errEl.textContent = "注册成功，请切换至「登录」后登录。";
+              applyMode("login");
+              submitBtn.disabled = false;
+              return;
+            }
+            const token = String(data.token || "");
+            if (!token) throw new Error("未返回 token");
+            setToken(token);
+            errEl.textContent = "";
+            await refreshMe();
+          } catch (err) {
+            errEl.classList.remove("ok");
+            errEl.textContent = err.message || "失败";
+          } finally {
+            submitBtn.disabled = false;
+          }
+        });
+
+        document.getElementById("aulLogoutBtn").addEventListener("click", async function () {
+          const t = getToken();
+          try {
+            await fetch(apiUrl("/api/auth/logout"), {
+              method: "POST",
+              headers: t ? { Authorization: "Bearer " + t } : {},
+            });
+          } catch (_) {}
+          setToken("");
+          showForm();
+          errEl.classList.remove("ok");
+          errEl.textContent = "已退出登录。";
+          errEl.classList.add("ok");
+        });
+
+        applyMode("login");
+        refreshMe();
+      })();
+    </script>
+  </body>
+</html>

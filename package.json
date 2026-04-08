@@ -14,7 +14,11 @@
     "android:icons": "node scripts/generate-app-icons-from-svg.mjs",
     "web:icons": "node scripts/generate-app-icons-from-svg.mjs",
     "android:prep": "node scripts/generate-app-icons-from-svg.mjs && npx cap sync android",
-    "apk:stage": "node scripts/stage-release-apk.mjs"
+    "apk:stage": "node scripts/stage-release-apk.mjs",
+    "trim:png": "node scripts/trim-transparent-generated-pngs.mjs --all-generated",
+    "rename:char-pngs": "node scripts/rename-legacy-char-pngs.mjs",
+    "cleanup:nontransparent-png": "node scripts/cleanup-nontransparent-generated.mjs",
+    "cleanup:legacy-char": "node scripts/cleanup-legacy-char-generated.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",
