@@ -84,7 +84,7 @@
       var v = html && html.getAttribute("data-askbible-seo-page");
       if (v === "promo" || v === "index") return v;
       var path = (window.location && window.location.pathname) || "";
-      if (/promo\.html$/i.test(path) || /\/promo\/?$/i.test(path)) return "promo";
+      if (/why\.html$/i.test(path) || /\/why\/?$/i.test(path)) return "promo";
     } catch (e) {}
     return "index";
   }

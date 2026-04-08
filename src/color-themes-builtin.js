@@ -56,7 +56,7 @@ export const BUILTIN_COLOR_THEME_VARIABLES = {
   "--ui-seg-pill-shadow": "0 1px 2px rgba(76, 62, 42, 0.2)",
   "--ui-seg-hover-fill": "rgba(248, 244, 236, 0.4)",
   /**
-   * 文章标准模板（intro / promo.html 中间 Markdown 区，见 promo.css .promo-md-root）。
+   * 文章标准模板（intro / why.html 中间 Markdown 区，见 promo.css .promo-md-root）。
    * 与读经全局色可联动（如 var(--ink)），也可写成独立色值做「书本/羊皮纸」专题。
    */
   "--promo-left-page-paper": "#fffdf8",

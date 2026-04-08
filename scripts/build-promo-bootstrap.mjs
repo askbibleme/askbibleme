@@ -1,5 +1,5 @@
 /**
- * Regen: extract promo-feed from promo.html → markdown bootstrap.
+ * Regen: extract promo-feed from why.html → markdown bootstrap.
  * Run: node scripts/build-promo-bootstrap.mjs
  */
 import fs from "fs";
@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
-const htmlPath = path.join(root, "promo.html");
+const htmlPath = path.join(root, "why.html");
 const outPath = path.join(root, "admin_data", "promo_page.bootstrap.md");
 
 function decodeEntities(s) {

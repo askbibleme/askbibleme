@@ -31,8 +31,8 @@
             左侧粘贴或编辑 Markdown，右侧实时预览。支持标题、列表、加粗、链接、引用、代码块等。可嵌入带
             <code>class="promo-kicker"</code> 的 HTML 段落作为章节小标题（与原先版式一致）。保存后正文写入服务器
             <code>admin_data/promo_page.json</code>，浏览器打开
-            <a href="/promo.html" target="_blank" rel="noopener noreferrer">宣传页</a>
-            时会从接口加载——<strong>仓库里的 promo.html 源文件不会改写</strong>，属正常。
+            <a href="/why.html" target="_blank" rel="noopener noreferrer">宣传页</a>
+            时会从接口加载——<strong>仓库里的 why.html 源文件不会改写</strong>，属正常。
           </p>
           <p id="promoEditMeta" class="promo-edit-status"></p>
 
@@ -358,7 +358,7 @@
           });
           metaEl.textContent =
             (data.updatedAt ? "已发布。更新时间：" + data.updatedAt : "已保存。") +
-            " 请用浏览器打开本站 /promo.html 查看（强刷或新开标签）；若仍旧，确认访问的是正在运行的同一台 Node 服务。";
+            " 请用浏览器打开本站 /why.html 查看（强刷或新开标签）；若仍旧，确认访问的是正在运行的同一台 Node 服务。";
           statusEl.textContent = "已保存并发布。";
         } catch (e) {
           statusEl.textContent = e.message || "保存失败";

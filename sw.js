@@ -3,7 +3,7 @@ const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/download.html",
-  "/promo.html",
+  "/why.html",
   "/promo-edit.html",
   "/vision.html",
   "/vision.css",

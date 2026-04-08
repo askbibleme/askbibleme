@@ -250,6 +250,20 @@
         border: 1px solid var(--line);
         background: rgba(255, 251, 242, 0.75);
       }
+      .ia-rules-scroll {
+        max-height: min(42vh, 22rem);
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 6px;
+        margin-right: -4px;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+      }
+      .ia-rules-scroll:focus {
+        outline: 2px solid rgba(200, 155, 60, 0.35);
+        outline-offset: 2px;
+      }
       .ia-rules-title {
         margin: 0 0 8px;
         font-size: 12px;
@@ -306,6 +320,12 @@
       </p>
       <div class="ia-rules-panel" aria-label="AI 生成规则总览">
         <p class="ia-rules-title">AI 规则约束（当前生效）</p>
+        <div
+          class="ia-rules-scroll"
+          tabindex="0"
+          role="region"
+          aria-label="AI 规则约束说明与模板（可上下滚动）"
+        >
         <div class="ia-rules-grid">
           <div class="ia-rules-block">
             <strong>STYLE（全局风格锁）</strong>
@@ -317,15 +337,21 @@
           </div>
           <div class="ia-rules-block">
             <strong>COMPOSITION（构图）</strong>
-            <p>默认横幅 banner；当前预览默认尺寸 1536x1024。画面不拥挤，主体清晰。</p>
+            <p>
+              默认横幅 banner，预览常用 1536×1024。整幅是<strong>一张连贯的画</strong>（单画布叙事），边缘尽量<strong>自然收束</strong>，避免像被四边硬切掉关键形体；不拥挤、主体可读。
+            </p>
           </div>
           <div class="ia-rules-block">
             <strong>CONSTRAINTS（强制限制）</strong>
-            <p>无现代元素、无科幻效果、无夸张表情/动作、无多场景拼贴、无符号化抽象。</p>
+            <p>
+              <strong>整幅单画 + 适度环境</strong>：人物与<strong>地面、远景、天色</strong>等可画进同一场景，避免「白底抠人」悬浮感。<strong>透明 PNG</strong>：无颜料处 alpha 0；画幅<strong>外缘让环境渐渐淡化</strong>融入透明，与纸张衔接，不要整条硬直线切断脚凳/地面/远景人物。禁止假米色整底、装裱框线、悬浮碎块。无现代元素、无科幻、无夸张表演、无多场景拼贴、无符号化抽象。
+            </p>
           </div>
           <div class="ia-rules-block">
             <strong>FORBIDDEN（禁止）</strong>
-            <p>anime/cartoon、fantasy armor、高饱和霓虹、电影镜头特效、3D 渲染风、文字水印。</p>
+            <p>
+              画框/衬边/装裱感、anime/cartoon、fantasy armor、高饱和霓虹、电影镜头特效、3D 渲染风、文字水印。
+            </p>
           </div>
         </div>
         <div class="ia-rules-note">
@@ -346,15 +372,19 @@ simple and dignified presentation
 [COMPOSITION]
 默认 banner（横幅）构图
 imageSize = 1536x1024
+one unified painting (single canvas) — NOT art inside a frame or mat
+edges: natural closure into transparency, avoid harsh crop through main figures
 single clear narrative moment
 not crowded
 
 [CONSTRAINTS]
-transparent PNG required (alpha 0 for non-subject pixels)
-no rectangular backdrop fill
-no circular / oval backdrop shape
-no border / frame / panel / sticker plate
-no vignette or halo container around subject
+(one continuous painted artwork — modest environment OK: ground, distance, sky haze; NOT sticker cut-outs on empty white)
+transparent PNG: alpha 0 only where nothing is painted; soft painterly FADE of environment into transparency at canvas edges (blend with page paper)
+NOT a picture-in-frame; NOT faux cream paper / flat white filling the whole canvas behind figures
+edge: atmospheric dissolve to alpha — NOT hard horizontal slice through feet/bench/bodies; NO disconnected floating texture scraps
+distant figures at edge: merge into haze or show enough mass — avoid head-only with hard cut
+forbidden: decorative frame/mat lines, inner card inset, fake circular moon-disc as backdrop plate
+allowed: soft edge vignette = environment fading to transparency (not the same as fake oval backdrop)
 no modern elements
 no symbolic abstraction
 no multi-scene collage
@@ -370,6 +400,7 @@ bright saturated neon colors
 cinematic lens effects / bokeh
 sci-fi effects
 watermark / text / logo</pre>
+        </div>
         </div>
       </div>
 
@@ -424,6 +455,12 @@ watermark / text / logo</pre>
               >英文场景 / 出图描述（用于生成 Prompt 与预览）</label
             >
             <textarea id="iaSceneEn" placeholder="英文具象场景，可修改"></textarea>
+          </div>
+          <div class="ia-field">
+            <label class="ia-row-label" for="iaSceneZh" style="text-transform: none; letter-spacing: 0"
+              >英文场景 · 中文对照（与上栏意译同步，可改）</label
+            >
+            <textarea id="iaSceneZh" placeholder="与英文场景对应的中文意译；点击 GPT 生成文案时一并填写"></textarea>
           </div>
         </div>
 
@@ -517,6 +554,56 @@ watermark / text / logo</pre>
           if (/^55\d{2}$/.test(p)) return true;
           return false;
         }
+
+        /**
+         * 本机开发：依次探测 3000 / 3001 上是否为本仓库（gpt-copy-probe）。
+         * 从 localhost:3000 直接打开本页时也必须探测——:3000 常被其它项目占用，AskBible 可能在 3001。
+         * init 里 await 后写入 iaProbedApiOrigin，供 getApiBase 使用。
+         */
+        let iaProbedApiOrigin = "";
+        async function probeAskBibleApiOriginForIllustrationAdmin() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          if (m && String(m.getAttribute("content") || "").trim()) return "";
+          if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) return "";
+          try {
+            const proto = window.location.protocol || "";
+            if (proto === "capacitor:" || proto === "file:") return "";
+            const h = String(window.location.hostname || "");
+            const loopback = h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (!loopback && !isPrivateLanHostname(h)) return "";
+            const port = String(window.location.port || "");
+            if (
+              port &&
+              port !== "3000" &&
+              port !== "3001" &&
+              !isLikelyStaticDevServerPort(port)
+            ) {
+              return "";
+            }
+          } catch (_) {
+            return "";
+          }
+          const pageHost = String(window.location.hostname || "");
+          const hostCandidates =
+            pageHost === "localhost" || pageHost === "127.0.0.1" || pageHost === "::1"
+              ? ["127.0.0.1", "localhost"]
+              : [pageHost];
+          const ports = [3000, 3001];
+          for (const host of hostCandidates) {
+            for (const p of ports) {
+              const origin = "http://" + host + ":" + p;
+              try {
+                const r = await fetch(
+                  origin + "/api/chapter-illustration/gpt-copy-probe",
+                  { method: "GET", cache: "no-store" }
+                );
+                if (r.ok) return origin;
+              } catch (_) {}
+            }
+          }
+          return "";
+        }
+
         function getApiBase() {
           const m = document.querySelector('meta[name="askbible-api-base"]');
           const fromMeta = m && String(m.getAttribute("content") || "").trim();
@@ -524,6 +611,7 @@ watermark / text / logo</pre>
           if (typeof window !== "undefined" && window.__ASKBIBLE_API_BASE__) {
             return normalizeApiOrigin(window.__ASKBIBLE_API_BASE__);
           }
+          if (iaProbedApiOrigin) return normalizeApiOrigin(iaProbedApiOrigin);
           try {
             const proto = window.location.protocol || "";
             if (proto === "capacitor:" || proto === "file:") {
@@ -579,6 +667,7 @@ watermark / text / logo</pre>
         const briefZhEl = document.getElementById("iaBriefZh");
         const keywordsZhEl = document.getElementById("iaKeywordsZh");
         const sceneEnEl = document.getElementById("iaSceneEn");
+        const sceneZhEl = document.getElementById("iaSceneZh");
         const gptBtn = document.getElementById("iaGptBtn");
         const previewBtn = document.getElementById("iaPreviewBtn");
         const saveBtn = document.getElementById("iaSaveBtn");
@@ -872,6 +961,7 @@ watermark / text / logo</pre>
               briefZhEl.value = "";
               keywordsZhEl.value = "";
               sceneEnEl.value = "";
+              if (sceneZhEl) sceneZhEl.value = "";
               lastPrompt = "";
               iaCharSelections = [];
               renderCharRefList();
@@ -885,6 +975,10 @@ watermark / text / logo</pre>
               typeof st.sceneDescriptionZh === "string" ? st.sceneDescriptionZh : "";
             keywordsZhEl.value = typeof st.keywordsZh === "string" ? st.keywordsZh : "";
             sceneEnEl.value = typeof st.sceneDescription === "string" ? st.sceneDescription : "";
+            if (sceneZhEl) {
+              sceneZhEl.value =
+                typeof st.sceneEnglishZh === "string" ? st.sceneEnglishZh : "";
+            }
             lastPrompt = typeof st.prompt === "string" ? st.prompt : "";
             const refs = st.characterRefSelections;
             iaCharSelections = Array.isArray(refs)
@@ -964,6 +1058,7 @@ watermark / text / logo</pre>
             briefZhEl.value = data.illustrationBriefZh || "";
             keywordsZhEl.value = data.keywordsZh || "";
             sceneEnEl.value = data.sceneEnglish || "";
+            if (sceneZhEl) sceneZhEl.value = data.sceneEnglishZh || "";
             const cr = data.characterRefSelections;
             iaCharSelections = Array.isArray(cr)
               ? cr
@@ -1149,6 +1244,7 @@ watermark / text / logo</pre>
               summary: seg0,
               sceneDescription: sceneEnEl.value.trim(),
               sceneDescriptionZh: briefZhEl.value.trim(),
+              sceneEnglishZh: sceneZhEl ? sceneZhEl.value.trim() : "",
               keywordsZh: keywordsZhEl.value.trim(),
               characterRefSelections: getCharacterRefPayload(),
               prompt: lastPrompt,
@@ -1223,7 +1319,10 @@ watermark / text / logo</pre>
               return;
             }
             invalidatePublishedCache();
-            setStatus("已插入读经页：刷新首页并打开该章即可看到插画（缓存数秒内失效）。", "ok");
+            setStatus(
+              "已写入本章节全部已发布内容（各语言与各内容版本），与简体中文使用同一插图；刷新读经页即可（缓存数秒内失效）。",
+              "ok"
+            );
           } catch (e) {
             setStatus(String(e && e.message ? e.message : e), "err");
           } finally {
@@ -1333,6 +1432,7 @@ watermark / text / logo</pre>
               '请先 <a href="/">返回首页</a> 登录管理员账号，再使用本页。';
             return;
           }
+          iaProbedApiOrigin = await probeAskBibleApiOriginForIllustrationAdmin();
           const res = await fetch(apiUrl("/api/admin/bootstrap"), {
             headers: authHeadersBare(),
             cache: "no-store",

@@ -1,5 +1,5 @@
 /*
- * 宣传页 intro（promo.html）：单列 + 左页纸感。
+ * 宣传页 intro（why.html）：单列 + 左页纸感。
  * 中间 Markdown 区为「文章标准模板」：色、字号、列表圆点、引用竖线、分割线等
  * 一律用 var(--promo-*)，默认值在 src/color-themes-builtin.js，配色管理页集中可调。
  * 本文件只保留布局结构与少量媒体查询覆盖。

@@ -20,7 +20,7 @@ const topFiles = [
   "admin-shell.css",
   "admin-shell.js",
   "download.html",
-  "promo.html",
+  "why.html",
   "promo-edit.html",
   "vision.html",
   "blank-page.html",

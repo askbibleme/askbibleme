@@ -12,6 +12,8 @@ export function defaultChapterIllustrationState(overrides = {}) {
     chapterType: "narrative",
     sceneDescription: "",
     sceneDescriptionZh: "",
+    /** 英文场景（sceneDescription）的中文意译，供编辑对照；与 illustrationBriefZh（创意概括）不同 */
+    sceneEnglishZh: "",
     /** 插画管理页：中文关键词（与 sceneDescriptionZh 一并保存） */
     keywordsZh: "",
     /**

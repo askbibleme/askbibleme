@@ -105,6 +105,11 @@ const state = {
   bookLandingChapterVideos: [],
   /** 卷首页插画：来自已发布 0.json 的 chapterIllustration */
   bookLandingChapterIllustration: null,
+  /**
+   * 当前语言未发布该章 JSON（missing）时，API 仍可能返回与 canonical 共用的 chapterIllustration；
+   * 此时 studyContent 为空，插图单独放此处供读经页展示。
+   */
+  chapterIllustrationWhenStudyMissing: null,
   /** 章节插图全局显示设置（来自 /api/chapter-illustration/global-settings） */
   chapterIllustrationGlobalSettings: { overlayOpacity: 85 },
   favorites: loadFavorites(),
@@ -348,6 +353,26 @@ function studyApiOriginRootFromNormalizedBase(normalized) {
   } catch (_) {
     return "";
   }
+}
+
+/** 与 server.js 一致：避免已发布 JSON 里残留 localhost 绝对地址导致线上插图裂图 */
+function normalizeIllustrationImageUrlForReader(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  if (!/^https?:\/\//i.test(s)) {
+    return s.startsWith("/") ? s : "/" + s;
+  }
+  try {
+    const u = new URL(s);
+    const host = u.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+      return u.pathname + u.search;
+    }
+    if (u.pathname.startsWith("/generated/")) {
+      return u.pathname + u.search;
+    }
+  } catch (_) {}
+  return s;
 }
 
 /** 将 /api/... 转为绝对地址（配图 img、与 Capacitor / 静态页一致） */
@@ -5075,6 +5100,7 @@ async function loadScripture() {
 }
 
 async function loadStudyContent() {
+  state.chapterIllustrationWhenStudyMissing = null;
   try {
     const gsRes = await fetch(resolveStudyApiPath("/api/chapter-illustration/global-settings"), {
       cache: "no-store",
@@ -5135,9 +5161,12 @@ async function loadStudyContent() {
     chapter: String(state.frontState.chapter),
   });
 
-  const res = await fetch(`/api/study-content?${params.toString()}`, {
-    cache: "no-store",
-  });
+  const res = await fetch(
+    resolveStudyApiPath(`/api/study-content?${params.toString()}`),
+    {
+      cache: "no-store",
+    }
+  );
 
   if (res.status === 404) {
     state.studyContent = null;
@@ -5147,6 +5176,29 @@ async function loadStudyContent() {
   const data = await res.json();
   if (data && data.missing === true) {
     state.studyContent = null;
+    let ill = data.chapterIllustration;
+    if (ill && String(ill.imageUrl || "").trim()) {
+      state.chapterIllustrationWhenStudyMissing = ill;
+    } else {
+      /* 兜底：旧缓存或边缘数据未带图时，再拉 default/zh 同章取 canonical 插图 */
+      try {
+        const fb = new URLSearchParams({
+          version: "default",
+          lang: "zh",
+          bookId: state.frontState.bookId,
+          chapter: String(state.frontState.chapter),
+        });
+        const resZh = await fetch(
+          resolveStudyApiPath(`/api/study-content?${fb.toString()}`),
+          { cache: "no-store" }
+        );
+        const dZh = await resZh.json().catch(() => ({}));
+        const illZh = dZh && dZh.chapterIllustration;
+        if (illZh && String(illZh.imageUrl || "").trim()) {
+          state.chapterIllustrationWhenStudyMissing = illZh;
+        }
+      } catch (_) {}
+    }
     return;
   }
   if (!res.ok) {
@@ -5204,8 +5256,10 @@ function syncChapterIllustrationSlot() {
     ill = state.bookLandingChapterIllustration;
   } else if (state.studyContent && state.studyContent.chapterIllustration) {
     ill = state.studyContent.chapterIllustration;
+  } else if (state.chapterIllustrationWhenStudyMissing) {
+    ill = state.chapterIllustrationWhenStudyMissing;
   }
-  const url = ill && String(ill.imageUrl || "").trim();
+  const url = normalizeIllustrationImageUrlForReader(ill && ill.imageUrl);
   if (!url) {
     slot.innerHTML = "";
     slot.hidden = true;

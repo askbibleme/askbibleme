@@ -170,11 +170,16 @@ body {
   top: env(safe-area-inset-top, 0px);
   left: 50%;
   right: auto;
-  transform: translateX(-50%);
+  /* translate3d：独立合成层，减轻 iPad / WKWebView 上滚动内容与 fixed 顶栏错位叠层 */
+  transform: translate3d(-50%, 0, 0);
+  -webkit-transform: translate3d(-50%, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   width: min(100vw, var(--page-shell-max-width));
   max-width: var(--page-shell-max-width);
   margin: 0 !important;
-  z-index: 420 !important;
+  /* 须高于书卡及内部合成层（见 .book-spread translateZ 等），否则橡皮筋滚动时正文会盖过顶栏 */
+  z-index: 100000 !important;
   /* 独立层叠上下文，便于 ::before 用负 z-index 铺在底色之下，避免盖住 LOGO/导航 */
   isolation: isolate;
   box-sizing: border-box;
@@ -214,6 +219,11 @@ html.askbible-topbar-fixed .page-shell {
   /* 与 LOGO 顶栏同色，不再与 --bg 分两截 */
   background-color: var(--topbar-bg, #4a443f);
   background-image: none;
+}
+
+/* 固定顶栏时压低书卡叠层，避免与顶栏争合成顺序（尤其 iOS） */
+html.askbible-topbar-fixed .page-shell > main.book-layout:not(.notebook-layout) {
+  z-index: 0;
 }
 
 /* 读经主页：视口与壳层底纹与顶栏同色（书卡内仍为浅色纸） */
@@ -3680,6 +3690,29 @@ button.toolbar-trigger:hover,
   max-width: 100%;
 }
 
+.chapter-illustration-slot[hidden] {
+  display: none !important;
+}
+
+.chapter-illustration-slot:not([hidden]) {
+  margin: 0 auto 14px;
+  max-width: min(440px, 100%);
+  text-align: center;
+}
+
+.chapter-illustration-figure {
+  margin: 0;
+}
+
+.chapter-illustration-img {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+  border-radius: 8px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.1);
+}
+
 /* 右页视频槽：与左栏对称分列（仅宽屏有内容；窄屏由脚本清空） */
 .book-page.right-page .chapter-videos-slot--right-col:not(:empty) {
   margin: 0 0 14px;
@@ -5669,7 +5702,7 @@ a.admin-modal-hub-link.primary-btn {
     grid-template-columns: 1fr;
     background: var(--book-spread-paper-gradient);
     isolation: isolate;
-    transform: translateZ(0);
+    /* 勿用 translateZ(0)：在 iPad WKWebView 上易与 position:fixed 顶栏产生错误叠层，滚动时正文盖过菜单 */
   }
 
   .book-page:first-child::before,
@@ -6036,7 +6069,7 @@ a.admin-modal-hub-link.primary-btn {
     border-radius: 18px;
     /* 亚像素圆角抗锯齿时避免透出下层 */
     isolation: isolate;
-    transform: translateZ(0);
+    /* 同上：避免 translateZ 触发与 fixed 顶栏的合成层错乱 */
   }
 
   .book-page {
