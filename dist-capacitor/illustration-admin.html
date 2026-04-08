@@ -109,6 +109,22 @@
         color: #fff;
         border-color: #8a6600;
       }
+      .ia-range-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .ia-range-row input[type="range"] {
+        flex: 1;
+        min-width: 220px;
+      }
+      .ia-range-val {
+        min-width: 64px;
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--ink);
+      }
       .ia-status {
         font-size: 13px;
         line-height: 1.5;
@@ -170,6 +186,43 @@
       .ia-hint a {
         color: #8b6914;
         font-weight: 700;
+      }
+      .ia-prompt-preview {
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 251, 242, 0.6);
+      }
+      .ia-prompt-preview summary {
+        cursor: pointer;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .ia-prompt-preview-inner {
+        padding: 0 12px 12px;
+      }
+      .ia-prompt-preview textarea {
+        width: 100%;
+        min-height: 180px;
+        resize: vertical;
+        box-sizing: border-box;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        padding: 10px;
+      }
+      .ia-prompt-preview-actions {
+        margin-top: 8px;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .ia-prompt-preview-actions button {
+        font-size: 12px;
+        padding: 6px 10px;
       }
       .ia-char-ref-list {
         list-style: none;
@@ -299,6 +352,9 @@ not crowded
 [CONSTRAINTS]
 transparent PNG required (alpha 0 for non-subject pixels)
 no rectangular backdrop fill
+no circular / oval backdrop shape
+no border / frame / panel / sticker plate
+no vignette or halo container around subject
 no modern elements
 no symbolic abstraction
 no multi-scene collage
@@ -372,6 +428,26 @@ watermark / text / logo</pre>
         </div>
 
         <div class="ia-row">
+          <span class="ia-row-label">2b · 全站章节插图统一透明度</span>
+          <p class="ia-hint">该值会统一作用于读经页所有章节顶部插图显示透明度（不改原图）。</p>
+          <div class="ia-actions" style="margin-top: 10px">
+            <div class="ia-range-row" style="min-width: min(520px, 100%)">
+              <input
+                type="range"
+                id="iaGlobalOpacity"
+                min="0"
+                max="100"
+                step="1"
+                value="85"
+                aria-label="章节插图统一透明度"
+              />
+              <span class="ia-range-val" id="iaGlobalOpacityVal">85%</span>
+            </div>
+            <button type="button" id="iaGlobalOpacitySaveBtn">保存统一透明度</button>
+          </div>
+        </div>
+
+        <div class="ia-row">
           <span class="ia-row-label">3 · 预览与发布</span>
           <div class="ia-actions">
             <button type="button" id="iaPreviewBtn">生成预览</button>
@@ -383,6 +459,15 @@ watermark / text / logo</pre>
             <div class="ia-preview-placeholder" id="iaPreviewPh">生成预览后在此显示图片。</div>
             <img id="iaPreviewImg" alt="" decoding="async" hidden />
           </div>
+          <details class="ia-prompt-preview" id="iaPromptPreview">
+            <summary>查看最终 Prompt（含备注翻译）</summary>
+            <div class="ia-prompt-preview-inner">
+              <textarea id="iaPromptText" readonly placeholder="生成预览后会显示最终 Prompt"></textarea>
+              <div class="ia-prompt-preview-actions">
+                <button type="button" id="iaPromptCopyBtn">复制 Prompt</button>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </div>
@@ -497,10 +582,15 @@ watermark / text / logo</pre>
         const gptBtn = document.getElementById("iaGptBtn");
         const previewBtn = document.getElementById("iaPreviewBtn");
         const saveBtn = document.getElementById("iaSaveBtn");
+        const globalOpacityEl = document.getElementById("iaGlobalOpacity");
+        const globalOpacityValEl = document.getElementById("iaGlobalOpacityVal");
+        const globalOpacitySaveBtn = document.getElementById("iaGlobalOpacitySaveBtn");
         const insertBtn = document.getElementById("iaInsertBtn");
         const statusEl = document.getElementById("iaStatus");
         const previewImg = document.getElementById("iaPreviewImg");
         const previewPh = document.getElementById("iaPreviewPh");
+        const promptTextEl = document.getElementById("iaPromptText");
+        const promptCopyBtn = document.getElementById("iaPromptCopyBtn");
         const charRefListUl = document.getElementById("iaCharRefList");
 
         let books = [];
@@ -638,6 +728,18 @@ watermark / text / logo</pre>
           };
         }
 
+        function clampOpacityValue(v) {
+          const n = Number(v);
+          if (!Number.isFinite(n)) return 85;
+          return Math.max(0, Math.min(100, Math.round(n)));
+        }
+
+        function setGlobalOpacityUi(v) {
+          const n = clampOpacityValue(v);
+          if (globalOpacityEl) globalOpacityEl.value = String(n);
+          if (globalOpacityValEl) globalOpacityValEl.textContent = n + "%";
+        }
+
         async function fetchPublishedChapter() {
           const { version, lang, bookId, chapter } = selectionParams();
           const key = version + "|" + lang + "|" + bookId + "|" + chapter;
@@ -682,6 +784,11 @@ watermark / text / logo</pre>
           previewImg.src = src;
           previewImg.hidden = false;
           previewPh.hidden = true;
+        }
+
+        function setPromptPreviewText(text) {
+          if (!promptTextEl) return;
+          promptTextEl.value = String(text || "").trim();
         }
 
         function getCharacterRefPayload() {
@@ -911,6 +1018,7 @@ watermark / text / logo</pre>
                 version,
                 lang,
                 chapter,
+                editorNotes: notesEl.value.trim(),
                 theme: pub.theme,
                 scene,
                 compositionMode: "banner",
@@ -938,6 +1046,7 @@ watermark / text / logo</pre>
               return;
             }
             lastPrompt = prompt;
+            setPromptPreviewText(prompt);
             setStatus("正在生成插画预览 …");
             const resI = await fetch(iaReq("/api/generate-illustration"), {
               method: "POST",
@@ -985,6 +1094,24 @@ watermark / text / logo</pre>
             previewBtn.disabled = false;
           }
         });
+
+        if (promptCopyBtn) {
+          promptCopyBtn.addEventListener("click", async function () {
+            const txt = String((promptTextEl && promptTextEl.value) || "").trim();
+            if (!txt) {
+              setStatus("当前没有可复制的 Prompt。", "err");
+              return;
+            }
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(txt);
+                setStatus("Prompt 已复制到剪贴板。", "ok");
+                return;
+              }
+            } catch (_) {}
+            setStatus("复制失败，请手动全选 Prompt 文本。", "err");
+          });
+        }
 
         saveBtn.addEventListener("click", async function () {
           const { version, lang, bookId, chapter } = selectionParams();
@@ -1103,6 +1230,51 @@ watermark / text / logo</pre>
             insertBtn.disabled = false;
           }
         });
+
+        if (globalOpacityEl) {
+          globalOpacityEl.addEventListener("input", function () {
+            setGlobalOpacityUi(globalOpacityEl.value);
+          });
+        }
+
+        if (globalOpacitySaveBtn) {
+          globalOpacitySaveBtn.addEventListener("click", async function () {
+            if (!getToken()) {
+              setStatus("请先登录。", "err");
+              return;
+            }
+            const n = clampOpacityValue(globalOpacityEl ? globalOpacityEl.value : 85);
+            globalOpacitySaveBtn.disabled = true;
+            setStatus("正在保存统一透明度…");
+            try {
+              const res = await fetch(iaReq("/api/chapter-illustration/global-settings"), {
+                method: "POST",
+                headers: {
+                  ...authHeadersBare(),
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ globalSettings: { overlayOpacity: n } }),
+              });
+              const raw = await res.text();
+              let data = {};
+              try {
+                data = raw.trim() ? JSON.parse(raw) : {};
+              } catch (_) {
+                data = {};
+              }
+              if (!res.ok) {
+                setStatus(apiFailMessage(res, data), "err");
+                return;
+              }
+              setGlobalOpacityUi(data.globalSettings && data.globalSettings.overlayOpacity);
+              setStatus("已保存统一透明度；刷新读经页后全章插图生效。", "ok");
+            } catch (e) {
+              setStatus(String(e && e.message ? e.message : e), "err");
+            } finally {
+              globalOpacitySaveBtn.disabled = false;
+            }
+          });
+        }
 
         let notesTimer = null;
         notesEl.addEventListener("input", function () {
@@ -1238,6 +1410,25 @@ watermark / text / logo</pre>
           appEl.hidden = false;
           loadNotesFromStorage();
           await fetchCharacterProfilesForLabels();
+          try {
+            const gsRes = await fetch(iaReq("/api/chapter-illustration/global-settings"), {
+              cache: "no-store",
+            });
+            const gsData = await gsRes.json().catch(function () {
+              return {};
+            });
+            if (gsRes.ok) {
+              setGlobalOpacityUi(
+                gsData && gsData.globalSettings
+                  ? gsData.globalSettings.overlayOpacity
+                  : 85
+              );
+            } else {
+              setGlobalOpacityUi(85);
+            }
+          } catch (_) {
+            setGlobalOpacityUi(85);
+          }
           await loadIllustrationStateForContext();
           void checkIllustrationGptRouteProbe();
         }

@@ -980,7 +980,7 @@
         <h1>圣经人物设计器</h1>
         <p class="bcd-lead">
           编辑插画用<strong>角色外观档案</strong>（中文名为键，与章节 theme 里的人名一致时才会自动套用）。左侧<strong>备选人物库</strong>按经卷列出，每行显示是否已建档、透明主图是否已生成；点击姓名打开编辑（未建档则先加入）。<strong>GPT 智能生成</strong>与各栏 GPT <strong>只自动填入</strong>气质、各时期英文与外貌描述等，<strong>不会自动出图</strong>（英文外观仅写人物与衣着体态，勿写花园/天空等背景；叙事地点写在<strong>场景短标签（英文）</strong>）；并列预览区可点<strong>GPT 智能生成</strong>（只填字）与<strong>一键生成</strong>（每期单独 1024×1536 透明全身，几期则几次图片 AI），或分栏「生成画像」。<strong>智能生成默认只判 1 套时期</strong>：壮年/成年标准参考脸与体态，作为全书场景的人脸锚点。若确需 2～3 期，请在卡片「GPT 备注」写明如<strong>两期、三期、多期</strong>等，AI 才会返回多套英文描述；再手动把「时期数量」调到 2 或 3 后出图。并列区会<strong>横排展示</strong>各期全身像；页顶主图按<strong>中期 / 成年中位</strong>规则取自其中一期。数据保存在服务器
-          <code>admin_data/character_illustration_profiles.json</code>。<strong>出图后会自动保存</strong>；仅改文字描述时仍可点「保存全部」。
+          <code>admin_data/character_illustration_profiles.json</code>。<strong>出图后仅更新当前预览，不会自动保存</strong>；请点「保存全部」写入档案。
           <strong>请用 Node 启动站点后访问</strong>
           <code>/bible-character-designer.html</code>（默认 <code>http://localhost:3000/…</code>），否则接口 <code>/api/admin/bible-character-profiles</code> 会 404；静态站需在 head 配置 <code>askbible-api-base</code> 指向 API。
         </p>
@@ -2870,7 +2870,6 @@
             }
             if (okCount !== total) {
               setStatus("已中断：成功 " + okCount + "/" + total + " 张。", "err");
-              await bcdTrySaveProfilesAfterImage();
               renderComparisonStrip(card);
               return false;
             }
@@ -2883,22 +2882,18 @@
             if (heroUrl) {
               setHeroImageData(card, heroUrl);
             }
-            var saveOk = await bcdTrySaveProfilesAfterImage();
             renderComparisonStrip(card);
             if (!opts.quietStatus) {
               setStatus(
-                saveOk
-                  ? "已完成 " +
-                      total +
-                      " 张透明全身像；页顶主图已设为中期规则对应期；已自动保存。"
-                  : "各期图已生成，但自动保存失败，请点「保存全部」。",
-                saveOk ? "ok" : "err"
+                "已完成 " +
+                  total +
+                  " 张透明全身像；页顶主图已设为中期规则对应期。请点「保存全部」写入档案。",
+                "ok"
               );
             }
-            return { cmp: true, hero: Boolean(heroUrl), saved: saveOk };
+            return { cmp: true, hero: Boolean(heroUrl), saved: false };
           } catch (e) {
             setStatus(String(e.message || e), "err");
-            await bcdTrySaveProfilesAfterImage();
             renderComparisonStrip(card);
             return false;
           } finally {
@@ -3008,20 +3003,16 @@
             if (!opts.skipHeroSync && heroSrc.slotIndex === slotIdx) {
               setHeroImageData(card, url);
             }
-            var savePortraitOk = true;
-            if (!opts.deferSave) {
-              savePortraitOk = await bcdTrySaveProfilesAfterImage();
-            }
             if (!opts.quietSuccess && !opts.deferSave) {
-              if (!savePortraitOk) return false;
               if (opts.afterGpt) {
-                setStatus("已填入 GPT 并生成画像；已自动保存。", "ok");
+                setStatus("已填入 GPT 并生成画像；请点「保存全部」写入档案。", "ok");
               } else if (!opts.quietStatus) {
                 setStatus(
                   "本时期透明底参考图已生成" +
                     (!opts.skipHeroSync && heroSrc.slotIndex === slotIdx
                       ? "，并已同步为页顶透明主图。"
-                      : "，已自动保存。"),
+                      : "。") +
+                    " 请点「保存全部」写入档案。",
                   "ok"
                 );
               }
@@ -4098,10 +4089,7 @@
             await saveProfiles();
             return true;
           } catch (e) {
-            setStatus(
-              "图像已生成，但自动保存失败：" + String(e.message || e) + " 请点「保存全部」。",
-              "err"
-            );
+            setStatus("自动保存失败：" + String(e.message || e) + " 请点「保存全部」。", "err");
             return false;
           }
         }
@@ -4180,7 +4168,7 @@
           setStatus("加载中…", null);
           try {
             await loadProfiles();
-            setStatus("已加载；生成图像后会自动保存，仅改文字时点「保存全部」。", "ok");
+            setStatus("已加载；生成图像后仅更新预览，请点「保存全部」写入档案。", "ok");
           } catch (e) {
             setStatus(String(e.message || e), "err");
           }

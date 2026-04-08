@@ -6831,7 +6831,10 @@ function resolveCharacterLockLinesForGeneratePrompt(body) {
 function ensureChapterIllustrationStateFile() {
   ensureDir(ADMIN_DIR);
   if (!fs.existsSync(CHAPTER_ILLUSTRATION_STATE_FILE)) {
-    writeJson(CHAPTER_ILLUSTRATION_STATE_FILE, { chapters: {} });
+    writeJson(CHAPTER_ILLUSTRATION_STATE_FILE, {
+      chapters: {},
+      globalSettings: { overlayOpacity: 85 },
+    });
   }
 }
 
@@ -6866,6 +6869,35 @@ function saveChapterIllustrationStateToDisk(state) {
   };
   writeJson(CHAPTER_ILLUSTRATION_STATE_FILE, data);
   return key;
+}
+
+function normalizeChapterIllustrationGlobalSettings(input) {
+  const src = input && typeof input === "object" ? input : {};
+  return {
+    overlayOpacity: clampChapterPromptOverlayOpacity(
+      src.overlayOpacity != null ? src.overlayOpacity : 85
+    ),
+  };
+}
+
+function loadChapterIllustrationGlobalSettingsFromDisk() {
+  ensureChapterIllustrationStateFile();
+  const data = readJson(CHAPTER_ILLUSTRATION_STATE_FILE, {
+    chapters: {},
+    globalSettings: {},
+  });
+  return normalizeChapterIllustrationGlobalSettings(data.globalSettings || {});
+}
+
+function saveChapterIllustrationGlobalSettingsToDisk(globalSettings) {
+  ensureChapterIllustrationStateFile();
+  const data = readJson(CHAPTER_ILLUSTRATION_STATE_FILE, {
+    chapters: {},
+    globalSettings: {},
+  });
+  data.globalSettings = normalizeChapterIllustrationGlobalSettings(globalSettings);
+  writeJson(CHAPTER_ILLUSTRATION_STATE_FILE, data);
+  return data.globalSettings;
 }
 
 function clampChapterPromptOverlayOpacity(n) {
@@ -6952,6 +6984,7 @@ function themeToFlatString(themeInput) {
 function buildIllustrationSpec(body) {
   const scene = safeText(body?.scene || "");
   const theme = themeToFlatString(body?.theme);
+  const editorNotes = safeText(body?.editorNotes || "");
   const transparent = body?.transparentBackground !== false;
   const compositionMode = safeText(body?.compositionMode || body?.mode || "");
   return {
@@ -6960,6 +6993,7 @@ function buildIllustrationSpec(body) {
     chapter: safeText(body?.chapter || ""),
     theme,
     scene,
+    editorNotes,
     compositionMode,
     composition: safeText(body?.composition || "") || "single focal point",
     mood: safeText(body?.mood || "") || "calm, spacious, peaceful",
@@ -6977,6 +7011,31 @@ function buildIllustrationSpec(body) {
   };
 }
 
+function likelyContainsCjk(text) {
+  return /[\u3400-\u9FFF]/.test(String(text || ""));
+}
+
+async function translateIllustrationEditorNotesToEnglish(editorNotesZh) {
+  const raw = safeText(editorNotesZh || "");
+  if (!raw) return "";
+  if (!likelyContainsCjk(raw)) return raw;
+  try {
+    const system =
+      "You translate Chinese illustration direction into concise natural English for image-generation prompts. Keep concrete art-direction details only. Output English only.";
+    const user =
+      "Translate the following Chinese notes into concise, concrete English prompt direction. Preserve intent and constraints.\n\n" +
+      raw;
+    const out = await openAiChatHelper({
+      system,
+      messages: [{ role: "user", content: user }],
+    });
+    const en = safeText(out || "");
+    return en || raw;
+  } catch (_) {
+    return raw;
+  }
+}
+
 /**
  * 由 illustrationSpec 生成最终英文出图 prompt（模块 chapter-illustration / prompt-generator）。
  */
@@ -6984,8 +7043,16 @@ function buildPrompt(spec) {
   const lines = Array.isArray(spec?.characterAppearanceLines)
     ? spec.characterAppearanceLines
     : [];
+  const notesEn = safeText(spec?.editorNotesEn || "");
+  const sceneBase = safeText(spec?.scene || "");
+  const sceneMerged = notesEn
+    ? sceneBase +
+      (sceneBase ? "\n" : "") +
+      "Additional editor direction (must follow): " +
+      notesEn
+    : sceneBase;
   return generateIllustrationPrompt({
-    sceneDescription: safeText(spec?.scene || ""),
+    sceneDescription: sceneMerged,
     transparentBackground: spec?.transparent !== false,
     compositionMode: safeText(spec?.compositionMode || ""),
     composition: spec?.composition,
@@ -7194,6 +7261,33 @@ app.post("/api/chapter-illustration/state", (req, res) => {
   }
 });
 
+app.get("/api/chapter-illustration/global-settings", (_req, res) => {
+  try {
+    const globalSettings = loadChapterIllustrationGlobalSettingsFromDisk();
+    res.json({ ok: true, globalSettings });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "读取插画全局设置失败。" });
+  }
+});
+
+app.post("/api/chapter-illustration/global-settings", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const body = req.body || {};
+    const raw =
+      body && typeof body.globalSettings === "object"
+        ? body.globalSettings
+        : body;
+    const saved = saveChapterIllustrationGlobalSettingsToDisk(raw);
+    res.json({ ok: true, globalSettings: saved });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "保存插画全局设置失败。" });
+  }
+});
+
 function normalizeBcdStatureClass(raw) {
   const s = safeText(raw || "").toLowerCase();
   if (s === "child" || s === "youth" || s === "adult" || s === "elder") return s;
@@ -7370,7 +7464,7 @@ app.post(
  * Body: theme 必填；scene 可空（空则据已发布 JSON 自动推断场景）；
  * version, lang, bookId, chapter 与 scene 同时用于自动场景；sceneVariant 换候选景。
  */
-app.post("/api/generate-prompt", (req, res) => {
+app.post("/api/generate-prompt", async (req, res) => {
   try {
     const authed = requireAdminUser(req, res);
     if (!authed) return;
@@ -7398,6 +7492,9 @@ app.post("/api/generate-prompt", (req, res) => {
     }
     const bodyResolved = { ...body, scene };
     const illustrationSpec = buildIllustrationSpec(bodyResolved);
+    illustrationSpec.editorNotesEn = await translateIllustrationEditorNotesToEnglish(
+      illustrationSpec.editorNotes || ""
+    );
     illustrationSpec.characterAppearanceLines =
       resolveCharacterLockLinesForGeneratePrompt(bodyResolved);
     const prompt = buildPrompt(illustrationSpec);
@@ -8056,6 +8153,10 @@ app.post("/api/generate-illustration", async (req, res) => {
         success: false,
         error: "缺少 prompt",
       });
+    }
+    if (transparent) {
+      prompt +=
+        " TRANSPARENT EDGE RULE (mandatory): output must be a true alpha cutout that can blend directly into page background. Do NOT place the subject inside any circle, oval, vignette, moon-disc, poster panel, card, border, frame, halo plate, or backdrop shape. No boxed composition. Non-subject area must be fully transparent alpha 0.";
     }
     prompt = OPENAI_IMAGE_SAFETY_PREFIX + prompt;
 

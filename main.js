@@ -103,6 +103,10 @@ const state = {
   bookIntroMarkdown: null,
   /** 卷首页附属视频：来自已发布 0.json 的 chapterVideos */
   bookLandingChapterVideos: [],
+  /** 卷首页插画：来自已发布 0.json 的 chapterIllustration */
+  bookLandingChapterIllustration: null,
+  /** 章节插图全局显示设置（来自 /api/chapter-illustration/global-settings） */
+  chapterIllustrationGlobalSettings: { overlayOpacity: 85 },
   favorites: loadFavorites(),
   favoriteKeys: new Set(),
   chapterFavorites: loadChapterFavorites(),
@@ -5071,8 +5075,21 @@ async function loadScripture() {
 }
 
 async function loadStudyContent() {
+  try {
+    const gsRes = await fetch(resolveStudyApiPath("/api/chapter-illustration/global-settings"), {
+      cache: "no-store",
+    });
+    if (gsRes.ok) {
+      const gsData = await gsRes.json().catch(() => ({}));
+      const op = Number(gsData?.globalSettings?.overlayOpacity);
+      state.chapterIllustrationGlobalSettings.overlayOpacity = Number.isFinite(op)
+        ? Math.max(0, Math.min(100, Math.round(op)))
+        : 85;
+    }
+  } catch (_) {}
   state.bookIntroMarkdown = null;
   state.bookLandingChapterVideos = [];
+  state.bookLandingChapterIllustration = null;
   if (isBookLandingChapter()) {
     state.studyContent = null;
     const params = new URLSearchParams({
@@ -5099,14 +5116,14 @@ async function loadStudyContent() {
       cache: "no-store",
     });
     const data0 = await res0.json().catch(() => ({}));
-    if (
-      res0.ok &&
-      data0 &&
-      data0.missing !== true &&
-      Array.isArray(data0.chapterVideos) &&
-      data0.chapterVideos.length
-    ) {
-      state.bookLandingChapterVideos = data0.chapterVideos;
+    if (res0.ok && data0 && data0.missing !== true) {
+      const ill0 = data0.chapterIllustration;
+      if (ill0 && String(ill0.imageUrl || "").trim()) {
+        state.bookLandingChapterIllustration = ill0;
+      }
+      if (Array.isArray(data0.chapterVideos) && data0.chapterVideos.length) {
+        state.bookLandingChapterVideos = data0.chapterVideos;
+      }
     }
     return;
   }
@@ -5179,7 +5196,37 @@ function updatePageTitle() {
   if (nextTopBtn) nextTopBtn.setAttribute("aria-label", copy.nextChapter);
 }
 
+function syncChapterIllustrationSlot() {
+  const slot = document.getElementById("chapterIllustrationSlot");
+  if (!slot) return;
+  let ill = null;
+  if (isBookLandingChapter()) {
+    ill = state.bookLandingChapterIllustration;
+  } else if (state.studyContent && state.studyContent.chapterIllustration) {
+    ill = state.studyContent.chapterIllustration;
+  }
+  const url = ill && String(ill.imageUrl || "").trim();
+  if (!url) {
+    slot.innerHTML = "";
+    slot.hidden = true;
+    return;
+  }
+  slot.hidden = false;
+  const src = resolveStudyApiPath(url.startsWith("/") ? url : "/" + url);
+  const opacityRaw = Number(state.chapterIllustrationGlobalSettings?.overlayOpacity);
+  const opacity = Number.isFinite(opacityRaw)
+    ? Math.max(0, Math.min(100, Math.round(opacityRaw)))
+    : 85;
+  slot.innerHTML =
+    '<figure class="chapter-illustration-figure"><img class="chapter-illustration-img" style="opacity:' +
+    String((opacity / 100).toFixed(2)) +
+    ';" src="' +
+    escapeHtml(src) +
+    '" alt="" decoding="async" loading="lazy" /></figure>';
+}
+
 function renderStudyContent() {
+  try {
   const leftBlocksEl = document.getElementById("leftBlocks");
   const rightBlocksEl = document.getElementById("rightBlocks");
   const repeatedWordsEl = document.getElementById("repeatedWordsLine");
@@ -5279,6 +5326,9 @@ function renderStudyContent() {
           .map((item, idx) => renderApprovedQuestionItem(item, idx))
           .join("")
       : "";
+  }
+  } finally {
+    syncChapterIllustrationSlot();
   }
 }
 

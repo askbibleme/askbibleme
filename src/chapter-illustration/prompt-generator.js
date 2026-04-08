@@ -23,7 +23,8 @@ no anime / cartoon / stylized fantasy,
 no sci-fi effects,
 single clear narrative moment only,
 no symbolic abstraction,
-not crowded
+not crowded,
+no frame, no border, no circular vignette, no medallion composition, no poster panel, no sticker-like cutout
 `
   .trim()
   .replace(/\s+/g, " ");
@@ -65,7 +66,7 @@ export function generateIllustrationPrompt(config) {
       : [];
 
   const outputBlock = transparent
-    ? "PNG, transparent background (alpha channel), all non-subject pixels must be fully transparent (alpha 0), no rectangular backdrop fill"
+    ? "PNG, transparent background (alpha channel), all non-subject pixels must be fully transparent (alpha 0), no rectangular backdrop fill, no circular backdrop, no halo plate, no panel/card frame"
     : "PNG, opaque plain light beige or light gray background";
 
   const lines = [
@@ -86,6 +87,8 @@ export function generateIllustrationPrompt(config) {
     ...(transparent
       ? [
           "transparent mode required: isolate subject cleanly, no painted sky/wall/ground panel, no beige paper block, no solid background tint",
+          "subject must blend directly into transparent alpha edges, not inside any shape container",
+          "forbidden in transparent mode: circular moon-disc background, oval vignette, hard-edged frame, border line, shadow plate, sticker contour",
         ]
       : []),
     "",
