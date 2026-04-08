@@ -7147,7 +7147,7 @@ function buildIllustrationSpec(body) {
   const scene = safeText(body?.scene || "");
   const theme = themeToFlatString(body?.theme);
   const editorNotes = safeText(body?.editorNotes || "");
-  const transparent = body?.transparentBackground !== false;
+  const transparent = body?.transparentBackground === true;
   const compositionMode = safeText(body?.compositionMode || body?.mode || "");
   return {
     book: safeText(body?.book || ""),
@@ -7215,7 +7215,7 @@ function buildPrompt(spec) {
     : sceneBase;
   return generateIllustrationPrompt({
     sceneDescription: sceneMerged,
-    transparentBackground: spec?.transparent !== false,
+    transparentBackground: spec?.transparent === true,
     compositionMode: safeText(spec?.compositionMode || ""),
     composition: spec?.composition,
     stylePreset:
@@ -7758,11 +7758,11 @@ async function handleIllustrationAdminGptCopy(req, res) {
     ];
     const userBlock = userBlockParts.filter(Boolean).join("\n");
 
-    const system = `你是圣经读物插画策划编辑。根据已发布章节的主题与段落标题，为一幅「仿古铜板刻线、透明背景 PNG」插画写说明与出图用词；并**自动**从给定「人物设计库」名单中选配本章出镜人物的锁脸参考（可多选）。
+    const system = `你是圣经读物插画策划编辑。根据已发布章节的主题与段落标题，为一幅「半写实、带完整环境背景的实底插画」（非透明抠图）写说明与出图用词；画面需有地面/天色/空间氛围等，尽量避免整幅纯空白底，除非叙事需要表现光本身；并**自动**从给定「人物设计库」名单中选配本章出镜人物的锁脸参考（可多选）。
 只输出一个 JSON 对象（不要 Markdown 代码围栏），键如下：
 - illustrationBriefZh：string，2～4 句中文，概括本图画什么、情绪与构图重心（不罗列经文编号）。
 - keywordsZh：string，中文关键词，逗号或顿号分隔，约 8～16 个（环境、人物关系、道具、光线氛围等）。
-- sceneEnglish：string，一段英文，单一冻结瞬间的具象画面描写，可直接作为图像模型的场景指令；不要出现章节号或书名；人物为古朴中东服饰、端庄得体；适合 semi-realistic biblical character illustration。约 40～120 个英文单词。
+- sceneEnglish：string，一段英文，单一冻结瞬间的具象画面描写，可直接作为图像模型的场景指令；不要出现章节号或书名；人物为古朴中东服饰、端庄得体；适合 semi-realistic biblical character illustration。约 40～120 个英文单词。须写进完整环境（地面、天色、建筑或旷野、暖沙/米色尘雾等），避免主导性纯白空底；亮白仅用于表现光源/天光/神光等。
 - sceneEnglishZh：string，与 sceneEnglish 对应的中文意译（供编辑对照出图含义），自然流畅，不要出现章节号或书名；篇幅与英文相当。
 - characterRefSelections：array，每项为 { "zhName": string（必须与用户消息中人物库条目的中文名「」内文字完全一致）, "slotIndex": number（0=根档案第一时期，1=第二时期…，以库中说明为准）}。须与 sceneEnglish 中出现的主要人物一致；无具名人物时 []。
 
@@ -8328,7 +8328,10 @@ app.post("/api/generate-illustration", async (req, res) => {
     }
     if (transparent) {
       prompt +=
-        " UNIFIED PAINTING + SETTING (mandatory): one continuous artwork with modest biblical environment (ground, distance, air) when needed — NOT sticker cut-outs on flat empty white. Let sky/ground/distance soften and painterly FADE into full transparency at the canvas edges so the reader page blends through; avoid a hard horizontal chop through feet, bench, or bodies. No isolated floating texture blobs. Unpainted pixels = alpha 0. No faux cream sheet filling the frame, no decorative frame/mat/card inset; soft environmental vignette into transparency is allowed.";
+        " UNIFIED PAINTING + SETTING (mandatory): one continuous artwork with modest biblical environment (ground, distance, air, warm sand or beige atmospheric haze) when needed — NOT sticker cut-outs on flat empty white. Transition to transparency must be SLOW and WIDE: let the SETTING (mist, ground, sky wash) dissolve gradually toward the canvas edges into full alpha so the reader page blends through — opacity must NOT collapse in a tight band hugging figure silhouettes. Avoid a hard horizontal chop through feet, bench, or bodies. No isolated floating texture blobs. Unpainted pixels = alpha 0. Forbid edge-to-edge flat white or flat cream studio fills with no gradient; soft graduated beige/parchment in outer zones for environmental fusion is OK. No decorative frame/mat/card inset.";
+    } else {
+      prompt +=
+        " OPAQUE FULL SCENE (mandatory): one continuous biblical-era illustration with a painted environmental background filling the entire image — ground, sky, architecture, landscape, shadow, or haze. NOT a transparency cutout, NOT empty pure-white (#FFFFFF) studio void as the dominant backdrop. Prefer warm parchment, sand, earth, soft gray-blue sky, or dim interior tones. Bright white is only for intentional light (sun edge, beam, lamp, glory, fire). No decorative frame/mat/card inset.";
     }
     prompt = OPENAI_IMAGE_SAFETY_PREFIX + prompt;
 

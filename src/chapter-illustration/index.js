@@ -71,7 +71,7 @@ export function runPromptFromSceneDescription(sceneDescription, renderOpts = {})
   return generateIllustrationPrompt({
     sceneDescription,
     stylePreset: renderOpts.stylePreset,
-    transparentBackground: renderOpts.transparentBackground !== false,
+    transparentBackground: renderOpts.transparentBackground === true,
     composition: renderOpts.composition,
     characterAppearanceLines: lines,
   });
@@ -88,7 +88,7 @@ export function buildIllustrationSpecFromPipeline(body, sceneDescription) {
     mood: String(body?.mood || "").trim() || "calm, spacious, peaceful",
     style: "semi-realistic biblical character",
     stylePreset: String(body?.stylePreset || "biblical_semi_real_character"),
-    transparent: body?.transparentBackground !== false,
+    transparent: body?.transparentBackground === true,
     overlayOpacity:
       body?.overlayOpacity != null ? Number(body.overlayOpacity) : 100,
   };
@@ -170,7 +170,7 @@ export function stateFromPipelineRun(
     confidence: run.confidence,
     warning: run.warning,
     warningZh: run.warningZh,
-    transparentBackground: body?.transparentBackground !== false,
+    transparentBackground: body?.transparentBackground === true,
     overlayOpacity: Number(body?.overlayOpacity) || 85,
     stylePreset: String(body?.stylePreset || "biblical_semi_real_character"),
     analysis: run.analysis,

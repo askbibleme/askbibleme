@@ -26,7 +26,7 @@ export function defaultChapterIllustrationState(overrides = {}) {
     confidence: 0,
     warning: null,
     warningZh: null,
-    transparentBackground: true,
+    transparentBackground: false,
     overlayOpacity: 85,
     stylePreset: STYLE_PRESET_ENGRAVING.id,
     sceneVariant: 0,

@@ -338,13 +338,13 @@
           <div class="ia-rules-block">
             <strong>COMPOSITION（构图）</strong>
             <p>
-              默认横幅 banner，预览常用 1536×1024。整幅是<strong>一张连贯的画</strong>（单画布叙事），边缘尽量<strong>自然收束</strong>，避免像被四边硬切掉关键形体；不拥挤、主体可读。
+              默认横幅 banner，预览常用 1536×1024。整幅是<strong>一张连贯的实底画</strong>（单画布叙事），带<strong>完整环境背景</strong>铺满画幅；不拥挤、主体可读。
             </p>
           </div>
           <div class="ia-rules-block">
             <strong>CONSTRAINTS（强制限制）</strong>
             <p>
-              <strong>整幅单画 + 适度环境</strong>：人物与<strong>地面、远景、天色</strong>等可画进同一场景，避免「白底抠人」悬浮感。<strong>透明 PNG</strong>：无颜料处 alpha 0；画幅<strong>外缘让环境渐渐淡化</strong>融入透明，与纸张衔接，不要整条硬直线切断脚凳/地面/远景人物。禁止假米色整底、装裱框线、悬浮碎块。无现代元素、无科幻、无夸张表演、无多场景拼贴、无符号化抽象。
+              <strong>整幅单画 + 完整环境</strong>：人物与<strong>地面、远景、天色、建筑或旷野、米色/沙色尘雾</strong>画满画幅，<strong>不透明实底</strong>（非透明抠图）。尽量避免<strong>主导性的纯白空底</strong>；亮白仅用于表现<strong>光本身</strong>（日光边缘、光束、灯火、神光等）。禁止装裱框线、悬浮碎块、贴纸式白底贴人。无现代元素、无科幻、无夸张表演、无多场景拼贴、无符号化抽象。
             </p>
           </div>
           <div class="ia-rules-block">
@@ -372,19 +372,18 @@ simple and dignified presentation
 [COMPOSITION]
 默认 banner（横幅）构图
 imageSize = 1536x1024
-one unified painting (single canvas) — NOT art inside a frame or mat
-edges: natural closure into transparency, avoid harsh crop through main figures
+one unified opaque painting (single canvas) — NOT art inside a frame or mat
+environment fills the frame edge to edge; avoid harsh crop through main figures
 single clear narrative moment
 not crowded
 
 [CONSTRAINTS]
-(one continuous painted artwork — modest environment OK: ground, distance, sky haze; NOT sticker cut-outs on empty white)
-transparent PNG: alpha 0 only where nothing is painted; soft painterly FADE of environment into transparency at canvas edges (blend with page paper)
-NOT a picture-in-frame; NOT faux cream paper / flat white filling the whole canvas behind figures
-edge: atmospheric dissolve to alpha — NOT hard horizontal slice through feet/bench/bodies; NO disconnected floating texture scraps
-distant figures at edge: merge into haze or show enough mass — avoid head-only with hard cut
+(one continuous painted artwork — full modest environment: ground, distance, sky, walls or landscape; NOT sticker cut-outs on empty white)
+opaque PNG: every area painted as scene; NO transparency cutout look
+NOT a picture-in-frame; NOT dominant flat pure-white empty studio backdrop — prefer warm parchment, sand, earth, soft sky tone
+bright white / near-white ONLY for intentional light (sun rim, beam, lamp, glory, fire) — not as undescribed background
+include full setting: figures in real space with horizon, ceiling, or corners as appropriate
 forbidden: decorative frame/mat lines, inner card inset, fake circular moon-disc as backdrop plate
-allowed: soft edge vignette = environment fading to transparency (not the same as fake oval backdrop)
 no modern elements
 no symbolic abstraction
 no multi-scene collage
@@ -1119,7 +1118,7 @@ watermark / text / logo</pre>
                 compositionMode: "banner",
                 sceneVariant: 0,
                 stylePreset: "biblical_semi_real_character",
-                transparentBackground: true,
+                transparentBackground: false,
                 overlayOpacity: 85,
                 characterRefSelections: getCharacterRefPayload(),
               }),
@@ -1151,7 +1150,7 @@ watermark / text / logo</pre>
               },
               body: JSON.stringify({
                 prompt,
-                transparent: true,
+                transparent: false,
                 bookId,
                 chapter,
                 imageSize: "1536x1024",
@@ -1249,7 +1248,7 @@ watermark / text / logo</pre>
               characterRefSelections: getCharacterRefPayload(),
               prompt: lastPrompt,
               imageUrl: lastImageUrl,
-              transparentBackground: true,
+              transparentBackground: false,
               overlayOpacity: 85,
               stylePreset: "biblical_semi_real_character",
             });

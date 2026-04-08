@@ -122,6 +122,119 @@
       .layout-map-actions a:hover {
         border-color: rgba(200, 155, 60, 0.45);
       }
+      .layout-map-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        margin: 4px 0 12px;
+      }
+      .layout-map-toolbar .layout-map-btn,
+      .layout-map-manage-bar .layout-map-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .layout-map-toolbar .layout-map-btn:hover,
+      .layout-map-manage-bar .layout-map-btn:hover {
+        border-color: rgba(200, 155, 60, 0.45);
+      }
+      .layout-map-toolbar .layout-map-btn--ghost {
+        background: transparent;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .layout-map-col-op {
+        width: 72px;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: middle !important;
+      }
+      .layout-map-op-muted {
+        color: var(--muted-soft);
+        font-size: 11px;
+      }
+      tr.layout-map-row-custom td:first-child {
+        border-left: 3px solid rgba(200, 155, 60, 0.55);
+      }
+      .layout-map-manage-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 14px;
+        margin-top: 12px;
+      }
+      .layout-map-manage-bar label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .layout-map-manage-bar input[type="file"] {
+        font-size: 11px;
+        max-width: 220px;
+      }
+      .layout-map-dialog {
+        border: none;
+        border-radius: 14px;
+        padding: 0;
+        max-width: min(420px, 94vw);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+        background: var(--paper);
+      }
+      .layout-map-dialog::backdrop {
+        background: rgba(30, 24, 18, 0.45);
+      }
+      .layout-map-dialog-inner {
+        padding: 18px 18px 16px;
+      }
+      .layout-map-dialog-inner h3 {
+        margin: 0 0 12px;
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .layout-map-field {
+        margin-bottom: 12px;
+      }
+      .layout-map-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .layout-map-field input,
+      .layout-map-field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line-soft);
+        font-size: 12px;
+        font-family: inherit;
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .layout-map-field textarea {
+        min-height: 72px;
+        resize: vertical;
+      }
+      .layout-map-dialog-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 16px;
+      }
     </style>
   </head>
   <body class="admin-shell-page" data-admin-current="/home-layout-map.html">
@@ -149,7 +262,8 @@
 │       ├── section.book-page.left-page
 │       │   … 工具条 / 翻章 / 收藏带 …
 │       │   ├── .page-title-block             ← 章号 + 书名大标题
-│       │   ├── #chapterVideosSlot            ← 本章视频（大标题下、正文区上）
+│       │   ├── #chapterIllustrationSlot      ← 章节插图（有图时显示，无则 hidden）
+│       │   ├── #chapterVideosSlot            ← 本章视频（紧挨插图下方；无视频则空）
 │       │   └── … 重复词、#leftBlocks …
 │       └── section.book-page.right-page      ← 右页：副列 + 贡献区 + 底导航
 └── footer.site-footer.askbible-chrome-footer-slot  ← 底栏（接口注入，默认可 hidden）</pre>
@@ -158,10 +272,33 @@
         </p>
       </div>
 
+      <div class="layout-map-block" id="layoutMapManageBlock">
+        <h2>〇、模块清单管理（本地）</h2>
+        <p class="layout-map-note" style="margin-top: 0">
+          在下方「左页 / 右页」表格中可<strong>追加自定义模块行</strong>，仅保存在本机浏览器
+          <code>localStorage</code>（换浏览器或清除站点数据会丢失），<strong>不会</strong>自动改动
+          <code>index.html</code> 或线上版面。实际上线、改 DOM 仍需编辑仓库并部署。若将来需要「后台配置、全员同一套模块说明」，可把同类 JSON
+          放到服务器，由管理接口读写，再在构建或运行时生成文档页（本页逻辑可复用为前端渲染器）。
+        </p>
+        <div class="layout-map-manage-bar">
+          <button type="button" class="layout-map-btn" id="layoutMapExportBtn">导出 JSON</button>
+          <label>
+            导入 JSON
+            <input type="file" id="layoutMapImportInput" accept="application/json,.json" />
+          </label>
+          <button type="button" class="layout-map-btn layout-map-btn--ghost" id="layoutMapClearBtn">
+            清除全部自定义
+          </button>
+        </div>
+      </div>
+
       <div class="layout-map-block">
         <h2>二、左页（left-page）主要区块</h2>
+        <div class="layout-map-toolbar">
+          <button type="button" class="layout-map-btn" id="layoutMapAddLeftBtn">＋ 添加自定义模块</button>
+        </div>
         <div class="layout-map-table-wrap">
-          <table class="layout-map-table">
+          <table class="layout-map-table" id="layoutMapLeftTable">
             <thead>
               <tr>
                 <th scope="col">区域</th>
@@ -191,14 +328,27 @@
                 <td>收藏列表入口、用户标签、累计在线文案</td>
               </tr>
               <tr>
-                <td>本章视频（若有）</td>
-                <td><code>#chapterVideosSlot</code></td>
-                <td>在大标题之前；有 <code>chapterVideos</code> 时渲染播放器，无则插槽为空不占位</td>
-              </tr>
-              <tr>
                 <td>本章标题</td>
                 <td><code>#pageChapterNumber</code>、<code>#pageBookTitle</code></td>
-                <td>大标题区</td>
+                <td>大标题区（<code>.page-title-block</code>）</td>
+              </tr>
+              <tr>
+                <td>章节插图（若有）</td>
+                <td>
+                  <code>#chapterIllustrationSlot</code>、<code>.chapter-illustration-slot</code>；内层由
+                  <code>main.js</code> 注入 <code>.chapter-illustration-figure</code> /
+                  <code>.chapter-illustration-img</code>
+                </td>
+                <td>
+                  位于大标题下方、本章视频上方；当 JSON 含 <code>chapterIllustration.imageUrl</code> 时显示章节配图（默认生成为<strong>实底环境图</strong>；亦可为历史透明图），显示透明度受
+                  <code>/api/chapter-illustration/global-settings</code> 全站配置；无图时
+                  <code>hidden</code> 且不占布局高度
+                </td>
+              </tr>
+              <tr>
+                <td>本章视频（若有）</td>
+                <td><code>#chapterVideosSlot</code></td>
+                <td>在大标题与章节插图（若有）下方；有 <code>chapterVideos</code> 时渲染播放器，无则插槽为空</td>
               </tr>
               <tr>
                 <td>重复词行</td>
@@ -217,8 +367,11 @@
 
       <div class="layout-map-block">
         <h2>三、右页（right-page）主要区块</h2>
+        <div class="layout-map-toolbar">
+          <button type="button" class="layout-map-btn" id="layoutMapAddRightBtn">＋ 添加自定义模块</button>
+        </div>
         <div class="layout-map-table-wrap">
-          <table class="layout-map-table">
+          <table class="layout-map-table" id="layoutMapRightTable">
             <thead>
               <tr>
                 <th scope="col">区域</th>
@@ -342,6 +495,275 @@
       </div>
     </div>
 
+    <dialog id="layoutMapAddDialog" class="layout-map-dialog" aria-labelledby="layoutMapAddTitle">
+      <form method="dialog" class="layout-map-dialog-inner" id="layoutMapAddForm">
+        <h3 id="layoutMapAddTitle">添加自定义模块</h3>
+        <p class="layout-map-note" id="layoutMapAddTargetLabel" style="margin: -4px 0 10px"></p>
+        <div class="layout-map-field">
+          <label for="layoutMapAddName">区域名称</label>
+          <input type="text" id="layoutMapAddName" required maxlength="120" placeholder="例如：章节脚注区" />
+        </div>
+        <div class="layout-map-field">
+          <label for="layoutMapAddSelectors">关键选择器 / id（纯文本即可）</label>
+          <textarea id="layoutMapAddSelectors" required maxlength="2000" placeholder="#myId、.my-class …"></textarea>
+        </div>
+        <div class="layout-map-field">
+          <label for="layoutMapAddNote">说明</label>
+          <textarea id="layoutMapAddNote" maxlength="4000" placeholder="用途、与脚本的关系等"></textarea>
+        </div>
+        <div class="layout-map-dialog-actions">
+          <button type="button" class="layout-map-btn layout-map-btn--ghost" id="layoutMapAddCancelBtn">
+            取消
+          </button>
+          <button type="submit" class="layout-map-btn" id="layoutMapAddSubmitBtn">保存</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="/admin-shell.js?v=6" defer></script>
+    <script>
+      (function () {
+        "use strict";
+
+        var LS_KEY = "home_layout_map_custom_rows_v1";
+
+        function loadStore() {
+          try {
+            var raw = localStorage.getItem(LS_KEY);
+            if (!raw) return { left: [], right: [] };
+            var o = JSON.parse(raw);
+            return {
+              left: Array.isArray(o.left) ? o.left : [],
+              right: Array.isArray(o.right) ? o.right : [],
+            };
+          } catch (e) {
+            return { left: [], right: [] };
+          }
+        }
+
+        function saveStore(data) {
+          localStorage.setItem(LS_KEY, JSON.stringify(data));
+        }
+
+        function newId() {
+          return "c_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
+        }
+
+        function ensureOpColumn(table) {
+          if (!table) return;
+          var theadRow = table.querySelector("thead tr");
+          var tbody = table.querySelector("tbody");
+          if (!theadRow || !tbody) return;
+          if (theadRow.children.length === 3) {
+            var th = document.createElement("th");
+            th.scope = "col";
+            th.className = "layout-map-col-op";
+            th.textContent = "操作";
+            theadRow.appendChild(th);
+          }
+          tbody.querySelectorAll("tr").forEach(function (tr) {
+            if (tr.getAttribute("data-layout-custom-id")) return;
+            if (tr.children.length === 3) {
+              var td = document.createElement("td");
+              td.className = "layout-map-col-op";
+              var span = document.createElement("span");
+              span.className = "layout-map-op-muted";
+              span.textContent = "—";
+              td.appendChild(span);
+              tr.appendChild(td);
+            }
+          });
+        }
+
+        function buildCustomRow(side, row) {
+          var tr = document.createElement("tr");
+          tr.className = "layout-map-row-custom";
+          tr.setAttribute("data-layout-custom-id", row.id);
+          tr.setAttribute("data-layout-side", side);
+
+          var tdName = document.createElement("td");
+          tdName.textContent = row.name || "";
+
+          var tdSel = document.createElement("td");
+          var code = document.createElement("code");
+          code.textContent = row.selectors || "";
+          tdSel.appendChild(code);
+
+          var tdNote = document.createElement("td");
+          tdNote.textContent = row.note || "";
+
+          var tdOp = document.createElement("td");
+          tdOp.className = "layout-map-col-op";
+          var del = document.createElement("button");
+          del.type = "button";
+          del.className = "layout-map-btn layout-map-btn--ghost";
+          del.style.padding = "4px 8px";
+          del.style.fontSize = "11px";
+          del.textContent = "删除";
+          del.addEventListener("click", function () {
+            if (!confirm("删除这条自定义模块？")) return;
+            var data = loadStore();
+            data[side] = data[side].filter(function (x) {
+              return x.id !== row.id;
+            });
+            saveStore(data);
+            tr.remove();
+          });
+          tdOp.appendChild(del);
+
+          tr.appendChild(tdName);
+          tr.appendChild(tdSel);
+          tr.appendChild(tdNote);
+          tr.appendChild(tdOp);
+          return tr;
+        }
+
+        function renderCustomRows(leftTable, rightTable) {
+          var data = loadStore();
+          [leftTable, rightTable].forEach(function (table) {
+            if (!table) return;
+            table.querySelectorAll("tr[data-layout-custom-id]").forEach(function (tr) {
+              tr.remove();
+            });
+          });
+          var leftBody = leftTable && leftTable.querySelector("tbody");
+          var rightBody = rightTable && rightTable.querySelector("tbody");
+          data.left.forEach(function (row) {
+            if (!row || !row.id) return;
+            if (leftBody) leftBody.appendChild(buildCustomRow("left", row));
+          });
+          data.right.forEach(function (row) {
+            if (!row || !row.id) return;
+            if (rightBody) rightBody.appendChild(buildCustomRow("right", row));
+          });
+        }
+
+        function openAddDialog(side) {
+          var dlg = document.getElementById("layoutMapAddDialog");
+          var label = document.getElementById("layoutMapAddTargetLabel");
+          var form = document.getElementById("layoutMapAddForm");
+          if (!dlg || !form) return;
+          dlg.dataset.targetSide = side;
+          if (label) {
+            label.textContent =
+              side === "right" ? "将追加到：右页（right-page）表格末尾" : "将追加到：左页（left-page）表格末尾";
+          }
+          form.reset();
+          if (typeof dlg.showModal === "function") dlg.showModal();
+          else {
+            dlg.setAttribute("open", "");
+            dlg.style.position = "fixed";
+            dlg.style.inset = "0";
+            dlg.style.margin = "auto";
+            dlg.style.zIndex = "9999";
+          }
+        }
+
+        function closeAddDialog() {
+          var dlg = document.getElementById("layoutMapAddDialog");
+          if (!dlg) return;
+          if (typeof dlg.close === "function") dlg.close();
+          else dlg.removeAttribute("open");
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+          var leftTable = document.getElementById("layoutMapLeftTable");
+          var rightTable = document.getElementById("layoutMapRightTable");
+          ensureOpColumn(leftTable);
+          ensureOpColumn(rightTable);
+          renderCustomRows(leftTable, rightTable);
+
+          var addLeft = document.getElementById("layoutMapAddLeftBtn");
+          var addRight = document.getElementById("layoutMapAddRightBtn");
+          if (addLeft) addLeft.addEventListener("click", function () {
+            openAddDialog("left");
+          });
+          if (addRight) addRight.addEventListener("click", function () {
+            openAddDialog("right");
+          });
+
+          var form = document.getElementById("layoutMapAddForm");
+          if (form) {
+            form.addEventListener("submit", function (ev) {
+              ev.preventDefault();
+              var dlg = document.getElementById("layoutMapAddDialog");
+              var side = dlg && dlg.dataset.targetSide === "right" ? "right" : "left";
+              var nameEl = document.getElementById("layoutMapAddName");
+              var selEl = document.getElementById("layoutMapAddSelectors");
+              var noteEl = document.getElementById("layoutMapAddNote");
+              var name = nameEl && String(nameEl.value || "").trim();
+              var selectors = selEl && String(selEl.value || "").trim();
+              var note = noteEl && String(noteEl.value || "").trim();
+              if (!name || !selectors) return;
+              var row = { id: newId(), name: name, selectors: selectors, note: note };
+              var data = loadStore();
+              data[side].push(row);
+              saveStore(data);
+              var table = side === "right" ? rightTable : leftTable;
+              var tbody = table && table.querySelector("tbody");
+              if (tbody) tbody.appendChild(buildCustomRow(side, row));
+              closeAddDialog();
+            });
+          }
+
+          var cancelBtn = document.getElementById("layoutMapAddCancelBtn");
+          if (cancelBtn) cancelBtn.addEventListener("click", closeAddDialog);
+
+          var exportBtn = document.getElementById("layoutMapExportBtn");
+          if (exportBtn) {
+            exportBtn.addEventListener("click", function () {
+              var blob = new Blob([JSON.stringify(loadStore(), null, 2)], {
+                type: "application/json;charset=utf-8",
+              });
+              var a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "home-layout-map-modules.json";
+              a.click();
+              URL.revokeObjectURL(a.href);
+            });
+          }
+
+          var importInput = document.getElementById("layoutMapImportInput");
+          if (importInput) {
+            importInput.addEventListener("change", function () {
+              var f = importInput.files && importInput.files[0];
+              if (!f) return;
+              var reader = new FileReader();
+              reader.onload = function () {
+                try {
+                  var o = JSON.parse(String(reader.result || ""));
+                  var next = {
+                    left: Array.isArray(o.left) ? o.left : [],
+                    right: Array.isArray(o.right) ? o.right : [],
+                  };
+                  next.left = next.left.filter(function (x) {
+                    return x && x.id && x.name != null;
+                  });
+                  next.right = next.right.filter(function (x) {
+                    return x && x.id && x.name != null;
+                  });
+                  saveStore(next);
+                  renderCustomRows(leftTable, rightTable);
+                  alert("已导入 " + (next.left.length + next.right.length) + " 条自定义模块。");
+                } catch (err) {
+                  alert("JSON 解析失败：" + (err && err.message ? err.message : err));
+                }
+                importInput.value = "";
+              };
+              reader.readAsText(f, "UTF-8");
+            });
+          }
+
+          var clearBtn = document.getElementById("layoutMapClearBtn");
+          if (clearBtn) {
+            clearBtn.addEventListener("click", function () {
+              if (!confirm("确定清除本页所有自定义模块？（内置表格行不受影响）")) return;
+              saveStore({ left: [], right: [] });
+              renderCustomRows(leftTable, rightTable);
+            });
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

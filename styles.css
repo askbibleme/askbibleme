@@ -3698,19 +3698,28 @@ button.toolbar-trigger:hover,
   margin: 0 auto 14px;
   max-width: min(440px, 100%);
   text-align: center;
+  border: none;
+  box-shadow: none;
 }
 
 .chapter-illustration-figure {
   margin: 0;
+  border: none;
+  box-shadow: none;
+  border-radius: 12px;
+  overflow: hidden;
+  display: inline-block;
+  max-width: 100%;
 }
 
 .chapter-illustration-img {
-  display: inline-block;
+  display: block;
   max-width: 100%;
   height: auto;
-  vertical-align: middle;
-  border-radius: 8px;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 12px;
+  box-shadow: none;
+  outline: none;
 }
 
 /* 右页视频槽：与左栏对称分列（仅宽屏有内容；窄屏由脚本清空） */

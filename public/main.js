@@ -351,7 +351,7 @@
       stylePreset: stylePresetEl
         ? String(stylePresetEl.value || "biblical_semi_real_character")
         : "biblical_semi_real_character",
-      transparentBackground: Boolean(transparentEl.checked),
+      transparentBackground: Boolean(transparentEl && transparentEl.checked),
       overlayOpacity: Number(opacityEl.value) || 0,
     };
   }
@@ -588,7 +588,7 @@
       }
 
       setStatus("正在调用 OpenAI 生成插画 …");
-      const transparent = Boolean(transparentEl.checked);
+      const transparent = Boolean(transparentEl && transparentEl.checked);
       const resImg = await fetch(apiUrl("/api/generate-illustration"), {
         method: "POST",
         headers: {
