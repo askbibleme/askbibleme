@@ -11,6 +11,7 @@
     "build:deploy-zip": "npm run cap:copy-web && node scripts/build-deploy-upgrade-zip.mjs",
     "build:deploy-full-slim": "npm run cap:copy-web && node scripts/build-deploy-full-slim-zip.mjs",
     "deploy:remote": "node scripts/deploy-remote.mjs",
+    "deploy:remote:latest": "node scripts/deploy-latest-zip.mjs",
     "cap:android": "npx cap open android",
     "icons:from-svg": "node scripts/generate-app-icons-from-svg.mjs",
     "android:icons": "node scripts/generate-app-icons-from-svg.mjs",

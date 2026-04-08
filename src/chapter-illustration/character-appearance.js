@@ -105,6 +105,79 @@ export function getCharacterEntry(profilesRoot, zhName) {
   return entry;
 }
 
+/**
+ * 已发布章节 JSON 可选字段：章末人物卡按中文名选用「第几套时期全身像」。
+ * 与人物设计器栏位一致：0 = 根对象第一时期 imageUrl，1 = periods[0]，2 = periods[1]。
+ * 未出现在映射里的人物仍按 heroImageUrl → 各时期 的默认链。
+ */
+export function sanitizeCharacterFigurePortraitSlotByZh(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const zh = String(k || "").trim().slice(0, 32);
+    if (!zh) continue;
+    const n = Number(v);
+    if (!Number.isFinite(n)) continue;
+    out[zh] = Math.max(0, Math.min(2, Math.floor(n)));
+  }
+  return out;
+}
+
+/**
+ * 档案内各时期全身像 URL 顺序（不含 heroImageUrl）。
+ * @returns {string[]}
+ */
+export function periodPortraitUrlsInOrder(entry) {
+  if (!entry || typeof entry !== "object") return [];
+  const out = [];
+  out.push(String(entry.imageUrl || "").trim());
+  const periods = Array.isArray(entry.periods) ? entry.periods : [];
+  for (let i = 0; i < periods.length; i++) {
+    out.push(String(periods[i]?.imageUrl || "").trim());
+  }
+  return out;
+}
+
+/**
+ * 读经章末人物带：可选按槽位选图；未指定时优先 heroImageUrl，再各时期。
+ * @param {number|null|undefined} preferredSlot — 0..2 或 undefined
+ * @returns {{ url: string, portraitSlot: number|null }}
+ */
+export function resolveChapterRosterPortrait(entry, preferredSlot) {
+  if (!entry || typeof entry !== "object") return { url: "", portraitSlot: null };
+  const hero = String(entry.heroImageUrl || "").trim();
+  const slots = periodPortraitUrlsInOrder(entry);
+
+  const hasPref =
+    preferredSlot != null &&
+    preferredSlot !== "" &&
+    Number.isFinite(Number(preferredSlot));
+
+  if (hasPref) {
+    let idx = Math.max(0, Math.floor(Number(preferredSlot)));
+    const maxIdx = Math.max(0, slots.length - 1);
+    if (idx > maxIdx) idx = maxIdx;
+    if (slots[idx]) {
+      return { url: slots[idx], portraitSlot: idx };
+    }
+    for (let i = 0; i < slots.length; i++) {
+      if (slots[i]) {
+        return { url: slots[i], portraitSlot: i };
+      }
+    }
+    if (hero) return { url: hero, portraitSlot: null };
+    return { url: "", portraitSlot: null };
+  }
+
+  if (hero) return { url: hero, portraitSlot: null };
+  for (let i = 0; i < slots.length; i++) {
+    if (slots[i]) {
+      return { url: slots[i], portraitSlot: i };
+    }
+  }
+  return { url: "", portraitSlot: null };
+}
+
 export function englishNameForPerson(zhName, profilesRoot) {
   const entry = getCharacterEntry(profilesRoot, zhName);
   const fromProfile = String(entry?.englishName || "").trim();

@@ -7,6 +7,8 @@ export {
 export {
   buildChapterPayloadFromPublished,
   themeToFlatString,
+  sanitizeChapterKeyPeopleArray,
+  mergeKeyPeopleListsMany,
 } from "./chapter-payload.js";
 export { analyzeChapterForIllustration } from "./chapter-analysis.js";
 export { selectBestSceneForChapter } from "./scene-selector.js";
@@ -19,6 +21,8 @@ export {
   appearanceEnForSlot,
   periodLabelZhForSlot,
   DEFAULT_ENGLISH_NAME_BY_ZH,
+  sanitizeCharacterFigurePortraitSlotByZh,
+  resolveChapterRosterPortrait,
 } from "./character-appearance.js";
 
 import { buildChapterPayloadFromPublished } from "./chapter-payload.js";
@@ -35,7 +39,9 @@ import { buildCharacterLockLines } from "./character-appearance.js";
  * Run stages 2–4: analysis → selection → one English scene sentence.
  */
 export function runScenePipelineFromPublishedData(publishedJson, meta, options = {}) {
-  const payload = buildChapterPayloadFromPublished(publishedJson, meta);
+  const payload = buildChapterPayloadFromPublished(publishedJson, meta, {
+    globalKeyPeople: options.globalKeyPeople,
+  });
   const analysis = analyzeChapterForIllustration(payload);
   const alternateIndex = Math.max(0, Number(options.alternateIndex || 0) || 0);
   const profilesRoot = options.profilesRoot || null;
@@ -107,6 +113,7 @@ export function regenerateScene(currentState, publishedJson, options = {}) {
   const run = runScenePipelineFromPublishedData(publishedJson, meta, {
     alternateIndex: nextVariant,
     profilesRoot,
+    globalKeyPeople: options.globalKeyPeople,
   });
   const characterAppearanceLines = buildCharacterLockLines(
     run.payload.keyPeople,

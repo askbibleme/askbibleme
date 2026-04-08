@@ -1059,6 +1059,10 @@ body:has(
   border-color: rgba(130, 115, 92, 0.55);
 }
 
+#memberHubPanel .member-hub-link-grid--user .member-hub-menu-item:only-of-type {
+  grid-column: 1 / -1;
+}
+
 /* 千夫长站点管理：整块暖色底 + 顶部分隔，与普通功能区明显区分 */
 #memberHubPanel .member-hub-qian-section {
   margin-top: 18px;
@@ -1274,6 +1278,130 @@ body:has(
   transform: rotate(-45deg);
 }
 
+/* 资料与密码：与 #memberHubPanel 同壳 */
+#memberProfilePanel.member-hub-overlay {
+  align-items: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: max(12px, env(safe-area-inset-top))
+    max(14px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+}
+
+#memberProfilePanel .member-hub-modal-card {
+  width: min(100%, 520px);
+  max-height: min(82vh, 680px);
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--paper);
+  background-image: var(--modal-half-book-paper-image);
+  background-size: var(--modal-half-book-paper-size);
+  background-position: var(--modal-half-book-paper-position);
+  background-repeat: no-repeat;
+  border: 1px solid var(--panel-line);
+  box-shadow: var(--shadow-md);
+  border-radius: 18px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#memberProfilePanel .toolbar-panel-inner.toolbar-panel-simple {
+  max-height: none !important;
+  height: auto !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  padding: 10px 12px 14px !important;
+}
+
+#memberProfilePanel .toolbar-panel-inner::before {
+  display: none !important;
+}
+
+#memberProfilePanel .toolbar-panel-head {
+  flex-shrink: 0;
+  margin-bottom: 0 !important;
+}
+
+#memberProfilePanel .toolbar-panel-title {
+  color: var(--ink);
+  font-weight: 800 !important;
+  letter-spacing: 0.02em;
+}
+
+#memberProfilePanel .toolbar-panel-close {
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
+.member-profile-form {
+  margin-top: 10px;
+}
+
+.member-profile-form__section-title {
+  margin-top: 14px !important;
+  margin-bottom: 8px !important;
+  font-size: calc(15px * var(--font-scale)) !important;
+}
+
+.member-profile-form__section-title:first-child {
+  margin-top: 4px !important;
+}
+
+.member-profile-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 700;
+  color: rgba(74, 68, 63, 0.82);
+}
+
+.member-profile-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(190, 170, 140, 0.45);
+  background: rgba(255, 253, 248, 0.92);
+  font: inherit;
+  font-size: calc(15px * var(--font-scale));
+  color: var(--ink);
+}
+
+.member-profile-input:focus {
+  outline: 2px solid rgba(200, 155, 60, 0.45);
+  outline-offset: 1px;
+}
+
+.member-profile-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-profile-status {
+  margin-top: 12px;
+  min-height: 1.35em;
+  font-size: calc(13px * var(--font-scale));
+  font-weight: 600;
+  color: rgba(74, 68, 63, 0.88);
+}
+
+.member-profile-status--error {
+  color: #b42318;
+}
+
 .member-hub-state--guest,
 .member-hub-state--member {
   display: flex;
@@ -1447,7 +1575,8 @@ body:has(
 }
 
 @media (max-width: 520px) {
-  #memberHubPanel .member-hub-modal-card {
+  #memberHubPanel .member-hub-modal-card,
+  #memberProfilePanel .member-hub-modal-card {
     width: 100%;
     max-width: none;
     max-height: min(92vh, 100dvh);
@@ -3961,6 +4090,148 @@ button.toolbar-trigger:hover,
   cursor: not-allowed;
 }
 
+/* 章末：本章人员立绘（表内 #chapterEndPersonnelRoster）；单行横向滚动 */
+.chapter-character-roster {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 14px 18px;
+  justify-content: flex-start;
+  align-items: flex-end;
+}
+
+.chapter-character-roster-item {
+  margin: 0;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  width: min(28vw, 132px);
+  max-width: none;
+}
+
+.chapter-character-roster-img-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 140px;
+  max-height: 200px;
+  padding: 6px 4px 0;
+  border-radius: 12px;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.chapter-character-roster-img {
+  display: block;
+  max-width: 100%;
+  max-height: 192px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  object-position: bottom center;
+}
+
+.chapter-character-roster-caption {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.chapter-character-roster--personnel-cell {
+  margin: 0;
+  padding: 4px 2px 6px;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.chapter-character-roster--personnel-cell::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chapter-character-roster--personnel-cell::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 本章人员：单行滚动需 fixed 表格；透明底、无外框/单元格线/阴影 */
+#chapterEndPersonnelSection .chapter-end-notes-table {
+  table-layout: fixed;
+  width: 100%;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+
+#chapterEndPersonnelSection .chapter-end-notes-table-caption {
+  padding: 0 0 6px;
+}
+
+#chapterEndPersonnelSection .chapter-end-notes-table-cell {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  border: none;
+  background: transparent;
+  padding: 2px 0 8px;
+  min-height: 0;
+}
+
+/* 章末白底单格（本章人员 + 人物立绘；卷首页由 .book-layout--landing 隐藏） */
+.book-layout--landing .chapter-end-notes-table-wrap {
+  display: none !important;
+}
+
+.chapter-end-notes-table-wrap[hidden] {
+  display: none !important;
+}
+
+.chapter-end-notes-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin: 14px 0 12px;
+  box-sizing: border-box;
+}
+
+.chapter-end-notes-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.chapter-end-notes-table-caption {
+  caption-side: top;
+  text-align: left;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 0 2px 8px;
+}
+
+.chapter-end-notes-table-cell,
+.chapter-end-notes-table tbody td {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+  min-height: 120px;
+  padding: 14px 16px;
+  vertical-align: top;
+  box-sizing: border-box;
+}
+
 .chapter-approved-list {
   display: grid;
   gap: 8px;
@@ -4676,7 +4947,8 @@ body.question-only-mode .plain-list li {
 body.verse-search-open,
 body.primary-version-open,
 body.book-chapter-open,
-body.member-hub-open {
+body.member-hub-open,
+body.member-profile-open {
   overflow: hidden;
 }
 

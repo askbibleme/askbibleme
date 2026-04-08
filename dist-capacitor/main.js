@@ -122,6 +122,9 @@ const state = {
   currentUser: null,
 };
 
+/** 防止查经内容快速切换时，异步补拉章末人物写错章 */
+let studyContentLoadGeneration = 0;
+
 /** 收藏夹弹层：pages | verses | questions */
 let favoritesPanelActiveTab = "pages";
 
@@ -395,6 +398,34 @@ function resolveStudyApiPath(path) {
   } catch (_) {
     return String(base).replace(/\/$/, "") + p;
   }
+}
+
+/** 本章人员立绘：/generated 下 PNG 走服务端缩图，减轻带宽（方案 1） */
+function chapterRosterPortraitImgSrc(normalizedPath) {
+  const raw = String(normalizedPath || "").trim();
+  if (!raw) return "";
+  let genPath = "";
+  if (raw.startsWith("/generated/")) {
+    genPath = raw.split("?")[0];
+  } else if (/^https?:\/\//i.test(raw)) {
+    try {
+      const u = new URL(raw);
+      if (u.pathname.startsWith("/generated/")) {
+        genPath = u.pathname;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  if (genPath) {
+    const baseName = genPath.replace(/^\/generated\//, "").split("/").pop() || "";
+    if (!baseName) {
+      return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+    }
+    const q = new URLSearchParams({ n: baseName, w: "320" });
+    return resolveStudyApiPath("/api/roster-portrait?" + q.toString());
+  }
+  return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
 }
 
 /** 与 .book-spread 双栏断点一致：宽屏视频分列到左右页 */
@@ -1433,6 +1464,7 @@ function getLocalizedCopy() {
       enterChapterOne: "Chapter 1",
       bookIntroEmpty: "No introduction has been published for this book yet.",
       noContent: "No content yet for this chapter in the selected version/language.",
+      chapterEndPersonnelTableCaption: "People in this chapter",
       promoHelpAria:
         "About Berean-style reading and AskBible.me (opens in new tab)",
     };
@@ -1493,6 +1525,7 @@ function getLocalizedCopy() {
       enterChapterOne: "Capitulo 1",
       bookIntroEmpty: "Aun no hay introduccion publicada para este libro.",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
+      chapterEndPersonnelTableCaption: "Personas en este capitulo",
       promoHelpAria: "Sobre el estilo Berea y AskBible.me (nueva pestana)",
     };
   }
@@ -1552,6 +1585,7 @@ function getLocalizedCopy() {
       enterChapterOne: "פרק 1",
       bookIntroEmpty: "עדיין לא פורסמה הקדמה לספר זה.",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
+      chapterEndPersonnelTableCaption: "אנשים בפרק זה",
       promoHelpAria: "אודות לימוד בסגנון בראיים ו-AskBible.me (בלשונית חדשה)",
     };
   }
@@ -1610,6 +1644,7 @@ function getLocalizedCopy() {
     enterChapterOne: "进入第 1 章",
     bookIntroEmpty: "本书卷暂无介绍内容。",
     noContent: "这一章还没有该版本 / 该语言的内容。",
+    chapterEndPersonnelTableCaption: "本章人员",
     promoHelpAria: "了解庇哩亚式读经与 AskBible.me（新窗口打开）",
   };
 }
@@ -1655,6 +1690,7 @@ function applyReaderI18n() {
   setText("#favoritesTabPages", copy.favoritesSectionPageTitle || "");
   setText("#favoritesTabVerses", copy.favoritesSectionVerseTitle || "");
   setText("#favoritesTabQuestions", copy.favoritesSectionQuestionTitle || "");
+  setText("#chapterEndPersonnelTableCaption", copy.chapterEndPersonnelTableCaption || "");
 
   document
     .querySelectorAll(
@@ -2468,6 +2504,7 @@ async function init() {
     initAuthModal();
     initChapterRibbonFavorite();
     initMemberHub();
+    initMemberProfilePanel();
     initOnlinePulseVisibility();
     initAdminModal();
     tryConsumeAdminDeepLink();
@@ -2775,6 +2812,7 @@ function setAuthToken(token) {
 let onlinePulseTimerId = null;
 
 let memberHubCloseFn = () => {};
+let memberProfileCloseFn = () => {};
 
 async function performLogout() {
   stopOnlinePulseTimer();
@@ -2788,6 +2826,7 @@ async function performLogout() {
   setAuthToken("");
   state.currentUser = null;
   memberHubCloseFn();
+  memberProfileCloseFn();
   renderAuthStatus();
   void refreshAppliedColorTheme();
 }
@@ -3252,6 +3291,7 @@ function initMemberHub() {
       void fetchCurrentUser();
     }
     closeAllToolbarPanels();
+    memberProfileCloseFn();
     renderMemberHub();
     panel.removeAttribute("hidden");
     document.body.classList.add("member-hub-open");
@@ -3326,6 +3366,13 @@ function initMemberHub() {
       void performLogout();
       return;
     }
+    if (action === "edit-profile") {
+      close();
+      if (typeof window.openMemberProfilePanel === "function") {
+        window.openMemberProfilePanel();
+      }
+      return;
+    }
     if (action === "admin") {
       close();
       document.getElementById("openAdminBtn")?.dispatchEvent(
@@ -3386,6 +3433,142 @@ function initMemberHub() {
         window.openMemberHub();
       }
     });
+  });
+}
+
+function initMemberProfilePanel() {
+  const panel = document.getElementById("memberProfilePanel");
+  const backdrop = document.getElementById("memberProfileBackdropBtn");
+  const closeBtn = document.getElementById("memberProfileCloseBtn");
+  const nameInput = document.getElementById("memberProfileNameInput");
+  const emailInput = document.getElementById("memberProfileEmailInput");
+  const saveBtn = document.getElementById("memberProfileSaveBtn");
+  const curPw = document.getElementById("memberProfileCurrentPw");
+  const newPw = document.getElementById("memberProfileNewPw");
+  const pwBtn = document.getElementById("memberProfilePasswordBtn");
+  const statusEl = document.getElementById("memberProfileStatus");
+  if (!panel || !backdrop || !closeBtn) return;
+  if (panel.dataset.memberProfileBound === "1") return;
+  panel.dataset.memberProfileBound = "1";
+
+  function setStatus(text, isError) {
+    if (!statusEl) return;
+    statusEl.textContent = text || "";
+    statusEl.classList.toggle("member-profile-status--error", Boolean(isError && text));
+  }
+
+  function close() {
+    panel.setAttribute("hidden", "");
+    document.body.classList.remove("member-profile-open");
+    setStatus("");
+  }
+
+  memberProfileCloseFn = close;
+
+  function fillFromUser() {
+    const u = state.currentUser;
+    if (nameInput) nameInput.value = String(u?.name || "").trim();
+    if (emailInput) emailInput.value = String(u?.email || "").trim();
+    if (curPw) curPw.value = "";
+    if (newPw) newPw.value = "";
+    setStatus("");
+  }
+
+  function open() {
+    const name = String(state.currentUser?.name || "").trim();
+    if (!name || !getAuthToken()) {
+      window.openAuthModal?.("login");
+      return;
+    }
+    closeAllToolbarPanels();
+    closeVerseSearchOverlay();
+    fillFromUser();
+    panel.removeAttribute("hidden");
+    document.body.classList.add("member-profile-open");
+    nameInput?.focus();
+  }
+
+  window.openMemberProfilePanel = open;
+
+  backdrop.addEventListener("click", close);
+  closeBtn.addEventListener("click", close);
+
+  saveBtn?.addEventListener("click", async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    const name = String(nameInput?.value || "").trim();
+    const email = String(emailInput?.value || "").trim().toLowerCase();
+    if (!name) {
+      setStatus("昵称不能为空", true);
+      return;
+    }
+    if (!email.includes("@")) {
+      setStatus("请填写有效邮箱", true);
+      return;
+    }
+    saveBtn.disabled = true;
+    setStatus("保存中...");
+    try {
+      const res = await fetch("/api/auth/profile/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name, email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatus(String(data.error || "保存失败"), true);
+        return;
+      }
+      setStatus("资料已保存");
+      await fetchCurrentUser();
+      renderMemberHub();
+    } catch {
+      setStatus("网络错误，请稍后重试", true);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  pwBtn?.addEventListener("click", async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    const currentPassword = String(curPw?.value || "");
+    const newPassword = String(newPw?.value || "");
+    if (!currentPassword || !newPassword) {
+      setStatus("请填写当前密码和新密码", true);
+      return;
+    }
+    if (newPassword.length < 6) {
+      setStatus("新密码至少 6 位", true);
+      return;
+    }
+    pwBtn.disabled = true;
+    setStatus("提交中...");
+    try {
+      const res = await fetch("/api/auth/password/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatus(String(data.error || "修改失败"), true);
+        return;
+      }
+      setStatus("密码已更新");
+      if (curPw) curPw.value = "";
+      if (newPw) newPw.value = "";
+    } catch {
+      setStatus("网络错误，请稍后重试", true);
+    } finally {
+      pwBtn.disabled = false;
+    }
   });
 }
 
@@ -3920,6 +4103,12 @@ function toolbarSheetsEscHandler(e) {
   if (e.key !== "Escape") return;
   const verse = document.getElementById("verseSearchOverlay");
   if (verse && !verse.hasAttribute("hidden")) return;
+  const mp = document.getElementById("memberProfilePanel");
+  if (mp && !mp.hasAttribute("hidden")) {
+    e.preventDefault();
+    memberProfileCloseFn();
+    return;
+  }
   const mh = document.getElementById("memberHubPanel");
   if (mh && !mh.hasAttribute("hidden")) {
     e.preventDefault();
@@ -4018,6 +4207,7 @@ function closeAllToolbarPanels() {
     }
   );
   memberHubCloseFn();
+  memberProfileCloseFn();
 }
 
 function verseSearchOverlayEscHandler(e) {
@@ -5100,6 +5290,7 @@ async function loadScripture() {
 }
 
 async function loadStudyContent() {
+  const loadGen = ++studyContentLoadGeneration;
   state.chapterIllustrationWhenStudyMissing = null;
   try {
     const gsRes = await fetch(resolveStudyApiPath("/api/chapter-illustration/global-settings"), {
@@ -5207,6 +5398,16 @@ async function loadStudyContent() {
   }
 
   state.studyContent = data;
+  const shouldEnrichFigures =
+    data &&
+    data.missing !== true &&
+    Array.isArray(data.segments) &&
+    data.segments.length > 0 &&
+    (!Array.isArray(data.chapterCharacterFigures) ||
+      data.chapterCharacterFigures.length === 0);
+  if (shouldEnrichFigures) {
+    void enrichChapterCharacterFiguresIfNeeded(params, loadGen);
+  }
 }
 
 function updatePageTitle() {
@@ -5248,6 +5449,24 @@ function updatePageTitle() {
   if (nextTopBtn) nextTopBtn.setAttribute("aria-label", copy.nextChapter);
 }
 
+async function enrichChapterCharacterFiguresIfNeeded(params, loadGen) {
+  try {
+    const res = await fetch(
+      resolveStudyApiPath(`/api/study-character-figures?${params.toString()}`),
+      { cache: "no-store" }
+    );
+    if (!res.ok) return;
+    const j = await res.json().catch(() => ({}));
+    const figs = Array.isArray(j.figures) ? j.figures : [];
+    if (!figs.length) return;
+    if (loadGen !== studyContentLoadGeneration) return;
+    const cur = state.studyContent;
+    if (!cur || cur.missing === true) return;
+    state.studyContent = { ...cur, chapterCharacterFigures: figs };
+    syncChapterCharacterRoster();
+  } catch (_) {}
+}
+
 function syncChapterIllustrationSlot() {
   const slot = document.getElementById("chapterIllustrationSlot");
   if (!slot) return;
@@ -5277,6 +5496,42 @@ function syncChapterIllustrationSlot() {
     ';" src="' +
     escapeHtml(src) +
     '" alt="" decoding="async" loading="lazy" /></figure>';
+}
+
+function syncChapterCharacterRoster() {
+  const section = document.getElementById("chapterEndPersonnelSection");
+  const rosterEl = document.getElementById("chapterEndPersonnelRoster");
+  if (!section || !rosterEl) return;
+  if (isBookLandingChapter()) {
+    section.hidden = true;
+    rosterEl.innerHTML = "";
+    return;
+  }
+  section.hidden = false;
+  rosterEl.innerHTML = "";
+  if (!state.studyContent) {
+    return;
+  }
+  const figures = Array.isArray(state.studyContent.chapterCharacterFigures)
+    ? state.studyContent.chapterCharacterFigures
+    : [];
+  const cards = [];
+  for (let i = 0; i < figures.length; i++) {
+    const f = figures[i];
+    const raw = normalizeIllustrationImageUrlForReader(f && f.imageUrl);
+    if (!raw) continue;
+    const src = chapterRosterPortraitImgSrc(raw);
+    const name = escapeHtml(String(f.zhName || "").trim());
+    if (!name) continue;
+    cards.push(
+      `<figure class="chapter-character-roster-item"><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
+        src
+      )}" alt="${name}" decoding="async" loading="lazy" /></div><figcaption class="chapter-character-roster-caption">${name}</figcaption></figure>`
+    );
+  }
+  if (cards.length) {
+    rosterEl.innerHTML = cards.join("");
+  }
 }
 
 function renderStudyContent() {
@@ -5383,6 +5638,7 @@ function renderStudyContent() {
   }
   } finally {
     syncChapterIllustrationSlot();
+    syncChapterCharacterRoster();
   }
 }
 

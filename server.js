@@ -16,6 +16,7 @@ import AdmZip from "adm-zip";
 import OpenAI from "openai";
 import sharp from "sharp";
 import { testamentOptions } from "./src/books.js";
+import { compareZhNamesByBibleRosterOrder } from "./src/bible-character-preset-order.js";
 import {
   BUILTIN_COLOR_THEME_VARIABLES,
   BUILTIN_COLOR_THEME_VARIABLE_KEYS,
@@ -25,12 +26,15 @@ import {
   generateIllustrationPrompt,
   analyzeChapterForIllustration,
   buildChapterPayloadFromPublished,
+  sanitizeChapterKeyPeopleArray,
   buildCharacterLockLines,
   buildCharacterLockLinesForRefSelections,
   stateStorageKey,
   defaultChapterIllustrationState,
   mergeChapterIllustrationState,
   stateFromPipelineRun,
+  resolveChapterRosterPortrait,
+  sanitizeCharacterFigurePortraitSlotByZh,
 } from "./src/chapter-illustration/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -517,6 +521,9 @@ function sleep(ms) {
 
 const READ_CACHE_TTL_MS = 60 * 1000;
 const readApiCache = new Map();
+
+/** 查经 JSON 读缓存键前缀；全局章人物表等变更时请 bump，避免旧缓存章末人物错位 */
+const STUDY_CONTENT_CACHE_TAG = "study:v7";
 const writeRateLimitMap = new Map();
 const writeDedupeMap = new Map();
 
@@ -2295,7 +2302,7 @@ function applyPresetQuestionCorrectionsToStudyPayload(
 }
 
 function invalidateStudyContentCache(version, lang, bookId, chapter) {
-  const key = `study:v3:${String(version)}:${String(lang)}:${String(
+  const key = `${STUDY_CONTENT_CACHE_TAG}:${String(version)}:${String(lang)}:${String(
     bookId
   )}:${Number(chapter)}`;
   readApiCache.delete(key);
@@ -3872,6 +3879,16 @@ function normalizeStudyContentForSave(input) {
     savedAt: nowIso(),
     chapterVideos: normalizeChapterVideosForSave(input.chapterVideos),
   };
+  const slotZh = sanitizeCharacterFigurePortraitSlotByZh(
+    input.characterFigurePortraitSlotByZh
+  );
+  if (slotZh && Object.keys(slotZh).length > 0) {
+    out.characterFigurePortraitSlotByZh = slotZh;
+  }
+  const chapterKeyPeople = sanitizeChapterKeyPeopleArray(input.chapterKeyPeople);
+  if (chapterKeyPeople.length > 0) {
+    out.chapterKeyPeople = chapterKeyPeople;
+  }
   const ill = normalizeChapterIllustrationForSave(input.chapterIllustration);
   if (ill) out.chapterIllustration = ill;
   return out;
@@ -3914,6 +3931,17 @@ function mergePublishOneChapter(studyContent) {
     studyContent &&
     typeof studyContent === "object" &&
     Object.prototype.hasOwnProperty.call(studyContent, "chapterIllustration");
+  const hadCharacterFigureSlotKey =
+    studyContent &&
+    typeof studyContent === "object" &&
+    Object.prototype.hasOwnProperty.call(
+      studyContent,
+      "characterFigurePortraitSlotByZh"
+    );
+  const hadChapterKeyPeopleKey =
+    studyContent &&
+    typeof studyContent === "object" &&
+    Object.prototype.hasOwnProperty.call(studyContent, "chapterKeyPeople");
   const normalized = normalizeStudyContentForSave(studyContent);
 
   const filePath = getPublishedContentFilePath({
@@ -3942,6 +3970,30 @@ function mergePublishOneChapter(studyContent) {
     normalized.chapterIllustration = normalizeChapterIllustrationForSave(
       existing.chapterIllustration
     );
+  }
+  if (
+    !hadCharacterFigureSlotKey &&
+    existing &&
+    existing.characterFigurePortraitSlotByZh &&
+    typeof existing.characterFigurePortraitSlotByZh === "object"
+  ) {
+    const kept = sanitizeCharacterFigurePortraitSlotByZh(
+      existing.characterFigurePortraitSlotByZh
+    );
+    if (Object.keys(kept).length > 0) {
+      normalized.characterFigurePortraitSlotByZh = kept;
+    }
+  }
+  if (
+    !hadChapterKeyPeopleKey &&
+    existing &&
+    Array.isArray(existing.chapterKeyPeople) &&
+    existing.chapterKeyPeople.length > 0
+  ) {
+    const kept = sanitizeChapterKeyPeopleArray(existing.chapterKeyPeople);
+    if (kept.length > 0) {
+      normalized.chapterKeyPeople = kept;
+    }
   }
 
   writeJson(filePath, normalized);
@@ -5918,6 +5970,53 @@ app.get("/api/scripture", (req, res) => {
   }
 });
 
+/** 读经页章末人物带：keyPeople = 全局章人物表 + 已发布 JSON 的 chapterKeyPeople + 段标题正则，再匹配人物库立绘（与版本/语言无关） */
+function buildChapterCharacterFiguresForReader(chapterData, meta) {
+  try {
+    if (!chapterData || typeof chapterData !== "object") return [];
+    const payload = buildChapterPayloadFromPublished(chapterData, meta, {
+      globalKeyPeople: loadChapterKeyPeopleGlobal(meta.bookId, meta.chapter),
+    });
+    const names = Array.isArray(payload.keyPeople) ? payload.keyPeople : [];
+    const slotByZh =
+      payload.characterFigurePortraitSlotByZh &&
+      typeof payload.characterFigurePortraitSlotByZh === "object"
+        ? payload.characterFigurePortraitSlotByZh
+        : {};
+    const profilesRoot = loadCharacterIllustrationProfiles();
+    const ch =
+      profilesRoot.characters && typeof profilesRoot.characters === "object"
+        ? profilesRoot.characters
+        : {};
+    const figures = [];
+    const seen = new Set();
+    for (let i = 0; i < names.length; i++) {
+      const zh = String(names[i] || "").trim();
+      if (!zh || seen.has(zh)) continue;
+      seen.add(zh);
+      const entry = ch[zh];
+      if (!entry || typeof entry !== "object") continue;
+      const pref =
+        Object.prototype.hasOwnProperty.call(slotByZh, zh) ? slotByZh[zh] : undefined;
+      const resolved = resolveChapterRosterPortrait(entry, pref);
+      const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
+      if (!imageUrl) continue;
+      const row = { zhName: zh, imageUrl };
+      if (typeof resolved.portraitSlot === "number") {
+        row.portraitSlot = resolved.portraitSlot;
+      }
+      figures.push(row);
+    }
+    figures.sort((x, y) =>
+      compareZhNamesByBibleRosterOrder(x.zhName, y.zhName)
+    );
+    return figures;
+  } catch (e) {
+    console.error("[buildChapterCharacterFiguresForReader]", e);
+    return [];
+  }
+}
+
 app.get("/api/study-content", (req, res) => {
   try {
     const { version, lang, bookId, chapter } = req.query;
@@ -5928,7 +6027,7 @@ app.get("/api/study-content", (req, res) => {
       });
     }
 
-    const cacheKey = `study:v3:${String(version)}:${String(lang)}:${String(
+    const cacheKey = `${STUDY_CONTENT_CACHE_TAG}:${String(version)}:${String(lang)}:${String(
       bookId
     )}:${Number(chapter)}`;
     const cached = getReadCache(cacheKey);
@@ -5953,7 +6052,7 @@ app.get("/api/study-content", (req, res) => {
         Number(chapter)
       );
       const ill = normalizeChapterIllustrationForSave(withIll.chapterIllustration);
-      const payload = { missing: true };
+      const payload = { missing: true, chapterCharacterFigures: [] };
       if (ill) {
         payload.chapterIllustration = ill;
       }
@@ -5979,12 +6078,60 @@ app.get("/api/study-content", (req, res) => {
       String(lang)
     );
 
+    const studyMeta = {
+      versionId: String(version),
+      lang: String(lang),
+      bookId: String(bookId),
+      chapter: Number(chapter),
+    };
+    data.chapterCharacterFigures = buildChapterCharacterFiguresForReader(
+      data,
+      studyMeta
+    );
+
     setReadCache(cacheKey, data);
     res.json(data);
   } catch (error) {
     console.error(error);
     res.status(500).json({
       error: error.message || "读取内容失败",
+    });
+  }
+});
+
+/**
+ * 仅返回章末人物立绘列表（与 study-content 内 chapterCharacterFigures 同源）。
+ * 供读经页在旧缓存/旧响应未带 figures 时补拉，也便于单独调试。
+ */
+app.get("/api/study-character-figures", (req, res) => {
+  try {
+    const { version, lang, bookId, chapter } = req.query;
+    if (!version || !lang || !bookId || !chapter) {
+      return res.status(400).json({
+        error: "缺少 version / lang / bookId / chapter",
+      });
+    }
+    const data = readPublishedContent({
+      versionId: String(version),
+      lang: String(lang),
+      bookId: String(bookId),
+      chapter: Number(chapter),
+    });
+    if (!data) {
+      return res.json({ figures: [] });
+    }
+    const studyMeta = {
+      versionId: String(version),
+      lang: String(lang),
+      bookId: String(bookId),
+      chapter: Number(chapter),
+    };
+    const figures = buildChapterCharacterFiguresForReader(data, studyMeta);
+    res.json({ figures });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: error.message || "读取章末人物失败",
     });
   }
 });
@@ -6845,6 +6992,36 @@ const CHARACTER_ILLUSTRATION_PROFILES_FILE = path.join(
   "character_illustration_profiles.json"
 );
 
+/**
+ * 全书「第几章有哪些关键人物」（中文名，与人物库 characters 键一致）。
+ * 全版本、全语言共用；结构：{ "GEN": { "28": ["雅各", "拉班"] }, ... }
+ */
+const CHAPTER_KEY_PEOPLE_FILE = path.join(ADMIN_DIR, "chapter_key_people.json");
+
+function ensureChapterKeyPeopleFile() {
+  ensureDir(ADMIN_DIR);
+  if (!fs.existsSync(CHAPTER_KEY_PEOPLE_FILE)) {
+    writeJson(CHAPTER_KEY_PEOPLE_FILE, {});
+  }
+}
+
+function loadChapterKeyPeopleGlobal(bookId, chapter) {
+  try {
+    ensureChapterKeyPeopleFile();
+    const root = readJson(CHAPTER_KEY_PEOPLE_FILE, {});
+    const bid = String(bookId || "").trim();
+    const chNum = Number(chapter);
+    if (!bid || !Number.isFinite(chNum) || chNum < 1) return [];
+    const chKey = String(chNum);
+    const byBook = root[bid];
+    if (!byBook || typeof byBook !== "object") return [];
+    const arr = byBook[chKey];
+    return sanitizeChapterKeyPeopleArray(Array.isArray(arr) ? arr : []);
+  } catch (_) {
+    return [];
+  }
+}
+
 function ensureCharacterIllustrationProfilesFile() {
   ensureDir(ADMIN_DIR);
   if (!fs.existsSync(CHARACTER_ILLUSTRATION_PROFILES_FILE)) {
@@ -6988,6 +7165,8 @@ function characterLockLinesForPublishedChapter(body) {
     lang,
     bookId,
     chapter: chapterNum,
+  }, {
+    globalKeyPeople: loadChapterKeyPeopleGlobal(bookId, chapterNum),
   });
   return buildCharacterLockLines(
     payload.keyPeople,
@@ -7265,6 +7444,7 @@ function tryAutoSceneFromPublishedChapter(body) {
     {
       alternateIndex: sceneVariant,
       profilesRoot: loadCharacterIllustrationProfiles(),
+      globalKeyPeople: loadChapterKeyPeopleGlobal(bookId, chapterNum),
     }
   );
   return {
@@ -7318,6 +7498,8 @@ app.post("/api/chapter-illustration/analyze", (req, res) => {
       lang,
       bookId,
       chapter: chapterNum,
+    }, {
+      globalKeyPeople: loadChapterKeyPeopleGlobal(bookId, chapterNum),
     });
     const analysis = analyzeChapterForIllustration(payload);
     res.json({ ok: true, analysis, payloadSummary: payload.summary });
@@ -7364,6 +7546,7 @@ app.post("/api/chapter-illustration/scene", (req, res) => {
       {
         alternateIndex: Math.max(0, Number(body.sceneVariant || 0) || 0),
         profilesRoot: loadCharacterIllustrationProfiles(),
+        globalKeyPeople: loadChapterKeyPeopleGlobal(bookId, chapterNum),
       }
     );
     const chapterState = stateFromPipelineRun(
@@ -7639,6 +7822,234 @@ app.post(
   "/api/admin/character-illustration-profiles/prompt-archive-translate",
   handleCharacterProfilePromptArchiveTranslate
 );
+
+function sanitizeChapterKeyPeopleFileBody(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const cleaned = {};
+  for (const [bk, chObj] of Object.entries(body)) {
+    const bookId = safeText(String(bk || "")).slice(0, 24);
+    if (!bookId) continue;
+    if (!chObj || typeof chObj !== "object" || Array.isArray(chObj)) continue;
+    const byCh = {};
+    for (const [ck, arr] of Object.entries(chObj)) {
+      const ch = String(ck || "").trim();
+      if (!/^\d+$/.test(ch)) continue;
+      const n = Number(ch);
+      if (!Number.isFinite(n) || n < 1) continue;
+      const names = sanitizeChapterKeyPeopleArray(Array.isArray(arr) ? arr : []);
+      if (names.length) byCh[String(n)] = names;
+    }
+    if (Object.keys(byCh).length > 0) cleaned[bookId] = byCh;
+  }
+  return cleaned;
+}
+
+function listZhNamesWithRosterPortraitInProfiles() {
+  const profilesRoot = loadCharacterIllustrationProfiles();
+  const ch =
+    profilesRoot.characters && typeof profilesRoot.characters === "object"
+      ? profilesRoot.characters
+      : {};
+  const out = [];
+  for (const [zh, entry] of Object.entries(ch)) {
+    if (!entry || typeof entry !== "object") continue;
+    const resolved = resolveChapterRosterPortrait(entry, undefined);
+    const url = normalizeIllustrationImageUrlForPublication(resolved.url);
+    if (url) out.push(String(zh || "").trim());
+  }
+  const uniq = [...new Set(out.filter(Boolean))];
+  uniq.sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+  return uniq;
+}
+
+function mergeChapterKeyPeopleDeep(base, add) {
+  const out =
+    base && typeof base === "object" && !Array.isArray(base) ? { ...base } : {};
+  if (!add || typeof add !== "object" || Array.isArray(add)) return out;
+  for (const [bid, chObj] of Object.entries(add)) {
+    if (!chObj || typeof chObj !== "object" || Array.isArray(chObj)) continue;
+    const prevBook =
+      out[bid] && typeof out[bid] === "object" && !Array.isArray(out[bid])
+        ? { ...out[bid] }
+        : {};
+    for (const [ch, arr] of Object.entries(chObj)) {
+      const a = Array.isArray(arr)
+        ? arr.map((x) => String(x || "").trim()).filter(Boolean)
+        : [];
+      const p = Array.isArray(prevBook[ch])
+        ? prevBook[ch].map((x) => String(x || "").trim()).filter(Boolean)
+        : [];
+      const merged = [...new Set([...p, ...a])];
+      if (merged.length) prevBook[ch] = merged;
+    }
+    if (Object.keys(prevBook).length) out[bid] = prevBook;
+  }
+  return out;
+}
+
+/** 仅据 theme / 段标题正则推断 keyPeople，再与「人物库已有立绘」名单求交，供全局表自动建议 */
+function buildChapterKeyPeopleSuggestionsFromPublished(versionId, lang, rosterZhSet) {
+  const vid = safeText(String(versionId || "")).slice(0, 48);
+  const lng = safeText(String(lang || "")).slice(0, 24);
+  if (!vid || !lng) return {};
+  const books = flattenBooks();
+  const suggested = {};
+  for (const book of books) {
+    const bid = book.bookId;
+    let cov;
+    try {
+      cov = listPublishedBookChapters(vid, lng, bid);
+    } catch {
+      continue;
+    }
+    for (const chNum of cov.publishedChapters) {
+      const data = readPublishedContent({
+        versionId: vid,
+        lang: lng,
+        bookId: bid,
+        chapter: chNum,
+      });
+      if (!data || typeof data !== "object") continue;
+      const payload = buildChapterPayloadFromPublished(
+        data,
+        {
+          versionId: vid,
+          lang: lng,
+          bookId: bid,
+          chapter: chNum,
+        },
+        {
+          globalKeyPeople: [],
+          inferredKeyPeopleOnly: true,
+        }
+      );
+      const names = (
+        Array.isArray(payload.keyPeople) ? payload.keyPeople : []
+      ).filter((n) => rosterZhSet.has(String(n || "").trim()));
+      if (!names.length) continue;
+      const uniq = [
+        ...new Set(names.map((n) => String(n || "").trim()).filter(Boolean)),
+      ];
+      if (!suggested[bid]) suggested[bid] = {};
+      suggested[bid][String(chNum)] = uniq;
+    }
+  }
+  return suggested;
+}
+
+function handleChapterKeyPeopleRosterNames(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const names = listZhNamesWithRosterPortraitInProfiles();
+    res.set("Cache-Control", "no-store");
+    res.json({ names });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取失败" });
+  }
+}
+
+function handleChapterKeyPeopleAutoMerge(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const body = req.body || {};
+    const versionId =
+      safeText(String(body.versionId || "default")).slice(0, 48) || "default";
+    const lang = safeText(String(body.lang || "zh")).slice(0, 24) || "zh";
+
+    const rosterNames = listZhNamesWithRosterPortraitInProfiles();
+    const rosterZhSet = new Set(rosterNames);
+    const suggestions = buildChapterKeyPeopleSuggestionsFromPublished(
+      versionId,
+      lang,
+      rosterZhSet
+    );
+
+    ensureChapterKeyPeopleFile();
+    const existing = readJson(CHAPTER_KEY_PEOPLE_FILE, {}) || {};
+    const merged = mergeChapterKeyPeopleDeep(existing, suggestions);
+    const cleaned = sanitizeChapterKeyPeopleFileBody(merged);
+    if (cleaned === null) {
+      return res.status(500).json({ error: "合并后校验失败" });
+    }
+
+    writeJson(CHAPTER_KEY_PEOPLE_FILE, cleaned);
+    clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+
+    let suggestionChapters = 0;
+    for (const chObj of Object.values(suggestions)) {
+      if (chObj && typeof chObj === "object") {
+        suggestionChapters += Object.keys(chObj).length;
+      }
+    }
+
+    appendAdminAudit(req, authed, "chapter_key_people_auto_merge", {
+      versionId,
+      lang,
+      rosterPortraitCount: rosterNames.length,
+      suggestionChapters,
+    });
+
+    res.json({
+      ok: true,
+      rosterPortraitCount: rosterNames.length,
+      suggestionChapters,
+      versionId,
+      lang,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "合并失败" });
+  }
+}
+
+app.get("/api/admin/chapter-key-people/roster-names", handleChapterKeyPeopleRosterNames);
+/** 短路径别名：个别反代对长 path 段返回 404，与 genlifestages 同理 */
+app.get("/api/admin/ckp-roster", handleChapterKeyPeopleRosterNames);
+
+app.post(
+  "/api/admin/chapter-key-people/auto-merge-from-published",
+  handleChapterKeyPeopleAutoMerge
+);
+app.post("/api/admin/ckp-automerge", handleChapterKeyPeopleAutoMerge);
+
+app.get("/api/admin/chapter-key-people", (req, res) => {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    ensureChapterKeyPeopleFile();
+    res.set("Cache-Control", "no-store");
+    res.json(readJson(CHAPTER_KEY_PEOPLE_FILE, {}));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取失败" });
+  }
+});
+
+app.post("/api/admin/chapter-key-people", (req, res) => {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const cleaned = sanitizeChapterKeyPeopleFileBody(req.body);
+    if (cleaned === null) {
+      return res.status(400).json({
+        error: "需要 JSON 对象：书卷 id → 章号字符串 → 中文名数组",
+      });
+    }
+    ensureChapterKeyPeopleFile();
+    writeJson(CHAPTER_KEY_PEOPLE_FILE, cleaned);
+    clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+    appendAdminAudit(req, authed, "chapter_key_people_save", {
+      bookCount: Object.keys(cleaned).length,
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "保存失败" });
+  }
+});
 
 /**
  * POST /api/generate-prompt
@@ -8070,6 +8481,71 @@ function resolveSafeGeneratedPngPath(urlPath) {
   }
   return full;
 }
+
+/**
+ * 章末人物缩图：支持 n=文件名.png（推荐，查询串无斜杠，反代/浏览器兼容好）或 path=/generated/…
+ */
+function rosterPortraitQueryToGeneratedPath(req) {
+  let raw = String(req.query.n || req.query.path || "").trim();
+  try {
+    raw = decodeURIComponent(raw);
+  } catch (_) {
+    /* ignore */
+  }
+  raw = String(raw || "").trim();
+  if (!raw) return null;
+  if (!raw.includes("/")) {
+    return `/generated/${raw.replace(/^\/+/, "")}`;
+  }
+  return raw.startsWith("/") ? raw : `/${raw.replace(/^\/+/, "")}`;
+}
+
+async function handleRosterPortraitGet(req, res) {
+  try {
+    const urlPath = rosterPortraitQueryToGeneratedPath(req);
+    if (!urlPath) {
+      res.status(400).type("text/plain").send("Missing n or path");
+      return;
+    }
+    const filePath = resolveSafeGeneratedPngPath(urlPath);
+    if (!filePath) {
+      res.status(400).type("text/plain").send("Invalid path");
+      return;
+    }
+    const wRaw = Number(req.query.w ?? req.query.max ?? 320);
+    const dim = Number.isFinite(wRaw)
+      ? Math.min(720, Math.max(48, Math.round(wRaw)))
+      : 320;
+
+    const buf = await fs.promises.readFile(filePath);
+    const outBuf = await sharp(buf)
+      .rotate()
+      .resize({
+        width: dim,
+        height: dim,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .png({ compressionLevel: 9, effort: 6 })
+      .toBuffer();
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader(
+      "Cache-Control",
+      "public, max-age=604800, stale-while-revalidate=86400"
+    );
+    res.send(outBuf);
+  } catch (e) {
+    console.error("[roster-portrait]", e);
+    if (!res.headersSent) {
+      res.status(500).type("text/plain").send("Resize failed");
+    }
+  }
+}
+
+app.get("/api/roster-portrait", handleRosterPortraitGet);
+/** 短路径：个别反代对长 URL 段不友好时可用 */
+app.get("/api/rp", handleRosterPortraitGet);
 
 function bcdRgbDist2(r1, g1, b1, r2, g2, b2) {
   const dr = r1 - r2;
@@ -11037,7 +11513,7 @@ app.post("/api/admin/job/:id/merge-publish-build", async (req, res) => {
       for (const t of job.targets || []) {
         if (t?.versionId && t?.lang) {
           prefixes.add(
-            `study:v3:${String(t.versionId)}:${String(t.lang)}:`
+            `${STUDY_CONTENT_CACHE_TAG}:${String(t.versionId)}:${String(t.lang)}:`
           );
         }
       }
@@ -11112,7 +11588,7 @@ app.post("/api/admin/publish", async (req, res) => {
     });
     if (dryRun !== true) {
       clearReadCacheByPrefix(
-        `study:v3:${String(version)}:${String(lang)}:`
+        `${STUDY_CONTENT_CACHE_TAG}:${String(version)}:${String(lang)}:`
       );
     }
 
@@ -11190,7 +11666,7 @@ app.delete("/api/admin/published/chapter", (req, res) => {
       Number(chapter)
     );
     clearReadCacheByPrefix(
-      `study:v3:${String(version)}:${String(lang)}:${String(bookId)}:${Number(chapter)}`
+      `${STUDY_CONTENT_CACHE_TAG}:${String(version)}:${String(lang)}:${String(bookId)}:${Number(chapter)}`
     );
 
     res.json({ ok: true, ...result });
@@ -11221,7 +11697,7 @@ app.post("/api/admin/published/auto-republish-chapter", (req, res) => {
     });
     if (dryRun !== true) {
       clearReadCacheByPrefix(
-        `study:v3:${String(version)}:${String(lang)}:${String(bookId)}:${Number(chapter)}`
+        `${STUDY_CONTENT_CACHE_TAG}:${String(version)}:${String(lang)}:${String(bookId)}:${Number(chapter)}`
       );
     }
 
@@ -11670,6 +12146,7 @@ app.get("/api/dev/livereload-status", (_req, res) => {
     ["video-center.html", false],
     ["illustration-admin.html", false],
     ["bible-character-designer.html", false],
+    ["chapter-key-people.html", false],
   ];
   for (const [name, qianOnly] of adminToolHtml) {
     app.get(`/${name}`, (req, res) => {

@@ -1,6 +1,44 @@
 /**
  * Normalize published chapter JSON into a stable chapter payload for the pipeline.
  */
+import { sanitizeCharacterFigurePortraitSlotByZh } from "./character-appearance.js";
+
+/**
+ * 已发布查经 JSON 可选字段：本章额外人物中文名（须与人物库 `characters` 键一致）。
+ * 合并顺序：`options.globalKeyPeople`（admin_data/chapter_key_people.json，全版本语言共用）
+ * → 本字段 → `extractKeyPeople`（theme/段标题正则），去重，最多 16 人。
+ */
+export function sanitizeChapterKeyPeopleArray(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const x of raw) {
+    const s = String(x || "").trim().slice(0, 32);
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+    if (out.length >= 16) break;
+  }
+  return out;
+}
+
+/** 按数组顺序合并多组中文名，去重，最多 max 个（越靠前优先级越高）。 */
+export function mergeKeyPeopleListsMany(lists, max = 16) {
+  const seen = new Set();
+  const out = [];
+  for (const list of lists) {
+    const arr = Array.isArray(list) ? list : [];
+    for (const n of arr) {
+      const s = String(n || "").trim();
+      if (!s || seen.has(s)) continue;
+      seen.add(s);
+      out.push(s);
+      if (out.length >= max) return out;
+    }
+  }
+  return out;
+}
+
 export function themeToFlatString(themeInput) {
   if (themeInput == null) return "";
   if (typeof themeInput === "object" && !Array.isArray(themeInput)) {
@@ -13,7 +51,7 @@ export function themeToFlatString(themeInput) {
   return String(themeInput || "").trim();
 }
 
-export function buildChapterPayloadFromPublished(data, meta) {
+export function buildChapterPayloadFromPublished(data, meta, options = {}) {
   const versionId = String(meta?.versionId ?? data?.version ?? "");
   const lang = String(meta?.lang ?? data?.contentLang ?? "");
   const bookId = String(meta?.bookId ?? data?.bookId ?? "");
@@ -40,6 +78,19 @@ export function buildChapterPayloadFromPublished(data, meta) {
 
   const combinedForKeys = [themeFlat, summary, scriptureText].join(" ");
 
+  const inferredOnly = Boolean(options.inferredKeyPeopleOnly);
+  const globalPeople = inferredOnly
+    ? []
+    : sanitizeChapterKeyPeopleArray(options.globalKeyPeople);
+  const filePeople = inferredOnly
+    ? []
+    : sanitizeChapterKeyPeopleArray(data?.chapterKeyPeople);
+  const inferredPeople = extractKeyPeople(combinedForKeys);
+  const keyPeople = mergeKeyPeopleListsMany(
+    [globalPeople, filePeople, inferredPeople],
+    16
+  );
+
   return {
     bookName,
     bookId,
@@ -50,9 +101,13 @@ export function buildChapterPayloadFromPublished(data, meta) {
     theme,
     themeFlat,
     summary,
-    keyPeople: extractKeyPeople(combinedForKeys),
+    keyPeople,
     keyLocations: extractKeyLocations(combinedForKeys),
     storyUnits,
+    /** 章末人物立绘：按中文名指定时期槽（0 第一时期 …）；空对象表示未配置 */
+    characterFigurePortraitSlotByZh: sanitizeCharacterFigurePortraitSlotByZh(
+      data?.characterFigurePortraitSlotByZh
+    ),
     raw: data,
   };
 }

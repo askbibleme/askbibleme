@@ -17,6 +17,7 @@ const topFiles = [
   "video-center.html",
   "illustration-admin.html",
   "bible-character-designer.html",
+  "chapter-key-people.html",
   "admin-shell.css",
   "admin-shell.js",
   "download.html",

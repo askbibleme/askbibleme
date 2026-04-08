@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>章末人物表（全局）· AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=12" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .ckp-wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 22px 18px 56px;
+        box-sizing: border-box;
+      }
+      .ckp-wrap h1 {
+        margin: 0 0 8px;
+        font-size: calc(22px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .ckp-lead {
+        margin: 0 0 18px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--muted-soft);
+      }
+      .ckp-lead code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: rgba(139, 111, 71, 0.12);
+        font-size: 0.9em;
+      }
+      .ckp-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+        align-items: center;
+      }
+      .ckp-toolbar button {
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .ckp-toolbar button.primary {
+        border: none;
+        background: var(--accent);
+        color: #fff;
+      }
+      .ckp-status {
+        flex: 1 1 200px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .ckp-status.err {
+        color: #b42318;
+      }
+      .ckp-status.ok {
+        color: #1d6b3a;
+      }
+      #ckpJson {
+        width: 100%;
+        min-height: 420px;
+        box-sizing: border-box;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        resize: vertical;
+      }
+      .ckp-hint {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--muted-soft);
+        line-height: 1.55;
+      }
+      .ckp-auth {
+        display: none;
+        margin-bottom: 16px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid rgba(180, 35, 24, 0.35);
+        background: rgba(180, 35, 24, 0.06);
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--ink);
+      }
+      .ckp-auth.is-visible {
+        display: block;
+      }
+      .ckp-auth a {
+        color: #8b6914;
+        font-weight: 700;
+        margin-right: 12px;
+      }
+      .ckp-auto {
+        margin-top: 22px;
+        padding: 16px 18px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(139, 111, 71, 0.06);
+      }
+      .ckp-auto h2 {
+        margin: 0 0 10px;
+        font-size: calc(17px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .ckp-auto p {
+        margin: 0 0 12px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--muted-soft);
+      }
+      .ckp-auto-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .ckp-auto-row label {
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ckp-auto-row input[type="text"] {
+        width: 120px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 13px;
+      }
+      #ckpRosterList {
+        max-height: 180px;
+        overflow: auto;
+        margin: 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--muted);
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/chapter-key-people.html">
+    <div class="ckp-wrap">
+      <h1>章末人物表（全局）</h1>
+      <p class="ckp-lead">
+        编辑 <code>admin_data/chapter_key_people.json</code>。结构为
+        <code>书卷ID → 章号(字符串) → 中文名数组</code>，姓名须与人物设计器档案里的键一致。保存后清空查经读缓存，全版本与全语言读经页「本章人员」共用。
+      </p>
+      <div id="ckpAuth" class="ckp-auth" role="region" aria-label="登录说明">
+        <strong>当前无法读写本页数据。</strong>本接口需要<strong>已登录且具备管理员权限</strong>的账号（与插画管理相同）。请在本机打开读经站点并完成登录后回到此页，或从下方入口登录。
+        <div style="margin-top: 10px">
+          <a href="/admin-user-login.html">用户登录页</a>
+          <a href="/index.html">读经首页</a>
+          <a href="/admin-hub.html">管理首页</a>
+        </div>
+        <p style="margin: 10px 0 0; font-size: 12px; color: var(--muted-soft)">
+          若页面与 API 不同端口，请在页面源码中设置
+          <code>meta[name=askbible-api-base]</code> 为运行 <code>server.js</code> 的根地址（如
+          <code>http://127.0.0.1:3000</code>）。
+        </p>
+      </div>
+      <div class="ckp-toolbar">
+        <button type="button" class="primary" id="ckpLoad">重新读取</button>
+        <button type="button" id="ckpSave">保存</button>
+        <span class="ckp-status" id="ckpStatus" aria-live="polite"></span>
+      </div>
+      <textarea id="ckpJson" spellcheck="false" aria-label="chapter_key_people JSON"></textarea>
+      <p class="ckp-hint">
+        示例：<code>{ "GEN": { "28": ["雅各", "拉班", "利百加"] } }</code>。空对象
+        <code>{}</code> 表示暂不指定全局人物（仍会使用各章 JSON 与段标题自动提取）。
+      </p>
+      <section class="ckp-auto" aria-labelledby="ckpAutoHeading">
+        <h2 id="ckpAutoHeading">从人物库自动导入（已有立绘）</h2>
+        <p>
+          「有立绘」与读经页一致：人物设计器档案中能通过章末人物带解析出有效图片 URL
+          的角色。合并时只处理<strong>已发布</strong>的章节；姓名来自该章
+          <strong>主题与段标题</strong>的正则提取（不含当前全局表与各章 JSON 里手写名单），再与有立绘名单求交后<strong>并入</strong>上方 JSON（同名去重）。
+        </p>
+        <div class="ckp-auto-row">
+          <label
+            >内容版本 <input type="text" id="ckpMergeVersion" value="default" autocomplete="off"
+          /></label>
+          <label
+            >语言 <input type="text" id="ckpMergeLang" value="zh" autocomplete="off"
+          /></label>
+        </div>
+        <div class="ckp-toolbar" style="margin-bottom: 10px">
+          <button type="button" id="ckpLoadRoster">查看有立绘名单</button>
+          <button type="button" class="primary" id="ckpAutoMerge">按已发布内容合并建议</button>
+        </div>
+        <pre id="ckpRosterList" aria-live="polite">（点此查看有立绘的中文名列表）</pre>
+      </section>
+    </div>
+    <script src="/admin-shell.js?v=6" defer></script>
+    <script>
+      (function () {
+        const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
+        const ta = document.getElementById("ckpJson");
+        const st = document.getElementById("ckpStatus");
+        const authBox = document.getElementById("ckpAuth");
+
+        function setAuthVisible(on) {
+          if (!authBox) return;
+          authBox.classList.toggle("is-visible", Boolean(on));
+        }
+
+        function normalizeApiOrigin(s) {
+          let u = String(s || "").trim();
+          if (!u) return "";
+          u = u.replace(/\/+$/, "");
+          return u;
+        }
+
+        /** 与插画管理一致：探测本机/局域网哪一端口跑着本仓库 Node（避免 :3000 被其它项目占用） */
+        let ckpProbedOrigin = "";
+        function ckpIsPrivateLanHost(h) {
+          const s = String(h || "").toLowerCase();
+          return /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(s);
+        }
+        async function probeCkApiOrigin() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          if (m && String(m.getAttribute("content") || "").trim()) return;
+          try {
+            const proto = window.location.protocol || "";
+            if (proto === "capacitor:" || proto === "file:") return;
+            const h = String(window.location.hostname || "");
+            const loopback = h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (!loopback && !ckpIsPrivateLanHost(h)) return;
+          } catch (_) {
+            return;
+          }
+          const pageHost = String(window.location.hostname || "");
+          const hostCandidates =
+            pageHost === "localhost" || pageHost === "127.0.0.1" || pageHost === "::1"
+              ? ["127.0.0.1", "localhost"]
+              : [pageHost];
+          for (const host of hostCandidates) {
+            for (const p of [3000, 3001]) {
+              const origin = "http://" + host + ":" + p;
+              try {
+                const r = await fetch(origin + "/api/chapter-illustration/gpt-copy-probe", {
+                  method: "GET",
+                  cache: "no-store",
+                });
+                if (r.ok) {
+                  ckpProbedOrigin = origin;
+                  return;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+
+        function getApiBase() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          const fromMeta = m && String(m.getAttribute("content") || "").trim();
+          if (fromMeta) return normalizeApiOrigin(fromMeta);
+          if (ckpProbedOrigin) return normalizeApiOrigin(ckpProbedOrigin);
+          try {
+            const proto = window.location.protocol || "";
+            const h = String(window.location.hostname || "");
+            const loopback = h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (
+              loopback &&
+              window.location.port &&
+              window.location.port !== "3000" &&
+              window.location.port !== ""
+            ) {
+              return (proto === "https:" ? "https" : "http") + "://" + h + ":3000";
+            }
+          } catch (_) {}
+          return "";
+        }
+
+        function apiUrl(path) {
+          const p = path.startsWith("/") ? path : "/" + path;
+          const base = getApiBase();
+          if (!base) return p;
+          try {
+            const origin = normalizeApiOrigin(base);
+            return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+          } catch {
+            return base.replace(/\/$/, "") + p;
+          }
+        }
+
+        function fetchOpts(extra) {
+          const ex = { ...(extra || {}) };
+          const url = String(ex._url || "");
+          delete ex._url;
+          const cross = /^https?:\/\//i.test(url);
+          return {
+            cache: "no-store",
+            mode: cross ? "cors" : "same-origin",
+            credentials: cross ? "omit" : "same-origin",
+            ...ex,
+          };
+        }
+
+        function authHeaders() {
+          const t = String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "").trim();
+          return t ? { Authorization: "Bearer " + t } : {};
+        }
+
+        function setStatus(msg, kind) {
+          if (!st) return;
+          st.textContent = msg || "";
+          st.classList.remove("err", "ok");
+          if (kind === "err") st.classList.add("err");
+          if (kind === "ok") st.classList.add("ok");
+        }
+
+        function messageForAdminFetch(res, j, fallback) {
+          if (res.status === 401) {
+            return j.error || "未登录：请先在读经站点登录（需管理员账号）。";
+          }
+          if (res.status === 403) {
+            return j.error || "已登录但无管理员权限：请使用管理员或师傅长等后台账号。";
+          }
+          if (res.status === 404) {
+            return (
+              j.error ||
+              "HTTP 404：当前连接的站点上没有此接口。请确认已用本仓库最新 server.js 启动，或设置 askbible-api-base 指向正确端口。"
+            );
+          }
+          return j.error || fallback + "（HTTP " + res.status + "）";
+        }
+
+        async function parseJsonBody(res) {
+          const raw = await res.text();
+          if (!raw.trim()) return { ok: true, data: {} };
+          try {
+            return { ok: true, data: JSON.parse(raw) };
+          } catch {
+            return {
+              ok: false,
+              data: {},
+              rawSnippet: raw.replace(/\s+/g, " ").trim().slice(0, 160),
+            };
+          }
+        }
+
+        async function load() {
+          setStatus("读取中…", "");
+          await probeCkApiOrigin();
+          const hasToken = Boolean(String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "").trim());
+          if (!hasToken) {
+            setAuthVisible(true);
+          }
+          const reqUrl = apiUrl("/api/admin/chapter-key-people");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                headers: { ...authHeaders() },
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            if (!parsed.ok) {
+              setAuthVisible(true);
+              setStatus(
+                "HTTP " +
+                  res.status +
+                  "，响应不是 JSON：" +
+                  (parsed.rawSnippet || "空") +
+                  "。可能连错了端口或反代截断了 /api。",
+                "err"
+              );
+              return;
+            }
+            const j = parsed.data;
+            if (!res.ok) {
+              setAuthVisible(true);
+              setStatus(messageForAdminFetch(res, j, "读取失败"), "err");
+              return;
+            }
+            setAuthVisible(false);
+            ta.value = JSON.stringify(j, null, 2);
+            setStatus("已加载。", "ok");
+          } catch (e) {
+            setAuthVisible(true);
+            setStatus(
+              String(e.message || e) +
+                "（若跨域，请设 meta askbible-api-base 为 API 根地址）",
+              "err"
+            );
+          }
+        }
+
+        async function save() {
+          let data;
+          try {
+            data = JSON.parse(String(ta.value || "").trim() || "{}");
+          } catch (e) {
+            setStatus("JSON 格式错误：" + (e.message || e), "err");
+            return;
+          }
+          setStatus("保存中…", "");
+          const reqUrl = apiUrl("/api/admin/chapter-key-people");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...authHeaders(),
+                },
+                body: JSON.stringify(data),
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            const j = parsed.ok ? parsed.data : {};
+            if (!parsed.ok) {
+              setAuthVisible(true);
+              setStatus("保存失败：服务器返回非 JSON（HTTP " + res.status + "）", "err");
+              return;
+            }
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) {
+                setAuthVisible(true);
+              }
+              setStatus(messageForAdminFetch(res, j, "保存失败"), "err");
+              return;
+            }
+            setStatus("已保存并刷新查经缓存。", "ok");
+            await load();
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        }
+
+        const rosterPre = document.getElementById("ckpRosterList");
+        const inpVersion = document.getElementById("ckpMergeVersion");
+        const inpLang = document.getElementById("ckpMergeLang");
+
+        async function loadRosterNames() {
+          setStatus("加载人物库名单…", "");
+          await probeCkApiOrigin();
+          const reqUrl = apiUrl("/api/admin/ckp-roster");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({ _url: reqUrl, headers: { ...authHeaders() } })
+            );
+            const parsed = await parseJsonBody(res);
+            if (!parsed.ok) {
+              setStatus("名单接口返回非 JSON（HTTP " + res.status + "）", "err");
+              return;
+            }
+            const j = parsed.data;
+            if (!res.ok) {
+              setAuthVisible(res.status === 401 || res.status === 403);
+              setStatus(messageForAdminFetch(res, j, "读取名单失败"), "err");
+              return;
+            }
+            setAuthVisible(false);
+            const names = Array.isArray(j.names) ? j.names : [];
+            if (rosterPre) {
+              rosterPre.textContent =
+                names.length === 0
+                  ? "（当前人物库没有可出立绘的角色）"
+                  : "共 " + names.length + " 人：\n" + names.join("、");
+            }
+            setStatus("已加载有立绘名单（" + names.length + " 人）。", "ok");
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        }
+
+        async function autoMergeFromPublished() {
+          const versionId = String(inpVersion && inpVersion.value ? inpVersion.value : "default").trim();
+          const lang = String(inpLang && inpLang.value ? inpLang.value : "zh").trim();
+          if (!versionId || !lang) {
+            setStatus("请填写内容版本与语言。", "err");
+            return;
+          }
+          if (
+            !window.confirm(
+              "将把「已发布 " +
+                versionId +
+                " / " +
+                lang +
+                "」各章中、主题与段标题能推断出且人物库有立绘的姓名，合并写入全局章末人物表并保存到服务器。是否继续？"
+            )
+          ) {
+            return;
+          }
+          setStatus("扫描已发布章节并合并…", "");
+          await probeCkApiOrigin();
+          const reqUrl = apiUrl("/api/admin/ckp-automerge");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...authHeaders(),
+                },
+                body: JSON.stringify({ versionId, lang }),
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            const j = parsed.ok ? parsed.data : {};
+            if (!parsed.ok) {
+              setStatus("合并接口返回非 JSON（HTTP " + res.status + "）", "err");
+              return;
+            }
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) {
+                setAuthVisible(true);
+              }
+              setStatus(messageForAdminFetch(res, j, "合并失败"), "err");
+              return;
+            }
+            setAuthVisible(false);
+            setStatus(
+              "已合并：有立绘 " +
+                (j.rosterPortraitCount ?? "?") +
+                " 人；命中 " +
+                (j.suggestionChapters ?? "?") +
+                " 个已发布章。已写盘并清缓存。",
+              "ok"
+            );
+            await load();
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        }
+
+        document.getElementById("ckpLoad").addEventListener("click", function () {
+          void load();
+        });
+        document.getElementById("ckpSave").addEventListener("click", function () {
+          void save();
+        });
+        const btnRoster = document.getElementById("ckpLoadRoster");
+        const btnMerge = document.getElementById("ckpAutoMerge");
+        if (btnRoster) btnRoster.addEventListener("click", function () {
+          void loadRosterNames();
+        });
+        if (btnMerge) btnMerge.addEventListener("click", function () {
+          void autoMergeFromPublished();
+        });
+        void load();
+      })();
+    </script>
+  </body>
+</html>

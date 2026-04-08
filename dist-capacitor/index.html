@@ -322,6 +322,30 @@
               <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
             </div>
 
+            <div
+              id="chapterEndPersonnelSection"
+              class="chapter-end-notes-table-wrap"
+              hidden
+              aria-label="本章人员"
+            >
+              <table class="chapter-end-notes-table">
+                <caption id="chapterEndPersonnelTableCaption" class="chapter-end-notes-table-caption">
+                  本章人员
+                </caption>
+                <tbody>
+                  <tr>
+                    <td class="chapter-end-notes-table-cell">
+                      <div
+                        id="chapterEndPersonnelRoster"
+                        class="chapter-character-roster chapter-character-roster--personnel-cell"
+                        aria-live="polite"
+                      ></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
             <div id="chapterEndNextGuide" class="chapter-end-next-guide" hidden>
               <div class="chapter-end-next-guide-inner">
                 <p id="chapterEndNextHint" class="chapter-end-next-hint"></p>
@@ -412,6 +436,22 @@
                 </div>
               </div>
             </div>
+            <div class="chapter-grid-wrap">
+              <div class="chapter-grid-title">账户设置</div>
+              <nav
+                class="version-grid member-hub-link-grid member-hub-link-grid--user"
+                aria-label="账户设置"
+              >
+                <button
+                  type="button"
+                  class="member-hub-menu-item"
+                  data-member-action="edit-profile"
+                  id="memberHubEditProfileBtn"
+                >
+                  修改资料
+                </button>
+              </nav>
+            </div>
             <div
               id="memberHubQianfuzhangSection"
               class="chapter-grid-wrap member-hub-qian-section"
@@ -441,6 +481,82 @@
                 退出登录
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 会员：资料与密码（与账户菜单同壳样式） -->
+    <div
+      id="memberProfilePanel"
+      class="verse-search-overlay member-hub-overlay"
+      hidden
+      role="presentation"
+    >
+      <button
+        type="button"
+        class="verse-search-backdrop"
+        tabindex="-1"
+        aria-label="关闭资料编辑"
+        id="memberProfileBackdropBtn"
+      ></button>
+      <div
+        class="verse-search-card member-hub-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="memberProfilePanelTitle"
+      >
+        <div class="toolbar-panel-inner toolbar-panel-simple">
+          <div class="toolbar-panel-head">
+            <div class="toolbar-panel-title" id="memberProfilePanelTitle">资料与密码</div>
+            <button type="button" class="toolbar-panel-close" id="memberProfileCloseBtn">
+              关闭
+            </button>
+          </div>
+          <div class="member-profile-form">
+            <div class="chapter-grid-title member-profile-form__section-title">基本资料</div>
+            <label class="member-profile-label" for="memberProfileNameInput">昵称</label>
+            <input
+              type="text"
+              id="memberProfileNameInput"
+              class="member-profile-input"
+              maxlength="80"
+              autocomplete="nickname"
+            />
+            <label class="member-profile-label" for="memberProfileEmailInput">邮箱</label>
+            <input
+              type="email"
+              id="memberProfileEmailInput"
+              class="member-profile-input"
+              maxlength="200"
+              autocomplete="email"
+            />
+            <div class="member-profile-actions">
+              <button type="button" class="member-hub-primary" id="memberProfileSaveBtn">
+                保存资料
+              </button>
+            </div>
+            <div class="chapter-grid-title member-profile-form__section-title">修改密码</div>
+            <label class="member-profile-label" for="memberProfileCurrentPw">当前密码</label>
+            <input
+              type="password"
+              id="memberProfileCurrentPw"
+              class="member-profile-input"
+              autocomplete="current-password"
+            />
+            <label class="member-profile-label" for="memberProfileNewPw">新密码（至少 6 位）</label>
+            <input
+              type="password"
+              id="memberProfileNewPw"
+              class="member-profile-input"
+              autocomplete="new-password"
+            />
+            <div class="member-profile-actions">
+              <button type="button" class="member-hub-secondary" id="memberProfilePasswordBtn">
+                修改密码
+              </button>
+            </div>
+            <div id="memberProfileStatus" class="member-profile-status" aria-live="polite"></div>
           </div>
         </div>
       </div>

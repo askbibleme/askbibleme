@@ -246,6 +246,23 @@
           <code>site-chrome.js</code> 按接口数据注入。下列为静态骨架与主要 <code>id</code>，便于改样式或对接
           <code>main.js</code> 时快速定位。
         </p>
+        <p class="layout-map-note" style="margin-top: 12px; max-width: 52em">
+          <strong>是否「实时」？</strong>下方<strong>内置表格与 DOM 树是人工随仓库维护的</strong>，打开本页时<strong>不会</strong>自动扫描线上
+          DOM。只有「自定义模块」来自本机 <code>localStorage</code>。改版面后请同步改本页，或使用下面<strong>校验</strong>按钮拉取当前源的
+          <code>/index.html</code>，核对关键 <code>id</code> 是否已部署（需与读经同源，否则请用已部署站点打开本页再点）。
+        </p>
+        <div class="layout-map-toolbar" style="margin-top: 10px">
+          <button type="button" class="layout-map-btn" id="layoutMapVerifyIndexBtn">
+            拉取 /index.html 校验关键 id
+          </button>
+          <span class="layout-map-op-muted" id="layoutMapVerifyIndexStatus"></span>
+        </div>
+        <pre
+          class="layout-map-tree"
+          id="layoutMapVerifyIndexOut"
+          style="margin-top: 10px; display: none; white-space: pre-wrap; word-break: break-all"
+          aria-live="polite"
+        ></pre>
       </header>
 
       <div class="layout-map-block">
@@ -265,7 +282,14 @@
 │       │   ├── #chapterIllustrationSlot      ← 章节插图（有图时显示，无则 hidden）
 │       │   ├── #chapterVideosSlot            ← 本章视频（紧挨插图下方；无视频则空）
 │       │   └── … 重复词、#leftBlocks …
-│       └── section.book-page.right-page      ← 右页：副列 + 贡献区 + 底导航
+│       └── section.book-page.right-page
+│           ├── #chapterVideosSlotRight         ← 宽屏时副列视频槽
+│           ├── #rightBlocks                  ← 副列查经卡片
+│           ├── .chapter-feedback-wrap …      ← 参与贡献
+│           ├── #chapterApprovedTitle / #chapterApprovedQuestions
+│           ├── #chapterEndPersonnelSection    ← 本章人员表（无人物时空格；卷首页 hidden）
+│           ├── #chapterEndNextGuide            ← 「点击阅读下一章」引导（按需显示）
+│           └── .chapter-nav.bottom-nav        ← 底栏翻章
 └── footer.site-footer.askbible-chrome-footer-slot  ← 底栏（接口注入，默认可 hidden）</pre>
         <p class="layout-map-note">
           书页式排版由 <code>styles.css</code> 中 <code>.book-layout</code> / <code>.book-spread</code> 等类控制；窄屏下两栏会堆叠为单栏阅读流。
@@ -340,8 +364,8 @@
                   <code>.chapter-illustration-img</code>
                 </td>
                 <td>
-                  位于大标题下方、本章视频上方；当 JSON 含 <code>chapterIllustration.imageUrl</code> 时显示透明
-                  PNG，透明度受 <code>/api/chapter-illustration/global-settings</code> 全站配置；无图时
+                  位于大标题下方、本章视频上方；当 JSON 含 <code>chapterIllustration.imageUrl</code> 时显示章节配图（默认生成为<strong>实底环境图</strong>；亦可为历史透明图），显示透明度受
+                  <code>/api/chapter-illustration/global-settings</code> 全站配置；无图时
                   <code>hidden</code> 且不占布局高度
                 </td>
               </tr>
@@ -394,6 +418,27 @@
                 <td>社区已通过问题</td>
                 <td><code>#chapterApprovedTitle</code>、<code>#chapterApprovedQuestions</code></td>
                 <td>列表由接口数据渲染</td>
+              </tr>
+              <tr>
+                <td>本章人员（立绘+姓名）</td>
+                <td>
+                  <code>#chapterEndPersonnelSection</code>、<code>.chapter-end-notes-table</code>、<code>#chapterEndPersonnelTableCaption</code>、<code>#chapterEndPersonnelRoster</code>
+                </td>
+                <td>
+                  白底表格外壳，标题由 <code>getLocalizedCopy().chapterEndPersonnelTableCaption</code> 更新；单元格内
+                  <code>#chapterEndPersonnelRoster</code> 为人物栅格（透明立绘 + 下方姓名）。
+                  <code>main.js</code> 中 <code>syncChapterCharacterRoster()</code> 根据
+                  <code>/api/study-content</code>（及兜底 <code>/api/study-character-figures</code>）的
+                  <code>chapterCharacterFigures</code> 渲染；名单由服务端 <code>keyPeople</code> 与人物库肖像匹配。无人物时表仍在、单元格为空；仅卷首页
+                  <code>hidden</code>（且 <code>.book-layout--landing</code> 下 CSS 隐藏）。
+                </td>
+              </tr>
+              <tr>
+                <td>下一章阅读引导</td>
+                <td>
+                  <code>#chapterEndNextGuide</code>、<code>#chapterEndNextHint</code>、<code>#chapterEndNextBtn</code>、<code>#chapterEndNextBtnLabel</code>
+                </td>
+                <td>居中提示「点击阅读下一章」与跳转下一章（由脚本按场景显示/隐藏）</td>
               </tr>
               <tr>
                 <td>底部章节导航</td>
@@ -466,7 +511,10 @@
             <tbody>
               <tr>
                 <td><code>main.js</code></td>
-                <td>路由 hash、读经状态、渲染左右列、面板开关、管理员弹层等</td>
+                <td>
+                  路由 hash、读经状态、渲染左右列（含 <code>renderStudyContent</code>）、章末人物带
+                  <code>syncChapterCharacterRoster</code>、章节插图槽、面板开关、管理员弹层等
+                </td>
               </tr>
               <tr>
                 <td><code>site-chrome.js</code></td>
@@ -666,7 +714,56 @@
           else dlg.removeAttribute("open");
         }
 
+        var LAYOUT_MAP_INDEX_IDS = [
+          "chapterEndPersonnelSection",
+          "chapterEndPersonnelRoster",
+          "chapterEndPersonnelTableCaption",
+          "chapterEndNextGuide",
+          "rightBlocks",
+          "leftBlocks",
+          "chapterIllustrationSlot",
+        ];
+
         document.addEventListener("DOMContentLoaded", function () {
+          var verifyBtn = document.getElementById("layoutMapVerifyIndexBtn");
+          var verifyOut = document.getElementById("layoutMapVerifyIndexOut");
+          var verifySta = document.getElementById("layoutMapVerifyIndexStatus");
+          if (verifyBtn && verifyOut) {
+            verifyBtn.addEventListener("click", function () {
+              verifySta.textContent = "请求中…";
+              verifyOut.style.display = "none";
+              verifyOut.textContent = "";
+              fetch("/index.html", { cache: "no-store" })
+                .then(function (r) {
+                  if (!r.ok) throw new Error("HTTP " + r.status);
+                  return r.text();
+                })
+                .then(function (html) {
+                  var lines = LAYOUT_MAP_INDEX_IDS.map(function (id) {
+                    var q = 'id="' + id + '"';
+                    var ok = html.indexOf(q) !== -1;
+                    return (ok ? "✓ " : "✗ 未找到 ") + q;
+                  });
+                  verifyOut.textContent = lines.join("\n");
+                  verifyOut.style.display = "block";
+                  var bad = lines.some(function (L) {
+                    return L.indexOf("✗") === 0;
+                  });
+                  verifySta.textContent = bad
+                    ? "有缺失：请部署最新 index.html 或检查路径"
+                    : "当前源 index.html 含上述 id";
+                })
+                .catch(function (e) {
+                  verifySta.textContent = "失败";
+                  verifyOut.textContent =
+                    "无法拉取 /index.html：" +
+                    (e && e.message ? e.message : e) +
+                    "\n（若本页是 file:// 打开，请改为通过站点 http(s) 访问后再试）";
+                  verifyOut.style.display = "block";
+                });
+            });
+          }
+
           var leftTable = document.getElementById("layoutMapLeftTable");
           var rightTable = document.getElementById("layoutMapRightTable");
           ensureOpColumn(leftTable);

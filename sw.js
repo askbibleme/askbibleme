@@ -1,4 +1,9 @@
-const CACHE_NAME = "askbible-static-v48";
+/**
+ * 更新本常量即丢弃旧 Cache Storage，用户下次激活 SW 后生效。
+ * 改版频繁时也可只靠下方「网络优先」资源自动拉新； bump 仍用于强制换 SW 脚本本体。
+ */
+const CACHE_NAME = "askbible-static-v51";
+
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -14,6 +19,30 @@ const STATIC_ASSETS = [
   "/assets/icons/icon.svg",
   "/assets/icons/icon-maskable.svg",
 ];
+
+/**
+ * 网络优先：同源下除 /assets/ 外，凡 .html / .js / .css 均先请求网络，成功则更新缓存，失败再用缓存。
+ * manifest、图标等仍走下方 cache-first，减少无谓请求。
+ */
+function isNetworkFirstPath(pathname) {
+  if (pathname.startsWith("/assets/")) return false;
+  if (pathname === "/" || pathname === "/index.html") return true;
+  if (/\.html$/i.test(pathname)) return true;
+  if (/\.(js|css)$/i.test(pathname)) return true;
+  return false;
+}
+
+function networkFirstWithCacheFallback(req) {
+  return fetch(req)
+    .then((res) => {
+      if (res && res.ok) {
+        const cloned = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, cloned)).catch(() => {});
+      }
+      return res;
+    })
+    .catch(() => caches.match(req));
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -45,13 +74,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  /* 管理后台与配置工具 HTML：勿 cache-first，否则内联脚本长期停留在旧版（如 site-chrome 图标 UI） */
+  /* 管理后台与配置工具 HTML：始终直连网络，不经过 SW 缓存策略 */
   if (
     /\/(?:admin-hub|site-chrome|promo-edit|color-themes|admin-analytics|seo-settings|home-layout-map|video-center|bible-character-designer|illustration-admin)\.html$/i.test(
       url.pathname
     )
   ) {
     event.respondWith(fetch(req));
+    return;
+  }
+
+  if (isNetworkFirstPath(url.pathname)) {
+    event.respondWith(networkFirstWithCacheFallback(req));
     return;
   }
 

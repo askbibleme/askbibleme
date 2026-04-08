@@ -46,16 +46,17 @@
           label: "插画管理",
         },
         { href: "/bible-character-designer.html", label: "圣经人物设计器" },
+        {
+          href: "/chapter-key-people.html",
+          label: "章末人物表（全局）",
+          note: "全版本语言共用的 chapter_key_people.json",
+        },
       ],
     },
     {
       sub: "读经页内",
       items: [
         { href: "/video-center.html", label: "章节视频上传" },
-        {
-          href: "/bible-character-designer.html",
-          label: "圣经人物设计器",
-        },
         {
           href: "/#openAdmin",
           label: "规则 · 任务 · 发布",

@@ -461,6 +461,29 @@
         opacity: 0.55;
         cursor: not-allowed;
       }
+      .bcd-btn-set-as-hero {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(120, 90, 50, 0.35);
+        background: rgba(255, 248, 235, 0.65);
+        color: #6d5238;
+        font-weight: 700;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .bcd-btn-set-as-hero:hover:not(:disabled) {
+        border-color: rgba(200, 155, 60, 0.55);
+        background: rgba(255, 252, 245, 0.9);
+      }
+      .bcd-btn-set-as-hero:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .bcd-btn-set-as-hero.is-current {
+        border-color: rgba(109, 82, 56, 0.45);
+        background: rgba(230, 210, 180, 0.45);
+      }
       .bcd-portrait-preview-wrap {
         margin-top: 8px;
         border-radius: 12px;
@@ -474,6 +497,10 @@
       }
       .bcd-portrait-preview-wrap.bcd-portrait-preview-wrap--empty {
         border-style: dashed;
+      }
+      .bcd-portrait-preview-wrap.bcd-portrait-preview-wrap--is-hero {
+        border-color: rgba(109, 82, 56, 0.55);
+        box-shadow: 0 0 0 2px rgba(200, 155, 60, 0.25);
       }
       .bcd-portrait-img {
         display: block;
@@ -1058,7 +1085,7 @@
         const TOKEN_KEY = "bible_user_auth_token_v1";
         const DEFAULT_PRODUCTION_ORIGIN = "https://askbible.me";
 
-        /** 创世记核心人物：数组顺序即圣经叙事/出现先后（左侧备选、主图横条、人物卡片排序均依此） */
+        /** 创世记核心人物：数组顺序即圣经叙事/出现先后（左侧备选、主图横条、人物卡片排序均依此；读经「本章人员」立绘排序同序，见 src/bible-character-preset-order.js） */
         const GENESIS_CORE_CHARACTERS = [
           "亚当",
           "夏娃",
@@ -1105,7 +1132,7 @@
           return out;
         }
 
-        /** 备选库：经卷 → 姓名顺序（创世记即 GENESIS_CORE_CHARACTERS）；可继续追加经卷；单卷内可用 mergeGenesisPresetNames 去重合并 */
+        /** 备选库：经卷 → 姓名顺序（创世记即 GENESIS_CORE_CHARACTERS）；追加经卷时请同步 src/bible-character-preset-order.js 内 CHARACTER_PRESET_BY_BOOK */
         const CHARACTER_PRESET_BY_BOOK = [
           {
             bookId: "GEN",
@@ -1997,6 +2024,41 @@
           }
           renderHeroGallery();
           syncPresetRowStatuses();
+          syncBcdHeroSlotBadges(card);
+        }
+
+        /** 比较页顶主图与各栏 imageUrl 时忽略 query，避免缓存参数导致无法匹配 */
+        function bcdImagePathForHeroCompare(raw) {
+          var s = String(raw || "").trim();
+          if (!s) return "";
+          var q = s.indexOf("?");
+          if (q !== -1) s = s.slice(0, q);
+          return s;
+        }
+
+        /** 各时期栏：高亮当前用作 heroImageUrl 的那一栏，并切换「设为主图 / 当前主图」按钮 */
+        function syncBcdHeroSlotBadges(card) {
+          if (!card) return;
+          var hero = bcdImagePathForHeroCompare(card.getAttribute("data-hero-image-url"));
+          card.querySelectorAll(".bcd-period-slot").forEach(function (slotEl) {
+            var wrap = slotEl.querySelector(".bcd-portrait-preview-wrap");
+            var btn = slotEl.querySelector(".bcd-btn-set-as-hero");
+            var slotUrl = wrap ? bcdImagePathForHeroCompare(wrap.getAttribute("data-img-url")) : "";
+            var isHero = Boolean(hero && slotUrl && hero === slotUrl);
+            slotEl.classList.toggle("bcd-period-slot--hero-source", isHero);
+            if (wrap) wrap.classList.toggle("bcd-portrait-preview-wrap--is-hero", isHero);
+            if (btn) {
+              var hasImg = Boolean(slotUrl);
+              btn.disabled = !hasImg || isHero;
+              btn.classList.toggle("is-current", isHero);
+              btn.textContent = isHero ? "当前主图" : "设为主图";
+              btn.title = !hasImg
+                ? "请先生成或上传本时期全身像"
+                : isHero
+                  ? "本栏图已是页顶透明主图（heroImageUrl）"
+                  : "将本栏全身像设为页顶透明主图，供主图横排与读经人物展示";
+            }
+          });
         }
 
         /**
@@ -2964,6 +3026,7 @@
           if (btn) btn.textContent = "重新生成画像";
           var cardEl = slotEl.closest(".bcd-card");
           if (cardEl) renderComparisonStrip(cardEl);
+          if (cardEl) syncBcdHeroSlotBadges(cardEl);
         }
 
         async function generatePortraitForSlot(card, slotEl, opts) {
@@ -3222,6 +3285,7 @@
             '<div class="bcd-portrait-actions">' +
             '<button type="button" class="bcd-btn-portrait">生成画像</button>' +
             '<button type="button" class="bcd-btn-upload-portrait">上传外部图</button>' +
+            '<button type="button" class="bcd-btn-set-as-hero" disabled title="请先生成或上传本时期全身像">设为主图</button>' +
             "</div>" +
             '<input type="file" class="bcd-portrait-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />' +
             "</div>" +
@@ -3230,7 +3294,7 @@
             '">' +
             '<img class="bcd-portrait-img" alt="" hidden />' +
             "</div>" +
-            '<p class="bcd-hint">点「生成画像」调用 AI 出本时期透明全身；「上传外部图」可用手工透明 PNG/JPEG/WebP 替换本栏。若本栏为「主参考时期」会同步页顶主图。保存后写入 imageUrl。</p>' +
+            '<p class="bcd-hint">点「生成画像」调用 AI 出本时期透明全身；「上传外部图」可用手工透明 PNG/JPEG/WebP 替换本栏。可点「<strong>设为主图</strong>」自行指定任一期为页顶透明主图（<code>heroImageUrl</code>）；未手选时，出图仍可按「主参考时期」自动同步主图。保存后写入各栏 <code>imageUrl</code> 与主图。</p>' +
             "</div>" +
             "</div>"
           );
@@ -3743,6 +3807,7 @@
             slot.hidden = si >= n;
           });
           renderComparisonStrip(card);
+          syncBcdHeroSlotBadges(card);
         }
 
         function hydratePortraitImages(card) {
@@ -3817,6 +3882,20 @@
               const slotEl = btn.closest(".bcd-period-slot");
               const finp = slotEl && slotEl.querySelector(".bcd-portrait-file");
               if (finp) finp.click();
+            });
+          });
+          card.querySelectorAll(".bcd-btn-set-as-hero").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              const slotEl = btn.closest(".bcd-period-slot");
+              if (!slotEl) return;
+              const wrap = slotEl.querySelector(".bcd-portrait-preview-wrap");
+              const url = wrap ? String(wrap.getAttribute("data-img-url") || "").trim() : "";
+              if (!url) {
+                setStatus("本栏尚无全身像，请先生成或上传后再设为主图。", "err");
+                return;
+              }
+              setHeroImageData(card, url);
+              setStatus("已将该时期图设为页顶透明主图；请点「保存全部」写入档案。", "ok");
             });
           });
           card.querySelectorAll(".bcd-portrait-file").forEach(function (finp) {
@@ -3929,6 +4008,7 @@
           updatePeriodSlotsVisibility(card);
           hydratePortraitImages(card);
           hydrateComparisonImage(card);
+          syncBcdHeroSlotBadges(card);
         }
 
         function renderList() {
