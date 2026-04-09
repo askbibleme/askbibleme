@@ -35,6 +35,8 @@ import {
   defaultChapterIllustrationState,
   mergeChapterIllustrationState,
   stateFromPipelineRun,
+  statureClassForSlot,
+  layoutScaleHintForStature,
   resolveChapterRosterPortrait,
   sanitizeCharacterFigurePortraitSlotByZh,
 } from "./src/chapter-illustration/index.js";
@@ -6060,6 +6062,17 @@ function resolveExistingChapterRosterPortrait(entry, preferredSlot) {
   return primary;
 }
 
+function readerRosterScaleForEntry(entry, portraitSlot) {
+  const slotIndex = Math.max(0, Number(portraitSlot) || 0);
+  const statureClass = statureClassForSlot(entry, slotIndex);
+  let layoutScale = 1;
+  if (statureClass === "child" || statureClass === "youth") {
+    layoutScale = layoutScaleHintForStature(statureClass);
+  }
+  layoutScale = Math.min(1, Math.max(0.5, Number(layoutScale) || 1));
+  return { statureClass, layoutScale };
+}
+
 function buildChapterCharacterFiguresForReader(chapterData, meta) {
   try {
     if (!chapterData || typeof chapterData !== "object") return [];
@@ -6099,6 +6112,9 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
       const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
       if (!imageUrl) continue;
       const row = { zhName: zh, imageUrl };
+      const readerScale = readerRosterScaleForEntry(entry, resolved.portraitSlot);
+      row.statureClass = readerScale.statureClass;
+      row.layoutScale = readerScale.layoutScale;
       if (typeof resolved.portraitSlot === "number") {
         row.portraitSlot = resolved.portraitSlot;
       }
@@ -6180,6 +6196,9 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
         imageUrl,
         isCurrentChapter: activeSet.has(zh),
       };
+      const readerScale = readerRosterScaleForEntry(entry, resolved.portraitSlot);
+      row.statureClass = readerScale.statureClass;
+      row.layoutScale = readerScale.layoutScale;
       if (typeof resolved.portraitSlot === "number") {
         row.portraitSlot = resolved.portraitSlot;
       }
@@ -6220,6 +6239,9 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
         imageUrl,
         isCurrentChapter: true,
       };
+      const readerScale = readerRosterScaleForEntry(entry, resolved.portraitSlot);
+      row.statureClass = readerScale.statureClass;
+      row.layoutScale = readerScale.layoutScale;
       if (typeof resolved.portraitSlot === "number") {
         row.portraitSlot = resolved.portraitSlot;
       }
@@ -8969,6 +8991,56 @@ async function handleRosterPortraitGet(req, res) {
 app.get("/api/roster-portrait", handleRosterPortraitGet);
 /** 短路径：个别反代对长 URL 段不友好时可用 */
 app.get("/api/rp", handleRosterPortraitGet);
+
+async function handleChapterIllustrationImageGet(req, res) {
+  try {
+    const urlPath = rosterPortraitQueryToGeneratedPath(req);
+    if (!urlPath) {
+      res.status(400).type("text/plain").send("Missing n or path");
+      return;
+    }
+    const filePath = resolveSafeGeneratedPngPath(urlPath);
+    if (!filePath) {
+      res.status(400).type("text/plain").send("Invalid path");
+      return;
+    }
+    const widthRaw = Number(req.query.w ?? 1400);
+    const width = Number.isFinite(widthRaw)
+      ? Math.min(2200, Math.max(320, Math.round(widthRaw)))
+      : 1400;
+
+    const buf = await fs.promises.readFile(filePath);
+    let outBuf = buf;
+    try {
+      const sharp = await getSharp();
+      outBuf = await sharp(buf)
+        .rotate()
+        .resize({
+          width,
+          withoutEnlargement: true,
+        })
+        .png({ compressionLevel: 9, effort: 6 })
+        .toBuffer();
+    } catch (e) {
+      console.warn("[chapter-illustration-image:fallback]", e.message || e);
+    }
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader(
+      "Cache-Control",
+      "public, max-age=604800, stale-while-revalidate=86400"
+    );
+    res.send(outBuf);
+  } catch (e) {
+    console.error("[chapter-illustration-image]", e);
+    if (!res.headersSent) {
+      res.status(500).type("text/plain").send("Resize failed");
+    }
+  }
+}
+
+app.get("/api/chapter-illustration-image", handleChapterIllustrationImageGet);
+app.get("/api/ci", handleChapterIllustrationImageGet);
 
 function listGeneratedRootPngFilenames() {
   const dir = CHAPTER_ILLUSTRATION_GENERATED_DIR;

@@ -5515,19 +5515,11 @@ function bindTimelineDragScroll(scroller) {
     if (!dragging) return;
     const delta = event.clientX - startX;
     scroller.scrollLeft = startScrollLeft - delta;
-    syncChapterCharacterTimelineViewportProgress(scroller);
   });
 
   scroller.addEventListener("pointerup", stopDrag);
   scroller.addEventListener("pointercancel", stopDrag);
   scroller.addEventListener("lostpointercapture", stopDrag);
-  scroller.addEventListener(
-    "scroll",
-    () => {
-      syncChapterCharacterTimelineViewportProgress(scroller);
-    },
-    { passive: true }
-  );
 }
 
 function centerChapterCharacterTimeline(scroller) {
@@ -5550,50 +5542,23 @@ function centerChapterCharacterTimeline(scroller) {
 function syncChapterCharacterTimelineProgress(scroller) {
   const progressEl = document.getElementById("chapterCharacterProgress");
   if (!progressEl) return;
-  const items = scroller
-    ? [...scroller.querySelectorAll(".chapter-character-roster-item")]
-    : [];
-  if (items.length < 2) {
+  const book = getBookMetaById(state.frontState.bookId);
+  const totalChapters = Math.max(1, Number(book?.chapters) || 0);
+  const chapterNum = Math.max(1, Number(state.frontState.chapter) || 1);
+  if (totalChapters <= 0 || isBookLandingChapter()) {
     progressEl.hidden = true;
     progressEl.style.removeProperty("--chapter-progress-start");
     progressEl.style.removeProperty("--chapter-progress-width");
+    progressEl.style.removeProperty("--chapter-progress-pointer");
     return;
   }
-  const allStart = items[0].offsetLeft;
-  const allEnd = items[items.length - 1].offsetLeft + items[items.length - 1].offsetWidth;
-  const allSpan = Math.max(1, allEnd - allStart);
-  const active = items.filter((el) => el.classList.contains("is-current-chapter"));
-  const rangeStartEl = active[0] || items[0];
-  const rangeEndEl = active[active.length - 1] || items[0];
-  const rangeStart = rangeStartEl.offsetLeft;
-  const rangeEnd = rangeEndEl.offsetLeft + rangeEndEl.offsetWidth;
-  const startPct = Math.max(0, Math.min(100, ((rangeStart - allStart) / allSpan) * 100));
-  const widthPct = Math.max(
-    1.5,
-    Math.min(100 - startPct, ((rangeEnd - rangeStart) / allSpan) * 100)
-  );
+  const normalized = totalChapters <= 1 ? 0.5 : (chapterNum - 1) / (totalChapters - 1);
+  const pointerPct = Math.max(0, Math.min(100, normalized * 100));
+  const widthPct = Math.max(6, Math.min(16, 100 / totalChapters * 3.2));
+  const startPct = Math.max(0, Math.min(100 - widthPct, pointerPct - widthPct / 2));
   progressEl.style.setProperty("--chapter-progress-start", `${startPct}%`);
   progressEl.style.setProperty("--chapter-progress-width", `${widthPct}%`);
-  progressEl.hidden = false;
-}
-
-function syncChapterCharacterTimelineViewportProgress(scroller) {
-  const progressEl = document.getElementById("chapterCharacterProgress");
-  if (!progressEl || !scroller) return;
-  const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-  if (scroller.scrollWidth <= scroller.clientWidth + 2) {
-    progressEl.style.setProperty("--chapter-progress-start", "0%");
-    progressEl.style.setProperty("--chapter-progress-width", "100%");
-    progressEl.hidden = false;
-    return;
-  }
-  const startPct = maxScroll > 0 ? (scroller.scrollLeft / scroller.scrollWidth) * 100 : 0;
-  const widthPct = Math.max(8, (scroller.clientWidth / scroller.scrollWidth) * 100);
-  progressEl.style.setProperty(
-    "--chapter-progress-start",
-    `${Math.max(0, Math.min(100 - widthPct, startPct))}%`
-  );
-  progressEl.style.setProperty("--chapter-progress-width", `${Math.min(100, widthPct)}%`);
+  progressEl.style.setProperty("--chapter-progress-pointer", `${pointerPct}%`);
   progressEl.hidden = false;
 }
 
@@ -5615,7 +5580,15 @@ function syncChapterIllustrationSlot() {
     return;
   }
   slot.hidden = false;
-  const src = resolveStudyApiPath(url.startsWith("/") ? url : "/" + url);
+  const normalizedUrl = url.startsWith("/") ? url : "/" + url;
+  const src = resolveStudyApiPath(normalizedUrl);
+  const imgPath = String(normalizedUrl.split("?")[0] || "");
+  const imgName = imgPath.startsWith("/generated/")
+    ? imgPath.slice("/generated/".length)
+    : "";
+  const optimizedSrc = imgName
+    ? resolveStudyApiPath(`/api/chapter-illustration-image?n=${encodeURIComponent(imgName)}&w=1400`)
+    : src;
   const opacityRaw = Number(state.chapterIllustrationGlobalSettings?.overlayOpacity);
   const opacity = Number.isFinite(opacityRaw)
     ? Math.max(0, Math.min(100, Math.round(opacityRaw)))
@@ -5624,8 +5597,22 @@ function syncChapterIllustrationSlot() {
     '<figure class="chapter-illustration-figure"><img class="chapter-illustration-img" style="opacity:' +
     String((opacity / 100).toFixed(2)) +
     ';" src="' +
+    escapeHtml(optimizedSrc) +
+    '" data-src-fallback="' +
     escapeHtml(src) +
-    '" alt="" decoding="async" loading="lazy" /></figure>';
+    '" alt="" decoding="sync" fetchpriority="high" loading="eager" /></figure>';
+  const imgEl = slot.querySelector(".chapter-illustration-img");
+  if (imgEl) {
+    imgEl.addEventListener(
+      "error",
+      function handleChapterIllustrationError() {
+        const fallback = String(imgEl.getAttribute("data-src-fallback") || "").trim();
+        if (!fallback || imgEl.src === fallback) return;
+        imgEl.src = fallback;
+      },
+      { once: true }
+    );
+  }
 }
 
 function syncChapterCharacterRoster() {
@@ -5667,10 +5654,18 @@ function syncChapterCharacterRoster() {
     const name = escapeHtml(String(f.zhName || "").trim());
     if (!name) continue;
     const isCurrentChapter = Boolean(f && f.isCurrentChapter);
+    const layoutScale = Math.min(
+      1,
+      Math.max(0.5, Number(f && f.layoutScale) || 1)
+    );
+    const scaleStyle =
+      layoutScale === 1
+        ? ""
+        : ` style="--chapter-character-scale:${layoutScale.toFixed(3)}"`;
     cards.push(
       `<figure class="chapter-character-roster-item${
         isCurrentChapter ? " is-current-chapter" : ""
-      }"${isCurrentChapter ? ' aria-current="true"' : ""}><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
+      }"${isCurrentChapter ? ' aria-current="true"' : ""}${scaleStyle}><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
         src
       )}" alt="${name}" decoding="async" loading="lazy" /></div><figcaption class="chapter-character-roster-caption">${name}</figcaption></figure>`
     );
@@ -5681,9 +5676,6 @@ function syncChapterCharacterRoster() {
     requestAnimationFrame(() => {
       syncChapterCharacterTimelineProgress(rosterEl);
       centerChapterCharacterTimeline(rosterEl);
-      requestAnimationFrame(() => {
-        syncChapterCharacterTimelineViewportProgress(rosterEl);
-      });
     });
   }
 }

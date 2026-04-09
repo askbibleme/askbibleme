@@ -21,6 +21,8 @@ export {
   appearanceEnForSlot,
   periodLabelZhForSlot,
   DEFAULT_ENGLISH_NAME_BY_ZH,
+  statureClassForSlot,
+  layoutScaleHintForStature,
   sanitizeCharacterFigurePortraitSlotByZh,
   resolveChapterRosterPortrait,
 } from "./character-appearance.js";

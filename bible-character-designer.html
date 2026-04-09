@@ -1457,6 +1457,12 @@
                 fail += 1;
                 continue;
               }
+              card = refreshCardRefAfterRender(card, zh);
+              if (!card) {
+                fail += 1;
+                setStatus("批量：智能填字后未能重新定位「" + zh + "」卡片，已跳过。", "err");
+                continue;
+              }
               setStatus(
                 "批量 " + (qi + 1) + "/" + total + "：「" + zh + "」一键生成中…",
                 null
@@ -1692,6 +1698,12 @@
           renderHeroGallery();
           card.querySelector(".bcd-key").focus();
           setStatus("已从备选库添加「" + k + "」；可用「智能生成」或手动编辑后保存。", "ok");
+        }
+
+        function refreshCardRefAfterRender(card, fallbackZh) {
+          var zh = String(fallbackZh || cardZhDisplayKey(card) || "").trim();
+          if (!zh) return null;
+          return findCardByZh(zh);
         }
 
         function initPresetPanel() {
@@ -4040,6 +4052,11 @@
                 setStatus("请先登录。", "err");
                 return;
               }
+              var zhKey = cardZhDisplayKey(card);
+              if (!zhKey) {
+                setStatus("请先填写中文名（键）。", "err");
+                return;
+              }
               var lockBtns = [autoPipelineBtn, fullBtn, cmpBtn, batchPresetBtn].filter(Boolean);
               var hi;
               for (hi = 0; hi < lockBtns.length; hi++) lockBtns[hi].disabled = true;
@@ -4051,7 +4068,12 @@
                 });
                 if (!gptOk) return;
                 setStatus("智能填字已完成，正在一键生成各期全身像…", null);
-                await generateComparisonSheet(card, { noButtonToggle: true });
+                var liveCard = refreshCardRefAfterRender(card, zhKey);
+                if (!liveCard) {
+                  setStatus("智能填字后未能重新定位人物卡，请重试。", "err");
+                  return;
+                }
+                await generateComparisonSheet(liveCard, { noButtonToggle: true });
               } finally {
                 for (hi = 0; hi < lockBtns.length; hi++) lockBtns[hi].disabled = false;
                 if (heroBtnGen) heroBtnGen.disabled = false;

@@ -4110,16 +4110,17 @@ button.toolbar-trigger:hover,
 .chapter-character-roster {
   display: flex;
   flex-wrap: nowrap;
-  gap: 14px 22px;
+  gap: 4px 6px;
   justify-content: flex-start;
   align-items: flex-end;
 }
 
 .chapter-character-roster-item {
+  --chapter-character-scale: 1;
   margin: 0;
   flex: 0 0 auto;
   flex-shrink: 0;
-  width: min(26vw, 124px);
+  width: min(33vw, 172px);
   max-width: none;
   position: relative;
 }
@@ -4128,9 +4129,9 @@ button.toolbar-trigger:hover,
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  min-height: 140px;
-  max-height: 200px;
-  padding: 6px 4px 0;
+  min-height: 340px;
+  max-height: 480px;
+  padding: 2px 1px 0;
   border-radius: 12px;
   box-sizing: border-box;
   background: transparent;
@@ -4139,7 +4140,7 @@ button.toolbar-trigger:hover,
 .chapter-character-roster-img {
   display: block;
   max-width: 100%;
-  max-height: 192px;
+  max-height: calc(338px * var(--chapter-character-scale));
   width: auto;
   height: auto;
   object-fit: contain;
@@ -4147,12 +4148,12 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-character-roster-caption {
-  margin: 8px 0 0;
+  margin: 2px 0 0;
   text-align: center;
-  font-size: calc(14px * var(--font-scale));
+  font-size: calc(13px * var(--font-scale));
   font-weight: 700;
   color: var(--ink);
-  line-height: 1.35;
+  line-height: 1.12;
 }
 
 .chapter-character-roster-marker {
@@ -4176,7 +4177,7 @@ button.toolbar-trigger:hover,
 
 .chapter-character-roster--personnel-cell {
   margin: 0;
-  padding: 18px max(14px, calc(50% - 62px)) 14px;
+  padding: 10px max(4px, calc(50% - 86px)) 8px;
   min-height: 0;
   width: 100%;
   max-width: 100%;
@@ -4189,6 +4190,37 @@ button.toolbar-trigger:hover,
   scroll-behavior: smooth;
   cursor: grab;
   touch-action: pan-x pan-y;
+}
+
+@media (max-width: 640px) {
+  .chapter-character-roster {
+    gap: 2px;
+  }
+
+  .chapter-character-roster-item {
+    width: calc((100vw - 18px) / 3);
+    max-width: 184px;
+  }
+
+  .chapter-character-roster-img-wrap {
+    min-height: 372px;
+    max-height: 510px;
+  }
+
+  .chapter-character-roster-img {
+    max-height: calc(366px * var(--chapter-character-scale));
+  }
+
+  .chapter-character-roster-caption {
+    font-size: calc(11px * var(--font-scale));
+    margin-top: 1px;
+    line-height: 1.05;
+  }
+
+  .chapter-character-roster--personnel-cell {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
 }
 
 .chapter-character-roster--personnel-cell.is-dragging {
@@ -4206,13 +4238,13 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-character-progress {
-  padding: 6px max(18px, calc(50% - 62px)) 0;
+  padding: 8px 34px 10px;
 }
 
 .chapter-character-progress-track {
   position: relative;
   width: 100%;
-  height: 4px;
+  height: 6px;
   border-radius: 999px;
   background: rgba(164, 142, 109, 0.18);
   overflow: hidden;
@@ -4224,9 +4256,22 @@ button.toolbar-trigger:hover,
   bottom: 0;
   left: var(--chapter-progress-start, 0%);
   width: var(--chapter-progress-width, 0%);
-  min-width: 8px;
+  min-width: 20px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(176, 141, 92, 0.95), rgba(144, 113, 73, 0.95));
+}
+
+.chapter-character-progress-pointer {
+  position: absolute;
+  left: var(--chapter-progress-pointer, 50%);
+  bottom: -9px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 9px solid rgba(150, 118, 78, 0.98);
+  filter: drop-shadow(0 1px 1px rgba(90, 67, 41, 0.12));
 }
 
 /* 本章人员：单行滚动需 fixed 表格；透明底、无外框/单元格线/阴影 */
@@ -4250,7 +4295,7 @@ button.toolbar-trigger:hover,
   overflow: hidden;
   border: none;
   background: transparent;
-  padding: 2px 0 10px;
+  padding: 0 0 4px;
   min-height: 0;
 }
 
