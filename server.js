@@ -229,6 +229,35 @@ const QUESTION_CORRECTIONS_FILE = path.join(
   ADMIN_DIR,
   "question_text_corrections.json"
 );
+
+/**
+ * 人像数据根目录（持久卷，与代码发布解耦；概念上同 question_submissions 等运行数据）。
+ * 设置后下列 JSON 均在此目录，不再使用 admin_data 下同名文件，避免部署/拉仓库覆盖。
+ * 可选与 CHARACTER_PROFILES_DB 联用（SQLite 仍建议放在此目录或同卷）。
+ */
+const CHARACTER_DATA_DIR = process.env.CHARACTER_DATA_DIR
+  ? path.resolve(process.env.CHARACTER_DATA_DIR)
+  : "";
+
+function characterPortraitDataPath(fileName) {
+  return CHARACTER_DATA_DIR
+    ? path.join(CHARACTER_DATA_DIR, fileName)
+    : path.join(ADMIN_DIR, fileName);
+}
+
+const CHARACTER_ILLUSTRATION_PROFILES_FILE = characterPortraitDataPath(
+  "character_illustration_profiles.json"
+);
+const CHARACTER_PROFILE_IMAGE_AUDIT_FILE = characterPortraitDataPath(
+  "character_profile_image_audit.json"
+);
+const CHARACTER_STAGE_RULES_FILE = characterPortraitDataPath("character_stage_rules.json");
+const CHAPTER_KEY_PEOPLE_FILE = characterPortraitDataPath("chapter_key_people.json");
+/** SQLite 空库导入用；默认同仓库内模板（与 CHARACTER_DATA_DIR 无关）。 */
+const CHARACTER_PROFILES_SEED_JSON = process.env.CHARACTER_PROFILES_SEED_JSON
+  ? path.resolve(process.env.CHARACTER_PROFILES_SEED_JSON)
+  : path.join(__dirname, "admin_data", "character_illustration_profiles.json");
+
 const POINTS_CONFIG_FILE = path.join(ADMIN_DIR, "points_config.json");
 const COLOR_THEMES_FILE = path.join(ADMIN_DIR, "color_themes.json");
 const OPS_CONFIG_FILE = path.join(ADMIN_DIR, "ops_config.json");
@@ -3242,6 +3271,13 @@ function collectGeneratedImageRelativePathsFromValue(input, out = new Set()) {
   return out;
 }
 
+function isAdminPathInsideRepo(absPath) {
+  const abs = path.resolve(absPath);
+  const root = path.resolve(__dirname);
+  const sep = path.sep;
+  return abs === root || abs.startsWith(root + sep);
+}
+
 function listDeploySyncAdminRelativePaths() {
   const paths = [
     !characterProfilesUsesSqlite() && CHARACTER_ILLUSTRATION_PROFILES_FILE,
@@ -3251,6 +3287,7 @@ function listDeploySyncAdminRelativePaths() {
   ]
     .filter(Boolean)
     .filter((abs) => fs.existsSync(abs))
+    .filter((abs) => isAdminPathInsideRepo(abs))
     .map((abs) => path.relative(__dirname, abs).replaceAll("\\", "/"));
   return paths;
 }
@@ -8266,40 +8303,15 @@ const CHAPTER_ILLUSTRATION_STATE_FILE = path.join(
   "chapter_illustration_states.json"
 );
 
-/** 默认 JSON 路径；未启用 SQLite 时读写此文件。启用 SQLite 后仅作可选种子来源（见 CHARACTER_PROFILES_SEED_JSON）。 */
-const CHARACTER_ILLUSTRATION_PROFILES_FILE = path.join(
-  ADMIN_DIR,
-  "character_illustration_profiles.json"
-);
-/** 首次初始化 SQLite 时导入的种子 JSON（默认同仓库 admin_data 模板）。 */
-const CHARACTER_PROFILES_SEED_JSON = process.env.CHARACTER_PROFILES_SEED_JSON
-  ? path.resolve(process.env.CHARACTER_PROFILES_SEED_JSON)
-  : path.join(__dirname, "admin_data", "character_illustration_profiles.json");
-const CHARACTER_PROFILE_IMAGE_AUDIT_FILE = path.join(
-  ADMIN_DIR,
-  "character_profile_image_audit.json"
-);
-
-const CHARACTER_STAGE_RULES_FILE = path.join(
-  ADMIN_DIR,
-  "character_stage_rules.json"
-);
-
-/**
- * 全书「第几章有哪些关键人物」（中文名，与人物库 characters 键一致）。
- * 全版本、全语言共用；结构：{ "GEN": { "28": ["雅各", "拉班"] }, ... }
- */
-const CHAPTER_KEY_PEOPLE_FILE = path.join(ADMIN_DIR, "chapter_key_people.json");
-
 function ensureChapterKeyPeopleFile() {
-  ensureDir(ADMIN_DIR);
+  ensureDir(path.dirname(CHAPTER_KEY_PEOPLE_FILE));
   if (!fs.existsSync(CHAPTER_KEY_PEOPLE_FILE)) {
     writeJson(CHAPTER_KEY_PEOPLE_FILE, {});
   }
 }
 
 function ensureCharacterStageRulesFile() {
-  ensureDir(ADMIN_DIR);
+  ensureDir(path.dirname(CHARACTER_STAGE_RULES_FILE));
   if (!fs.existsSync(CHARACTER_STAGE_RULES_FILE)) {
     writeJson(CHARACTER_STAGE_RULES_FILE, { characters: {}, books: {} });
   }
@@ -8463,7 +8475,7 @@ function persistCharacterIllustrationProfilesRoot(root) {
     saveCharacterProfilesRootToSqlite(root);
     return;
   }
-  ensureDir(ADMIN_DIR);
+  ensureDir(path.dirname(CHARACTER_ILLUSTRATION_PROFILES_FILE));
   writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, root);
 }
 
@@ -8477,7 +8489,7 @@ function ensureCharacterIllustrationProfilesFile() {
     }
     return;
   }
-  ensureDir(ADMIN_DIR);
+  ensureDir(path.dirname(CHARACTER_ILLUSTRATION_PROFILES_FILE));
   if (!fs.existsSync(CHARACTER_ILLUSTRATION_PROFILES_FILE)) {
     writeJson(
       CHARACTER_ILLUSTRATION_PROFILES_FILE,
@@ -8519,6 +8531,7 @@ function loadCharacterProfileImageAudit() {
 }
 
 function saveCharacterProfileImageAudit(data) {
+  ensureDir(path.dirname(CHARACTER_PROFILE_IMAGE_AUDIT_FILE));
   writeJson(CHARACTER_PROFILE_IMAGE_AUDIT_FILE, {
     items: Array.isArray(data?.items) ? data.items : [],
   });
@@ -9399,7 +9412,7 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
       }
       out.characters[key] = row;
     }
-    ensureDir(ADMIN_DIR);
+    if (CHARACTER_DATA_DIR) ensureDir(CHARACTER_DATA_DIR);
     persistCharacterIllustrationProfilesRoot(out);
     rememberCharacterProfileImageAuditFromProfiles(out);
     let thumbBuild = { built: [], failed: [] };
@@ -15467,9 +15480,12 @@ const listenHost =
     : "0.0.0.0";
 app.listen(port, listenHost, () => {
   console.log(`http://localhost:${port}/`);
+  if (CHARACTER_DATA_DIR) {
+    console.log("[character-data] 人像数据目录（持久卷）:", CHARACTER_DATA_DIR);
+  }
   if (characterProfilesUsesSqlite()) {
     console.log(
-      "[character-profiles] SQLite（与代码发布解耦）:",
+      "[character-profiles] SQLite:",
       getCharacterProfilesDbPathForLog()
     );
   }

@@ -1,6 +1,6 @@
 /**
- * 人物立绘档案持久化：可选 SQLite，与代码/发布目录解耦（线上专用库路径，不被 git 部署覆盖）。
- * 未设置 CHARACTER_PROFILES_DB 时由 server.js 继续使用 admin_data JSON。
+ * 人物立绘档案持久化：可选 SQLite（仅当设置 CHARACTER_PROFILES_DB），与代码发布解耦。
+ * 未设置时人物档案 JSON 路径由 server 的 CHARACTER_DATA_DIR / admin_data 决定。
  */
 import fs from "fs";
 import path from "path";
