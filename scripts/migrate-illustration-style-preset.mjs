@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 把章节插画状态中的旧 stylePreset 迁移为新的半写实 preset。
+ * 把章节插画状态中的旧 stylePreset 迁移为新的古典烛光油画 preset。
  *
  * 默认 dry-run（只打印不写入）；
  * 传 --write 才会落盘。
@@ -14,7 +14,7 @@ const root = path.resolve(__dirname, "..");
 const targetFile = path.join(root, "admin_data", "chapter_illustration_states.json");
 
 const FROM = "biblical_copperplate_engraving";
-const TO = "biblical_semi_real_character";
+const TO = "biblical_candlelit_oil_painting";
 const doWrite = process.argv.includes("--write");
 
 function nowStamp() {
@@ -53,7 +53,10 @@ let total = 0;
 for (const [key, st] of Object.entries(chapters)) {
   if (!st || typeof st !== "object") continue;
   total += 1;
-  if (String(st.stylePreset || "") === FROM) {
+  if (
+    String(st.stylePreset || "") === FROM ||
+    String(st.stylePreset || "") === "biblical_semi_real_character"
+  ) {
     st.stylePreset = TO;
     changed += 1;
   }

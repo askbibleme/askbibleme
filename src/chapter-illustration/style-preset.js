@@ -1,16 +1,17 @@
 /**
- * Global semi-real biblical character preset — keep unified with character designer direction.
+ * Master biblical illustration preset based on the approved "Style 1" direction.
+ * Keep this unified with chapter illustration prompts and character portrait generation.
  */
-export const STYLE_PRESET_ENGRAVING = {
-  id: "biblical_semi_real_character",
-  name: "biblical_semi_real_character",
-  lineQuality: "semi_real_clean",
-  shading: "soft_natural",
-  colorMode: "earth_tone_low_saturation",
-  fillMode: "natural_material",
-  textureMode: "linen_wool_detail",
+export const STYLE_PRESET_OIL_MASTER = {
+  id: "biblical_candlelit_oil_painting",
+  name: "biblical_candlelit_oil_painting",
+  lineQuality: "painterly_soft_edges",
+  shading: "dramatic_chiaroscuro",
+  colorMode: "warm_earth_tone_low_key",
+  fillMode: "aged_oil_painting",
+  textureMode: "soft_canvas_grain",
   era: "ancient_biblical",
-  renderingGoal: "semi_realistic_character_concept",
+  renderingGoal: "unified_narrative_character_painting",
   exclusions: [
     "modern_objects",
     "typography",
@@ -18,7 +19,14 @@ export const STYLE_PRESET_ENGRAVING = {
     "anime_style",
     "cartoon_style",
     "fantasy_armor",
-    "cinematic_lighting",
+    "clean_vector_edges",
+    "bright_fantasy_colors",
+    "glossy_digital_concept_art",
     "sci_fi_fx",
   ],
 };
+
+/**
+ * Backward-compatible export name used across the existing illustration pipeline.
+ */
+export const STYLE_PRESET_ENGRAVING = STYLE_PRESET_OIL_MASTER;

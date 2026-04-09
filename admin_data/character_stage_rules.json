@@ -1,0 +1,140 @@
+{
+  "characters": {
+    "亚伯拉罕": {
+      "defaultStageId": "elder",
+      "stages": [
+        {
+          "id": "early",
+          "labelZh": "早期",
+          "slotIndex": 0
+        },
+        {
+          "id": "elder",
+          "labelZh": "老年",
+          "slotIndex": 0
+        }
+      ]
+    },
+    "以撒": {
+      "defaultStageId": "adult",
+      "stages": [
+        {
+          "id": "adult",
+          "labelZh": "成年",
+          "slotIndex": 1
+        },
+        {
+          "id": "elder",
+          "labelZh": "老年",
+          "slotIndex": 2
+        }
+      ]
+    },
+    "利百加": {
+      "defaultStageId": "adult",
+      "stages": [
+        {
+          "id": "adult",
+          "labelZh": "成年",
+          "slotIndex": 1
+        },
+        {
+          "id": "elder",
+          "labelZh": "年长",
+          "slotIndex": 2
+        }
+      ]
+    },
+    "以扫": {
+      "defaultStageId": "adult",
+      "stages": [
+        {
+          "id": "adult",
+          "labelZh": "成年",
+          "slotIndex": 0
+        }
+      ]
+    },
+    "雅各": {
+      "defaultStageId": "adult",
+      "stages": [
+        {
+          "id": "adult",
+          "labelZh": "成年",
+          "slotIndex": 0
+        }
+      ]
+    },
+    "拉班": {
+      "defaultStageId": "adult",
+      "stages": [
+        {
+          "id": "adult",
+          "labelZh": "成年",
+          "slotIndex": 0
+        }
+      ]
+    }
+  },
+  "books": {
+    "GEN": {
+      "亚伯拉罕": [
+        {
+          "from": 12,
+          "to": 25,
+          "stageId": "elder"
+        },
+        {
+          "from": 26,
+          "to": 50,
+          "stageId": "elder"
+        }
+      ],
+      "以撒": [
+        {
+          "from": 22,
+          "to": 26,
+          "stageId": "adult"
+        },
+        {
+          "from": 27,
+          "to": 35,
+          "stageId": "elder"
+        }
+      ],
+      "利百加": [
+        {
+          "from": 24,
+          "to": 26,
+          "stageId": "adult"
+        },
+        {
+          "from": 27,
+          "to": 35,
+          "stageId": "elder"
+        }
+      ],
+      "以扫": [
+        {
+          "from": 25,
+          "to": 36,
+          "stageId": "adult"
+        }
+      ],
+      "雅各": [
+        {
+          "from": 25,
+          "to": 50,
+          "stageId": "adult"
+        }
+      ],
+      "拉班": [
+        {
+          "from": 24,
+          "to": 31,
+          "stageId": "adult"
+        }
+      ]
+    }
+  }
+}

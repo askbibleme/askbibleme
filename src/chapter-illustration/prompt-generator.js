@@ -1,14 +1,17 @@
 import { STYLE_PRESET_ENGRAVING } from "./style-preset.js";
 
 const STYLE_LOCK_GLOBAL = `
-semi-realistic biblical illustration,
+classical biblical oil painting,
 historically grounded,
-ancient Near Eastern clothing (tunic, shawl, sandals),
-linen and wool fabric texture,
-earth-tone color palette (low saturation),
-soft natural lighting,
-calm and restrained emotional tone,
-no dramatic action
+dramatic candlelit chiaroscuro,
+warm amber-brown earth-tone palette,
+deep shadows with focused warm light,
+soft aged canvas texture,
+emotional realism with restrained expressions,
+ancient Near Eastern clothing (tunic, shawl, mantle, sandals),
+linen, wool, leather, wood, clay, and stone texture,
+single intimate narrative moment,
+same painted-series visual language across all chapters and character illustrations
 `
   .trim()
   .replace(/\s+/g, " ");
@@ -18,9 +21,13 @@ const CONSTRAINTS_GLOBAL_BASE = `
 no modern elements,
 no fantasy armor or decorative fantasy styling,
 no bright saturated colors,
-no cinematic lighting,
+no glossy digital concept-art finish,
+no modern cinematic color grading,
 no exaggerated expressions or action,
 no anime / cartoon / stylized fantasy,
+no flat editorial illustration look,
+no clean vector-like contouring,
+no brighter, cleaner, flatter, or more neutral style drift,
 no sci-fi effects,
 single clear narrative moment only,
 no symbolic abstraction,
@@ -86,6 +93,7 @@ export function generateIllustrationPrompt(config) {
           "Ancient Near Eastern biblical-era garments only (wool/linen tunics, mantles, cloaks, sashes, veils as fitting) — never medieval European, Renaissance, or modern dress. When multiple named people appear, differentiate drapery, layering, and garment silhouette between them so costumes are not copy-pasted clones; period-plausible variety, not identical default robes on every figure.",
           "When multiple standing adults appear, keep natural height variation (adult women typically shorter than adult men in the same scene unless the narrative specifies otherwise); do not equalize everyone to the same silhouette height.",
           "Costume: primeval Adam/Eve-era figures in simple animal-hide dress only; from later narrative layers use era- and office-appropriate garb (priestly, royal, wealthy patriarch, poor or mourning) per the beat — never one generic costume for every named person.",
+          "Keep all named people inside the approved master style: classical biblical oil painting, warm low-key light, restrained emotion, soft canvas texture, and unified series consistency.",
         ]
       : [];
 
@@ -94,8 +102,8 @@ export function generateIllustrationPrompt(config) {
     : "PNG, opaque: fully painted scene with coherent environmental background filling the entire canvas (ground, sky, distance, architecture, dust or mist as the narrative needs). NOT a transparency cutout. Avoid a flat empty pure-white (#FFFFFF) or near-white studio void as the dominant backdrop — prefer warm parchment beige, sand, ochre haze, soft gray-blue sky, twilight violet, or dim interior plaster. Pure white or near-white is ONLY allowed as intentional light depiction (sun disk edge, narrow sunbeam, lamp glow, divine radiance, lightning glare) — not as the global empty background wash";
 
   const styleBackgroundLine = transparent
-    ? "visual form: ONE unified narrative painting — modest biblical-era setting (ground, distance, sky haze) when the story needs it; NOT a photograph inside a frame, NOT a bordered inset; NOT sticker cut-outs on blank white — allow soft warm beige / sand / parchment atmospheric wash in mid-to-outer zones for environmental fusion before fade to alpha"
-    : "visual form: ONE unified narrative painting with a complete environmental background (indoor or outdoor) — modest biblical-era setting; NOT a photograph inside a frame, NOT a bordered inset; NOT sticker cut-outs on blank white; the whole image plane should read as oil-style scene painting with real space behind and around figures";
+    ? "visual form: ONE unified narrative oil painting — modest biblical-era setting (ground, distance, sky haze) when the story needs it; asymmetrical and intimate rather than flat and poster-like; NOT a photograph inside a frame, NOT a bordered inset; NOT sticker cut-outs on blank white — allow soft warm beige / sand / parchment atmospheric wash in mid-to-outer zones for environmental fusion before fade to alpha"
+    : "visual form: ONE unified narrative oil painting with a complete environmental background (indoor or outdoor) — modest biblical-era setting; asymmetrical and intimate rather than flat and poster-like; NOT a photograph inside a frame, NOT a bordered inset; NOT sticker cut-outs on blank white; the whole image plane should read as aged oil painting with real space behind and around figures";
 
   const styleBackgroundLine2 = transparent
     ? "edge transparency: environment and atmosphere must dissolve SLOWLY toward the canvas edges into full alpha (wide painterly falloff, like oil glaze thinning out) — seamless blend with chapter paper; forbid a uniform flat cream or white studio card filling the entire frame edge-to-edge behind subjects (that reads as a sticker plate); graduated beige/sand haze in outer bands is encouraged for fusion"
@@ -109,7 +117,8 @@ export function generateIllustrationPrompt(config) {
     STYLE_LOCK_GLOBAL + ",",
     styleBackgroundLine + ",",
     styleBackgroundLine2 + ",",
-    "character rule: modest and simple clothing, natural standing/resting pose, full body when character-focused,",
+    "character rule: modest and simple clothing, natural standing/resting pose, full body when character-focused, painterly realistic anatomy, not a fashion pose sheet,",
+    "master consistency rule: all future character illustrations must match this approved reference style and must not drift toward flatter, cleaner, brighter, or more neutral illustration styles,",
     "",
     "[COMPOSITION]",
     composition + ",",

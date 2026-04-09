@@ -110,6 +110,8 @@ const state = {
    * 此时 studyContent 为空，插图单独放此处供读经页展示。
    */
   chapterIllustrationWhenStudyMissing: null,
+  /** 本卷人物轴：整卷已生成角色 + 当前章节高亮 */
+  bookCharacterTimeline: null,
   /** 章节插图全局显示设置（来自 /api/chapter-illustration/global-settings） */
   chapterIllustrationGlobalSettings: { overlayOpacity: 85 },
   favorites: loadFavorites(),
@@ -1464,7 +1466,7 @@ function getLocalizedCopy() {
       enterChapterOne: "Chapter 1",
       bookIntroEmpty: "No introduction has been published for this book yet.",
       noContent: "No content yet for this chapter in the selected version/language.",
-      chapterEndPersonnelTableCaption: "People in this chapter",
+      chapterEndPersonnelTableCaption: "Book Characters",
       promoHelpAria:
         "About Berean-style reading and AskBible.me (opens in new tab)",
     };
@@ -1525,7 +1527,7 @@ function getLocalizedCopy() {
       enterChapterOne: "Capitulo 1",
       bookIntroEmpty: "Aun no hay introduccion publicada para este libro.",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
-      chapterEndPersonnelTableCaption: "Personas en este capitulo",
+      chapterEndPersonnelTableCaption: "Personajes del libro",
       promoHelpAria: "Sobre el estilo Berea y AskBible.me (nueva pestana)",
     };
   }
@@ -1585,7 +1587,7 @@ function getLocalizedCopy() {
       enterChapterOne: "פרק 1",
       bookIntroEmpty: "עדיין לא פורסמה הקדמה לספר זה.",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
-      chapterEndPersonnelTableCaption: "אנשים בפרק זה",
+      chapterEndPersonnelTableCaption: "דמויות הספר",
       promoHelpAria: "אודות לימוד בסגנון בראיים ו-AskBible.me (בלשונית חדשה)",
     };
   }
@@ -1644,7 +1646,7 @@ function getLocalizedCopy() {
     enterChapterOne: "进入第 1 章",
     bookIntroEmpty: "本书卷暂无介绍内容。",
     noContent: "这一章还没有该版本 / 该语言的内容。",
-    chapterEndPersonnelTableCaption: "本章人员",
+    chapterEndPersonnelTableCaption: "本卷人物",
     promoHelpAria: "了解庇哩亚式读经与 AskBible.me（新窗口打开）",
   };
 }
@@ -5292,6 +5294,7 @@ async function loadScripture() {
 async function loadStudyContent() {
   const loadGen = ++studyContentLoadGeneration;
   state.chapterIllustrationWhenStudyMissing = null;
+  state.bookCharacterTimeline = null;
   try {
     const gsRes = await fetch(resolveStudyApiPath("/api/chapter-illustration/global-settings"), {
       cache: "no-store",
@@ -5398,6 +5401,7 @@ async function loadStudyContent() {
   }
 
   state.studyContent = data;
+  void loadBookCharacterTimeline(params, loadGen);
   const shouldEnrichFigures =
     data &&
     data.missing !== true &&
@@ -5467,6 +5471,132 @@ async function enrichChapterCharacterFiguresIfNeeded(params, loadGen) {
   } catch (_) {}
 }
 
+async function loadBookCharacterTimeline(params, loadGen) {
+  try {
+    const res = await fetch(
+      resolveStudyApiPath(`/api/study-character-timeline?${params.toString()}`),
+      { cache: "no-store" }
+    );
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    if (loadGen !== studyContentLoadGeneration) return;
+    const figures = Array.isArray(data?.figures) ? data.figures : [];
+    const activeNames = Array.isArray(data?.activeNames) ? data.activeNames : [];
+    state.bookCharacterTimeline = { figures, activeNames };
+    syncChapterCharacterRoster();
+  } catch (_) {}
+}
+
+function bindTimelineDragScroll(scroller) {
+  if (!scroller || scroller.dataset.dragScrollBound === "1") return;
+  scroller.dataset.dragScrollBound = "1";
+
+  let dragging = false;
+  let startX = 0;
+  let startScrollLeft = 0;
+
+  const stopDrag = () => {
+    dragging = false;
+    scroller.classList.remove("is-dragging");
+  };
+
+  scroller.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    dragging = true;
+    startX = event.clientX;
+    startScrollLeft = scroller.scrollLeft;
+    scroller.classList.add("is-dragging");
+    try {
+      scroller.setPointerCapture(event.pointerId);
+    } catch (_) {}
+  });
+
+  scroller.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const delta = event.clientX - startX;
+    scroller.scrollLeft = startScrollLeft - delta;
+    syncChapterCharacterTimelineViewportProgress(scroller);
+  });
+
+  scroller.addEventListener("pointerup", stopDrag);
+  scroller.addEventListener("pointercancel", stopDrag);
+  scroller.addEventListener("lostpointercapture", stopDrag);
+  scroller.addEventListener(
+    "scroll",
+    () => {
+      syncChapterCharacterTimelineViewportProgress(scroller);
+    },
+    { passive: true }
+  );
+}
+
+function centerChapterCharacterTimeline(scroller) {
+  if (!scroller) return;
+  const active = [...scroller.querySelectorAll(".chapter-character-roster-item.is-current-chapter")];
+  if (!active.length) {
+    scroller.scrollLeft = 0;
+    return;
+  }
+  const first = active[0];
+  const last = active[active.length - 1];
+  const clusterStart = first.offsetLeft;
+  const clusterEnd = last.offsetLeft + last.offsetWidth;
+  const clusterCenter = (clusterStart + clusterEnd) / 2;
+  const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+  const target = Math.max(0, Math.min(maxScroll, clusterCenter - scroller.clientWidth / 2));
+  scroller.scrollTo({ left: target, behavior: "smooth" });
+}
+
+function syncChapterCharacterTimelineProgress(scroller) {
+  const progressEl = document.getElementById("chapterCharacterProgress");
+  if (!progressEl) return;
+  const items = scroller
+    ? [...scroller.querySelectorAll(".chapter-character-roster-item")]
+    : [];
+  if (items.length < 2) {
+    progressEl.hidden = true;
+    progressEl.style.removeProperty("--chapter-progress-start");
+    progressEl.style.removeProperty("--chapter-progress-width");
+    return;
+  }
+  const allStart = items[0].offsetLeft;
+  const allEnd = items[items.length - 1].offsetLeft + items[items.length - 1].offsetWidth;
+  const allSpan = Math.max(1, allEnd - allStart);
+  const active = items.filter((el) => el.classList.contains("is-current-chapter"));
+  const rangeStartEl = active[0] || items[0];
+  const rangeEndEl = active[active.length - 1] || items[0];
+  const rangeStart = rangeStartEl.offsetLeft;
+  const rangeEnd = rangeEndEl.offsetLeft + rangeEndEl.offsetWidth;
+  const startPct = Math.max(0, Math.min(100, ((rangeStart - allStart) / allSpan) * 100));
+  const widthPct = Math.max(
+    1.5,
+    Math.min(100 - startPct, ((rangeEnd - rangeStart) / allSpan) * 100)
+  );
+  progressEl.style.setProperty("--chapter-progress-start", `${startPct}%`);
+  progressEl.style.setProperty("--chapter-progress-width", `${widthPct}%`);
+  progressEl.hidden = false;
+}
+
+function syncChapterCharacterTimelineViewportProgress(scroller) {
+  const progressEl = document.getElementById("chapterCharacterProgress");
+  if (!progressEl || !scroller) return;
+  const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+  if (scroller.scrollWidth <= scroller.clientWidth + 2) {
+    progressEl.style.setProperty("--chapter-progress-start", "0%");
+    progressEl.style.setProperty("--chapter-progress-width", "100%");
+    progressEl.hidden = false;
+    return;
+  }
+  const startPct = maxScroll > 0 ? (scroller.scrollLeft / scroller.scrollWidth) * 100 : 0;
+  const widthPct = Math.max(8, (scroller.clientWidth / scroller.scrollWidth) * 100);
+  progressEl.style.setProperty(
+    "--chapter-progress-start",
+    `${Math.max(0, Math.min(100 - widthPct, startPct))}%`
+  );
+  progressEl.style.setProperty("--chapter-progress-width", `${Math.min(100, widthPct)}%`);
+  progressEl.hidden = false;
+}
+
 function syncChapterIllustrationSlot() {
   const slot = document.getElementById("chapterIllustrationSlot");
   if (!slot) return;
@@ -5501,20 +5631,28 @@ function syncChapterIllustrationSlot() {
 function syncChapterCharacterRoster() {
   const section = document.getElementById("chapterEndPersonnelSection");
   const rosterEl = document.getElementById("chapterEndPersonnelRoster");
+  const progressEl = document.getElementById("chapterCharacterProgress");
   if (!section || !rosterEl) return;
   if (isBookLandingChapter()) {
     section.hidden = true;
     rosterEl.innerHTML = "";
+    if (progressEl) progressEl.hidden = true;
     return;
   }
   section.hidden = false;
   rosterEl.innerHTML = "";
+  if (progressEl) progressEl.hidden = true;
   if (!state.studyContent) {
     return;
   }
-  const figures = Array.isArray(state.studyContent.chapterCharacterFigures)
-    ? state.studyContent.chapterCharacterFigures
+  const timelineFigures = Array.isArray(state.bookCharacterTimeline?.figures)
+    ? state.bookCharacterTimeline.figures
     : [];
+  const figures = timelineFigures.length
+    ? timelineFigures
+    : Array.isArray(state.studyContent.chapterCharacterFigures)
+      ? state.studyContent.chapterCharacterFigures
+      : [];
   const cards = [];
   for (let i = 0; i < figures.length; i++) {
     const f = figures[i];
@@ -5528,14 +5666,25 @@ function syncChapterCharacterRoster() {
       : chapterRosterPortraitImgSrc(raw);
     const name = escapeHtml(String(f.zhName || "").trim());
     if (!name) continue;
+    const isCurrentChapter = Boolean(f && f.isCurrentChapter);
     cards.push(
-      `<figure class="chapter-character-roster-item"><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
+      `<figure class="chapter-character-roster-item${
+        isCurrentChapter ? " is-current-chapter" : ""
+      }"${isCurrentChapter ? ' aria-current="true"' : ""}><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
         src
       )}" alt="${name}" decoding="async" loading="lazy" /></div><figcaption class="chapter-character-roster-caption">${name}</figcaption></figure>`
     );
   }
   if (cards.length) {
     rosterEl.innerHTML = cards.join("");
+    bindTimelineDragScroll(rosterEl);
+    requestAnimationFrame(() => {
+      syncChapterCharacterTimelineProgress(rosterEl);
+      centerChapterCharacterTimeline(rosterEl);
+      requestAnimationFrame(() => {
+        syncChapterCharacterTimelineViewportProgress(rosterEl);
+      });
+    });
   }
 }
 

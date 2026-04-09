@@ -45,7 +45,17 @@
           href: "/illustration-admin.html",
           label: "插画管理",
         },
+        {
+          href: "/generated-png-thumbs.html",
+          label: "PNG 与缩略图",
+          note: "public/generated 与 thumbs 批量处理",
+        },
         { href: "/bible-character-designer.html", label: "圣经人物设计器" },
+        {
+          href: "/bible-character-designer.html#repair-images",
+          label: "人物图片预检修复",
+          note: "失效引用统计、预检报告、一键修复",
+        },
         {
           href: "/chapter-key-people.html",
           label: "章末人物表（全局）",

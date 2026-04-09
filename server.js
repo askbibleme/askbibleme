@@ -15,7 +15,10 @@ import multer from "multer";
 import AdmZip from "adm-zip";
 import OpenAI from "openai";
 import { testamentOptions } from "./src/books.js";
-import { compareZhNamesByBibleRosterOrder } from "./src/bible-character-preset-order.js";
+import {
+  CHARACTER_PRESET_BY_BOOK,
+  compareZhNamesByBibleRosterOrder,
+} from "./src/bible-character-preset-order.js";
 import {
   BUILTIN_COLOR_THEME_VARIABLES,
   BUILTIN_COLOR_THEME_VARIABLE_KEYS,
@@ -1747,6 +1750,9 @@ function coerceLifeStagesRoot(v) {
       englishName: "",
       scripturePersonalityZh: "",
       scripturePersonalityEn: "",
+      lifespanZh: "",
+      eraLabelZh: "",
+      identityTagsZh: "",
       stages: arr,
     };
   }
@@ -1781,6 +1787,9 @@ function coerceLifeStagesRoot(v) {
         englishName: safeText(v.englishName || "").slice(0, 80),
         scripturePersonalityZh: safeText(v.scripturePersonalityZh || "").slice(0, 500),
         scripturePersonalityEn: safeText(v.scripturePersonalityEn || "").slice(0, 600),
+        lifespanZh: safeText(v.lifespanZh || "").slice(0, 80),
+        eraLabelZh: safeText(v.eraLabelZh || "").slice(0, 80),
+        identityTagsZh: safeText(v.identityTagsZh || "").slice(0, 240),
         stages: [
           {
             labelZh: safeText(v.labelZh || "").slice(0, 32),
@@ -1834,6 +1843,9 @@ async function handleCharacterProfileGenerate(req, res) {
       "englishName: common English name as used in Bible translations.",
       "scripturePersonalityZh: concise Chinese — how Scripture portrays this person's character, virtues, and role (e.g. 被称为信心之父、信而顺服). Not physical appearance.",
       "scripturePersonalityEn: one or two English sentences — inner character, faith posture, demeanor for illustrators (e.g. 'father of faith', steadfast obedience); not clothing or face shape.",
+      "lifespanZh: concise Chinese lifespan note if Scripture gives one or tradition is clear enough for common Bible-study reference, e.g. 活了138岁. If uncertain or not stated, return empty string.",
+      "eraLabelZh: concise Chinese era/dynasty/story-period label, e.g. 列王时代 / 士师时代 / 族长时代 / 出埃及年代. Keep it short.",
+      "identityTagsZh: concise Chinese tags for this person's biblical identity, separated by Chinese full-width parentheses groups or semicolons, e.g. （信心之父）（蒙召离乡） or （第一个王）（便雅悯支派）. Prefer short, memorable Bible-study labels rather than long prose.",
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
       "shortSceneTagEn: one short English phrase (about one sentence) for scene context beside Chinese scene text (e.g. at the well, before Pharaoh). Put story location or moment HERE — NOT inside appearanceEn.",
       "appearanceEn: detailed English visual description for image generation. Include stable facial identity cues (face shape, eye spacing, nose, distinctive traits) so the same figure can be recognized if more life stages are added later. For roster, article, or museum-style use, describe expression and gaze so the figure can engage the reader: calm dignified eye contact toward the viewer when posture allows (soft direct or gentle three-quarter), warm and intentional — not an aggressive stare; this is AI-assisted interpretive illustration, not documentary photography. Ancient Near Eastern or period-appropriate styling; no modern items.",
@@ -1879,6 +1891,9 @@ async function handleCharacterProfileGenerate(req, res) {
       safeText(parsed.scripturePersonalityEn || ""),
       600
     );
+    const lifespanZh = safeText(parsed.lifespanZh || "").slice(0, 80);
+    const eraLabelZh = safeText(parsed.eraLabelZh || "").slice(0, 80);
+    const identityTagsZh = safeText(parsed.identityTagsZh || "").slice(0, 240);
     const shortSceneTagEn = safeText(parsed.shortSceneTagEn || "");
     const appearanceEn = safeText(parsed.appearanceEn || "");
     if (!englishName && !appearanceEn) {
@@ -1889,6 +1904,9 @@ async function handleCharacterProfileGenerate(req, res) {
       englishName: englishName.slice(0, 80),
       scripturePersonalityZh,
       scripturePersonalityEn,
+      lifespanZh,
+      eraLabelZh,
+      identityTagsZh,
       shortSceneTagEn: shortSceneTagEn.slice(0, 160),
       appearanceEn: appearanceEn.slice(0, 1200),
     });
@@ -1954,6 +1972,9 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       "englishName: string — common English name in major Bible translations.",
       "scripturePersonalityZh: concise Chinese — character, virtues, and biblical reputation as Scripture presents them (e.g. 信心之父、信而顺服、柔和谦卑). Not physical appearance.",
       "scripturePersonalityEn: 1–3 English sentences — temperament, inner life, and narrative role for illustrators (e.g. 'known as the father of faith', 'courageous before giants'); do NOT repeat hair, face, or clothing (those go in appearanceEn per stage).",
+      "lifespanZh: concise Chinese lifespan note if Scripture gives one or it is a widely recognized Bible-study fact, e.g. 活了138岁. If genuinely uncertain or not stated, return empty string.",
+      "eraLabelZh: concise Chinese era/story-period label, e.g. 族长时代 / 士师时代 / 联合王国 / 被掳归回后.",
+      "identityTagsZh: concise memorable Chinese identity tags, preferably wrapped like （信心之父）（以色列王） or separated with semicolons if needed. Keep tags short and recognizable.",
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
       "stages: array — DEFAULT is ONE adult canonical reference (see rules below).",
       "- DEFAULT (when Editor notes do NOT explicitly request multiple life stages): Output exactly 1 stage. That stage MUST be a physically mature adult in prime years — the canonical face-and-body template for roster and downstream scene generation — NOT an infant or child, NOT extreme end-of-life frailty as the only output. labelZh may cue 成年 / 壮年 / 标准参考. shortSceneTagEn: one representative story beat. appearanceEn: lock clear, stable facial identity traits (bone structure, eyes, nose, jaw, skin-tone family) plus prime-adult hair, build, and costume that match Scripture office/wealth.",
@@ -1974,7 +1995,7 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       "Clothing per stage must match biblical social standing (outside primeval animal-skin-only cases): wealthy patriarchs, tribal leaders, kings, officials, and priests should look appropriately prosperous and role-specific — layered robes, quality woven garments, priestly or royal detail where Scripture places them; avoid a generic drab peasant default when the person is rich, honored, or holds sacred or royal office. Use humbler dress only when the text clearly indicates poverty, exile, mourning, or similar.",
       "Garment variety within era (mandatory for each appearanceEn): Strictly biblical-era Near Eastern / eastern Mediterranean garments only; forbidden medieval, Renaissance, modern, or fantasy dress. Across the project many figures exist — do NOT reuse one stock costume description for every patriarch. For this figure, specify concrete variety (layering, mantle vs wrap, sleeve, sash, trim, head covering) and period-plausible colors (undyed wool, indigo, madder red, purple accents if elite, olive, terracotta, etc.) so they are not interchangeable with a generic beige-brown template, without breaking historical plausibility.",
       "Respond with ONLY valid JSON. No markdown fences, no commentary.",
-      "Required root shape (mandatory): a single JSON object with keys englishName, scripturePersonalityZh, scripturePersonalityEn, and stages. The stages value MUST be a JSON array: default length 1 (single adult); length 2–3 ONLY when Editor notes explicitly request multi-stage. Each object MUST have labelZh, shortSceneTagEn, appearanceEn. Never omit the key \"stages\"; do not rename it (e.g. not lifeStages only); do not return the stages list as the root array without wrapping it in that object.",
+      "Required root shape (mandatory): a single JSON object with keys englishName, scripturePersonalityZh, scripturePersonalityEn, lifespanZh, eraLabelZh, identityTagsZh, and stages. The stages value MUST be a JSON array: default length 1 (single adult); length 2–3 ONLY when Editor notes explicitly request multi-stage. Each object MUST have labelZh, shortSceneTagEn, appearanceEn. Never omit the key \"stages\"; do not rename it (e.g. not lifeStages only); do not return the stages list as the root array without wrapping it in that object.",
     ].join(" ");
     const userParts = [`Chinese name: ${chineseName}`];
     userParts.push(
@@ -1994,7 +2015,7 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       const userContent =
         attempt === 0
           ? userParts.join("\n")
-          : `${userParts.join("\n")}\n\nVALIDATION FAILED: Your last reply was not usable. Reply with ONLY one JSON object (no markdown, no prose). It MUST include top-level keys englishName, scripturePersonalityZh, scripturePersonalityEn, and stages. The value of stages MUST be a JSON array of 1 to 3 objects; each object MUST have labelZh, shortSceneTagEn, appearanceEn.`;
+          : `${userParts.join("\n")}\n\nVALIDATION FAILED: Your last reply was not usable. Reply with ONLY one JSON object (no markdown, no prose). It MUST include top-level keys englishName, scripturePersonalityZh, scripturePersonalityEn, lifespanZh, eraLabelZh, identityTagsZh, and stages. The value of stages MUST be a JSON array of 1 to 3 objects; each object MUST have labelZh, shortSceneTagEn, appearanceEn.`;
       try {
         text = await openAiChatHelper({
           system,
@@ -2043,6 +2064,9 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       safeText(parsed.scripturePersonalityEn || ""),
       600
     );
+    const lifespanZh = safeText(parsed.lifespanZh || "").slice(0, 80);
+    const eraLabelZh = safeText(parsed.eraLabelZh || "").slice(0, 80);
+    const identityTagsZh = safeText(parsed.identityTagsZh || "").slice(0, 240);
     if (!englishName && !stages.some((x) => String(x.appearanceEn || "").trim())) {
       return res.status(500).json({ error: "模型返回内容为空，请重试。" });
     }
@@ -2052,6 +2076,9 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       englishName,
       scripturePersonalityZh,
       scripturePersonalityEn,
+      lifespanZh,
+      eraLabelZh,
+      identityTagsZh,
       stages,
       promptLog: {
         gptSystemEn: system,
@@ -6045,6 +6072,7 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
       typeof payload.characterFigurePortraitSlotByZh === "object"
         ? payload.characterFigurePortraitSlotByZh
         : {};
+    const stageRules = loadCharacterStageRules();
     const profilesRoot = loadCharacterIllustrationProfiles();
     const ch =
       profilesRoot.characters && typeof profilesRoot.characters === "object"
@@ -6058,14 +6086,27 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
       seen.add(zh);
       const entry = ch[zh];
       if (!entry || typeof entry !== "object") continue;
-      const pref =
-        Object.prototype.hasOwnProperty.call(slotByZh, zh) ? slotByZh[zh] : undefined;
+      const chapterStage = resolveCharacterRosterSlotByChapterStage(
+        stageRules,
+        meta.bookId,
+        meta.chapter,
+        zh
+      );
+      const pref = Object.prototype.hasOwnProperty.call(slotByZh, zh)
+        ? slotByZh[zh]
+        : chapterStage?.slotIndex;
       const resolved = resolveExistingChapterRosterPortrait(entry, pref);
       const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
       if (!imageUrl) continue;
       const row = { zhName: zh, imageUrl };
       if (typeof resolved.portraitSlot === "number") {
         row.portraitSlot = resolved.portraitSlot;
+      }
+      if (chapterStage?.stageId) {
+        row.stageId = chapterStage.stageId;
+      }
+      if (chapterStage?.labelZh) {
+        row.stageLabelZh = chapterStage.labelZh;
       }
       const rt = rosterThumbRelativeUrlIfExists(imageUrl);
       if (rt) row.rosterThumbUrl = rt;
@@ -6078,6 +6119,133 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
   } catch (e) {
     console.error("[buildChapterCharacterFiguresForReader]", e);
     return [];
+  }
+}
+
+function buildBookCharacterTimelineForReader(chapterData, meta) {
+  try {
+    const bookId = String(meta?.bookId || "").trim();
+    const chapterNum = Number(meta?.chapter);
+    if (!bookId) {
+      return { figures: [], activeNames: [], focusNames: [] };
+    }
+
+    const presetBook = CHARACTER_PRESET_BY_BOOK.find(
+      (row) => String(row?.bookId || "").trim() === bookId
+    );
+    const presetNames = Array.isArray(presetBook?.names) ? presetBook.names : [];
+    const activeNames =
+      chapterData && typeof chapterData === "object" && Number.isFinite(chapterNum) && chapterNum >= 1
+        ? buildChapterPayloadFromPublished(chapterData, meta, {
+            globalKeyPeople: loadChapterKeyPeopleGlobal(bookId, chapterNum),
+          }).keyPeople || []
+        : [];
+    const activeSet = new Set(
+      sanitizeChapterKeyPeopleArray(activeNames).map((name) => String(name || "").trim())
+    );
+
+    const stageRules = loadCharacterStageRules();
+    const profilesRoot = loadCharacterIllustrationProfiles();
+    const ch =
+      profilesRoot.characters && typeof profilesRoot.characters === "object"
+        ? profilesRoot.characters
+        : {};
+
+    const figures = [];
+    const seen = new Set();
+
+    for (let i = 0; i < presetNames.length; i++) {
+      const zh = String(presetNames[i] || "").trim();
+      if (!zh || seen.has(zh)) continue;
+      seen.add(zh);
+      const entry = ch[zh];
+      if (!entry || typeof entry !== "object") continue;
+      const chapterStage =
+        Number.isFinite(chapterNum) && chapterNum >= 1
+          ? resolveCharacterRosterSlotByChapterStage(
+              stageRules,
+              bookId,
+              chapterNum,
+              zh
+            )
+          : null;
+      const resolved = resolveExistingChapterRosterPortrait(
+        entry,
+        activeSet.has(zh) ? chapterStage?.slotIndex : undefined
+      );
+      const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
+      if (!imageUrl) continue;
+      const row = {
+        zhName: zh,
+        imageUrl,
+        isCurrentChapter: activeSet.has(zh),
+      };
+      if (typeof resolved.portraitSlot === "number") {
+        row.portraitSlot = resolved.portraitSlot;
+      }
+      if (row.isCurrentChapter && chapterStage?.stageId) {
+        row.stageId = chapterStage.stageId;
+      }
+      if (row.isCurrentChapter && chapterStage?.labelZh) {
+        row.stageLabelZh = chapterStage.labelZh;
+      }
+      const rt = rosterThumbRelativeUrlIfExists(imageUrl);
+      if (rt) row.rosterThumbUrl = rt;
+      figures.push(row);
+    }
+
+    const extraActiveNames = [...activeSet].filter((zh) => !seen.has(zh));
+    extraActiveNames.sort(compareZhNamesByBibleRosterOrder);
+    for (let i = 0; i < extraActiveNames.length; i++) {
+      const zh = extraActiveNames[i];
+      const entry = ch[zh];
+      if (!entry || typeof entry !== "object") continue;
+      const chapterStage =
+        Number.isFinite(chapterNum) && chapterNum >= 1
+          ? resolveCharacterRosterSlotByChapterStage(
+              stageRules,
+              bookId,
+              chapterNum,
+              zh
+            )
+          : null;
+      const resolved = resolveExistingChapterRosterPortrait(
+        entry,
+        chapterStage?.slotIndex
+      );
+      const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
+      if (!imageUrl) continue;
+      const row = {
+        zhName: zh,
+        imageUrl,
+        isCurrentChapter: true,
+      };
+      if (typeof resolved.portraitSlot === "number") {
+        row.portraitSlot = resolved.portraitSlot;
+      }
+      if (chapterStage?.stageId) {
+        row.stageId = chapterStage.stageId;
+      }
+      if (chapterStage?.labelZh) {
+        row.stageLabelZh = chapterStage.labelZh;
+      }
+      const rt = rosterThumbRelativeUrlIfExists(imageUrl);
+      if (rt) row.rosterThumbUrl = rt;
+      figures.push(row);
+    }
+
+    const focusNames = figures
+      .filter((row) => row.isCurrentChapter)
+      .map((row) => row.zhName);
+
+    return {
+      figures,
+      activeNames: [...activeSet],
+      focusNames,
+    };
+  } catch (e) {
+    console.error("[buildBookCharacterTimelineForReader]", e);
+    return { figures: [], activeNames: [], focusNames: [] };
   }
 }
 
@@ -6196,6 +6364,31 @@ app.get("/api/study-character-figures", (req, res) => {
     console.error(error);
     res.status(500).json({
       error: error.message || "读取章末人物失败",
+    });
+  }
+});
+
+app.get("/api/study-character-timeline", (req, res) => {
+  try {
+    const { version, lang, bookId, chapter } = req.query;
+    if (!version || !lang || !bookId || !chapter) {
+      return res.status(400).json({
+        error: "缺少 version / lang / bookId / chapter",
+      });
+    }
+    const studyMeta = {
+      versionId: String(version),
+      lang: String(lang),
+      bookId: String(bookId),
+      chapter: Number(chapter),
+    };
+    const data = readPublishedContent(studyMeta);
+    const timeline = buildBookCharacterTimelineForReader(data || {}, studyMeta);
+    res.json(timeline);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: error.message || "读取人物轴失败",
     });
   }
 });
@@ -7056,6 +7249,11 @@ const CHARACTER_ILLUSTRATION_PROFILES_FILE = path.join(
   "character_illustration_profiles.json"
 );
 
+const CHARACTER_STAGE_RULES_FILE = path.join(
+  ADMIN_DIR,
+  "character_stage_rules.json"
+);
+
 /**
  * 全书「第几章有哪些关键人物」（中文名，与人物库 characters 键一致）。
  * 全版本、全语言共用；结构：{ "GEN": { "28": ["雅各", "拉班"] }, ... }
@@ -7067,6 +7265,117 @@ function ensureChapterKeyPeopleFile() {
   if (!fs.existsSync(CHAPTER_KEY_PEOPLE_FILE)) {
     writeJson(CHAPTER_KEY_PEOPLE_FILE, {});
   }
+}
+
+function ensureCharacterStageRulesFile() {
+  ensureDir(ADMIN_DIR);
+  if (!fs.existsSync(CHARACTER_STAGE_RULES_FILE)) {
+    writeJson(CHARACTER_STAGE_RULES_FILE, { characters: {}, books: {} });
+  }
+}
+
+function loadCharacterStageRules() {
+  try {
+    ensureCharacterStageRulesFile();
+    const root = readJson(CHARACTER_STAGE_RULES_FILE, {});
+    return root && typeof root === "object" ? root : { characters: {}, books: {} };
+  } catch (_) {
+    return { characters: {}, books: {} };
+  }
+}
+
+function findCharacterStageSpec(stageRulesRoot, zhName) {
+  if (!stageRulesRoot || typeof stageRulesRoot !== "object") return null;
+  const characters =
+    stageRulesRoot.characters && typeof stageRulesRoot.characters === "object"
+      ? stageRulesRoot.characters
+      : {};
+  const spec = characters[String(zhName || "").trim()];
+  return spec && typeof spec === "object" ? spec : null;
+}
+
+function findStageDefById(stageSpec, stageId) {
+  const target = String(stageId || "").trim();
+  if (!stageSpec || typeof stageSpec !== "object" || !target) return null;
+  const stages = Array.isArray(stageSpec.stages) ? stageSpec.stages : [];
+  for (let i = 0; i < stages.length; i++) {
+    const row = stages[i];
+    if (!row || typeof row !== "object") continue;
+    if (String(row.id || "").trim() === target) {
+      return row;
+    }
+  }
+  return null;
+}
+
+function normalizeStageSlotIndex(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(2, Math.floor(n)));
+}
+
+function resolveCharacterStageRuleForChapter(stageRulesRoot, bookId, chapter, zhName) {
+  const bid = String(bookId || "").trim();
+  const chNum = Number(chapter);
+  const name = String(zhName || "").trim();
+  if (!bid || !Number.isFinite(chNum) || chNum < 1 || !name) return null;
+  const books =
+    stageRulesRoot &&
+    stageRulesRoot.books &&
+    typeof stageRulesRoot.books === "object"
+      ? stageRulesRoot.books
+      : {};
+  const byBook = books[bid];
+  if (!byBook || typeof byBook !== "object") return null;
+  const ranges = byBook[name];
+  if (!Array.isArray(ranges)) return null;
+  for (let i = 0; i < ranges.length; i++) {
+    const row = ranges[i];
+    if (!row || typeof row !== "object") continue;
+    const from = Number(row.from);
+    const toRaw = row.to == null || row.to === "" ? row.from : row.to;
+    const to = Number(toRaw);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) continue;
+    if (chNum < from || chNum > to) continue;
+    const stageId = String(row.stageId || "").trim();
+    if (!stageId) continue;
+    return {
+      stageId,
+      labelZh: String(row.labelZh || "").trim(),
+    };
+  }
+  return null;
+}
+
+function resolveCharacterRosterSlotByChapterStage(stageRulesRoot, bookId, chapter, zhName) {
+  const stageSpec = findCharacterStageSpec(stageRulesRoot, zhName);
+  const matched = resolveCharacterStageRuleForChapter(
+    stageRulesRoot,
+    bookId,
+    chapter,
+    zhName
+  );
+  if (matched) {
+    const def = findStageDefById(stageSpec, matched.stageId);
+    const slotIndex = normalizeStageSlotIndex(def?.slotIndex);
+    if (slotIndex != null) {
+      return {
+        slotIndex,
+        stageId: matched.stageId,
+        labelZh: String(def?.labelZh || matched.labelZh || "").trim(),
+      };
+    }
+  }
+  const defaultStageId = String(stageSpec?.defaultStageId || "").trim();
+  if (!defaultStageId) return null;
+  const def = findStageDefById(stageSpec, defaultStageId);
+  const slotIndex = normalizeStageSlotIndex(def?.slotIndex);
+  if (slotIndex == null) return null;
+  return {
+    slotIndex,
+    stageId: defaultStageId,
+    labelZh: String(def?.labelZh || "").trim(),
+  };
 }
 
 function loadChapterKeyPeopleGlobal(bookId, chapter) {
@@ -7425,9 +7734,9 @@ function buildIllustrationSpec(body) {
       extractKeywordsFromSceneText(theme),
       extractKeywordsFromSceneText(scene),
     ]),
-    style: "semi-realistic biblical character",
+    style: "classical biblical candlelit oil painting",
     stylePreset:
-      safeText(body?.stylePreset || "") || "biblical_semi_real_character",
+      safeText(body?.stylePreset || "") || "biblical_candlelit_oil_painting",
     transparent,
     overlayOpacity: clampChapterPromptOverlayOpacity(
       body?.overlayOpacity != null ? body.overlayOpacity : 100
@@ -7481,7 +7790,7 @@ function buildPrompt(spec) {
     compositionMode: safeText(spec?.compositionMode || ""),
     composition: spec?.composition,
     stylePreset:
-      safeText(spec?.stylePreset || "") || "biblical_semi_real_character",
+      safeText(spec?.stylePreset || "") || "biblical_candlelit_oil_painting",
     characterAppearanceLines: lines,
   });
 }
@@ -7733,7 +8042,7 @@ function handleCharacterIllustrationProfilesGet(req, res) {
   }
 }
 
-function handleCharacterIllustrationProfilesPost(req, res) {
+async function handleCharacterIllustrationProfilesPost(req, res) {
   try {
     const authed = requireAdminUser(req, res);
     if (!authed) return;
@@ -7766,6 +8075,12 @@ function handleCharacterIllustrationProfilesPost(req, res) {
       if (spZh) row.scripturePersonalityZh = spZh;
       const spEn = safeText(entry.scripturePersonalityEn || "").slice(0, 600);
       if (spEn) row.scripturePersonalityEn = spEn;
+      const lifespanZh = safeText(entry.lifespanZh || "").slice(0, 80);
+      if (lifespanZh) row.lifespanZh = lifespanZh;
+      const eraLabelZh = safeText(entry.eraLabelZh || "").slice(0, 80);
+      if (eraLabelZh) row.eraLabelZh = eraLabelZh;
+      const identityTagsZh = safeText(entry.identityTagsZh || "").slice(0, 240);
+      if (identityTagsZh) row.identityTagsZh = identityTagsZh;
       const plz = safeText(entry.periodLabelZh || "").slice(0, 32);
       if (plz) row.periodLabelZh = plz;
       const img0 = safeText(entry.imageUrl || "").slice(0, 400);
@@ -7785,6 +8100,10 @@ function handleCharacterIllustrationProfilesPost(req, res) {
       }
       const hero = safeText(entry.heroImageUrl || "").slice(0, 400);
       if (hero) row.heroImageUrl = hero;
+      const identityRef = safeText(entry.identityReferenceImageUrl || "").slice(0, 400);
+      if (identityRef) row.identityReferenceImageUrl = identityRef;
+      const identityCoreEn = safeText(entry.identityCoreEn || "").slice(0, 1200);
+      if (identityCoreEn) row.identityCoreEn = identityCoreEn;
       let rosterH = Number(entry.heroRosterHeight);
       if (!Number.isFinite(rosterH) || rosterH <= 0) {
         const p = Number(prev.heroRosterHeight);
@@ -7805,8 +8124,14 @@ function handleCharacterIllustrationProfilesPost(req, res) {
           shortSceneTagEn: safeText(p.shortSceneTagEn || "").slice(0, 160),
           appearanceEn: safeText(p.appearanceEn || "").slice(0, 1200),
         };
+        const appearanceDeltaEn = safeText(p.appearanceDeltaEn || "").slice(0, 1200);
+        if (appearanceDeltaEn) slot.appearanceDeltaEn = appearanceDeltaEn;
         const img = safeText(p.imageUrl || "").slice(0, 400);
         if (img) slot.imageUrl = img;
+        const sourceRef = safeText(p.sourceReferenceImageUrl || "").slice(0, 400);
+        if (sourceRef) slot.sourceReferenceImageUrl = sourceRef;
+        const derivedFromStageId = safeText(p.derivedFromStageId || "").slice(0, 64);
+        if (derivedFromStageId) slot.derivedFromStageId = derivedFromStageId;
         const stp = normalizeBcdStatureClass(p.statureClass);
         if (stp) slot.statureClass = stp;
         periods.push(slot);
@@ -7814,6 +8139,12 @@ function handleCharacterIllustrationProfilesPost(req, res) {
       if (periods.length) row.periods = periods;
       if (!row.heroImageUrl && prev.heroImageUrl) {
         row.heroImageUrl = safeText(prev.heroImageUrl).slice(0, 400);
+      }
+      if (!row.identityReferenceImageUrl && prev.identityReferenceImageUrl) {
+        row.identityReferenceImageUrl = safeText(prev.identityReferenceImageUrl).slice(0, 400);
+      }
+      if (!row.identityCoreEn && prev.identityCoreEn) {
+        row.identityCoreEn = safeText(prev.identityCoreEn).slice(0, 1200);
       }
       if (
         !sentComparisonSheet &&
@@ -7833,13 +8164,34 @@ function handleCharacterIllustrationProfilesPost(req, res) {
           if (!rp.imageUrl && pp.imageUrl) {
             rp.imageUrl = safeText(pp.imageUrl).slice(0, 400);
           }
+          if (!rp.sourceReferenceImageUrl && pp.sourceReferenceImageUrl) {
+            rp.sourceReferenceImageUrl = safeText(pp.sourceReferenceImageUrl).slice(0, 400);
+          }
+          if (!rp.derivedFromStageId && pp.derivedFromStageId) {
+            rp.derivedFromStageId = safeText(pp.derivedFromStageId).slice(0, 64);
+          }
+          if (!rp.appearanceDeltaEn && pp.appearanceDeltaEn) {
+            rp.appearanceDeltaEn = safeText(pp.appearanceDeltaEn).slice(0, 1200);
+          }
         }
       }
       out.characters[key] = row;
     }
     ensureDir(ADMIN_DIR);
     writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, out);
-    res.json({ ok: true, profiles: out });
+    let thumbBuild = { built: [], failed: [] };
+    try {
+      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(out, 320);
+    } catch (thumbErr) {
+      console.warn("[character-profiles:auto-thumbs]", thumbErr?.message || thumbErr);
+    }
+    clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+    res.json({
+      ok: true,
+      profiles: out,
+      rosterThumbsBuilt: thumbBuild.built.length,
+      rosterThumbsFailed: thumbBuild.failed.length,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "保存角色档案失败。" });
@@ -8256,7 +8608,7 @@ async function handleIllustrationAdminGptCopy(req, res) {
 只输出一个 JSON 对象（不要 Markdown 代码围栏），键如下：
 - illustrationBriefZh：string，2～4 句中文，概括本图画什么、情绪与构图重心（不罗列经文编号）。
 - keywordsZh：string，中文关键词，逗号或顿号分隔，约 8～16 个（环境、人物关系、道具、光线氛围等）。
-- sceneEnglish：string，一段英文，单一冻结瞬间的具象画面描写，可直接作为图像模型的场景指令；不要出现章节号或书名；人物为古朴中东服饰、端庄得体；适合 semi-realistic biblical character illustration。约 40～120 个英文单词。须写进完整环境（地面、天色、建筑或旷野、暖沙/米色尘雾等），避免主导性纯白空底；亮白仅用于表现光源/天光/神光等。
+- sceneEnglish：string，一段英文，单一冻结瞬间的具象画面描写，可直接作为图像模型的场景指令；不要出现章节号或书名；人物为古朴中东服饰、端庄得体；适合 classical biblical candlelit oil painting。约 40～120 个英文单词。须写进完整环境（地面、天色、建筑或旷野、暖沙/米色尘雾等），避免主导性纯白空底；亮白仅用于表现光源/天光/神光等。
 - sceneEnglishZh：string，与 sceneEnglish 对应的中文意译（供编辑对照出图含义），自然流畅，不要出现章节号或书名；篇幅与英文相当。
 - characterRefSelections：array，每项为 { "zhName": string（必须与用户消息中人物库条目的中文名「」内文字完全一致）, "slotIndex": number（0=根档案第一时期，1=第二时期…，以库中说明为准）}。须与 sceneEnglish 中出现的主要人物一致；无具名人物时 []。
 
@@ -8647,6 +8999,291 @@ function rosterThumbRelativeUrlIfExists(imageUrlNorm) {
   return "";
 }
 
+function sanitizeCharacterEnglishToken(value) {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 36);
+}
+
+function generatedUrlExists(rawUrl) {
+  const s = String(rawUrl || "").trim();
+  if (!s) return false;
+  if (/^https?:\/\//i.test(s)) return true;
+  return Boolean(resolveSafeGeneratedPngPath(s));
+}
+
+function collectInvalidCharacterProfileRefs(profilesRoot) {
+  const chars =
+    profilesRoot &&
+    typeof profilesRoot === "object" &&
+    profilesRoot.characters &&
+    typeof profilesRoot.characters === "object"
+      ? profilesRoot.characters
+      : {};
+  const out = [];
+
+  function pushInvalid(zh, field, value) {
+    const raw = String(value || "").trim();
+    if (!raw || generatedUrlExists(raw)) return;
+    out.push({ zhName: zh, field, value: raw });
+  }
+
+  for (const [zh, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    pushInvalid(zh, "imageUrl", row.imageUrl);
+    pushInvalid(zh, "heroImageUrl", row.heroImageUrl);
+    pushInvalid(zh, "comparisonSheetUrl", row.comparisonSheetUrl);
+    const periods = Array.isArray(row.periods) ? row.periods : [];
+    for (let i = 0; i < periods.length; i++) {
+      pushInvalid(zh, `periods[${i}].imageUrl`, periods[i]?.imageUrl);
+    }
+  }
+  return out;
+}
+
+function scanCharacterGeneratedImages() {
+  const out = new Map();
+  let names = [];
+  try {
+    names = fs.readdirSync(CHAPTER_ILLUSTRATION_GENERATED_DIR);
+  } catch {
+    return out;
+  }
+
+  function ensureBucket(enKey) {
+    if (!out.has(enKey)) {
+      out.set(enKey, {
+        hero: [],
+        p0: [],
+        p1: [],
+        p2: [],
+        sheet: [],
+        legacyHero: [],
+        legacyCmp: [],
+        legacyAmb: [],
+      });
+    }
+    return out.get(enKey);
+  }
+
+  function pushSlot(enKey, slot, filename, ts) {
+    if (!enKey || !slot) return;
+    const bucket = ensureBucket(enKey);
+    if (!Array.isArray(bucket[slot])) return;
+    bucket[slot].push({
+      url: `/generated/${filename}`,
+      ts: Number.isFinite(ts) ? ts : 0,
+      filename,
+    });
+  }
+
+  for (const filename of names) {
+    if (!/^ill-char-.*\.png$/i.test(filename)) continue;
+    let m = filename.match(/^ill-char-([A-Za-z0-9_-]+)-(hero|p0|p1|p2|sheet)-(\d{12,})\.png$/i);
+    if (m) {
+      pushSlot(m[1].toLowerCase(), m[2], filename, Number(m[3]));
+      continue;
+    }
+    m = filename.match(/^ill-char-([A-Za-z0-9_-]+)-(p0|p1|p2)-up-(\d{12,})\.png$/i);
+    if (m) {
+      pushSlot(m[1].toLowerCase(), m[2], filename, Number(m[3]));
+      continue;
+    }
+    m = filename.match(/^ill-char-([A-Za-z0-9_-]+)-he-(\d{12,})\.png$/i);
+    if (m) {
+      pushSlot(m[1].toLowerCase(), "legacyHero", filename, Number(m[2]));
+      continue;
+    }
+    m = filename.match(/^ill-char-([A-Za-z0-9_-]+)-cm-(\d{12,})\.png$/i);
+    if (m) {
+      pushSlot(m[1].toLowerCase(), "legacyCmp", filename, Number(m[2]));
+      continue;
+    }
+    m = filename.match(/^ill-char-([A-Za-z0-9_-]+)--(\d{12,})\.png$/i);
+    if (m) {
+      pushSlot(m[1].toLowerCase(), "legacyAmb", filename, Number(m[2]));
+    }
+  }
+
+  for (const bucket of out.values()) {
+    for (const key of Object.keys(bucket)) {
+      bucket[key].sort((a, b) => b.ts - a.ts);
+    }
+  }
+  return out;
+}
+
+function chooseLatestCharacterGeneratedUrl(bucket, slots) {
+  if (!bucket || !Array.isArray(slots)) return "";
+  for (const slot of slots) {
+    const arr = Array.isArray(bucket[slot]) ? bucket[slot] : [];
+    if (arr.length && arr[0]?.url) return arr[0].url;
+  }
+  return "";
+}
+
+function repairCharacterProfileImageRefs(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const characters =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  const scanned = scanCharacterGeneratedImages();
+  const repaired = [];
+  let touched = 0;
+
+  for (const [zh, row] of Object.entries(characters)) {
+    if (!row || typeof row !== "object") continue;
+    const enKey = sanitizeCharacterEnglishToken(row.englishName).toLowerCase();
+    const bucket = enKey ? scanned.get(enKey) : null;
+    let changedForRow = false;
+
+    const currentP0 = String(row.imageUrl || "").trim();
+    if (!generatedUrlExists(currentP0)) {
+      const recoveredP0 = chooseLatestCharacterGeneratedUrl(bucket, ["p0"]);
+      if (recoveredP0) {
+        row.imageUrl = recoveredP0;
+        repaired.push(`${zh}: imageUrl ← ${recoveredP0}`);
+        changedForRow = true;
+      }
+    }
+
+    if (Array.isArray(row.periods)) {
+      for (let i = 0; i < row.periods.length; i++) {
+        const period = row.periods[i];
+        if (!period || typeof period !== "object") continue;
+        const current = String(period.imageUrl || "").trim();
+        if (generatedUrlExists(current)) continue;
+        const recovered = chooseLatestCharacterGeneratedUrl(bucket, [`p${i + 1}`]);
+        if (!recovered) continue;
+        period.imageUrl = recovered;
+        repaired.push(`${zh}: periods[${i}].imageUrl ← ${recovered}`);
+        changedForRow = true;
+      }
+    }
+
+    const currentHero = String(row.heroImageUrl || "").trim();
+    if (!generatedUrlExists(currentHero)) {
+      const recoveredHero = chooseLatestCharacterGeneratedUrl(bucket, [
+        "hero",
+        "p1",
+        "p0",
+        "p2",
+        "legacyHero",
+        "legacyAmb",
+      ]);
+      if (recoveredHero) {
+        row.heroImageUrl = recoveredHero;
+        repaired.push(`${zh}: heroImageUrl ← ${recoveredHero}`);
+        changedForRow = true;
+      }
+    }
+
+    const currentCmp = String(row.comparisonSheetUrl || "").trim();
+    if (!generatedUrlExists(currentCmp)) {
+      const recoveredCmp =
+        chooseLatestCharacterGeneratedUrl(bucket, ["sheet", "legacyCmp", "legacyAmb"]) ||
+        String(row.imageUrl || "").trim() ||
+        String(row.periods?.[0]?.imageUrl || "").trim() ||
+        String(row.heroImageUrl || "").trim();
+      if (generatedUrlExists(recoveredCmp)) {
+        row.comparisonSheetUrl = recoveredCmp;
+        repaired.push(`${zh}: comparisonSheetUrl ← ${recoveredCmp}`);
+        changedForRow = true;
+      }
+    }
+
+    if (changedForRow) touched += 1;
+  }
+
+  return {
+    profiles: root,
+    touchedCharacters: touched,
+    repaired,
+  };
+}
+
+function collectGeneratedPortraitBaseNamesFromProfiles(profilesRoot) {
+  const out = [];
+  const seen = new Set();
+  const chars =
+    profilesRoot &&
+    typeof profilesRoot === "object" &&
+    profilesRoot.characters &&
+    typeof profilesRoot.characters === "object"
+      ? profilesRoot.characters
+      : {};
+
+  function pushUrl(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return;
+    let pathname = s;
+    if (/^https?:\/\//i.test(s)) {
+      try {
+        pathname = new URL(s).pathname || "";
+      } catch {
+        return;
+      }
+    }
+    if (!pathname.startsWith("/generated/")) return;
+    const base = path.basename(pathname.split("?")[0]);
+    if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(base)) return;
+    if (seen.has(base)) return;
+    seen.add(base);
+    out.push(base);
+  }
+
+  for (const entry of Object.values(chars)) {
+    if (!entry || typeof entry !== "object") continue;
+    pushUrl(entry.imageUrl);
+    pushUrl(entry.heroImageUrl);
+    const periods = Array.isArray(entry.periods) ? entry.periods : [];
+    for (const period of periods) {
+      if (!period || typeof period !== "object") continue;
+      pushUrl(period.imageUrl);
+    }
+  }
+  return out;
+}
+
+async function ensureGeneratedRosterThumbsForProfiles(profilesRoot, maxEdge = 320) {
+  const names = collectGeneratedPortraitBaseNamesFromProfiles(profilesRoot);
+  if (!names.length) {
+    return { built: [], failed: [] };
+  }
+  const sharp = await getSharp();
+  const dim = Math.min(720, Math.max(64, Math.round(Number(maxEdge) || 320)));
+  const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
+  ensureDir(thumbDir);
+  const built = [];
+  const failed = [];
+  for (const name of names) {
+    try {
+      const srcPath = resolveSafeGeneratedPngPath(`/generated/${name}`);
+      if (!srcPath) {
+        failed.push({ name, error: "无效或不存在" });
+        continue;
+      }
+      const destPath = path.join(thumbDir, name);
+      const buf = await fs.promises.readFile(srcPath);
+      const outBuf = await sharp(buf)
+        .rotate()
+        .resize({
+          width: dim,
+          height: dim,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .png({ compressionLevel: 9, effort: 6 })
+        .toBuffer();
+      await fs.promises.writeFile(destPath, outBuf);
+      built.push(name);
+    } catch (e) {
+      failed.push({ name, error: e.message || String(e) });
+    }
+  }
+  return { built, failed };
+}
+
 function handleAdminGeneratedPngsList(req, res) {
   const authed = requireAdminUser(req, res);
   if (!authed) return;
@@ -8757,6 +9394,79 @@ app.get("/api/admin/generated-pngs", handleAdminGeneratedPngsList);
 app.get("/api/admin/gpngs", handleAdminGeneratedPngsList);
 app.post("/api/admin/generated-pngs/rebuild-thumbs", handleAdminGeneratedPngsRebuildThumbs);
 app.post("/api/admin/gpngs-rebuild", handleAdminGeneratedPngsRebuildThumbs);
+
+async function handleCharacterProfilesRepairImages(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const profiles = loadCharacterIllustrationProfiles();
+    const result = repairCharacterProfileImageRefs(profiles);
+    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, result.profiles);
+    let thumbBuild = { built: [], failed: [] };
+    try {
+      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(result.profiles, 320);
+    } catch (thumbErr) {
+      console.warn("[character-profiles:repair:auto-thumbs]", thumbErr?.message || thumbErr);
+    }
+    clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+    appendAdminAudit(req, authed, "bible_character_profiles_repair_images", {
+      touchedCharacters: result.touchedCharacters,
+      repairedRefs: result.repaired.length,
+      rosterThumbsBuilt: thumbBuild.built.length,
+      rosterThumbsFailed: thumbBuild.failed.length,
+    });
+    res.json({
+      ok: true,
+      touchedCharacters: result.touchedCharacters,
+      repaired: result.repaired,
+      rosterThumbsBuilt: thumbBuild.built.length,
+      rosterThumbsFailed: thumbBuild.failed.length,
+      profiles: result.profiles,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "修复人物图片引用失败。" });
+  }
+}
+
+app.post(
+  "/api/admin/bible-character-profiles/repair-images",
+  handleCharacterProfilesRepairImages
+);
+app.post(
+  "/api/admin/character-illustration-profiles/repair-images",
+  handleCharacterProfilesRepairImages
+);
+
+function handleCharacterProfilesRepairPreview(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const profiles = loadCharacterIllustrationProfiles();
+    const invalidRefs = collectInvalidCharacterProfileRefs(profiles);
+    const cloned = JSON.parse(JSON.stringify(profiles || { characters: {} }));
+    const repairPreview = repairCharacterProfileImageRefs(cloned);
+    res.json({
+      ok: true,
+      invalidRefCount: invalidRefs.length,
+      invalidRefs,
+      touchedCharacters: repairPreview.touchedCharacters,
+      repaired: repairPreview.repaired,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "读取修复预检失败。" });
+  }
+}
+
+app.get(
+  "/api/admin/bible-character-profiles/repair-images-preview",
+  handleCharacterProfilesRepairPreview
+);
+app.get(
+  "/api/admin/character-illustration-profiles/repair-images-preview",
+  handleCharacterProfilesRepairPreview
+);
 
 function bcdRgbDist2(r1, g1, b1, r2, g2, b2) {
   const dr = r1 - r2;
@@ -9150,6 +9860,136 @@ async function trimTransparentIllustrationPngBuffer(buf) {
   }
 }
 
+function characterStageRecordForSlot(entry, slotIndex) {
+  const si = Math.max(0, Math.min(2, Math.floor(Number(slotIndex) || 0)));
+  if (!entry || typeof entry !== "object") return null;
+  if (si === 0) return entry;
+  const periods = Array.isArray(entry.periods) ? entry.periods : [];
+  const p = periods[si - 1];
+  return p && typeof p === "object" ? p : null;
+}
+
+function resolveCharacterProfileIdentityReference(body) {
+  const zhName = safeText(body.characterZhName || body.chineseName || "").slice(0, 32);
+  const explicitUrl = safeText(
+    body.referenceImageUrl || body.identityReferenceImageUrl || ""
+  ).slice(0, 400);
+  const explicitCoreEn = safeText(body.identityCoreEn || "").slice(0, 1200);
+  const explicitDeltaEn = safeText(body.stageAppearanceDeltaEn || "").slice(0, 1200);
+  const explicitTargetStageId = safeText(body.targetStageId || "").slice(0, 64);
+  const explicitDerivedFromStageId = safeText(body.derivedFromStageId || "").slice(0, 64);
+  const explicitSourceSlot = Number(body.sourceSlotIndex);
+  const explicitTargetSlot = Number(body.targetSlotIndex);
+  if (!zhName) {
+    return {
+      zhName: "",
+      referenceImageUrl: explicitUrl,
+      referenceImagePath: resolveSafeGeneratedPngPath(explicitUrl),
+      identityCoreEn: explicitCoreEn,
+      stageAppearanceDeltaEn: explicitDeltaEn,
+      targetStageId: explicitTargetStageId,
+      derivedFromStageId: explicitDerivedFromStageId,
+      sourceSlotIndex: Number.isFinite(explicitSourceSlot) ? explicitSourceSlot : null,
+      targetSlotIndex: Number.isFinite(explicitTargetSlot) ? explicitTargetSlot : null,
+    };
+  }
+  const profilesRoot = loadCharacterIllustrationProfiles();
+  const characters =
+    profilesRoot.characters && typeof profilesRoot.characters === "object"
+      ? profilesRoot.characters
+      : {};
+  const entry = characters[zhName];
+  if (!entry || typeof entry !== "object") {
+    return {
+      zhName,
+      referenceImageUrl: explicitUrl,
+      referenceImagePath: resolveSafeGeneratedPngPath(explicitUrl),
+      identityCoreEn: explicitCoreEn,
+      stageAppearanceDeltaEn: explicitDeltaEn,
+      targetStageId: explicitTargetStageId,
+      derivedFromStageId: explicitDerivedFromStageId,
+      sourceSlotIndex: Number.isFinite(explicitSourceSlot) ? explicitSourceSlot : null,
+      targetSlotIndex: Number.isFinite(explicitTargetSlot) ? explicitTargetSlot : null,
+    };
+  }
+
+  const sourceSlotIndex = Number.isFinite(explicitSourceSlot)
+    ? Math.max(0, Math.min(2, Math.floor(explicitSourceSlot)))
+    : null;
+  const targetSlotIndex = Number.isFinite(explicitTargetSlot)
+    ? Math.max(0, Math.min(2, Math.floor(explicitTargetSlot)))
+    : null;
+  const sourceStage = sourceSlotIndex == null ? null : characterStageRecordForSlot(entry, sourceSlotIndex);
+  const targetStage = targetSlotIndex == null ? null : characterStageRecordForSlot(entry, targetSlotIndex);
+  const referenceImageUrl =
+    explicitUrl ||
+    safeText(sourceStage?.imageUrl || "").slice(0, 400) ||
+    safeText(entry.identityReferenceImageUrl || "").slice(0, 400) ||
+    safeText(entry.heroImageUrl || "").slice(0, 400) ||
+    safeText(entry.imageUrl || "").slice(0, 400) ||
+    safeText(entry.comparisonSheetUrl || "").slice(0, 400);
+  const identityCoreEn =
+    explicitCoreEn ||
+    safeText(entry.identityCoreEn || "").slice(0, 1200) ||
+    safeText(entry.appearanceEn || "").slice(0, 1200);
+  const stageAppearanceDeltaEn =
+    explicitDeltaEn ||
+    safeText(targetStage?.appearanceDeltaEn || "").slice(0, 1200) ||
+    safeText(targetStage?.appearanceEn || "").slice(0, 1200);
+  const targetStageId =
+    explicitTargetStageId ||
+    safeText(targetStage?.id || "").slice(0, 64) ||
+    (targetSlotIndex != null ? `slot-${targetSlotIndex}` : "");
+  const derivedFromStageId =
+    explicitDerivedFromStageId ||
+    safeText(sourceStage?.derivedFromStageId || "").slice(0, 64) ||
+    (sourceSlotIndex != null ? `slot-${sourceSlotIndex}` : "");
+  return {
+    zhName,
+    englishName: safeText(entry.englishName || "").slice(0, 80),
+    referenceImageUrl,
+    referenceImagePath: resolveSafeGeneratedPngPath(referenceImageUrl),
+    identityCoreEn,
+    stageAppearanceDeltaEn,
+    targetStageId,
+    derivedFromStageId,
+    sourceSlotIndex,
+    targetSlotIndex,
+  };
+}
+
+function buildReferenceAwareIllustrationPrompt(basePrompt, identityRef) {
+  const prompt = safeText(basePrompt || "");
+  if (!identityRef || typeof identityRef !== "object") return prompt;
+  const refLines = [];
+  if (identityRef.referenceImagePath) {
+    refLines.push(
+      "IDENTITY REFERENCE (highest priority): Use the attached reference image as the same biblical individual at a different life stage. Preserve the same bone structure, eye spacing, nose, jawline, brows, hairline, and overall face identity."
+    );
+  }
+  const who = safeText(identityRef.englishName || identityRef.zhName || "").trim();
+  if (who) {
+    refLines.push(`Character identity: ${who}.`);
+  }
+  if (identityRef.identityCoreEn) {
+    refLines.push(
+      `Stable identity traits that must NOT change: ${safeText(identityRef.identityCoreEn).trim()}`
+    );
+  }
+  if (identityRef.stageAppearanceDeltaEn) {
+    refLines.push(
+      `Target life-stage changes for this generation: ${safeText(identityRef.stageAppearanceDeltaEn).trim()}`
+    );
+  }
+  if (identityRef.derivedFromStageId || identityRef.targetStageId) {
+    refLines.push(
+      `Life-stage transform: source=${safeText(identityRef.derivedFromStageId || "existing").trim()} -> target=${safeText(identityRef.targetStageId || "requested").trim()}. Change age, wrinkles, hair color/length, body maturity, and costume as needed, but never invent a new face.`
+    );
+  }
+  if (!refLines.length) return prompt;
+  return `${refLines.join(" ")} ${prompt}`.trim();
+}
+
 /** 降低图像安全策略误判：明确教育/端庄语境，避免与「裸露/性感」类提示混淆。 */
 const OPENAI_IMAGE_SAFETY_PREFIX =
   "[Educational family-safe historical illustration] AI-generated interpretive art — not a photograph or guaranteed likeness of any historical individual. Wholesome museum-style Bible reference art: every person fully clothed in modest period dress; dignified standing or calm narrative poses; focus on costume, face, and hands. Costume must follow the biblical narrative phase: primeval Adam/Eve (before Cain in Genesis order) in simple animal-hide dress only; from Cain onward match office and era — priests and kings in historically plausible biblical-era garb for their role, not generic identical tunics for everyone. Where faces are clearly visible, prefer calm dignified eye contact toward the viewer when the pose allows (soft direct or gentle three-quarter gaze) so figures feel present alongside text or in display — warm human engagement, never aggressive glaring, never vacant or unfocused eyes. When multiple standing adults appear in one image or roster-style row, preserve natural height differences (adult women typically shorter than adult men of the same setting unless the prompt specifies otherwise); do not stretch every figure to identical silhouette height. Absolutely no nudity, no sensual or romanticized anatomy, no fetish content. ";
@@ -9177,7 +10017,11 @@ app.post("/api/generate-illustration", async (req, res) => {
       body.transparent === "true" ||
       body.transparent === 1 ||
       body.transparent === "1";
-    let prompt = safeText(body.prompt || "");
+    const identityRef = resolveCharacterProfileIdentityReference(body);
+    let prompt = buildReferenceAwareIllustrationPrompt(
+      safeText(body.prompt || ""),
+      identityRef
+    );
     if (bcdNeutral) {
       const colorLockTransparentPng =
         transparent &&
@@ -9234,14 +10078,30 @@ app.post("/api/generate-illustration", async (req, res) => {
       const imgQ = safeText(body.imageQuality || "").toLowerCase();
       const quality =
         imgQ === "low" || imgQ === "medium" || imgQ === "high" ? imgQ : "high";
-      imgResp = await imageClient.images.generate({
+      const imageReq = {
         model: "gpt-image-1",
         prompt,
         size,
         quality,
         background: transparent ? "transparent" : "opaque",
         output_format: "png",
-      });
+      };
+      if (identityRef.referenceImagePath) {
+        try {
+          imgResp = await imageClient.images.edit({
+            ...imageReq,
+            image: fs.createReadStream(identityRef.referenceImagePath),
+          });
+        } catch (editErr) {
+          console.warn(
+            "[generate-illustration:images.edit:fallback]",
+            editErr?.message || editErr
+          );
+          imgResp = await imageClient.images.generate(imageReq);
+        }
+      } else {
+        imgResp = await imageClient.images.generate(imageReq);
+      }
     } catch (apiErr) {
       const rawMsg =
         safeText(apiErr?.message || "") ||
@@ -9345,6 +10205,10 @@ app.post("/api/generate-illustration", async (req, res) => {
       transparentPng: transparent,
       sceneDescription: safeText(body.sceneDescription || ""),
       promptUsed: prompt.slice(0, 500),
+      referenceImageUrl: identityRef.referenceImageUrl || "",
+      usedReferenceImage: !!identityRef.referenceImagePath,
+      targetStageId: identityRef.targetStageId || "",
+      derivedFromStageId: identityRef.derivedFromStageId || "",
     });
   } catch (err) {
     console.error(err);

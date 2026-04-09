@@ -1059,6 +1059,8 @@
             <div class="bcd-toolbar">
               <button type="button" id="bcdReloadBtn">重新载入</button>
               <button type="button" id="bcdSaveBtn" class="bcd-btn-primary">保存全部</button>
+              <button type="button" id="bcdRepairPreviewBtn">预检报告</button>
+              <button type="button" id="bcdRepairBtn">一键修复图片引用</button>
               <button type="button" id="bcdAddBtn">新增人物</button>
               <input
                 type="search"
@@ -1241,6 +1243,7 @@
 
         let profiles = { characters: {} };
         let filterText = "";
+        let invalidRefAudit = { invalidRefCount: 0, invalidRefs: [], repaired: [], touchedCharacters: 0 };
         /** 右侧当前编辑的人物键；新建未填名为 "__new__" */
         let selectedBcdKey = null;
 
@@ -1249,6 +1252,40 @@
           statusEl.classList.remove("bcd-status--err", "bcd-status--ok");
           if (kind === "err") statusEl.classList.add("bcd-status--err");
           if (kind === "ok") statusEl.classList.add("bcd-status--ok");
+        }
+
+        function formatRepairPreviewText(data) {
+          var invalidCount = Number(data && data.invalidRefCount) || 0;
+          var repaired = Array.isArray(data && data.repaired) ? data.repaired : [];
+          var touched = Number(data && data.touchedCharacters) || 0;
+          var lines = [];
+          lines.push("当前失效引用：" + invalidCount + " 处");
+          lines.push("预计会修：" + touched + " 个人物 / " + repaired.length + " 处引用");
+          if (repaired.length) {
+            lines.push("");
+            lines.push("计划修复：");
+            repaired.slice(0, 20).forEach(function (line) {
+              lines.push("• " + line);
+            });
+            if (repaired.length > 20) {
+              lines.push("… 其余 " + (repaired.length - 20) + " 处未展开");
+            }
+          } else if (invalidCount) {
+            lines.push("");
+            lines.push("未找到可自动回填的生成图，请人工检查这些失效引用。");
+          }
+          return lines.join("\n");
+        }
+
+        function updateInvalidRefSummary() {
+          var totalCards =
+            getAllNamedKeysFromDom().length +
+            (getNewCardEl() && !cardZhDisplayKey(getNewCardEl()) ? 1 : 0);
+          var invalidCount = Number(invalidRefAudit && invalidRefAudit.invalidRefCount) || 0;
+          var base = filterText.trim()
+            ? countEl.textContent
+            : "共 " + totalCards + " 人";
+          countEl.textContent = base + " · 失效引用 " + invalidCount + " 处";
         }
 
         function sortKeys(obj) {
@@ -2502,8 +2539,14 @@
             const url = String(imgData.imageUrl || "").trim();
             if (!url) throw new Error("接口未返回 imageUrl");
             setHeroImageData(card, url);
+            var heroSaved = opts.deferSave ? false : await bcdTrySaveProfilesAfterImage();
             if (!opts.quietStatus) {
-              setStatus("单人主图已生成；请保存全部以写入 heroImageUrl。", "ok");
+              setStatus(
+                heroSaved
+                  ? "单人主图已生成，并已自动保存到档案。"
+                  : "单人主图已生成；自动保存失败，请点「保存全部」。",
+                heroSaved ? "ok" : "err"
+              );
             }
             return true;
           } catch (e) {
@@ -2968,15 +3011,17 @@
               setHeroImageData(card, heroUrl);
             }
             renderComparisonStrip(card);
+            var cmpSaved = opts.deferSave ? false : await bcdTrySaveProfilesAfterImage();
             if (!opts.quietStatus) {
               setStatus(
                 "已完成 " +
                   total +
-                  " 张透明全身像；页顶主图已设为中期规则对应期。请点「保存全部」写入档案。",
-                "ok"
+                  " 张透明全身像；页顶主图已设为中期规则对应期。" +
+                  (cmpSaved ? " 已自动保存到档案。" : " 自动保存失败，请点「保存全部」。"),
+                cmpSaved ? "ok" : "err"
               );
             }
-            return { cmp: true, hero: Boolean(heroUrl), saved: false };
+            return { cmp: true, hero: Boolean(heroUrl), saved: cmpSaved };
           } catch (e) {
             setStatus(String(e.message || e), "err");
             renderComparisonStrip(card);
@@ -3089,17 +3134,23 @@
             if (!opts.skipHeroSync && heroSrc.slotIndex === slotIdx) {
               setHeroImageData(card, url);
             }
+            var slotSaved = opts.deferSave ? false : await bcdTrySaveProfilesAfterImage();
             if (!opts.quietSuccess && !opts.deferSave) {
               if (opts.afterGpt) {
-                setStatus("已填入 GPT 并生成画像；请点「保存全部」写入档案。", "ok");
+                setStatus(
+                  slotSaved
+                    ? "已填入 GPT 并生成画像，且已自动保存到档案。"
+                    : "已填入 GPT 并生成画像；自动保存失败，请点「保存全部」。",
+                  slotSaved ? "ok" : "err"
+                );
               } else if (!opts.quietStatus) {
                 setStatus(
                   "本时期透明底参考图已生成" +
                     (!opts.skipHeroSync && heroSrc.slotIndex === slotIdx
                       ? "，并已同步为页顶透明主图。"
                       : "。") +
-                    " 请点「保存全部」写入档案。",
-                  "ok"
+                    (slotSaved ? " 已自动保存到档案。" : " 自动保存失败，请点「保存全部」。"),
+                  slotSaved ? "ok" : "err"
                 );
               }
             }
@@ -3313,6 +3364,9 @@
           const englishName = safe(en.englishName || "");
           const scripturePersonalityZh = safe(en.scripturePersonalityZh || "");
           const scripturePersonalityEn = safe(en.scripturePersonalityEn || "");
+          const lifespanZh = safe(en.lifespanZh || "");
+          const eraLabelZh = safe(en.eraLabelZh || "");
+          const identityTagsZh = safe(en.identityTagsZh || "");
           const comparisonSheetUrl = safe(en.comparisonSheetUrl || "");
           const heroImageUrl = safe(en.heroImageUrl || "");
           const heroRosterHeight = bcdNormalizeHeroRosterHeight(en.heroRosterHeight);
@@ -3424,6 +3478,27 @@
             scripturePersonalityEn +
             "</textarea>" +
             '<p class="bcd-hint">气质、神态、内在特质；供插画与章节锁定行使用。若已手填，智能生成时<strong>以本文为最前段保留</strong>，AI 仅追加英文补充，不会整段替换。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>寿命 / 年限（中文）</label>" +
+            '<input type="text" class="bcd-lifespan-zh" maxlength="80" value="' +
+            lifespanZh +
+            '" placeholder="如：活了138岁" />' +
+            '<p class="bcd-hint">优先记录圣经明确给出的寿命或常见查经用年限表达；AI 导入后可手改。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>时代标签（中文）</label>" +
+            '<input type="text" class="bcd-era-label-zh" maxlength="80" value="' +
+            eraLabelZh +
+            '" placeholder="如：族长时代 / 士师时代 / 联合王国" />' +
+            '<p class="bcd-hint">简短时代或叙事时期标签，便于后续筛选与识别。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>人物标签（中文）</label>" +
+            '<input type="text" class="bcd-identity-tags-zh" maxlength="240" value="' +
+            identityTagsZh +
+            '" placeholder="如：（信心之父）（蒙召离乡）" />' +
+            '<p class="bcd-hint">适合放短标签，例如（信心之父）（第一个王）（合神心意的王）。</p>' +
             "</div>" +
             '<div class="bcd-period-toolbar">' +
             "<label>时期数量（同一人）</label>" +
@@ -3604,6 +3679,18 @@
             if (spEnEl && data.scripturePersonalityEn != null) {
               spEnEl.value = String(data.scripturePersonalityEn || "");
             }
+            var lifespanEl = card.querySelector(".bcd-lifespan-zh");
+            var eraEl = card.querySelector(".bcd-era-label-zh");
+            var tagsEl = card.querySelector(".bcd-identity-tags-zh");
+            if (lifespanEl && data.lifespanZh != null) {
+              lifespanEl.value = String(data.lifespanZh || "");
+            }
+            if (eraEl && data.eraLabelZh != null) {
+              eraEl.value = String(data.eraLabelZh || "");
+            }
+            if (tagsEl && data.identityTagsZh != null) {
+              tagsEl.value = String(data.identityTagsZh || "");
+            }
             const slots = [
               card.querySelector('.bcd-period-slot[data-slot="0"]'),
               card.querySelector('.bcd-period-slot[data-slot="1"]'),
@@ -3710,6 +3797,18 @@
             }
             if (spEn0 && data.scripturePersonalityEn != null) {
               spEn0.value = String(data.scripturePersonalityEn || "");
+            }
+            var lifespan0 = card.querySelector(".bcd-lifespan-zh");
+            var era0 = card.querySelector(".bcd-era-label-zh");
+            var tags0 = card.querySelector(".bcd-identity-tags-zh");
+            if (lifespan0 && data.lifespanZh != null) {
+              lifespan0.value = String(data.lifespanZh || "");
+            }
+            if (era0 && data.eraLabelZh != null) {
+              era0.value = String(data.eraLabelZh || "");
+            }
+            if (tags0 && data.identityTagsZh != null) {
+              tags0.value = String(data.identityTagsZh || "");
             }
             if (data.shortSceneTagEn != null) {
               slot0.querySelector(".bcd-short").value = String(data.shortSceneTagEn || "");
@@ -4052,6 +4151,7 @@
           countEl.textContent = q
             ? "左侧匹配 " + visibleLeft + " / 档案 " + totalCards + " 人"
             : "共 " + totalCards + " 人";
+          updateInvalidRefSummary();
         }
 
         function collectFromDom() {
@@ -4082,6 +4182,9 @@
                 shortSceneTagEn: "",
                 appearanceEn: "",
               };
+              var lifeOnly = card.querySelector(".bcd-lifespan-zh");
+              var eraOnly = card.querySelector(".bcd-era-label-zh");
+              var tagsOnly = card.querySelector(".bcd-identity-tags-zh");
               if (spOnlyZh) {
                 var szh = String(spOnlyZh.value || "").trim();
                 if (szh) characters[key].scripturePersonalityZh = szh;
@@ -4089,6 +4192,18 @@
               if (spOnlyEn) {
                 var sen = String(spOnlyEn.value || "").trim();
                 if (sen) characters[key].scripturePersonalityEn = sen;
+              }
+              if (lifeOnly) {
+                var lz = String(lifeOnly.value || "").trim();
+                if (lz) characters[key].lifespanZh = lz;
+              }
+              if (eraOnly) {
+                var ez = String(eraOnly.value || "").trim();
+                if (ez) characters[key].eraLabelZh = ez;
+              }
+              if (tagsOnly) {
+                var tz = String(tagsOnly.value || "").trim();
+                if (tz) characters[key].identityTagsZh = tz;
               }
               var heroEarly = String(card.getAttribute("data-hero-image-url") || "").trim();
               if (heroEarly) characters[key].heroImageUrl = heroEarly;
@@ -4109,6 +4224,21 @@
               scripturePersonalityEn: String(
                 (card.querySelector(".bcd-scripture-personality-en") &&
                   card.querySelector(".bcd-scripture-personality-en").value) ||
+                  ""
+              ).trim(),
+              lifespanZh: String(
+                (card.querySelector(".bcd-lifespan-zh") &&
+                  card.querySelector(".bcd-lifespan-zh").value) ||
+                  ""
+              ).trim(),
+              eraLabelZh: String(
+                (card.querySelector(".bcd-era-label-zh") &&
+                  card.querySelector(".bcd-era-label-zh").value) ||
+                  ""
+              ).trim(),
+              identityTagsZh: String(
+                (card.querySelector(".bcd-identity-tags-zh") &&
+                  card.querySelector(".bcd-identity-tags-zh").value) ||
                   ""
               ).trim(),
               periodLabelZh: String(slot0.querySelector(".bcd-period-label").value || "").trim(),
@@ -4233,6 +4363,7 @@
           profiles = data.profiles && data.profiles.characters ? data.profiles : { characters: {} };
           if (!profiles.characters) profiles.characters = {};
           renderList();
+          await refreshInvalidRefAudit();
         }
 
         async function saveProfiles() {
@@ -4258,6 +4389,59 @@
           profiles = mergeProfilesPreserveClientImageUrls(serverP, body);
           if (!profiles.characters) profiles.characters = {};
           renderList();
+          await refreshInvalidRefAudit();
+        }
+
+        async function refreshInvalidRefAudit() {
+          const res = await fetch(apiUrl("/api/admin/bible-character-profiles/repair-images-preview"), {
+            headers: { Authorization: "Bearer " + getToken() },
+            cache: "no-store",
+          });
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) throw new Error(data.error || "读取失效引用统计失败 HTTP " + res.status);
+          invalidRefAudit = {
+            invalidRefCount: Number(data.invalidRefCount || 0),
+            invalidRefs: Array.isArray(data.invalidRefs) ? data.invalidRefs : [],
+            repaired: Array.isArray(data.repaired) ? data.repaired : [],
+            touchedCharacters: Number(data.touchedCharacters || 0),
+          };
+          updateInvalidRefSummary();
+          return invalidRefAudit;
+        }
+
+        async function fetchRepairPreview() {
+          const data = await refreshInvalidRefAudit();
+          return data;
+        }
+
+        async function repairProfileImages() {
+          const res = await fetch(apiUrl("/api/admin/bible-character-profiles/repair-images"), {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + getToken(),
+            },
+          });
+          const raw = await res.text();
+          let data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) throw new Error(data.error || "修复失败 HTTP " + res.status);
+          var serverP =
+            data.profiles && typeof data.profiles === "object" ? data.profiles : { characters: {} };
+          profiles = serverP;
+          if (!profiles.characters) profiles.characters = {};
+          renderList();
+          await refreshInvalidRefAudit();
+          return data;
         }
 
         async function bcdTrySaveProfilesAfterImage() {
@@ -4317,6 +4501,65 @@
           try {
             await saveProfiles();
             setStatus("已全部保存。", "ok");
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        });
+
+        document.getElementById("bcdRepairBtn").addEventListener("click", async function () {
+          if (!getToken()) {
+            setStatus("请先登录。", "err");
+            return;
+          }
+          try {
+            setStatus("正在生成修复预检…", null);
+            const preview = await fetchRepairPreview();
+            const previewText = formatRepairPreviewText(preview);
+            if (!window.confirm(previewText + "\n\n确认执行修复吗？")) {
+              setStatus("已取消修复。", null);
+              return;
+            }
+            setStatus("正在巡检并修复人物图片引用…", null);
+            const data = await repairProfileImages();
+            const touched = Number(data.touchedCharacters || 0);
+            const repairedCount = Array.isArray(data.repaired) ? data.repaired.length : 0;
+            const thumbsBuilt = Number(data.rosterThumbsBuilt || 0);
+            if (!repairedCount) {
+              setStatus("检查完成：未发现需要修复的失效图片引用。", "ok");
+              return;
+            }
+            setStatus(
+              "修复完成：已修 " +
+                touched +
+                " 个人物，回填 " +
+                repairedCount +
+                " 处图片引用；重建缩略图 " +
+                thumbsBuilt +
+                " 张。",
+              "ok"
+            );
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        });
+
+        document.getElementById("bcdRepairPreviewBtn").addEventListener("click", async function () {
+          if (!getToken()) {
+            setStatus("请先登录。", "err");
+            return;
+          }
+          setStatus("正在生成修复预检…", null);
+          try {
+            const data = await fetchRepairPreview();
+            window.alert(formatRepairPreviewText(data));
+            setStatus(
+              "预检完成：当前失效引用 " +
+                Number(data.invalidRefCount || 0) +
+                " 处，预计可自动修复 " +
+                (Array.isArray(data.repaired) ? data.repaired.length : 0) +
+                " 处。",
+              "ok"
+            );
           } catch (e) {
             setStatus(String(e.message || e), "err");
           }
