@@ -1834,6 +1834,407 @@ function mergeBcdScripturePersonality(editorPref, aiOut, maxLen) {
   return `${u}；${a}`.slice(0, maxLen);
 }
 
+const BIBLE_EXPLICIT_LIFESPAN_ZH = Object.freeze({
+  adam: "活了930岁",
+  seth: "活了912岁",
+  enosh: "活了905岁",
+  kenan: "活了910岁",
+  mahalalel: "活了895岁",
+  jared: "活了962岁",
+  enoch: "与神同行300年；共活365岁",
+  methuselah: "活了969岁",
+  lamech: "活了777岁",
+  noah: "活了950岁",
+  shem: "活了600岁",
+  arphaxad: "活了438岁",
+  salah: "活了433岁",
+  eber: "活了464岁",
+  peleg: "活了239岁",
+  reu: "活了239岁",
+  serug: "活了230岁",
+  nahor: "活了148岁",
+  terah: "活了205岁",
+  abraham: "活了175岁",
+  sarah: "活了127岁",
+  ishmael: "活了137岁",
+  isaac: "活了180岁",
+  jacob: "活了147岁",
+  joseph: "活了110岁",
+  levi: "活了137岁",
+  kohath: "活了133岁",
+  amram: "活了137岁",
+  aaron: "活了123岁",
+  moses: "活了120岁",
+  joshua: "活了110岁",
+  job: "晚年又活了140年",
+  eli: "活了98岁",
+  samuel: "不详",
+  david: "活了70岁",
+  solomon: "常见推测约60岁左右",
+  rehoboam: "约活了58岁",
+  abijah: "不详",
+  asa: "不详",
+  jehoshaphat: "约活了60岁",
+  jehoram: "约活了40岁",
+  ahaziah: "约活了23岁",
+  joash: "约活了47岁",
+  amaziah: "约活了54岁",
+  azariah: "约活了68岁",
+  jotham: "约活了41岁",
+  ahaz: "约活了36岁",
+  hezekiah: "约活了54岁",
+  manasseh: "约活了67岁",
+  amon: "约活了24岁",
+  josiah: "约活了39岁",
+  jehoiakim: "约活了36岁",
+  zedekiah: "约活了53岁",
+  daniel: "常见推测约80岁以上",
+  john_the_baptist: "常见推测约30多岁",
+  jesus: "约33岁",
+});
+
+const BIBLE_CHARACTER_ENGLISH_NAME_BY_ZH = Object.freeze({
+  亚当: "Adam",
+  夏娃: "Eve",
+  亚伯: "Abel",
+  该隐: "Cain",
+  塞特: "Seth",
+  以诺: "Enoch",
+  挪亚: "Noah",
+  闪: "Shem",
+  含: "Ham",
+  雅弗: "Japheth",
+  亚伯拉罕: "Abraham",
+  撒拉: "Sarah",
+  夏甲: "Hagar",
+  以实玛利: "Ishmael",
+  以撒: "Isaac",
+  利百加: "Rebekah",
+  以扫: "Esau",
+  雅各: "Jacob",
+  拉结: "Rachel",
+  利亚: "Leah",
+  拉班: "Laban",
+  约瑟: "Joseph",
+  便雅悯: "Benjamin",
+  犹大: "Judah",
+  利未: "Levi",
+  摩西: "Moses",
+  亚伦: "Aaron",
+  米利暗: "Miriam",
+  约书亚: "Joshua",
+  喇合: "Rahab",
+  底波拉: "Deborah",
+  基甸: "Gideon",
+  路得: "Ruth",
+  撒母耳: "Samuel",
+  扫罗: "Saul",
+  大卫: "David",
+  约拿单: "Jonathan",
+  所罗门: "Solomon",
+  以利亚: "Elijah",
+  以利沙: "Elisha",
+  以赛亚: "Isaiah",
+  耶利米: "Jeremiah",
+  以西结: "Ezekiel",
+  但以理: "Daniel",
+  以斯帖: "Esther",
+  末底改: "Mordecai",
+  约伯: "Job",
+  马利亚: "Mary",
+  约瑟夫: "Joseph",
+  施洗约翰: "John the Baptist",
+  耶稣: "Jesus",
+  彼得: "Peter",
+  约翰: "John",
+  雅各布: "James",
+  雅各: "Jacob",
+  保罗: "Paul",
+  波提乏: "Potiphar",
+  波提乏的妻子: "Potiphar's Wife",
+});
+
+const BIBLE_CHARACTER_ROLE_BY_ZH = Object.freeze({
+  亚当: "主人物",
+  夏娃: "主人物",
+  亚伯拉罕: "主人物",
+  撒拉: "主人物",
+  以撒: "主人物",
+  利百加: "主人物",
+  雅各: "主人物",
+  约瑟: "主人物",
+  摩西: "主人物",
+  大卫: "主人物",
+  耶稣: "主人物",
+  施洗约翰: "主人物",
+  以扫: "次人物",
+  拉班: "次人物",
+  波提乏: "次人物",
+  波提乏的妻子: "次人物",
+});
+
+const BIBLE_CHARACTER_PRIMARY_BOOK_BY_ZH = Object.freeze({
+  摩西: "EXO",
+  亚伦: "EXO",
+  米利暗: "EXO",
+  约书亚: "JOS",
+  喇合: "JOS",
+  底波拉: "JDG",
+  基甸: "JDG",
+  路得: "RUT",
+  撒母耳: "1SA",
+  扫罗: "1SA",
+  大卫: "1SA",
+  约拿单: "1SA",
+  所罗门: "1KI",
+  以利亚: "1KI",
+  以利沙: "2KI",
+  以赛亚: "ISA",
+  耶利米: "JER",
+  以西结: "EZK",
+  但以理: "DAN",
+  以斯帖: "EST",
+  末底改: "EST",
+  约伯: "JOB",
+  马利亚: "MAT",
+  约瑟夫: "MAT",
+  施洗约翰: "MAT",
+  耶稣: "MAT",
+  彼得: "MAT",
+  约翰: "MAT",
+  雅各布: "MAT",
+  保罗: "ACT",
+});
+
+const BIBLE_PRIMARY_CHARACTERS_BY_BOOK = Object.freeze({
+  GEN: Object.freeze(["亚当", "夏娃", "亚伯拉罕", "撒拉", "以撒", "利百加", "雅各", "约瑟"]),
+  EXO: Object.freeze(["摩西", "亚伦", "米利暗"]),
+  JOS: Object.freeze(["约书亚", "喇合"]),
+  JDG: Object.freeze(["底波拉", "基甸"]),
+  RUT: Object.freeze(["路得"]),
+  "1SA": Object.freeze(["撒母耳", "扫罗", "大卫", "约拿单"]),
+  "1KI": Object.freeze(["所罗门", "以利亚"]),
+  "2KI": Object.freeze(["以利沙"]),
+  ISA: Object.freeze(["以赛亚"]),
+  JER: Object.freeze(["耶利米"]),
+  EZK: Object.freeze(["以西结"]),
+  DAN: Object.freeze(["但以理"]),
+  EST: Object.freeze(["以斯帖", "末底改"]),
+  JOB: Object.freeze(["约伯"]),
+  MAT: Object.freeze(["马利亚", "约瑟夫", "施洗约翰", "耶稣", "彼得", "约翰", "雅各布"]),
+  ACT: Object.freeze(["保罗"]),
+});
+
+const BIBLE_EXPLICIT_LIFESPAN_ZH_BY_ZH = Object.freeze({
+  亚当: "活了930岁",
+  塞特: "活了912岁",
+  以挪士: "活了905岁",
+  该南: "活了910岁",
+  玛勒列: "活了895岁",
+  雅列: "活了962岁",
+  以诺: "与神同行300年；共活365岁",
+  玛土撒拉: "活了969岁",
+  拉麦: "活了777岁",
+  挪亚: "活了950岁",
+  闪: "活了600岁",
+  亚法撒: "活了438岁",
+  沙拉: "活了433岁",
+  希伯: "活了464岁",
+  法勒: "活了239岁",
+  拉吴: "活了239岁",
+  西鹿: "活了230岁",
+  拿鹤: "活了148岁",
+  他拉: "活了205岁",
+  亚伯拉罕: "活了175岁",
+  撒拉: "活了127岁",
+  以实玛利: "活了137岁",
+  以撒: "活了180岁",
+  雅各: "活了147岁",
+  约瑟: "活了110岁",
+  利未: "活了137岁",
+  哥辖: "活了133岁",
+  暗兰: "活了137岁",
+  亚伦: "活了123岁",
+  摩西: "活了120岁",
+  约书亚: "活了110岁",
+  约伯: "晚年又活了140年",
+  以利: "活了98岁",
+  大卫: "活了70岁",
+  所罗门: "常见推测约60岁左右",
+  罗波安: "约活了58岁",
+  约沙法: "约活了60岁",
+  约兰: "约活了40岁",
+  亚哈谢: "约活了23岁",
+  约阿施: "约活了47岁",
+  亚玛谢: "约活了54岁",
+  乌西雅: "约活了68岁",
+  约坦: "约活了41岁",
+  亚哈斯: "约活了36岁",
+  希西家: "约活了54岁",
+  玛拿西: "约活了67岁",
+  亚们: "约活了24岁",
+  约西亚: "约活了39岁",
+  约雅敬: "约活了36岁",
+  西底家: "约活了53岁",
+  但以理: "常见推测约80岁以上",
+  施洗约翰: "常见推测约30多岁",
+  耶稣: "约33岁",
+});
+
+function normalizeBibleCharacterKey(raw) {
+  return safeText(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[`'’".,;:()[\]{}]/g, " ")
+    .replace(/\b(the|saint)\b/g, " ")
+    .replace(/\s+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function toBibleEnglishDisplayName(raw) {
+  return safeText(raw || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) =>
+      part
+        .split("-")
+        .map((seg) =>
+          seg ? seg.charAt(0).toUpperCase() + seg.slice(1).toLowerCase() : seg
+        )
+        .join("-")
+    )
+    .join(" ")
+    .slice(0, 80);
+}
+
+function resolveCharacterEnglishName(chineseName, englishName) {
+  const zh = safeText(chineseName || "").trim();
+  const current = safeText(englishName || "").trim();
+  if (zh && BIBLE_CHARACTER_ENGLISH_NAME_BY_ZH[zh]) {
+    return BIBLE_CHARACTER_ENGLISH_NAME_BY_ZH[zh];
+  }
+  if (current) return toBibleEnglishDisplayName(current);
+  return "";
+}
+
+function resolveCharacterSourceBookId(chineseName, currentBookId) {
+  const current = safeText(currentBookId || "").trim().toUpperCase();
+  if (current) return current;
+  const zh = safeText(chineseName || "").trim();
+  if (!zh) return "";
+  const presetBook = CHARACTER_PRESET_BY_BOOK.find((book) =>
+    Array.isArray(book?.names) && book.names.some((name) => String(name || "").trim() === zh)
+  );
+  if (presetBook?.bookId) return String(presetBook.bookId).trim().toUpperCase();
+  if (BIBLE_CHARACTER_PRIMARY_BOOK_BY_ZH[zh]) {
+    return String(BIBLE_CHARACTER_PRIMARY_BOOK_BY_ZH[zh]).trim().toUpperCase();
+  }
+  return "";
+}
+
+function normalizeCharacterRoleZh(raw) {
+  const s = safeText(raw || "").trim();
+  if (s === "主人物" || s === "主要人物" || s === "关键人物") return "主人物";
+  if (s === "次人物" || s === "辅助人物" || s === "配角") return "次人物";
+  return "";
+}
+
+function resolveCharacterRoleZh(chineseName, currentRole, sourceBookId) {
+  const normalized = normalizeCharacterRoleZh(currentRole);
+  if (normalized) return normalized;
+  const zh = safeText(chineseName || "").trim();
+  const bookId = resolveCharacterSourceBookId(zh, sourceBookId);
+  const primaryNames = bookId ? BIBLE_PRIMARY_CHARACTERS_BY_BOOK[bookId] : null;
+  if (zh && Array.isArray(primaryNames)) {
+    return primaryNames.includes(zh) ? "主人物" : "次人物";
+  }
+  if (zh && BIBLE_CHARACTER_ROLE_BY_ZH[zh]) {
+    return BIBLE_CHARACTER_ROLE_BY_ZH[zh];
+  }
+  return "次人物";
+}
+
+function resolveCharacterLifespanZh(chineseName, englishName) {
+  const zh = safeText(chineseName || "").trim();
+  const enKey = normalizeBibleCharacterKey(englishName);
+  if (zh && BIBLE_EXPLICIT_LIFESPAN_ZH_BY_ZH[zh]) {
+    return BIBLE_EXPLICIT_LIFESPAN_ZH_BY_ZH[zh];
+  }
+  if (enKey && BIBLE_EXPLICIT_LIFESPAN_ZH[enKey]) {
+    return BIBLE_EXPLICIT_LIFESPAN_ZH[enKey];
+  }
+  return "不详";
+}
+
+function applyCharacterProfileLifespanDefaults(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const chars =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  let changed = false;
+  for (const [zhName, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    const current = safeText(row.lifespanZh || "").trim();
+    if (current) continue;
+    row.lifespanZh = resolveCharacterLifespanZh(zhName, row.englishName || "");
+    changed = true;
+  }
+  return { root, changed };
+}
+
+function applyCharacterProfileEnglishNameDefaults(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const chars =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  let changed = false;
+  for (const [zhName, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    const next = resolveCharacterEnglishName(zhName, row.englishName || "");
+    if (!next || next === safeText(row.englishName || "").trim()) continue;
+    row.englishName = next;
+    changed = true;
+  }
+  return { root, changed };
+}
+
+function applyCharacterProfileSourceBookDefaults(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const chars =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  let changed = false;
+  for (const [zhName, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    const next = resolveCharacterSourceBookId(zhName, row.sourceBookId || "");
+    if (!next || next === safeText(row.sourceBookId || "").trim().toUpperCase()) continue;
+    row.sourceBookId = next;
+    changed = true;
+  }
+  return { root, changed };
+}
+
+function applyCharacterProfileRoleDefaults(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const chars =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  let changed = false;
+  for (const [zhName, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    const next = resolveCharacterRoleZh(
+      zhName,
+      row.characterRoleZh || "",
+      row.sourceBookId || ""
+    );
+    if (!next || next === safeText(row.characterRoleZh || "").trim()) continue;
+    row.characterRoleZh = next;
+    changed = true;
+  }
+  return { root, changed };
+}
+
 async function handleCharacterProfileGenerate(req, res) {
   try {
     const authed = requireAdminUser(req, res);
@@ -1858,7 +2259,7 @@ async function handleCharacterProfileGenerate(req, res) {
       "englishName: common English name as used in Bible translations.",
       "scripturePersonalityZh: concise Chinese — how Scripture portrays this person's character, virtues, and role (e.g. 被称为信心之父、信而顺服). Not physical appearance.",
       "scripturePersonalityEn: one or two English sentences — inner character, faith posture, demeanor for illustrators (e.g. 'father of faith', steadfast obedience); not clothing or face shape.",
-      "lifespanZh: concise Chinese lifespan note if Scripture gives one or tradition is clear enough for common Bible-study reference, e.g. 活了138岁. If uncertain or not stated, return empty string.",
+      "lifespanZh: concise Chinese lifespan note. Priority: (1) if Scripture explicitly records lifespan, use that; (2) otherwise only use a very common Bible-study / theologian estimate if broadly recognized; (3) otherwise return 不详.",
       "eraLabelZh: concise Chinese era/dynasty/story-period label, e.g. 列王时代 / 士师时代 / 族长时代 / 出埃及年代. Keep it short.",
       "identityTagsZh: concise Chinese tags for this person's biblical identity, separated by Chinese full-width parentheses groups or semicolons, e.g. （信心之父）（蒙召离乡） or （第一个王）（便雅悯支派）. Prefer short, memorable Bible-study labels rather than long prose.",
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
@@ -1895,7 +2296,10 @@ async function handleCharacterProfileGenerate(req, res) {
         .status(500)
         .json({ error: "模型未返回可解析的 JSON，请重试或手写。" });
     }
-    const englishName = safeText(parsed.englishName || "");
+    const englishName = resolveCharacterEnglishName(
+      chineseName,
+      safeText(parsed.englishName || "")
+    );
     const scripturePersonalityZh = mergeBcdScripturePersonality(
       prefZh,
       safeText(parsed.scripturePersonalityZh || ""),
@@ -1906,7 +2310,7 @@ async function handleCharacterProfileGenerate(req, res) {
       safeText(parsed.scripturePersonalityEn || ""),
       600
     );
-    const lifespanZh = safeText(parsed.lifespanZh || "").slice(0, 80);
+    const lifespanZh = resolveCharacterLifespanZh(chineseName, englishName).slice(0, 80);
     const eraLabelZh = safeText(parsed.eraLabelZh || "").slice(0, 80);
     const identityTagsZh = safeText(parsed.identityTagsZh || "").slice(0, 240);
     const shortSceneTagEn = safeText(parsed.shortSceneTagEn || "");
@@ -1917,6 +2321,12 @@ async function handleCharacterProfileGenerate(req, res) {
     res.json({
       ok: true,
       englishName: englishName.slice(0, 80),
+      sourceBookId: resolveCharacterSourceBookId(chineseName, ""),
+      characterRoleZh: resolveCharacterRoleZh(
+        chineseName,
+        "",
+        resolveCharacterSourceBookId(chineseName, "")
+      ),
       scripturePersonalityZh,
       scripturePersonalityEn,
       lifespanZh,
@@ -1987,7 +2397,7 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       "englishName: string — common English name in major Bible translations.",
       "scripturePersonalityZh: concise Chinese — character, virtues, and biblical reputation as Scripture presents them (e.g. 信心之父、信而顺服、柔和谦卑). Not physical appearance.",
       "scripturePersonalityEn: 1–3 English sentences — temperament, inner life, and narrative role for illustrators (e.g. 'known as the father of faith', 'courageous before giants'); do NOT repeat hair, face, or clothing (those go in appearanceEn per stage).",
-      "lifespanZh: concise Chinese lifespan note if Scripture gives one or it is a widely recognized Bible-study fact, e.g. 活了138岁. If genuinely uncertain or not stated, return empty string.",
+      "lifespanZh: concise Chinese lifespan note. Priority: (1) if Scripture explicitly records lifespan, use that; (2) otherwise only use a very common Bible-study / theologian estimate if broadly recognized; (3) otherwise return 不详.",
       "eraLabelZh: concise Chinese era/story-period label, e.g. 族长时代 / 士师时代 / 联合王国 / 被掳归回后.",
       "identityTagsZh: concise memorable Chinese identity tags, preferably wrapped like （信心之父）（以色列王） or separated with semicolons if needed. Keep tags short and recognizable.",
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
@@ -2068,7 +2478,10 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
         appearanceEn: safeText(s.appearanceEn || "").slice(0, 1200),
       });
     }
-    const englishName = safeText(parsed.englishName || "").slice(0, 80);
+    const englishName = resolveCharacterEnglishName(
+      chineseName,
+      safeText(parsed.englishName || "")
+    ).slice(0, 80);
     const scripturePersonalityZh = mergeBcdScripturePersonality(
       prefZh,
       safeText(parsed.scripturePersonalityZh || ""),
@@ -2079,7 +2492,7 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       safeText(parsed.scripturePersonalityEn || ""),
       600
     );
-    const lifespanZh = safeText(parsed.lifespanZh || "").slice(0, 80);
+    const lifespanZh = resolveCharacterLifespanZh(chineseName, englishName).slice(0, 80);
     const eraLabelZh = safeText(parsed.eraLabelZh || "").slice(0, 80);
     const identityTagsZh = safeText(parsed.identityTagsZh || "").slice(0, 240);
     if (!englishName && !stages.some((x) => String(x.appearanceEn || "").trim())) {
@@ -2089,6 +2502,12 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
     res.json({
       ok: true,
       englishName,
+      sourceBookId: resolveCharacterSourceBookId(chineseName, ""),
+      characterRoleZh: resolveCharacterRoleZh(
+        chineseName,
+        "",
+        resolveCharacterSourceBookId(chineseName, "")
+      ),
       scripturePersonalityZh,
       scripturePersonalityEn,
       lifespanZh,
@@ -6614,9 +7033,18 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
         ? slotByZh[zh]
         : chapterStage?.slotIndex;
       const resolved = resolveExistingChapterRosterPortrait(entry, pref);
-      const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
+      const imageUrl = appendGeneratedAssetVersion(
+        normalizeIllustrationImageUrlForPublication(resolved.url)
+      );
       if (!imageUrl) continue;
       const row = { zhName: zh, imageUrl };
+      row.sourceBookId = resolveCharacterSourceBookId(zh, entry.sourceBookId || "");
+      row.characterRoleZh = resolveCharacterRoleZh(
+        zh,
+        entry.characterRoleZh || "",
+        row.sourceBookId
+      );
+      row.isPrimaryCharacter = row.characterRoleZh === "主人物";
       const readerScale = readerRosterScaleForEntry(entry, resolved.portraitSlot);
       row.statureClass = readerScale.statureClass;
       row.layoutScale = readerScale.layoutScale;
@@ -6629,7 +7057,7 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
       if (chapterStage?.labelZh) {
         row.stageLabelZh = chapterStage.labelZh;
       }
-      const rt = rosterThumbRelativeUrlIfExists(imageUrl);
+      const rt = appendGeneratedAssetVersion(rosterThumbRelativeUrlIfExists(imageUrl));
       if (rt) row.rosterThumbUrl = rt;
       figures.push(row);
     }
@@ -6694,13 +7122,22 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
         entry,
         activeSet.has(zh) ? chapterStage?.slotIndex : undefined
       );
-      const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
+      const imageUrl = appendGeneratedAssetVersion(
+        normalizeIllustrationImageUrlForPublication(resolved.url)
+      );
       if (!imageUrl) continue;
       const row = {
         zhName: zh,
         imageUrl,
         isCurrentChapter: activeSet.has(zh),
       };
+      row.sourceBookId = resolveCharacterSourceBookId(zh, entry.sourceBookId || "");
+      row.characterRoleZh = resolveCharacterRoleZh(
+        zh,
+        entry.characterRoleZh || "",
+        row.sourceBookId
+      );
+      row.isPrimaryCharacter = row.characterRoleZh === "主人物";
       const readerScale = readerRosterScaleForEntry(entry, resolved.portraitSlot);
       row.statureClass = readerScale.statureClass;
       row.layoutScale = readerScale.layoutScale;
@@ -6713,7 +7150,7 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
       if (row.isCurrentChapter && chapterStage?.labelZh) {
         row.stageLabelZh = chapterStage.labelZh;
       }
-      const rt = rosterThumbRelativeUrlIfExists(imageUrl);
+      const rt = appendGeneratedAssetVersion(rosterThumbRelativeUrlIfExists(imageUrl));
       if (rt) row.rosterThumbUrl = rt;
       figures.push(row);
     }
@@ -6737,7 +7174,9 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
         entry,
         chapterStage?.slotIndex
       );
-      const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
+      const imageUrl = appendGeneratedAssetVersion(
+        normalizeIllustrationImageUrlForPublication(resolved.url)
+      );
       if (!imageUrl) continue;
       const row = {
         zhName: zh,
@@ -6756,7 +7195,7 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
       if (chapterStage?.labelZh) {
         row.stageLabelZh = chapterStage.labelZh;
       }
-      const rt = rosterThumbRelativeUrlIfExists(imageUrl);
+      const rt = appendGeneratedAssetVersion(rosterThumbRelativeUrlIfExists(imageUrl));
       if (rt) row.rosterThumbUrl = rt;
       figures.push(row);
     }
@@ -7966,7 +8405,21 @@ function ensureCharacterIllustrationProfilesFile() {
 function loadCharacterIllustrationProfiles() {
   ensureCharacterIllustrationProfilesFile();
   const root = readJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, { characters: {} });
-  return applyCharacterProfileImageAuditRecovery(root);
+  const recovered = applyCharacterProfileImageAuditRecovery(root);
+  const englishBackfilled = applyCharacterProfileEnglishNameDefaults(recovered);
+  const bookBackfilled = applyCharacterProfileSourceBookDefaults(englishBackfilled.root);
+  const roleBackfilled = applyCharacterProfileRoleDefaults(bookBackfilled.root);
+  const lifespanBackfilled = applyCharacterProfileLifespanDefaults(roleBackfilled.root);
+  if (
+    englishBackfilled.changed ||
+    bookBackfilled.changed ||
+    roleBackfilled.changed ||
+    lifespanBackfilled.changed
+  ) {
+    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, lifespanBackfilled.root);
+    rememberCharacterProfileImageAuditFromProfiles(lifespanBackfilled.root);
+  }
+  return lifespanBackfilled.root;
 }
 
 function loadCharacterProfileImageAudit() {
@@ -8712,17 +9165,34 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
       if (!key) continue;
       if (!entry || typeof entry !== "object") continue;
       const prev = existingChars[key] && typeof existingChars[key] === "object" ? existingChars[key] : {};
+      const resolvedEnglishName = resolveCharacterEnglishName(
+        key,
+        safeText(entry.englishName || prev.englishName || "")
+      ).slice(0, 80);
+      const resolvedSourceBookId = resolveCharacterSourceBookId(
+        key,
+        safeText(entry.sourceBookId || prev.sourceBookId || "")
+      );
       const row = {
-        englishName: safeText(entry.englishName || "").slice(0, 80),
+        englishName: resolvedEnglishName,
         shortSceneTagEn: safeText(entry.shortSceneTagEn || "").slice(0, 160),
         appearanceEn: safeText(entry.appearanceEn || "").slice(0, 1200),
       };
+      if (resolvedSourceBookId) row.sourceBookId = resolvedSourceBookId;
+      row.characterRoleZh = resolveCharacterRoleZh(
+        key,
+        entry.characterRoleZh || prev.characterRoleZh || "",
+        resolvedSourceBookId
+      );
       const spZh = safeText(entry.scripturePersonalityZh || "").slice(0, 500);
       if (spZh) row.scripturePersonalityZh = spZh;
       const spEn = safeText(entry.scripturePersonalityEn || "").slice(0, 600);
       if (spEn) row.scripturePersonalityEn = spEn;
       const lifespanZh = safeText(entry.lifespanZh || "").slice(0, 80);
-      if (lifespanZh) row.lifespanZh = lifespanZh;
+      row.lifespanZh = (lifespanZh || resolveCharacterLifespanZh(key, row.englishName || "")).slice(
+        0,
+        80
+      );
       const eraLabelZh = safeText(entry.eraLabelZh || "").slice(0, 80);
       if (eraLabelZh) row.eraLabelZh = eraLabelZh;
       const identityTagsZh = safeText(entry.identityTagsZh || "").slice(0, 240);
@@ -9746,6 +10216,21 @@ function rosterThumbRelativeUrlIfExists(imageUrlNorm) {
     /* ignore */
   }
   return "";
+}
+
+function appendGeneratedAssetVersion(url) {
+  const raw = String(url || "").trim();
+  if (!raw || !raw.startsWith("/generated/")) return raw;
+  const abs = resolveSafeGeneratedPngPath(raw);
+  if (!abs) return raw;
+  try {
+    const st = fs.statSync(abs);
+    const ver = Math.max(1, Math.floor(Number(st.mtimeMs) || 0));
+    if (!ver) return raw;
+    return raw + (raw.includes("?") ? "&" : "?") + "v=" + String(ver);
+  } catch (_) {
+    return raw;
+  }
 }
 
 function sanitizeCharacterEnglishToken(value) {

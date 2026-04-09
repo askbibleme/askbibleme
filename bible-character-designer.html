@@ -1114,6 +1114,25 @@
           "波提乏的妻子",
         ];
 
+        const BCD_PRIMARY_CHARACTERS_BY_BOOK = Object.freeze({
+          GEN: Object.freeze(["亚当", "夏娃", "亚伯拉罕", "撒拉", "以撒", "利百加", "雅各", "约瑟"]),
+          EXO: Object.freeze(["摩西", "亚伦", "米利暗"]),
+          JOS: Object.freeze(["约书亚", "喇合"]),
+          JDG: Object.freeze(["底波拉", "基甸"]),
+          RUT: Object.freeze(["路得"]),
+          "1SA": Object.freeze(["撒母耳", "扫罗", "大卫", "约拿单"]),
+          "1KI": Object.freeze(["所罗门", "以利亚"]),
+          "2KI": Object.freeze(["以利沙"]),
+          ISA: Object.freeze(["以赛亚"]),
+          JER: Object.freeze(["耶利米"]),
+          EZK: Object.freeze(["以西结"]),
+          DAN: Object.freeze(["但以理"]),
+          EST: Object.freeze(["以斯帖", "末底改"]),
+          JOB: Object.freeze(["约伯"]),
+          MAT: Object.freeze(["马利亚", "约瑟夫", "施洗约翰", "耶稣", "彼得", "约翰", "雅各布"]),
+          ACT: Object.freeze(["保罗"]),
+        });
+
         function mergeGenesisPresetNames(existing, coreList) {
           var seen = Object.create(null);
           var out = [];
@@ -1142,6 +1161,84 @@
             names: GENESIS_CORE_CHARACTERS.slice(),
           },
         ];
+
+        const BCD_BOOK_LABEL_BY_ID = Object.freeze({
+          GEN: "创世记",
+          EXO: "出埃及记",
+          JOS: "约书亚记",
+          JDG: "士师记",
+          RUT: "路得记",
+          "1SA": "撒母耳记上",
+          "2SA": "撒母耳记下",
+          "1KI": "列王纪上",
+          "2KI": "列王纪下",
+          ISA: "以赛亚书",
+          JER: "耶利米书",
+          EZK: "以西结书",
+          DAN: "但以理书",
+          EST: "以斯帖记",
+          JOB: "约伯记",
+          MAT: "马太福音",
+          ACT: "使徒行传",
+        });
+
+        const BCD_EXTRA_CHARACTER_BOOK_BY_ZH = Object.freeze({
+          摩西: "EXO",
+          亚伦: "EXO",
+          米利暗: "EXO",
+          约书亚: "JOS",
+          喇合: "JOS",
+          底波拉: "JDG",
+          基甸: "JDG",
+          路得: "RUT",
+          撒母耳: "1SA",
+          扫罗: "1SA",
+          大卫: "1SA",
+          约拿单: "1SA",
+          所罗门: "1KI",
+          以利亚: "1KI",
+          以利沙: "2KI",
+          以赛亚: "ISA",
+          耶利米: "JER",
+          以西结: "EZK",
+          但以理: "DAN",
+          以斯帖: "EST",
+          末底改: "EST",
+          约伯: "JOB",
+          马利亚: "MAT",
+          约瑟夫: "MAT",
+          施洗约翰: "MAT",
+          耶稣: "MAT",
+          彼得: "MAT",
+          约翰: "MAT",
+          雅各布: "MAT",
+          保罗: "ACT",
+        });
+
+        function inferBcdCharacterBookId(zhName) {
+          var zh = String(zhName || "").trim();
+          if (!zh) return "";
+          var b;
+          for (b = 0; b < CHARACTER_PRESET_BY_BOOK.length; b++) {
+            var names = Array.isArray(CHARACTER_PRESET_BY_BOOK[b].names)
+              ? CHARACTER_PRESET_BY_BOOK[b].names
+              : [];
+            if (names.indexOf(zh) !== -1) {
+              return String(CHARACTER_PRESET_BY_BOOK[b].bookId || "").trim();
+            }
+          }
+          return String(BCD_EXTRA_CHARACTER_BOOK_BY_ZH[zh] || "").trim();
+        }
+
+        function resolveBcdCharacterRoleZh(zhName, currentRole, sourceBookId) {
+          var cur = String(currentRole || "").trim();
+          if (cur === "主人物" || cur === "次人物") return cur;
+          var bookId = String(sourceBookId || inferBcdCharacterBookId(zhName) || "").trim();
+          var primaryList = bookId ? BCD_PRIMARY_CHARACTERS_BY_BOOK[bookId] || [] : [];
+          var zh = String(zhName || "").trim();
+          if (zh && primaryList.indexOf(zh) !== -1) return "主人物";
+          return "次人物";
+        }
 
         /** 主图横条：「创世记核心」人物按此叙事先后排列；其余人物排在后面再按中文排序 */
         const BCD_GENESIS_HISTORICAL_INDEX = (function () {
@@ -1550,6 +1647,35 @@
           if (!extraBook || !extraList) return;
           var presetSet = getPresetZhSet();
           var parts = [];
+          var grouped = Object.create(null);
+          var groupedOrder = [];
+
+          function ensureGroupedBook(bookId) {
+            var bid = String(bookId || "").trim();
+            if (!bid) bid = "__extra__";
+            if (!grouped[bid]) {
+              grouped[bid] = [];
+              groupedOrder.push(bid);
+            }
+            return grouped[bid];
+          }
+
+          function inferBookIdForExtraZh(zh) {
+            var key = String(zh || "").trim();
+            if (!key) return "";
+            return String(BCD_EXTRA_CHARACTER_BOOK_BY_ZH[key] || "").trim();
+          }
+
+          function renderExtraRowHtml(zh) {
+            return (
+              '<li><button type="button" class="bcd-preset-name bcd-preset-name--extra" data-zh="' +
+              escapePresetHtml(zh) +
+              '"><span class="bcd-preset-ord">·</span><span>' +
+              escapePresetHtml(zh) +
+              '</span><span class="bcd-preset-status"></span></button></li>'
+            );
+          }
+
           var nc = getNewCardEl();
           if (nc && !cardZhDisplayKey(nc)) {
             parts.push(
@@ -1560,13 +1686,34 @@
           }
           getAllNamedKeysFromDom().forEach(function (k) {
             if (presetSet[k]) return;
+            ensureGroupedBook(inferBookIdForExtraZh(k)).push(k);
+          });
+          groupedOrder.sort(function (a, b) {
+            if (a === "__extra__" && b !== "__extra__") return 1;
+            if (a !== "__extra__" && b === "__extra__") return -1;
+            return String(a).localeCompare(String(b), "zh-CN");
+          });
+          groupedOrder.forEach(function (bookId) {
+            var rows = grouped[bookId] || [];
+            if (!rows.length) return;
+            rows.sort(function (a, b) {
+              return String(a).localeCompare(String(b), "zh-CN");
+            });
             parts.push(
-              '<li><button type="button" class="bcd-preset-name bcd-preset-name--extra" data-zh="' +
-                escapePresetHtml(k) +
-                '"><span class="bcd-preset-ord">·</span><span>' +
-                escapePresetHtml(k) +
-                '</span><span class="bcd-preset-status"></span></button></li>'
+              '<li style="list-style:none;margin:10px 0 4px;padding:0 2px 0 0;font-size:12px;font-weight:800;color:var(--muted);">' +
+                escapePresetHtml(
+                  bookId === "__extra__"
+                    ? "其他人物"
+                    : BCD_BOOK_LABEL_BY_ID[bookId] || bookId
+                ) +
+                (bookId !== "__extra__"
+                  ? ' <span class="bcd-preset-book-id">' + escapePresetHtml(bookId) + "</span>"
+                  : "") +
+                "</li>"
             );
+            rows.forEach(function (zh) {
+              parts.push(renderExtraRowHtml(zh));
+            });
           });
           extraList.innerHTML = parts.join("");
           extraBook.hidden = parts.length === 0;
@@ -3400,6 +3547,9 @@
           const scripturePersonalityEn = safe(en.scripturePersonalityEn || "");
           const lifespanZh = safe(en.lifespanZh || "");
           const eraLabelZh = safe(en.eraLabelZh || "");
+          const characterRoleZh = safe(
+            resolveBcdCharacterRoleZh(key, en.characterRoleZh || "次人物")
+          );
           const identityTagsZh = safe(en.identityTagsZh || "");
           const comparisonSheetUrl = safe(en.comparisonSheetUrl || "");
           const heroImageUrl = safe(en.heroImageUrl || "");
@@ -3497,7 +3647,7 @@
             '<input type="text" class="bcd-en" maxlength="200" value="' +
             englishName +
             '" placeholder="Abraham" />' +
-            '<p class="bcd-hint">各时期共用；保存时截断至 80 字符。</p>' +
+            '<p class="bcd-hint">优先自动回填常用圣经英文名；若系统未命中可手改。各时期共用；保存时截断至 80 字符。</p>' +
             "</div>" +
             '<div class="bcd-field-block">' +
             "<label>圣经中的性格与特点（中文）</label>" +
@@ -3518,7 +3668,7 @@
             '<input type="text" class="bcd-lifespan-zh" maxlength="80" value="' +
             lifespanZh +
             '" placeholder="如：活了138岁" />' +
-            '<p class="bcd-hint">优先记录圣经明确给出的寿命或常见查经用年限表达；AI 导入后可手改。</p>' +
+            '<p class="bcd-hint">按固定优先级回填：圣经明确记载 ＞ 常见神学/查经观点 ＞ 不详；仍可手改。</p>' +
             "</div>" +
             '<div class="bcd-field-block">' +
             "<label>时代标签（中文）</label>" +
@@ -3526,6 +3676,18 @@
             eraLabelZh +
             '" placeholder="如：族长时代 / 士师时代 / 联合王国" />' +
             '<p class="bcd-hint">简短时代或叙事时期标签，便于后续筛选与识别。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>人物层级</label>" +
+            '<select class="bcd-character-role-zh" aria-label="人物层级">' +
+            '<option value="主人物"' +
+            (characterRoleZh === "主人物" ? " selected" : "") +
+            ">主人物</option>" +
+            '<option value="次人物"' +
+            (characterRoleZh !== "主人物" ? " selected" : "") +
+            ">次人物</option>" +
+            "</select>" +
+            '<p class="bcd-hint">按本卷叙事重要度区分关键人物与辅助人物，供人物轴和后台筛选使用。</p>' +
             "</div>" +
             '<div class="bcd-field-block">' +
             "<label>人物标签（中文）</label>" +
@@ -3715,12 +3877,19 @@
             }
             var lifespanEl = card.querySelector(".bcd-lifespan-zh");
             var eraEl = card.querySelector(".bcd-era-label-zh");
+            var roleEl = card.querySelector(".bcd-character-role-zh");
             var tagsEl = card.querySelector(".bcd-identity-tags-zh");
             if (lifespanEl && data.lifespanZh != null) {
               lifespanEl.value = String(data.lifespanZh || "");
             }
             if (eraEl && data.eraLabelZh != null) {
               eraEl.value = String(data.eraLabelZh || "");
+            }
+            if (roleEl && data.characterRoleZh != null) {
+              roleEl.value = resolveBcdCharacterRoleZh(
+                chineseName,
+                String(data.characterRoleZh || "次人物")
+              );
             }
             if (tagsEl && data.identityTagsZh != null) {
               tagsEl.value = String(data.identityTagsZh || "");
@@ -3834,12 +4003,19 @@
             }
             var lifespan0 = card.querySelector(".bcd-lifespan-zh");
             var era0 = card.querySelector(".bcd-era-label-zh");
+            var role0 = card.querySelector(".bcd-character-role-zh");
             var tags0 = card.querySelector(".bcd-identity-tags-zh");
             if (lifespan0 && data.lifespanZh != null) {
               lifespan0.value = String(data.lifespanZh || "");
             }
             if (era0 && data.eraLabelZh != null) {
               era0.value = String(data.eraLabelZh || "");
+            }
+            if (role0 && data.characterRoleZh != null) {
+              role0.value = resolveBcdCharacterRoleZh(
+                chineseName,
+                String(data.characterRoleZh || "次人物")
+              );
             }
             if (tags0 && data.identityTagsZh != null) {
               tags0.value = String(data.identityTagsZh || "");
@@ -4245,6 +4421,11 @@
                 var ez = String(eraOnly.value || "").trim();
                 if (ez) characters[key].eraLabelZh = ez;
               }
+              var roleOnly = card.querySelector(".bcd-character-role-zh");
+              if (roleOnly) {
+                var rz = String(roleOnly.value || "").trim();
+                if (rz) characters[key].characterRoleZh = rz;
+              }
               if (tagsOnly) {
                 var tz = String(tagsOnly.value || "").trim();
                 if (tz) characters[key].identityTagsZh = tz;
@@ -4279,6 +4460,11 @@
                 (card.querySelector(".bcd-era-label-zh") &&
                   card.querySelector(".bcd-era-label-zh").value) ||
                   ""
+              ).trim(),
+              characterRoleZh: String(
+                (card.querySelector(".bcd-character-role-zh") &&
+                  card.querySelector(".bcd-character-role-zh").value) ||
+                  "次人物"
               ).trim(),
               identityTagsZh: String(
                 (card.querySelector(".bcd-identity-tags-zh") &&

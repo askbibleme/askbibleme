@@ -4176,6 +4176,23 @@ button.toolbar-trigger:hover,
   line-height: 1.08;
 }
 
+.chapter-character-roster-role {
+  display: block;
+  margin-top: 3px;
+  font-size: calc(10px * var(--font-scale));
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.chapter-character-roster-role--primary {
+  color: #8e6a2f;
+}
+
+.chapter-character-roster-role--secondary {
+  color: #8a7c67;
+}
+
 .chapter-character-roster-marker {
   position: absolute;
   left: 50%;

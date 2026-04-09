@@ -5747,16 +5747,24 @@ function syncChapterCharacterRoster() {
     const name = escapeHtml(String(f.zhName || "").trim());
     if (!name) continue;
     const isCurrentChapter = Boolean(f && f.isCurrentChapter);
+    const roleZh = String((f && f.characterRoleZh) || "").trim();
+    const roleBadge = roleZh
+      ? `<span class="chapter-character-roster-role chapter-character-roster-role--${
+          roleZh === "主人物" ? "primary" : "secondary"
+        }">${escapeHtml(roleZh)}</span>`
+      : "";
     cards.push(
       `<figure class="chapter-character-roster-item${
         isCurrentChapter ? " is-current-chapter" : ""
-      }"${isCurrentChapter ? ' aria-current="true"' : ""}><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
+      }${roleZh === "主人物" ? " is-primary-character" : " is-secondary-character"}"${
+        isCurrentChapter ? ' aria-current="true"' : ""
+      }><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
         src
       )}" data-src-fallback="${escapeHtml(
         optimizedSrc
       )}" data-src-final-fallback="${escapeHtml(
         directSrc
-      )}" alt="${name}" decoding="async" loading="lazy" /></div><figcaption class="chapter-character-roster-caption">${name}</figcaption></figure>`
+      )}" alt="${name}" decoding="async" loading="lazy" /></div><figcaption class="chapter-character-roster-caption">${name}${roleBadge}</figcaption></figure>`
     );
   }
   if (cards.length) {
