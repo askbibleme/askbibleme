@@ -15,6 +15,7 @@ const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
 const COLOR_THEME_STORAGE_KEY = "bible_color_theme_id_v1";
 const QA_INTERACTIONS_KEY = "bible_qa_interactions_v1";
 const VERSE_SEARCH_PREFS_KEY = "bible_verse_search_prefs_v1";
+const CLIENT_FRESHNESS_VERSION = "v53";
 let verseSearchDebounceTimer = null;
 let verseSearchSeq = 0;
 /** Safari/iOS 将「↩」绘成彩色系统符号；用 currentColor SVG 与 ♥/✎ 同色 */
@@ -93,6 +94,25 @@ const BOOK_NAME_EN_BY_ID = {
   _OT_OVERVIEW: "Old Testament Overview",
   _NT_OVERVIEW: "New Testament Overview",
 };
+
+function clearEphemeralClientState() {
+  try {
+    [
+      FRONT_STATE_KEY,
+      FONT_SCALE_KEY,
+      VIEWPORT_SCROLL_KEY,
+      COLOR_THEME_STORAGE_KEY,
+      "bible_front_state_v3",
+      "bible_front_state_v2",
+      "bible_font_scale_v0",
+      "bible_viewport_scroll_v0",
+    ].forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* ignore */
+  }
+}
+
+clearEphemeralClientState();
 
 const state = {
   bootstrap: null,
@@ -402,10 +422,27 @@ function resolveStudyApiPath(path) {
   }
 }
 
+function cacheBustTokenForIllustrationUrl(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  const target = s.split("?")[0];
+  const base = target.split("/").pop() || "";
+  const match = base.match(/-(\d{10,})\.(png|webp|jpg|jpeg)$/i);
+  return match ? String(match[1]) : "";
+}
+
+function appendCacheBustToUrl(url, token) {
+  const raw = String(url || "").trim();
+  const tk = String(token || "").trim();
+  if (!raw || !tk) return raw;
+  return raw + (raw.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(tk);
+}
+
 /** 本章人员立绘：/generated 下 PNG 走服务端缩图，减轻带宽（方案 1） */
 function chapterRosterPortraitImgSrc(normalizedPath) {
   const raw = String(normalizedPath || "").trim();
   if (!raw) return "";
+  const bust = cacheBustTokenForIllustrationUrl(raw);
   let genPath = "";
   if (raw.startsWith("/generated/")) {
     genPath = raw.split("?")[0];
@@ -422,12 +459,21 @@ function chapterRosterPortraitImgSrc(normalizedPath) {
   if (genPath) {
     const baseName = genPath.replace(/^\/generated\//, "").split("/").pop() || "";
     if (!baseName) {
-      return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+      return appendCacheBustToUrl(
+        resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw),
+        bust
+      );
     }
     const q = new URLSearchParams({ n: baseName, w: "480" });
-    return resolveStudyApiPath("/api/roster-portrait?" + q.toString());
+    return appendCacheBustToUrl(
+      resolveStudyApiPath("/api/roster-portrait?" + q.toString()),
+      bust
+    );
   }
-  return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+  return appendCacheBustToUrl(
+    resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw),
+    bust
+  );
 }
 
 function preferredChapterIllustrationWidth() {
@@ -478,24 +524,30 @@ function bindChapterCharacterRosterImageFallbacks(root) {
   if (!root) return;
   const imgs = root.querySelectorAll(".chapter-character-roster-img");
   imgs.forEach((imgEl) => {
+    function advanceRosterImageFallback() {
+      const fallback = String(
+        imgEl.getAttribute("data-src-fallback") || ""
+      ).trim();
+      const finalFallback = String(
+        imgEl.getAttribute("data-src-final-fallback") || ""
+      ).trim();
+      if (fallback && imgEl.src !== fallback) {
+        imgEl.src = fallback;
+        return;
+      }
+      if (finalFallback && imgEl.src !== finalFallback) {
+        imgEl.src = finalFallback;
+      }
+    }
     imgEl.addEventListener(
       "error",
       function handleRosterImageError() {
-        const fallback = String(
-          imgEl.getAttribute("data-src-fallback") || ""
-        ).trim();
-        const finalFallback = String(
-          imgEl.getAttribute("data-src-final-fallback") || ""
-        ).trim();
-        if (fallback && imgEl.src !== fallback) {
-          imgEl.src = fallback;
-          return;
-        }
-        if (finalFallback && imgEl.src !== finalFallback) {
-          imgEl.src = finalFallback;
-        }
+        advanceRosterImageFallback();
       }
     );
+    if (imgEl.complete && !imgEl.naturalWidth) {
+      advanceRosterImageFallback();
+    }
   });
 }
 
@@ -798,23 +850,23 @@ function highlightVerseSearchSnippet(snippet, query) {
 }
 
 function loadFontScale() {
-  const raw = Number(localStorage.getItem(FONT_SCALE_KEY));
-  if (Number.isFinite(raw) && raw >= 0.85 && raw <= 1.3) return raw;
   return 1;
 }
 
 function saveFontScale() {
-  localStorage.setItem(FONT_SCALE_KEY, String(state.frontState.fontScale));
+  try {
+    localStorage.removeItem(FONT_SCALE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function loadViewportScrollY() {
-  const raw = Number(localStorage.getItem(VIEWPORT_SCROLL_KEY));
-  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+  return 0;
 }
 
 function saveViewportScrollY(y) {
-  const safeY = Math.max(0, Number(y) || 0);
-  localStorage.setItem(VIEWPORT_SCROLL_KEY, String(safeY));
+  void y;
 }
 
 function loadFavorites() {
@@ -987,63 +1039,29 @@ function backfillGlobalFavoritesFromLocal() {
 }
 
 function loadFrontState() {
-  const parsed = safeJsonParse(localStorage.getItem(FRONT_STATE_KEY), null);
-
-  const legacyScriptureIds =
-    Array.isArray(parsed?.scriptureVersionIds) &&
-    parsed.scriptureVersionIds.length
-      ? parsed.scriptureVersionIds
-      : [];
-
   return {
-    uiLang: parsed?.uiLang || "zh",
-    contentVersion: parsed?.contentVersion || "default",
-    contentLang: parsed?.contentLang || "zh",
-    primaryScriptureVersionId:
-      parsed?.primaryScriptureVersionId || legacyScriptureIds[0] || "cuvs_zh",
-    secondaryScriptureVersionIds: Array.isArray(
-      parsed?.secondaryScriptureVersionIds
-    )
-      ? parsed.secondaryScriptureVersionIds
-      : legacyScriptureIds.slice(1).length
-      ? legacyScriptureIds.slice(1)
-      : [],
-    testament: parsed?.testament || "旧约",
-    /* 无本地记录时打开「圣经简介」卷首页（_BIBLE_INTRO / chapter 0），非创世记第 1 章 */
-    bookId: parsed?.bookId || "_BIBLE_INTRO",
-    chapter:
-      parsed == null ? 0 : Number(parsed.chapter != null ? parsed.chapter : 0),
-    hideScripture: parsed?.hideScripture === true,
-    showQuestions:
-      typeof parsed?.showQuestions === "boolean"
-        ? parsed.showQuestions
-        : true,
-    showScripture:
-      typeof parsed?.showScripture === "boolean"
-        ? parsed.showScripture
-        : true,
+    uiLang: "zh",
+    contentVersion: "default",
+    contentLang: "zh",
+    primaryScriptureVersionId: "cuvs_zh",
+    secondaryScriptureVersionIds: [],
+    testament: "旧约",
+    /* 每次重开都回到最新默认入口，不恢复旧阅读现场 */
+    bookId: "_BIBLE_INTRO",
+    chapter: 0,
+    hideScripture: false,
+    showQuestions: true,
+    showScripture: true,
     fontScale: loadFontScale(),
   };
 }
 
 function saveFrontState() {
-  localStorage.setItem(
-    FRONT_STATE_KEY,
-    JSON.stringify({
-      uiLang: state.frontState.uiLang,
-      contentVersion: state.frontState.contentVersion,
-      contentLang: state.frontState.contentLang,
-      primaryScriptureVersionId: state.frontState.primaryScriptureVersionId,
-      secondaryScriptureVersionIds:
-        state.frontState.secondaryScriptureVersionIds,
-      testament: state.frontState.testament,
-      bookId: state.frontState.bookId,
-      chapter: state.frontState.chapter,
-      hideScripture: state.frontState.hideScripture,
-      showQuestions: state.frontState.showQuestions,
-      showScripture: state.frontState.showScripture,
-    })
-  );
+  try {
+    localStorage.removeItem(FRONT_STATE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function applyFontScale() {
@@ -2993,11 +3011,7 @@ function getColorThemesMetaFromBootstrap() {
 }
 
 function getStoredColorThemeId() {
-  try {
-    return String(localStorage.getItem(COLOR_THEME_STORAGE_KEY) || "").trim();
-  } catch {
-    return "";
-  }
+  return "";
 }
 
 function applyColorVariablesToRoot(variables) {
@@ -3069,15 +3083,7 @@ async function fetchCurrentUser() {
       normalizeUserTotalOnlineSeconds(user);
       state.currentUser = user;
       const nm = String(user?.name || "").trim();
-      if (nm) {
-        const tid = String(user?.colorThemeId || "").trim();
-        try {
-          if (tid) localStorage.setItem(COLOR_THEME_STORAGE_KEY, tid);
-          else localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
-        } catch (_) {
-          /* ignore */
-        }
-      }
+      void nm;
     }
   } catch {
     state.currentUser = null;
@@ -5702,13 +5708,20 @@ function syncChapterCharacterRoster() {
     const f = figures[i];
     const raw = normalizeIllustrationImageUrlForReader(f && f.imageUrl);
     if (!raw) continue;
-    const directSrc = resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+    const bust = cacheBustTokenForIllustrationUrl(raw);
+    const directSrc = appendCacheBustToUrl(
+      resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw),
+      bust
+    );
     const optimizedSrc = chapterRosterPortraitImgSrc(raw);
     const thumbRaw = f && f.rosterThumbUrl
       ? normalizeIllustrationImageUrlForReader(f.rosterThumbUrl)
       : "";
     const src = thumbRaw
-      ? resolveStudyApiPath(thumbRaw.startsWith("/") ? thumbRaw : "/" + thumbRaw)
+      ? appendCacheBustToUrl(
+          resolveStudyApiPath(thumbRaw.startsWith("/") ? thumbRaw : "/" + thumbRaw),
+          cacheBustTokenForIllustrationUrl(thumbRaw) || bust
+        )
       : optimizedSrc;
     const name = escapeHtml(String(f.zhName || "").trim());
     if (!name) continue;
@@ -10068,11 +10081,25 @@ async function initDeployManagerTab() {
       return;
     }
     const blob = await res.blob();
+    const generatedAssetCount = Math.max(
+      0,
+      Number(res.headers.get("X-Package-Generated-Asset-Count") || 0) || 0
+    );
+    const adminSyncFileCount = Math.max(
+      0,
+      Number(res.headers.get("X-Package-Admin-Sync-File-Count") || 0) || 0
+    );
+    const missingCount = Math.max(
+      0,
+      Number(res.headers.get("X-Package-Missing-Count") || 0) || 0
+    );
     const ts = new Date().toISOString().replaceAll(":", "-");
     const fileVersion = version || `changed-${ts}`;
     const fileName = `askbible-changed-${fileVersion}.zip`;
     downloadTextFile(fileName, blob, "application/zip");
-    statusBox.textContent = `改动升级包已下载：${fileName}`;
+    statusBox.textContent = `改动升级包已下载：${fileName}；已附带 ${generatedAssetCount} 个生成图片、${adminSyncFileCount} 个人物/插画配置文件${
+      missingCount ? `；另有 ${missingCount} 章未找到源 JSON` : ""
+    }。`;
   }
 
   async function loadStatus() {
@@ -10768,7 +10795,9 @@ function stopJobsAutoRefresh() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js?v=52").then((reg) => {
+    navigator.serviceWorker.register(`/sw.js?v=${CLIENT_FRESHNESS_VERSION}`, {
+      updateViaCache: "none",
+    }).then((reg) => {
       try {
         reg.update();
       } catch (_) {}

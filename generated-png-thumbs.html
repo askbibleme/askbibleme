@@ -433,7 +433,16 @@
               })
               .join("");
             document.getElementById("gthumbMaster").checked = false;
-            setStatus("已加载 " + items.length + " 条。", "ok");
+            setStatus(
+              "当前页 " +
+                items.length +
+                " 条 / 共 " +
+                total +
+                " 条" +
+                (lastQ ? " · 筛选：" + lastQ : "") +
+                "。",
+              "ok"
+            );
           } catch (e) {
             setAuthVisible(true);
             setStatus(String(e.message || e), "err");
@@ -583,6 +592,8 @@
           }
         }
         document.getElementById("gthumbReload").addEventListener("click", function () {
+          lastQ = String(document.getElementById("gthumbQ").value || "").trim();
+          page = 1;
           void loadList();
         });
         document.getElementById("gthumbSearch").addEventListener("click", function () {

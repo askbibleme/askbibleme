@@ -52,6 +52,8 @@
         <input type="text" id="illlibQ" placeholder="筛选书卷 / 章节 / 文件名…" style="width:min(100%, 260px)" />
         <button type="button" id="illlibSearch">筛选</button>
         <button type="button" id="illlibReload">刷新列表</button>
+        <button type="button" id="illlibAuditBroken">预检缺图</button>
+        <button type="button" id="illlibRepairBroken">修复缺图</button>
         <span class="illlib-status" id="illlibStatus" aria-live="polite"></span>
       </div>
       <div class="illlib-table-wrap">
@@ -162,14 +164,36 @@
           try { return { ok: true, data: JSON.parse(raw) }; }
           catch (_) { return { ok: false, data: {}, rawSnippet: raw.replace(/\s+/g, " ").trim().slice(0, 200) }; }
         }
-        function previewSrc(imageUrl) {
-          const raw = String(imageUrl || "").trim();
-          if (!raw) return "";
+        function buildPreviewSources(row) {
+          const raw = String(row && row.imageUrl || "").trim();
+          if (!raw) return { primary: "", fallback: "" };
+          const stamp = encodeURIComponent(String(row && (row.updatedAt || row.imageUpdatedAt || "") || "").trim());
           if (raw.startsWith("/generated/")) {
             const name = raw.split("?")[0].split("/").pop() || "";
-            return apiUrl("/api/ci?n=" + encodeURIComponent(name) + "&w=160");
+            const suffix = stamp ? "&v=" + stamp : "";
+            const direct = raw + (raw.includes("?") ? "&" : "?") + "v=" + stamp;
+            return {
+              primary: apiUrl("/api/ci?n=" + encodeURIComponent(name) + "&w=160" + suffix),
+              fallback: apiUrl(direct),
+            };
           }
-          return raw;
+          const direct = raw + (raw.includes("?") ? "&" : "?") + "v=" + stamp;
+          return { primary: direct, fallback: "" };
+        }
+        function handlePreviewError(img) {
+          if (!img) return;
+          const fallback = String(img.getAttribute("data-fallback-src") || "").trim();
+          const original = String(img.getAttribute("data-original-src") || "").trim();
+          const current = String(img.getAttribute("src") || "").trim();
+          if (fallback && current !== fallback) {
+            img.src = fallback;
+            return;
+          }
+          if (original && current !== original) {
+            img.src = original;
+            return;
+          }
+          img.classList.add("is-broken");
         }
         function manageHref(row) {
           const q = new URLSearchParams({
@@ -231,9 +255,10 @@
             bodyEl.innerHTML = items.map(function (it) {
               const canDeleteFile = !!it.generatedName && Number(it.usageCount || 0) <= 1;
               const usageText = Number(it.usageCount || 0) > 1 ? " · 多章共用" : "";
+              const preview = buildPreviewSources(it);
               return (
                 "<tr>" +
-                '<td><img class="illlib-preview" src="' + esc(previewSrc(it.imageUrl)) + '" alt="" loading="lazy" decoding="async" /></td>' +
+                '<td><img class="illlib-preview" src="' + esc(preview.primary) + '" data-fallback-src="' + esc(preview.fallback) + '" data-original-src="' + esc(String(it.imageUrl || "").trim()) + '" alt="" loading="lazy" decoding="async" /></td>' +
                 "<td><strong>" + esc(it.bookName || it.bookId) + " " + esc(it.chapter) + "章</strong><div class=\"illlib-meta\">" + esc(it.bookId) + "</div></td>" +
                 "<td><div class=\"illlib-code\"><code>" + esc(it.imageUrl || "") + "</code></div></td>" +
                 "<td><div class=\"illlib-meta\">已发布 " + esc(it.refCount) + " 份" + (Number(it.variantCount || 0) > 1 ? " · 多图来源 " + esc(it.variantCount) : "") + usageText + "</div></td>" +
@@ -247,6 +272,9 @@
                 "</tr>"
               );
             }).join("");
+            bodyEl.querySelectorAll("img.illlib-preview").forEach(function (img) {
+              img.addEventListener("error", function () { handlePreviewError(img); }, { once: false });
+            });
             setStatus("已加载 " + items.length + " 条。", "ok");
           } catch (e) {
             setAuthVisible(true);
@@ -270,6 +298,21 @@
             method: "POST",
             headers: { "Content-Type": "application/json", ...authHeaders() },
             body: JSON.stringify({ names: [name] }),
+          }));
+          return { res: res, parsed: await parseJsonBody(res) };
+        }
+        async function previewBrokenRefs() {
+          const reqUrl = apiUrl("/api/admin/chapter-ills/repair-preview");
+          const res = await fetch(reqUrl, fetchOpts({ _url: reqUrl, headers: { ...authHeaders() } }));
+          return { res: res, parsed: await parseJsonBody(res) };
+        }
+        async function repairBrokenRefs() {
+          const reqUrl = apiUrl("/api/admin/chapter-ills/repair");
+          const res = await fetch(reqUrl, fetchOpts({
+            _url: reqUrl,
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({}),
           }));
           return { res: res, parsed: await parseJsonBody(res) };
         }
@@ -306,6 +349,58 @@
           lastQ = String(document.getElementById("illlibQ").value || "").trim();
           page = 1;
           void loadList();
+        });
+        document.getElementById("illlibAuditBroken").addEventListener("click", async function () {
+          try {
+            setStatus("预检缺图中…", "");
+            const out = await previewBrokenRefs();
+            if (!out.parsed.ok) return setStatus("返回非 JSON（HTTP " + out.res.status + "）", "err");
+            if (!out.res.ok) return setStatus((out.parsed.data && out.parsed.data.error) || ("失败 HTTP " + out.res.status), "err");
+            const data = out.parsed.data || {};
+            const missingCount = Number(data.missingCount || 0);
+            if (!missingCount) {
+              setStatus("未发现缺图引用。", "ok");
+              return;
+            }
+            const lines = Array.isArray(data.missing) ? data.missing.slice(0, 8) : [];
+            alert(
+              "发现缺图引用 " +
+              missingCount +
+              " 条。\n\n" +
+              lines.join("\n") +
+              (Array.isArray(data.missing) && data.missing.length > lines.length
+                ? "\n… 其余 " + (data.missing.length - lines.length) + " 条未展开"
+                : "")
+            );
+            setStatus("预检完成：发现 " + missingCount + " 条缺图引用。", "err");
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        });
+        document.getElementById("illlibRepairBroken").addEventListener("click", async function () {
+          if (!window.confirm("开始修复缺图引用？系统会优先回填同章仍存在的生成图。")) return;
+          try {
+            setStatus("修复缺图中…", "");
+            const out = await repairBrokenRefs();
+            if (!out.parsed.ok) return setStatus("返回非 JSON（HTTP " + out.res.status + "）", "err");
+            if (!out.res.ok) return setStatus((out.parsed.data && out.parsed.data.error) || ("失败 HTTP " + out.res.status), "err");
+            const data = out.parsed.data || {};
+            const repaired = Array.isArray(data.repaired) ? data.repaired.length : 0;
+            const unrecovered = Array.isArray(data.unrecovered) ? data.unrecovered.length : 0;
+            setStatus(
+              "修复完成：已回填 " + repaired + " 条" + (unrecovered ? "，仍有 " + unrecovered + " 条未恢复" : "。"),
+              unrecovered ? "err" : "ok"
+            );
+            await loadList();
+            if (repaired || unrecovered) {
+              const lines = [];
+              if (repaired) lines.push("已回填：", ...(data.repaired || []).slice(0, 8));
+              if (unrecovered) lines.push("", "仍未恢复：", ...(data.unrecovered || []).slice(0, 8));
+              alert(lines.join("\n"));
+            }
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
         });
         document.getElementById("illlibPrev").addEventListener("click", function () { if (page > 1) { page--; void loadList(); } });
         document.getElementById("illlibNext").addEventListener("click", function () { page++; void loadList(); });

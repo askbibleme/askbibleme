@@ -2,19 +2,9 @@
  * 更新本常量即丢弃旧 Cache Storage，用户下次激活 SW 后生效。
  * 改版频繁时也可只靠下方「网络优先」资源自动拉新； bump 仍用于强制换 SW 脚本本体。
  */
-const CACHE_NAME = "askbible-static-v52";
+const CACHE_NAME = "askbible-static-v53";
 
 const STATIC_ASSETS = [
-  "/",
-  "/index.html",
-  "/download.html",
-  "/why.html",
-  "/promo-edit.html",
-  "/vision.html",
-  "/vision.css",
-  "/styles.css",
-  "/promo.css",
-  "/main.js",
   "/manifest.webmanifest",
   "/assets/icons/icon.svg",
   "/assets/icons/icon-maskable.svg",
@@ -33,7 +23,7 @@ function isNetworkFirstPath(pathname) {
 }
 
 function networkFirstWithCacheFallback(req) {
-  return fetch(req)
+  return fetch(new Request(req, { cache: "no-store" }))
     .then((res) => {
       if (res && res.ok) {
         const cloned = res.clone();
@@ -76,11 +66,11 @@ self.addEventListener("fetch", (event) => {
 
   /* 管理后台与配置工具 HTML：始终直连网络，不经过 SW 缓存策略 */
   if (
-    /\/(?:admin-hub|site-chrome|promo-edit|color-themes|admin-analytics|seo-settings|home-layout-map|video-center|bible-character-designer|illustration-admin)\.html$/i.test(
+    /\/(?:admin-hub|site-chrome|promo-edit|color-themes|admin-analytics|seo-settings|home-layout-map|video-center|bible-character-designer|illustration-admin|chapter-illustration-library|generated-png-thumbs)\.html$/i.test(
       url.pathname
     )
   ) {
-    event.respondWith(fetch(req));
+    event.respondWith(fetch(new Request(req, { cache: "no-store" })));
     return;
   }
 

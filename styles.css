@@ -4112,6 +4112,7 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-character-roster {
+  --chapter-character-roster-figure-height: 480px;
   display: flex;
   flex-wrap: nowrap;
   gap: 4px 6px;
@@ -4123,7 +4124,7 @@ button.toolbar-trigger:hover,
   margin: 0;
   flex: 0 0 auto;
   flex-shrink: 0;
-  width: min(33vw, 172px);
+  width: auto;
   max-width: none;
   position: relative;
 }
@@ -4132,7 +4133,7 @@ button.toolbar-trigger:hover,
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  height: 320px;
+  height: var(--chapter-character-roster-figure-height);
   padding: 2px 1px 0;
   border-radius: 12px;
   box-sizing: border-box;
@@ -4141,10 +4142,10 @@ button.toolbar-trigger:hover,
 
 .chapter-character-roster-img {
   display: block;
-  max-width: 100%;
-  max-height: 320px;
+  max-width: none;
+  max-height: none;
   width: auto;
-  height: auto;
+  height: var(--chapter-character-roster-figure-height);
   object-fit: contain;
   object-position: bottom center;
 }
@@ -4214,16 +4215,16 @@ button.toolbar-trigger:hover,
   }
 
   .chapter-character-roster-item {
-    width: calc((100vw - 18px) / 3);
-    max-width: 184px;
+    width: auto;
+    max-width: none;
   }
 
   .chapter-character-roster-img-wrap {
-    height: 320px;
+    height: var(--chapter-character-roster-figure-height);
   }
 
   .chapter-character-roster-img {
-    max-height: 320px;
+    height: var(--chapter-character-roster-figure-height);
   }
 
   .chapter-character-roster-caption {
@@ -6552,11 +6553,16 @@ a.admin-modal-hub-link.primary-btn {
       0 14px 28px rgba(0, 0, 0, 0.18),
       0 1px 0 rgba(255, 255, 255, 0.5) inset,
       0 -1px 0 rgba(180, 157, 122, 0.08) inset;
+    background-clip: padding-box;
+    isolation: isolate;
   }
 
   .book-spread {
     border-radius: 18px;
-    /* 亚像素圆角抗锯齿时避免透出下层 */
+    /* 小屏统一按圆角裁切，避免四角漏出直角底色 */
+    overflow: hidden;
+    clip-path: inset(0 round 18px);
+    background-clip: padding-box;
     isolation: isolate;
     /* 同上：避免 translateZ 触发与 fixed 顶栏的合成层错乱 */
     box-shadow:
@@ -6892,6 +6898,10 @@ a.admin-modal-hub-link.primary-btn {
   .book-layout,
   .book-spread {
     border-radius: 16px;
+  }
+
+  .book-spread {
+    clip-path: inset(0 round 16px);
   }
 
   .book-layout::before {

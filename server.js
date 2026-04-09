@@ -2500,6 +2500,7 @@ function createDataBackup() {
     { abs: ADMIN_DIR, rel: "admin_data" },
     { abs: CONTENT_PUBLISHED_DIR, rel: "content_published" },
     { abs: CONTENT_BUILDS_DIR, rel: "content_builds" },
+    { abs: CHAPTER_ILLUSTRATION_GENERATED_DIR, rel: "public/generated" },
   ];
   for (const t of targets) {
     if (!fs.existsSync(t.abs)) continue;
@@ -2525,6 +2526,10 @@ function restoreDataBackup(backupId) {
     { src: path.join(dir, "admin_data"), dest: ADMIN_DIR },
     { src: path.join(dir, "content_published"), dest: CONTENT_PUBLISHED_DIR },
     { src: path.join(dir, "content_builds"), dest: CONTENT_BUILDS_DIR },
+    {
+      src: path.join(dir, "public", "generated"),
+      dest: CHAPTER_ILLUSTRATION_GENERATED_DIR,
+    },
   ];
   const restored = [];
   for (const p of pairs) {
@@ -2588,6 +2593,61 @@ function normalizeDeployPackageKind(kind) {
   if (k === "full") return "full";
   if (k === "full-slim") return "full-slim";
   return "upgrade";
+}
+
+function addLocalFileToZipIfExists(zip, absPath, relPath, seenRelPaths = null) {
+  const safeRel = String(relPath || "").replaceAll("\\", "/");
+  if (!safeRel || (seenRelPaths && seenRelPaths.has(safeRel))) return false;
+  if (!absPath || !fs.existsSync(absPath)) return false;
+  try {
+    if (!fs.statSync(absPath).isFile()) return false;
+  } catch {
+    return false;
+  }
+  zip.addLocalFile(absPath, path.dirname(safeRel), path.basename(safeRel));
+  if (seenRelPaths) seenRelPaths.add(safeRel);
+  return true;
+}
+
+function collectGeneratedImageRelativePathsFromValue(input, out = new Set()) {
+  if (typeof input === "string") {
+    const raw = input.trim();
+    if (raw) {
+      const normalized = normalizeIllustrationImageUrlForPublication(raw);
+      if (normalized && normalized.startsWith("/generated/")) {
+        const resolved = resolveSafeGeneratedPngPath(normalized);
+        if (resolved) {
+          const rel = path.relative(__dirname, resolved).replaceAll("\\", "/");
+          if (rel) out.add(rel);
+        }
+      }
+    }
+    return out;
+  }
+  if (Array.isArray(input)) {
+    for (const item of input) {
+      collectGeneratedImageRelativePathsFromValue(item, out);
+    }
+    return out;
+  }
+  if (input && typeof input === "object") {
+    for (const value of Object.values(input)) {
+      collectGeneratedImageRelativePathsFromValue(value, out);
+    }
+  }
+  return out;
+}
+
+function listDeploySyncAdminRelativePaths() {
+  return [
+    CHARACTER_ILLUSTRATION_PROFILES_FILE,
+    CHAPTER_ILLUSTRATION_STATE_FILE,
+    CHARACTER_STAGE_RULES_FILE,
+    CHAPTER_KEY_PEOPLE_FILE,
+  ]
+    .filter(Boolean)
+    .filter((abs) => fs.existsSync(abs))
+    .map((abs) => path.relative(__dirname, abs).replaceAll("\\", "/"));
 }
 
 function shouldSkipPackageRelPath(rel, kind = "upgrade") {
@@ -2715,6 +2775,10 @@ function buildChangedChaptersPackageZip({ version, changes }) {
   const included = [];
   const missing = [];
   const unique = new Set();
+  const seenRelPaths = new Set();
+  const includedGeneratedAssets = [];
+  const includedAdminFiles = [];
+  const generatedAssetSet = new Set();
 
   for (const item of normalizedChanges) {
     const key = `${item.version}|${item.lang}|${item.bookId}|${item.chapter}`;
@@ -2733,9 +2797,29 @@ function buildChangedChaptersPackageZip({ version, changes }) {
     const rel = path
       .relative(__dirname, srcPath)
       .replaceAll("\\", "/");
-    zip.addLocalFile(srcPath, path.dirname(rel), path.basename(rel));
+    addLocalFileToZipIfExists(zip, srcPath, rel, seenRelPaths);
     included.push(item);
     addedCount += 1;
+    const data = readJson(srcPath, null);
+    collectGeneratedImageRelativePathsFromValue(data, generatedAssetSet);
+  }
+
+  for (const rel of listDeploySyncAdminRelativePaths()) {
+    const abs = path.join(__dirname, rel);
+    if (addLocalFileToZipIfExists(zip, abs, rel, seenRelPaths)) {
+      includedAdminFiles.push(rel);
+      addedCount += 1;
+      const data = readJson(abs, null);
+      collectGeneratedImageRelativePathsFromValue(data, generatedAssetSet);
+    }
+  }
+
+  for (const rel of [...generatedAssetSet].sort((a, b) => a.localeCompare(b, "en"))) {
+    const abs = path.join(__dirname, rel);
+    if (addLocalFileToZipIfExists(zip, abs, rel, seenRelPaths)) {
+      includedGeneratedAssets.push(rel);
+      addedCount += 1;
+    }
   }
 
   zip.addFile(
@@ -2747,6 +2831,8 @@ function buildChangedChaptersPackageZip({ version, changes }) {
           packageKind: "changed",
           generatedAt: nowIso(),
           changeCount: included.length,
+          generatedAssetCount: includedGeneratedAssets.length,
+          adminSyncFileCount: includedAdminFiles.length,
         },
         null,
         2
@@ -2761,6 +2847,8 @@ function buildChangedChaptersPackageZip({ version, changes }) {
         {
           included,
           missing,
+          includedAdminFiles,
+          includedGeneratedAssets,
         },
         null,
         2
@@ -2776,6 +2864,8 @@ function buildChangedChaptersPackageZip({ version, changes }) {
     version: safeVersion,
     addedCount,
     missingCount: missing.length,
+    generatedAssetCount: includedGeneratedAssets.length,
+    adminSyncFileCount: includedAdminFiles.length,
   };
 }
 
@@ -8800,6 +8890,11 @@ async function handleChapterIllustrationFileUpload(req, res) {
     const dest = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(dest, pngBuf);
     try {
+      await ensureGeneratedThumbForFilename(filename, 480);
+    } catch (thumbErr) {
+      console.warn("[chapter-illustration-upload:auto-thumb]", thumbErr?.message || thumbErr);
+    }
+    try {
       fs.unlinkSync(file.path);
     } catch {
       /* ignore */
@@ -9362,6 +9457,7 @@ function collectGeneratedPortraitBaseNamesFromProfiles(profilesRoot) {
     if (!entry || typeof entry !== "object") continue;
     pushUrl(entry.imageUrl);
     pushUrl(entry.heroImageUrl);
+    pushUrl(entry.comparisonSheetUrl);
     const periods = Array.isArray(entry.periods) ? entry.periods : [];
     for (const period of periods) {
       if (!period || typeof period !== "object") continue;
@@ -9764,6 +9860,170 @@ function handleAdminChapterIllustrationsList(req, res) {
   }
 }
 
+function extractChapterIllustrationGeneratedTimestamp(relPath) {
+  const base = path.basename(String(relPath || "").trim());
+  const m = base.match(/-(\d{10,})\.png$/i);
+  return m ? Number(m[1]) || 0 : 0;
+}
+
+function listGeneratedChapterIllustrationCandidates(bookId, chapter) {
+  const bid = safeText(bookId || "").toUpperCase();
+  const ch = Number(chapter);
+  if (!bid || !Number.isFinite(ch)) return [];
+  const prefix = `ill-${bid}-${ch}-`;
+  return listGeneratedPngRelativePaths()
+    .filter((rel) => path.basename(rel).startsWith(prefix))
+    .sort(
+      (a, b) =>
+        extractChapterIllustrationGeneratedTimestamp(b) -
+          extractChapterIllustrationGeneratedTimestamp(a) ||
+        path.basename(b).localeCompare(path.basename(a), "en")
+    )
+    .map((rel) => `/generated/${rel}`);
+}
+
+function findRepairableChapterIllustrationUrl({
+  versionId,
+  lang,
+  bookId,
+  chapter,
+}) {
+  const seen = new Set();
+  const candidates = [];
+  const push = (url) => {
+    const norm = normalizeIllustrationImageUrlForPublication(url);
+    if (!norm || seen.has(norm)) return;
+    if (!resolveSafeGeneratedPngPath(norm)) return;
+    seen.add(norm);
+    candidates.push(norm);
+  };
+
+  const st = loadChapterIllustrationStateFromDisk(versionId, lang, bookId, chapter);
+  push(st?.imageUrl || "");
+  listGeneratedChapterIllustrationCandidates(bookId, chapter).forEach(push);
+  return candidates[0] || "";
+}
+
+function auditPublishedChapterIllustrationRefs({ repair = false } = {}) {
+  const versions = listPublishedContentVersionIds();
+  const missing = [];
+  const repaired = [];
+  const unrecovered = [];
+  let touchedChapters = 0;
+
+  for (const versionId of versions) {
+    const versionDir = path.join(CONTENT_PUBLISHED_DIR, versionId);
+    let langs = [];
+    try {
+      langs = fs
+        .readdirSync(versionDir, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name);
+    } catch {
+      continue;
+    }
+    for (const lang of langs) {
+      const langDir = path.join(versionDir, lang);
+      let bookDirs = [];
+      try {
+        bookDirs = fs
+          .readdirSync(langDir, { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => d.name);
+      } catch {
+        continue;
+      }
+      for (const bookId of bookDirs) {
+        const bookDir = path.join(langDir, bookId);
+        let chapterFiles = [];
+        try {
+          chapterFiles = fs
+            .readdirSync(bookDir, { withFileTypes: true })
+            .filter((d) => d.isFile() && /\.json$/i.test(d.name))
+            .map((d) => d.name);
+        } catch {
+          continue;
+        }
+        for (const fileName of chapterFiles) {
+          const chapter = Number(String(fileName).replace(/\.json$/i, ""));
+          if (!Number.isFinite(chapter)) continue;
+          const fullPath = path.join(bookDir, fileName);
+          const data = readJson(fullPath, null);
+          const ill = normalizeChapterIllustrationForSave(data?.chapterIllustration);
+          if (!ill || !ill.imageUrl) continue;
+          const imageUrl = safeText(ill.imageUrl || "");
+          if (!imageUrl.startsWith("/generated/")) continue;
+          if (resolveSafeGeneratedPngPath(imageUrl)) continue;
+
+          const label = `${bookId} ${chapter}章 [${versionId}/${lang}]`;
+          missing.push(`${label}: ${imageUrl}`);
+
+          if (!repair) continue;
+          const recovered = findRepairableChapterIllustrationUrl({
+            versionId,
+            lang,
+            bookId,
+            chapter,
+          });
+          if (!recovered || recovered === imageUrl) {
+            unrecovered.push(`${label}: ${imageUrl}`);
+            continue;
+          }
+
+          data.chapterIllustration = {
+            ...(data.chapterIllustration && typeof data.chapterIllustration === "object"
+              ? data.chapterIllustration
+              : {}),
+            imageUrl: recovered,
+            updatedAt: nowIso(),
+          };
+          writeJson(fullPath, data);
+          repaired.push(`${label}: ${imageUrl} -> ${recovered}`);
+          touchedChapters += 1;
+        }
+      }
+    }
+  }
+
+  return {
+    missingCount: missing.length,
+    missing,
+    touchedChapters,
+    repaired,
+    unrecovered,
+  };
+}
+
+function handleChapterIllustrationsRepairPreview(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    res.json({ ok: true, ...auditPublishedChapterIllustrationRefs({ repair: false }) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "读取章插画缺图预检失败。" });
+  }
+}
+
+function handleChapterIllustrationsRepair(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const result = auditPublishedChapterIllustrationRefs({ repair: true });
+    clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+    appendAdminAudit(req, authed, "chapter_illustrations_repair_images", {
+      missingCount: result.missingCount,
+      repairedRefs: result.repaired.length,
+      unrecoveredRefs: result.unrecovered.length,
+      touchedChapters: result.touchedChapters,
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "修复章插画缺图失败。" });
+  }
+}
+
 app.get("/api/admin/generated-pngs", handleAdminGeneratedPngsList);
 /** 短路径：个别反代对较长 path 返回 404 时可用 */
 app.get("/api/admin/gpngs", handleAdminGeneratedPngsList);
@@ -9773,6 +10033,16 @@ app.post("/api/admin/generated-pngs/delete", handleAdminGeneratedPngsDelete);
 app.post("/api/admin/gpngs-delete", handleAdminGeneratedPngsDelete);
 app.get("/api/admin/chapter-illustrations", handleAdminChapterIllustrationsList);
 app.get("/api/admin/chapter-ills", handleAdminChapterIllustrationsList);
+app.get(
+  "/api/admin/chapter-illustrations/repair-images-preview",
+  handleChapterIllustrationsRepairPreview
+);
+app.get("/api/admin/chapter-ills/repair-preview", handleChapterIllustrationsRepairPreview);
+app.post(
+  "/api/admin/chapter-illustrations/repair-images",
+  handleChapterIllustrationsRepair
+);
+app.post("/api/admin/chapter-ills/repair", handleChapterIllustrationsRepair);
 
 async function handleCharacterProfilesRepairImages(req, res) {
   try {
@@ -10585,12 +10855,10 @@ app.post("/api/generate-illustration", async (req, res) => {
     }
     const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(filePath, buf);
-    if (bookIdRaw === "char" && nameEnTok && nameSlotTok) {
-      try {
-        await ensureGeneratedThumbForFilename(filename, 480);
-      } catch (thumbErr) {
-        console.warn("[generate-illustration:auto-thumb]", thumbErr?.message || thumbErr);
-      }
+    try {
+      await ensureGeneratedThumbForFilename(filename, 480);
+    } catch (thumbErr) {
+      console.warn("[generate-illustration:auto-thumb]", thumbErr?.message || thumbErr);
     }
 
     const imageUrl = `/generated/${filename}`;
@@ -12193,6 +12461,14 @@ app.post("/api/admin/deploy/package/download-changed", (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.setHeader("X-Package-Added-Count", String(result.addedCount || 0));
     res.setHeader("X-Package-Missing-Count", String(result.missingCount || 0));
+    res.setHeader(
+      "X-Package-Generated-Asset-Count",
+      String(result.generatedAssetCount || 0)
+    );
+    res.setHeader(
+      "X-Package-Admin-Sync-File-Count",
+      String(result.adminSyncFileCount || 0)
+    );
     fs.createReadStream(result.zipPath).pipe(res);
   } catch (error) {
     console.error(error);
