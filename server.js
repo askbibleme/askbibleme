@@ -261,6 +261,14 @@ const CHARACTER_PROFILES_SEED_JSON = process.env.CHARACTER_PROFILES_SEED_JSON
   ? path.resolve(process.env.CHARACTER_PROFILES_SEED_JSON)
   : path.join(__dirname, "admin_data", "character_illustration_profiles.json");
 
+/**
+ * 出图/人物立绘 PNG 与 thumbs（站点 URL 仍为 /generated/...）。
+ * 设置 GENERATED_ASSETS_DIR 指向持久卷时文件不在仓库内；未设则沿用 public/generated。
+ */
+const CHAPTER_ILLUSTRATION_GENERATED_DIR = process.env.GENERATED_ASSETS_DIR
+  ? path.resolve(process.env.GENERATED_ASSETS_DIR)
+  : path.join(__dirname, "public", "generated");
+
 const POINTS_CONFIG_FILE = path.join(ADMIN_DIR, "points_config.json");
 const COLOR_THEMES_FILE = path.join(ADMIN_DIR, "color_themes.json");
 const OPS_CONFIG_FILE = path.join(ADMIN_DIR, "ops_config.json");
@@ -1052,7 +1060,7 @@ const chapterVideoPosterMulter = multer({
   },
 });
 
-/** 章节插图 / 人物透明参考图：管理员上传外部图片，归一化为 PNG 写入 public/generated */
+/** 章节插图 / 人物透明参考图：归一化为 PNG 写入 CHAPTER_ILLUSTRATION_GENERATED_DIR（/generated/ URL 不变） */
 const illustrationImageUploadMulter = multer({
   dest: CHAPTER_VIDEO_UPLOAD_TMP,
   limits: { fileSize: 25 * 1024 * 1024 },
@@ -3330,9 +3338,23 @@ function isAllowedSyncRelPath(relPath) {
   return false;
 }
 
+function resolveGeneratedSyncRelToAbs(relPath) {
+  const rel = String(relPath || "").replaceAll("\\", "/").replace(/^\/+/, "");
+  if (!rel.startsWith("public/generated/")) return "";
+  const tail = rel.slice("public/generated/".length);
+  if (!tail || tail.includes("..")) return "";
+  const full = path.resolve(path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, tail));
+  const root = path.resolve(CHAPTER_ILLUSTRATION_GENERATED_DIR) + path.sep;
+  if (!full.startsWith(root)) return "";
+  return full;
+}
+
 function resolveSyncRelPathToAbs(relPath) {
   const rel = String(relPath || "").replaceAll("\\", "/").replace(/^\/+/, "");
   if (!isAllowedSyncRelPath(rel)) return "";
+  if (rel.startsWith("public/generated/")) {
+    return resolveGeneratedSyncRelToAbs(rel);
+  }
   const abs = path.resolve(path.join(__dirname, rel));
   const root = path.resolve(__dirname) + path.sep;
   if (!abs.startsWith(root)) return "";
@@ -3374,8 +3396,15 @@ function buildSyncSnapshot() {
   const generatedFiles = walkFiles(CHAPTER_ILLUSTRATION_GENERATED_DIR).sort((a, b) =>
     a.localeCompare(b)
   );
+  const genRootResolved = path.resolve(CHAPTER_ILLUSTRATION_GENERATED_DIR) + path.sep;
   for (const abs of generatedFiles) {
-    const rel = path.relative(__dirname, abs).replaceAll("\\", "/");
+    const resolved = path.resolve(abs);
+    if (!resolved.startsWith(genRootResolved)) continue;
+    const tail = path
+      .relative(CHAPTER_ILLUSTRATION_GENERATED_DIR, resolved)
+      .replaceAll("\\", "/");
+    if (!tail || tail.startsWith("..")) continue;
+    const rel = `public/generated/${tail}`;
     if (!isAllowedSyncRelPath(rel)) continue;
     const stat = fs.statSync(abs);
     files.push({
@@ -9954,12 +9983,6 @@ app.post("/api/admin/published/chapter-illustration", (req, res) => {
   }
 });
 
-const CHAPTER_ILLUSTRATION_GENERATED_DIR = path.join(
-  __dirname,
-  "public",
-  "generated"
-);
-
 async function finalizeIllustrationUploadToPngBuffer(buf) {
   const sharp = await getSharp();
   const meta = await sharp(buf).metadata();
@@ -15431,10 +15454,10 @@ app.get("/api/dev/livereload-status", (_req, res) => {
   }
 })();
 
-/* 章节插画 OpenAI 出图落盘：/generated/gen-*.png */
+/* 章节插画 / 人物立绘 PNG：URL /generated/...，目录见 GENERATED_ASSETS_DIR 或 public/generated */
 app.use(
   "/generated",
-  express.static(path.join(__dirname, "public", "generated"), {
+  express.static(CHAPTER_ILLUSTRATION_GENERATED_DIR, {
     maxAge: 0,
     etag: true,
     setHeaders(res, filePath) {
@@ -15480,6 +15503,9 @@ app.listen(port, listenHost, () => {
   console.log(`http://localhost:${port}/`);
   if (CHARACTER_DATA_DIR) {
     console.log("[creative-data] 人像与插画创作数据目录（持久卷）:", CHARACTER_DATA_DIR);
+  }
+  if (process.env.GENERATED_ASSETS_DIR) {
+    console.log("[generated-assets] 出图 PNG 目录（持久卷）:", CHAPTER_ILLUSTRATION_GENERATED_DIR);
   }
   if (characterProfilesUsesSqlite()) {
     console.log(
