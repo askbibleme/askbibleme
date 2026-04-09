@@ -2,6 +2,8 @@
 .env.*
 !.env.example
 
+.DS_Store
+
 # 勿将 OpenAI 等密钥提交到 Git（后台「系统密钥」写入的文件）
 admin_data/system_secrets.json
 
@@ -23,6 +25,7 @@ data/prompts.json
 # OpenAI 出图缓存（运行时写入 public/generated/）；人物/插画发布用 ill- 前缀纳入版本库
 public/generated/*.png
 !public/generated/ill-*.png
+dist-capacitor/public/generated/*.png
 
 # 本地章节视频源文件体积过大，勿直接提交到 GitHub
 chapter_videos/**/*.mp4
