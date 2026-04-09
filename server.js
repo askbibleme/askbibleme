@@ -6030,6 +6030,39 @@ function resolveExistingChapterRosterPortrait(entry, preferredSlot) {
       return { url: slots[i], portraitSlot: i };
     }
   }
+  const englishName = String(entry?.englishName || "").trim();
+  if (englishName) {
+    const dir = path.join(__dirname, "public", "generated");
+    let names = [];
+    try {
+      names = fs
+        .readdirSync(dir)
+        .filter(
+          (name) =>
+            name.startsWith(`ill-char-${englishName}-`) &&
+            /\.png$/i.test(name)
+        )
+        .sort((a, b) => a.localeCompare(b, "en"));
+    } catch {
+      names = [];
+    }
+    const preferred = [
+      `${englishName}-hero`,
+      `${englishName}-p0`,
+      `${englishName}-p1`,
+      `${englishName}-p2`,
+      `${englishName}-sheet`,
+    ];
+    for (const token of preferred) {
+      const match = names.find((name) => name.includes(`-${token.split("-").slice(1).join("-")}-`) || name.includes(`${token}.png`));
+      if (match) {
+        return { url: `/generated/${match}`, portraitSlot: null };
+      }
+    }
+    if (names[0]) {
+      return { url: `/generated/${names[0]}`, portraitSlot: null };
+    }
+  }
   return primary;
 }
 
