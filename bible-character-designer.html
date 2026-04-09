@@ -4466,6 +4466,19 @@
           return data;
         }
 
+        async function autoRepairProfileImagesIfNeeded() {
+          const preview = await refreshInvalidRefAudit();
+          const invalidCount = Number(preview && preview.invalidRefCount) || 0;
+          const repairableCount = Array.isArray(preview && preview.repaired)
+            ? preview.repaired.length
+            : 0;
+          if (!invalidCount || !repairableCount) {
+            return { repaired: false, preview: preview };
+          }
+          const data = await repairProfileImages();
+          return { repaired: true, preview: preview, data: data };
+        }
+
         async function bcdTrySaveProfilesAfterImage() {
           if (!getToken()) return false;
           try {
@@ -4610,7 +4623,19 @@
           setStatus("加载中…", null);
           try {
             await loadProfiles();
-            setStatus("已加载；生成图像后仅更新预览，请点「保存全部」写入档案。", "ok");
+            const autoRepair = await autoRepairProfileImagesIfNeeded();
+            if (autoRepair && autoRepair.repaired) {
+              setStatus(
+                "已自动修复丢失的人物图片引用：" +
+                  (Array.isArray(autoRepair.data && autoRepair.data.repaired)
+                    ? autoRepair.data.repaired.length
+                    : 0) +
+                  " 处。现在看到的已按磁盘现有图片重新对齐。",
+                "ok"
+              );
+            } else {
+              setStatus("已加载；生成图像后仅更新预览，请点「保存全部」写入档案。", "ok");
+            }
           } catch (e) {
             setStatus(String(e.message || e), "err");
           }

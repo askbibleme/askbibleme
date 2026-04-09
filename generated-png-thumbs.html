@@ -163,6 +163,31 @@
         color: var(--muted-soft);
         line-height: 1.55;
       }
+      .gthumb-profile-box {
+        margin: 0 0 14px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(139, 111, 71, 0.05);
+      }
+      .gthumb-profile-title {
+        margin: 0 0 8px;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .gthumb-profile-text {
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+      .gthumb-profile-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
     </style>
   </head>
   <body class="admin-shell-page" data-admin-current="/generated-png-thumbs.html">
@@ -178,6 +203,14 @@
         <strong>需要管理员登录。</strong>请先在读经站登录管理员账号，或
         <a href="/admin-user-login.html">用户登录</a> ·
         <a href="/admin-hub.html">管理首页</a>
+      </div>
+      <div class="gthumb-profile-box">
+        <div class="gthumb-profile-title">人物档案与图片引用</div>
+        <div id="gthumbProfileSummary" class="gthumb-profile-text">尚未读取人物档案统计。</div>
+        <div class="gthumb-profile-actions">
+          <button type="button" id="gthumbProfilePreview">人物引用预检</button>
+          <button type="button" class="primary" id="gthumbProfileRepair">一键修复人物引用</button>
+        </div>
       </div>
       <div class="gthumb-toolbar">
         <input type="text" id="gthumbQ" placeholder="筛选文件名…" style="width: min(100%, 200px)" />
@@ -227,10 +260,14 @@
         const st = document.getElementById("gthumbStatus");
         const bodyEl = document.getElementById("gthumbBody");
         const pageLabel = document.getElementById("gthumbPageLabel");
+        const profileSummaryEl = document.getElementById("gthumbProfileSummary");
+        const profilePreviewBtn = document.getElementById("gthumbProfilePreview");
+        const profileRepairBtn = document.getElementById("gthumbProfileRepair");
         let page = 1;
         const pageSize = 24;
         let lastQ = "";
         let ckpProbedOrigin = "";
+        let lastProfileAudit = null;
 
         function setAuthVisible(on) {
           if (authBox) authBox.classList.toggle("is-visible", Boolean(on));
@@ -347,6 +384,9 @@
           const q = new URLSearchParams({ n: name, w: "96" });
           return apiUrl("/api/rp?" + q.toString());
         }
+        function setProfileSummary(text) {
+          if (profileSummaryEl) profileSummaryEl.textContent = text || "";
+        }
         function fmtBytes(n) {
           if (n < 1024) return n + " B";
           if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
@@ -447,6 +487,128 @@
           } catch (e) {
             setAuthVisible(true);
             setStatus(String(e.message || e), "err");
+          }
+        }
+        function formatProfileAudit(data) {
+          const d = data || {};
+          const lines = [];
+          lines.push(
+            "人物档案 " +
+              (Number(d.profileCount) || 0) +
+              " 人；档案里已填主图 " +
+              (Number(d.heroRefCount) || 0) +
+              " 人；主图引用当前可落到真实 PNG " +
+              (Number(d.heroResolvedCount) || 0) +
+              " 人。"
+          );
+          lines.push(
+            "至少有一张真实图片可用的人物 " +
+              (Number(d.anyImageResolvedCount) || 0) +
+              " 人；当前失效引用 " +
+              (Number(d.invalidRefCount) || 0) +
+              " 处；预计可自动修复 " +
+              (Number(d.touchedCharacters) || 0) +
+              " 人 / " +
+              (Array.isArray(d.repaired) ? d.repaired.length : 0) +
+              " 处。"
+          );
+          if (Array.isArray(d.repaired) && d.repaired.length) {
+            lines.push("");
+            lines.push("预检示例：");
+            d.repaired.slice(0, 8).forEach(function (line) {
+              lines.push("• " + line);
+            });
+            if (d.repaired.length > 8) {
+              lines.push("… 其余 " + (d.repaired.length - 8) + " 处未展开");
+            }
+          } else if (Number(d.invalidRefCount) > 0) {
+            lines.push("");
+            lines.push("这些人物很可能磁盘上已有图，但档案引用没有对上；可以直接点下方一键修复。");
+          }
+          return lines.join("\n");
+        }
+        async function loadProfileAudit() {
+          setProfileSummary("正在读取人物档案统计…");
+          const reqUrl = apiUrl("/api/admin/bible-character-profiles/repair-images-preview");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({ _url: reqUrl, headers: { ...authHeaders() } })
+            );
+            const parsed = await parseJsonBody(res);
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setProfileSummary("接口 404：线上还没有人物引用预检接口，请先部署最新 server.js 并重启。");
+              } else if (res.status === 401 || res.status === 403) {
+                setAuthVisible(true);
+                setProfileSummary("未登录或无管理员权限，无法读取人物档案统计。");
+              } else {
+                setProfileSummary("读取人物档案统计失败：HTTP " + res.status);
+              }
+              return null;
+            }
+            const j = parsed.data || {};
+            if (!res.ok) {
+              setProfileSummary(j.error || "读取人物档案统计失败");
+              return null;
+            }
+            lastProfileAudit = j;
+            setProfileSummary(formatProfileAudit(j));
+            return j;
+          } catch (e) {
+            setProfileSummary(String(e.message || e));
+            return null;
+          }
+        }
+        async function repairProfileRefs() {
+          if (
+            !window.confirm(
+              "将自动扫描现有 generated 人物图，并把缺失/失效的档案图片引用回填到正确文件。继续？"
+            )
+          ) {
+            return;
+          }
+          setProfileSummary("正在修复人物图片引用…");
+          const reqUrl = apiUrl("/api/admin/bible-character-profiles/repair-images");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: { ...authHeaders() },
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setProfileSummary("接口 404：线上还没有人物引用修复接口，请先部署最新 server.js 并重启。");
+              } else {
+                setProfileSummary("返回非 JSON（HTTP " + res.status + "）");
+              }
+              return;
+            }
+            const j = parsed.data || {};
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) setAuthVisible(true);
+              setProfileSummary(j.error || "修复失败");
+              return;
+            }
+            await loadProfileAudit();
+            const auditText = lastProfileAudit ? "\n\n" + formatProfileAudit(lastProfileAudit) : "";
+            setProfileSummary(
+              "修复完成：回填 " +
+                (Array.isArray(j.repaired) ? j.repaired.length : 0) +
+                " 处引用，涉及 " +
+                (Number(j.touchedCharacters) || 0) +
+                " 个人物；并重建缩略图 " +
+                (Number(j.rosterThumbsBuilt) || 0) +
+                " 张。" +
+                auditText
+            );
+            await loadList();
+          } catch (e) {
+            setProfileSummary(String(e.message || e));
           }
         }
         function selectedNames() {
@@ -733,6 +895,12 @@
           .addEventListener("click", function () {
             void deleteNames(selectedNames());
           });
+        profilePreviewBtn.addEventListener("click", function () {
+          void loadProfileAudit();
+        });
+        profileRepairBtn.addEventListener("click", function () {
+          void repairProfileRefs();
+        });
         bodyEl.addEventListener("click", function (ev) {
           const btn =
             ev.target && ev.target.closest
@@ -744,6 +912,7 @@
           void deleteNames([name]);
         });
         void loadList();
+        void loadProfileAudit();
       })();
     </script>
   </body>

@@ -7775,6 +7775,10 @@ const CHARACTER_ILLUSTRATION_PROFILES_FILE = path.join(
   ADMIN_DIR,
   "character_illustration_profiles.json"
 );
+const CHARACTER_PROFILE_IMAGE_AUDIT_FILE = path.join(
+  ADMIN_DIR,
+  "character_profile_image_audit.json"
+);
 
 const CHARACTER_STAGE_RULES_FILE = path.join(
   ADMIN_DIR,
@@ -7961,7 +7965,122 @@ function ensureCharacterIllustrationProfilesFile() {
 
 function loadCharacterIllustrationProfiles() {
   ensureCharacterIllustrationProfilesFile();
-  return readJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, { characters: {} });
+  const root = readJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, { characters: {} });
+  return applyCharacterProfileImageAuditRecovery(root);
+}
+
+function loadCharacterProfileImageAudit() {
+  const raw = readJson(CHARACTER_PROFILE_IMAGE_AUDIT_FILE, null);
+  if (!raw || typeof raw !== "object") return { items: [] };
+  return {
+    items: Array.isArray(raw.items) ? raw.items : [],
+  };
+}
+
+function saveCharacterProfileImageAudit(data) {
+  writeJson(CHARACTER_PROFILE_IMAGE_AUDIT_FILE, {
+    items: Array.isArray(data?.items) ? data.items : [],
+  });
+}
+
+function buildCharacterProfileImageAuditEntry(zhName, row) {
+  const entry = row && typeof row === "object" ? row : {};
+  const periods = Array.isArray(entry.periods) ? entry.periods : [];
+  return {
+    zhName: safeText(zhName || "").slice(0, 32),
+    savedAt: nowIso(),
+    heroImageUrl: safeText(entry.heroImageUrl || "").slice(0, 400),
+    imageUrl: safeText(entry.imageUrl || "").slice(0, 400),
+    comparisonSheetUrl: safeText(entry.comparisonSheetUrl || "").slice(0, 400),
+    periods: periods.slice(0, 2).map((p) => ({
+      imageUrl: safeText(p?.imageUrl || "").slice(0, 400),
+    })),
+  };
+}
+
+function rememberCharacterProfileImageAuditFromProfiles(profilesRoot) {
+  const chars =
+    profilesRoot &&
+    typeof profilesRoot === "object" &&
+    profilesRoot.characters &&
+    typeof profilesRoot.characters === "object"
+      ? profilesRoot.characters
+      : {};
+  const db = loadCharacterProfileImageAudit();
+  const nextMap = new Map(
+    (db.items || [])
+      .filter((x) => x && typeof x === "object" && safeText(x.zhName || ""))
+      .map((x) => [safeText(x.zhName || ""), x])
+  );
+  for (const [zhName, row] of Object.entries(chars)) {
+    const snapshot = buildCharacterProfileImageAuditEntry(zhName, row);
+    const refs = [
+      snapshot.heroImageUrl,
+      snapshot.imageUrl,
+      snapshot.comparisonSheetUrl,
+      ...(Array.isArray(snapshot.periods) ? snapshot.periods.map((p) => p.imageUrl) : []),
+    ].filter(Boolean);
+    if (!refs.length) continue;
+    nextMap.set(snapshot.zhName, snapshot);
+  }
+  const items = [...nextMap.values()]
+    .sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")))
+    .slice(0, 500);
+  saveCharacterProfileImageAudit({ items });
+}
+
+function applyCharacterProfileImageAuditRecovery(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const chars =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  const auditMap = new Map(
+    loadCharacterProfileImageAudit()
+      .items.filter((x) => x && typeof x === "object" && safeText(x.zhName || ""))
+      .map((x) => [safeText(x.zhName || ""), x])
+  );
+  let changed = false;
+  for (const [zhName, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    const snap = auditMap.get(zhName);
+    if (!snap) continue;
+    const hero = safeText(row.heroImageUrl || "");
+    const snapHero = safeText(snap.heroImageUrl || "");
+    if ((!hero || !generatedUrlExists(hero)) && snapHero && generatedUrlExists(snapHero)) {
+      row.heroImageUrl = snapHero;
+      changed = true;
+    }
+    const img0 = safeText(row.imageUrl || "");
+    const snapImg0 = safeText(snap.imageUrl || "");
+    if ((!img0 || !generatedUrlExists(img0)) && snapImg0 && generatedUrlExists(snapImg0)) {
+      row.imageUrl = snapImg0;
+      changed = true;
+    }
+    const cmp = safeText(row.comparisonSheetUrl || "");
+    const snapCmp = safeText(snap.comparisonSheetUrl || "");
+    if ((!cmp || !generatedUrlExists(cmp)) && snapCmp && generatedUrlExists(snapCmp)) {
+      row.comparisonSheetUrl = snapCmp;
+      changed = true;
+    }
+    if (Array.isArray(row.periods) && Array.isArray(snap.periods)) {
+      for (let i = 0; i < row.periods.length && i < snap.periods.length; i++) {
+        const period = row.periods[i];
+        const snapPeriod = snap.periods[i];
+        if (!period || typeof period !== "object") continue;
+        const cur = safeText(period.imageUrl || "");
+        const old = safeText(snapPeriod?.imageUrl || "");
+        if ((!cur || !generatedUrlExists(cur)) && old && generatedUrlExists(old)) {
+          period.imageUrl = old;
+          changed = true;
+        }
+      }
+    }
+  }
+  if (changed) {
+    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, root);
+    rememberCharacterProfileImageAuditFromProfiles(root);
+  }
+  return root;
 }
 
 function normalizeCharacterRefSelectionsFromBody(body) {
@@ -8706,6 +8825,7 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
     }
     ensureDir(ADMIN_DIR);
     writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, out);
+    rememberCharacterProfileImageAuditFromProfiles(out);
     let thumbBuild = { built: [], failed: [] };
     try {
       thumbBuild = await ensureGeneratedRosterThumbsForProfiles(
@@ -8716,6 +8836,10 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
       console.warn("[character-profiles:auto-thumbs]", thumbErr?.message || thumbErr);
     }
     clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+    appendAdminAudit(req, authed, "bible_character_profiles_save", {
+      characterCount: Object.keys(out.characters || {}).length,
+      heroCount: Object.values(out.characters || {}).filter((x) => safeText(x?.heroImageUrl || "")).length,
+    });
     res.json({
       ok: true,
       profiles: out,
@@ -9827,6 +9951,44 @@ function repairCharacterProfileImageRefs(profilesRoot) {
   };
 }
 
+function summarizeCharacterProfileImageStats(profilesRoot) {
+  const chars =
+    profilesRoot &&
+    typeof profilesRoot === "object" &&
+    profilesRoot.characters &&
+    typeof profilesRoot.characters === "object"
+      ? profilesRoot.characters
+      : {};
+  let profileCount = 0;
+  let heroRefCount = 0;
+  let heroResolvedCount = 0;
+  let anyImageResolvedCount = 0;
+  for (const row of Object.values(chars)) {
+    if (!row || typeof row !== "object") continue;
+    profileCount += 1;
+    const hero = String(row.heroImageUrl || "").trim();
+    if (hero) heroRefCount += 1;
+    if (hero && generatedUrlExists(hero)) heroResolvedCount += 1;
+    const refs = [
+      String(row.imageUrl || "").trim(),
+      hero,
+      String(row.comparisonSheetUrl || "").trim(),
+      ...(Array.isArray(row.periods)
+        ? row.periods.map((p) => String(p?.imageUrl || "").trim())
+        : []),
+    ].filter(Boolean);
+    if (refs.some((ref) => generatedUrlExists(ref))) {
+      anyImageResolvedCount += 1;
+    }
+  }
+  return {
+    profileCount,
+    heroRefCount,
+    heroResolvedCount,
+    anyImageResolvedCount,
+  };
+}
+
 function collectGeneratedPortraitBaseNamesFromProfiles(profilesRoot) {
   const out = [];
   const seen = new Set();
@@ -10541,6 +10703,7 @@ async function handleCharacterProfilesRepairImages(req, res) {
     const profiles = loadCharacterIllustrationProfiles();
     const result = repairCharacterProfileImageRefs(profiles);
     writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, result.profiles);
+    rememberCharacterProfileImageAuditFromProfiles(result.profiles);
     let thumbBuild = { built: [], failed: [] };
     try {
       thumbBuild = await ensureGeneratedRosterThumbsForProfiles(
@@ -10585,11 +10748,13 @@ function handleCharacterProfilesRepairPreview(req, res) {
     const authed = requireAdminUser(req, res);
     if (!authed) return;
     const profiles = loadCharacterIllustrationProfiles();
+    const stats = summarizeCharacterProfileImageStats(profiles);
     const invalidRefs = collectInvalidCharacterProfileRefs(profiles);
     const cloned = JSON.parse(JSON.stringify(profiles || { characters: {} }));
     const repairPreview = repairCharacterProfileImageRefs(cloned);
     res.json({
       ok: true,
+      ...stats,
       invalidRefCount: invalidRefs.length,
       invalidRefs,
       touchedCharacters: repairPreview.touchedCharacters,
