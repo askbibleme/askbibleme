@@ -265,9 +265,17 @@ function writeJson(filePath, data) {
 
 function loadSystemSecrets() {
   const raw = readJson(SYSTEM_SECRETS_FILE, null);
-  if (!raw || typeof raw !== "object") return { openaiApiKey: "" };
+  if (!raw || typeof raw !== "object") {
+    return {
+      openaiApiKey: "",
+      remoteSyncBaseUrl: "",
+      remoteSyncAdminToken: "",
+    };
+  }
   return {
     openaiApiKey: safeText(raw.openaiApiKey || ""),
+    remoteSyncBaseUrl: safeText(raw.remoteSyncBaseUrl || ""),
+    remoteSyncAdminToken: safeText(raw.remoteSyncAdminToken || ""),
   };
 }
 
@@ -277,6 +285,8 @@ function saveSystemSecrets(next) {
     ...current,
     ...(next || {}),
     openaiApiKey: safeText(next?.openaiApiKey ?? current.openaiApiKey),
+    remoteSyncBaseUrl: safeText(next?.remoteSyncBaseUrl ?? current.remoteSyncBaseUrl),
+    remoteSyncAdminToken: safeText(next?.remoteSyncAdminToken ?? current.remoteSyncAdminToken),
   };
   writeJson(SYSTEM_SECRETS_FILE, merged);
   return merged;
@@ -1011,6 +1021,9 @@ function illustrationImageUploadMiddleware(req, res, next) {
   }
   illustrationImageUploadMulter.single("file")(req, res, next);
 }
+
+const READER_IMAGE_MAX_EDGE = 960;
+const READER_IMAGE_MAX_EDGE_LIMIT = 1280;
 
 /* =========================================================
    配置读取
@@ -2761,6 +2774,281 @@ function listDeploySyncAdminRelativePaths() {
     .filter(Boolean)
     .filter((abs) => fs.existsSync(abs))
     .map((abs) => path.relative(__dirname, abs).replaceAll("\\", "/"));
+}
+
+function normalizeRemoteSyncBaseUrl(input) {
+  const raw = String(input || "").trim().replace(/\/+$/, "");
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return "";
+  }
+}
+
+function getRemoteSyncConfig() {
+  const secrets = loadSystemSecrets();
+  return {
+    baseUrl: normalizeRemoteSyncBaseUrl(secrets.remoteSyncBaseUrl || ""),
+    adminToken: safeText(secrets.remoteSyncAdminToken || ""),
+  };
+}
+
+function maskRemoteSyncToken(token) {
+  const t = safeText(token || "");
+  if (!t) return "";
+  return `${"*".repeat(Math.max(0, t.length - 4))}${t.slice(-4)}`;
+}
+
+function isAllowedSyncRelPath(relPath) {
+  const rel = String(relPath || "").replaceAll("\\", "/").replace(/^\/+/, "");
+  if (!rel || rel.includes("../")) return false;
+  if (rel.startsWith("content_published/")) return rel.endsWith(".json");
+  if (listDeploySyncAdminRelativePaths().includes(rel)) return true;
+  if (rel.startsWith("public/generated/")) return true;
+  return false;
+}
+
+function resolveSyncRelPathToAbs(relPath) {
+  const rel = String(relPath || "").replaceAll("\\", "/").replace(/^\/+/, "");
+  if (!isAllowedSyncRelPath(rel)) return "";
+  const abs = path.resolve(path.join(__dirname, rel));
+  const root = path.resolve(__dirname) + path.sep;
+  if (!abs.startsWith(root)) return "";
+  return abs;
+}
+
+function computeFileDigest(absPath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(absPath)).digest("hex");
+}
+
+function buildSyncSnapshot() {
+  const files = [];
+  const adminRelPaths = listDeploySyncAdminRelativePaths();
+  for (const rel of adminRelPaths) {
+    const abs = resolveSyncRelPathToAbs(rel);
+    if (!abs || !fs.existsSync(abs)) continue;
+    const stat = fs.statSync(abs);
+    files.push({
+      rel,
+      size: stat.size,
+      mtimeMs: Math.round(stat.mtimeMs),
+      sha256: computeFileDigest(abs),
+    });
+  }
+  const contentFiles = walkFiles(CONTENT_PUBLISHED_DIR)
+    .filter((abs) => abs.endsWith(".json"))
+    .sort((a, b) => a.localeCompare(b));
+  for (const abs of contentFiles) {
+    const rel = path.relative(__dirname, abs).replaceAll("\\", "/");
+    if (!isAllowedSyncRelPath(rel)) continue;
+    const stat = fs.statSync(abs);
+    files.push({
+      rel,
+      size: stat.size,
+      mtimeMs: Math.round(stat.mtimeMs),
+      sha256: computeFileDigest(abs),
+    });
+  }
+  const generatedFiles = walkFiles(CHAPTER_ILLUSTRATION_GENERATED_DIR).sort((a, b) =>
+    a.localeCompare(b)
+  );
+  for (const abs of generatedFiles) {
+    const rel = path.relative(__dirname, abs).replaceAll("\\", "/");
+    if (!isAllowedSyncRelPath(rel)) continue;
+    const stat = fs.statSync(abs);
+    files.push({
+      rel,
+      size: stat.size,
+      mtimeMs: Math.round(stat.mtimeMs),
+      sha256: computeFileDigest(abs),
+    });
+  }
+  return {
+    generatedAt: nowIso(),
+    fileCount: files.length,
+    files,
+  };
+}
+
+function summarizeSyncRelPath(rel) {
+  const pathText = String(rel || "");
+  if (pathText.startsWith("content_published/")) return "已发布内容";
+  if (pathText.startsWith("public/generated/thumbs/")) return "缩略图";
+  if (pathText.startsWith("public/generated/")) return "插画与人物图";
+  if (pathText.startsWith("admin_data/")) return "人物与插画配置";
+  return "其它";
+}
+
+function compareSyncSnapshots(localSnapshot, remoteSnapshot) {
+  const localFiles = Array.isArray(localSnapshot?.files) ? localSnapshot.files : [];
+  const remoteFiles = Array.isArray(remoteSnapshot?.files) ? remoteSnapshot.files : [];
+  const localMap = new Map(localFiles.map((x) => [String(x.rel || ""), x]));
+  const remoteMap = new Map(remoteFiles.map((x) => [String(x.rel || ""), x]));
+  const allRels = new Set([...localMap.keys(), ...remoteMap.keys()]);
+  const onlyRemote = [];
+  const onlyLocal = [];
+  const different = [];
+  const groupCounts = {
+    remoteOnly: {},
+    localOnly: {},
+    different: {},
+  };
+  const bump = (bucket, rel) => {
+    const key = summarizeSyncRelPath(rel);
+    bucket[key] = (bucket[key] || 0) + 1;
+  };
+  for (const rel of [...allRels].sort()) {
+    const localItem = localMap.get(rel);
+    const remoteItem = remoteMap.get(rel);
+    if (localItem && !remoteItem) {
+      onlyLocal.push({ rel, local: localItem });
+      bump(groupCounts.localOnly, rel);
+      continue;
+    }
+    if (!localItem && remoteItem) {
+      onlyRemote.push({ rel, remote: remoteItem });
+      bump(groupCounts.remoteOnly, rel);
+      continue;
+    }
+    if (!localItem || !remoteItem) continue;
+    if (String(localItem.sha256 || "") !== String(remoteItem.sha256 || "")) {
+      different.push({ rel, local: localItem, remote: remoteItem });
+      bump(groupCounts.different, rel);
+    }
+  }
+  return {
+    localFileCount: localFiles.length,
+    remoteFileCount: remoteFiles.length,
+    onlyRemote,
+    onlyLocal,
+    different,
+    groupCounts,
+    pullPaths: [...onlyRemote.map((x) => x.rel), ...different.map((x) => x.rel)],
+    pushPaths: [...onlyLocal.map((x) => x.rel), ...different.map((x) => x.rel)],
+  };
+}
+
+function buildSyncPackageZipFromRelPaths(relPaths, label = "sync") {
+  const normalized = Array.from(
+    new Set(
+      (Array.isArray(relPaths) ? relPaths : [])
+        .map((x) => String(x || "").replaceAll("\\", "/").replace(/^\/+/, ""))
+        .filter((x) => x && isAllowedSyncRelPath(x))
+    )
+  ).sort();
+  const zipId = `sync_${label}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const zipPath = path.join(DEPLOY_UPLOADS_DIR, `${zipId}.zip`);
+  const zip = new AdmZip();
+  let addedCount = 0;
+  for (const rel of normalized) {
+    const abs = resolveSyncRelPathToAbs(rel);
+    if (!abs || !fs.existsSync(abs)) continue;
+    zip.addLocalFile(abs, path.dirname(rel), path.basename(rel));
+    addedCount += 1;
+  }
+  zip.addFile(
+    "version.json",
+    Buffer.from(
+      JSON.stringify(
+        {
+          label,
+          generatedAt: nowIso(),
+          fileCount: addedCount,
+          scope: "content-character-illustration-sync",
+        },
+        null,
+        2
+      ),
+      "utf8"
+    )
+  );
+  zip.writeZip(zipPath);
+  return { zipPath, addedCount, relPaths: normalized };
+}
+
+function applySyncZipBuffer(buffer, sourceLabel, req, authed) {
+  const zip = new AdmZip(buffer);
+  const entries = zip.getEntries().filter((entry) => !entry.isDirectory);
+  const allowedEntries = [];
+  for (const entry of entries) {
+    const rel = String(entry.entryName || "").replaceAll("\\", "/").replace(/^\/+/, "");
+    if (!isAllowedSyncRelPath(rel)) continue;
+    allowedEntries.push({ rel, entry });
+  }
+  if (!allowedEntries.length) {
+    throw new Error("同步包中没有可导入的内容/人物/插画文件");
+  }
+  const backupId = `syncbk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const backupDir = path.join(DEPLOY_BACKUPS_DIR, backupId);
+  ensureDir(backupDir);
+  const manifest = [];
+  let appliedCount = 0;
+  for (const item of allowedEntries) {
+    const dest = resolveSyncRelPathToAbs(item.rel);
+    if (!dest) continue;
+    if (fs.existsSync(dest) && fs.statSync(dest).isFile()) {
+      const backupPath = path.join(backupDir, item.rel);
+      ensureDir(path.dirname(backupPath));
+      fs.copyFileSync(dest, backupPath);
+      manifest.push({ rel: item.rel, hadOriginal: true });
+    } else {
+      manifest.push({ rel: item.rel, hadOriginal: false });
+    }
+    ensureDir(path.dirname(dest));
+    fs.writeFileSync(dest, item.entry.getData());
+    appliedCount += 1;
+  }
+  writeJson(path.join(backupDir, "manifest.json"), manifest);
+  appendAdminAudit(req, authed, "remote_sync_import", {
+    source: safeText(sourceLabel || ""),
+    appliedCount,
+    backupId,
+  });
+  return { appliedCount, backupId, relPaths: allowedEntries.map((x) => x.rel) };
+}
+
+async function fetchRemoteSyncJson(relativePath, init = {}) {
+  const remote = getRemoteSyncConfig();
+  if (!remote.baseUrl || !remote.adminToken) {
+    throw new Error("请先配置远端站点地址与管理员 Token");
+  }
+  const url = `${remote.baseUrl}${relativePath.startsWith("/") ? relativePath : `/${relativePath}`}`;
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      ...(init.headers || {}),
+      Authorization: `Bearer ${remote.adminToken}`,
+    },
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error((data && data.error) || `远端请求失败 HTTP ${res.status}`);
+  }
+  return data;
+}
+
+async function fetchRemoteSyncZip(relativePath, body) {
+  const remote = getRemoteSyncConfig();
+  if (!remote.baseUrl || !remote.adminToken) {
+    throw new Error("请先配置远端站点地址与管理员 Token");
+  }
+  const url = `${remote.baseUrl}${relativePath.startsWith("/") ? relativePath : `/${relativePath}`}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${remote.adminToken}`,
+    },
+    body: JSON.stringify(body || {}),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error((data && data.error) || `远端下载同步包失败 HTTP ${res.status}`);
+  }
+  return Buffer.from(await res.arrayBuffer());
 }
 
 function shouldSkipPackageRelPath(rel, kind = "upgrade") {
@@ -8420,7 +8708,10 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
     writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, out);
     let thumbBuild = { built: [], failed: [] };
     try {
-      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(out, 480);
+      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(
+        out,
+        READER_IMAGE_MAX_EDGE
+      );
     } catch (thumbErr) {
       console.warn("[character-profiles:auto-thumbs]", thumbErr?.message || thumbErr);
     }
@@ -9003,7 +9294,7 @@ async function handleChapterIllustrationFileUpload(req, res) {
     const dest = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(dest, pngBuf);
     try {
-      await ensureGeneratedThumbForFilename(filename, 480);
+      await ensureGeneratedThumbForFilename(filename, READER_IMAGE_MAX_EDGE);
     } catch (thumbErr) {
       console.warn("[chapter-illustration-upload:auto-thumb]", thumbErr?.message || thumbErr);
     }
@@ -9068,7 +9359,7 @@ async function handleBibleCharacterPortraitUpload(req, res) {
     const dest = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(dest, pngBuf);
     try {
-      await ensureGeneratedThumbForFilename(filename, 480);
+      await ensureGeneratedThumbForFilename(filename, READER_IMAGE_MAX_EDGE);
     } catch (thumbErr) {
       console.warn("[bible-character-upload:auto-thumb]", thumbErr?.message || thumbErr);
     }
@@ -9198,10 +9489,10 @@ async function handleRosterPortraitGet(req, res) {
       res.status(400).type("text/plain").send("Invalid path");
       return;
     }
-    const wRaw = Number(req.query.w ?? req.query.max ?? 480);
+    const wRaw = Number(req.query.w ?? req.query.max ?? READER_IMAGE_MAX_EDGE);
     const dim = Number.isFinite(wRaw)
-      ? Math.min(720, Math.max(48, Math.round(wRaw)))
-      : 480;
+      ? Math.min(READER_IMAGE_MAX_EDGE_LIMIT, Math.max(48, Math.round(wRaw)))
+      : READER_IMAGE_MAX_EDGE;
 
     const buf = await fs.promises.readFile(filePath);
     let outBuf = buf;
@@ -9580,13 +9871,19 @@ function collectGeneratedPortraitBaseNamesFromProfiles(profilesRoot) {
   return out;
 }
 
-async function ensureGeneratedRosterThumbsForProfiles(profilesRoot, maxEdge = 480) {
+async function ensureGeneratedRosterThumbsForProfiles(
+  profilesRoot,
+  maxEdge = READER_IMAGE_MAX_EDGE
+) {
   const names = collectGeneratedPortraitBaseNamesFromProfiles(profilesRoot);
   if (!names.length) {
     return { built: [], failed: [] };
   }
   const sharp = await getSharp();
-  const dim = Math.min(720, Math.max(64, Math.round(Number(maxEdge) || 480)));
+  const dim = Math.min(
+    READER_IMAGE_MAX_EDGE_LIMIT,
+    Math.max(64, Math.round(Number(maxEdge) || READER_IMAGE_MAX_EDGE))
+  );
   const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
   ensureDir(thumbDir);
   const built = [];
@@ -9619,13 +9916,19 @@ async function ensureGeneratedRosterThumbsForProfiles(profilesRoot, maxEdge = 48
   return { built, failed };
 }
 
-async function ensureGeneratedThumbForFilename(name, maxEdge = 480) {
+async function ensureGeneratedThumbForFilename(
+  name,
+  maxEdge = READER_IMAGE_MAX_EDGE
+) {
   const base = path.basename(String(name || "").trim());
   if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(base)) return false;
   const srcPath = resolveSafeGeneratedPngPath(`/generated/${base}`);
   if (!srcPath) return false;
   const sharp = await getSharp();
-  const dim = Math.min(720, Math.max(64, Math.round(Number(maxEdge) || 480)));
+  const dim = Math.min(
+    READER_IMAGE_MAX_EDGE_LIMIT,
+    Math.max(64, Math.round(Number(maxEdge) || READER_IMAGE_MAX_EDGE))
+  );
   const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
   ensureDir(thumbDir);
   const destPath = path.join(thumbDir, base);
@@ -9688,8 +9991,8 @@ async function handleAdminGeneratedPngsRebuildThumbs(req, res) {
     const body = req.body || {};
     const namesIn = Array.isArray(body.names) ? body.names : [];
     const dim = Math.min(
-      720,
-      Math.max(64, Math.round(Number(body.maxEdge) || 480))
+      READER_IMAGE_MAX_EDGE_LIMIT,
+      Math.max(64, Math.round(Number(body.maxEdge) || READER_IMAGE_MAX_EDGE))
     );
     const MAX = 80;
     const names = [];
@@ -9746,6 +10049,78 @@ async function handleAdminGeneratedPngsRebuildThumbs(req, res) {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message || "生成失败" });
+  }
+}
+
+async function handleAdminGeneratedPngsResetThumbs(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const sharp = await getSharp();
+    const body = req.body || {};
+    const dim = Math.min(
+      READER_IMAGE_MAX_EDGE_LIMIT,
+      Math.max(64, Math.round(Number(body.maxEdge) || READER_IMAGE_MAX_EDGE))
+    );
+    const allNames = listGeneratedPngRelativePaths();
+    const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
+    ensureDir(thumbDir);
+
+    const removedThumbs = [];
+    const staleEntries = fs.readdirSync(thumbDir, { withFileTypes: true });
+    for (const ent of staleEntries) {
+      if (!ent.isFile()) continue;
+      if (!/\.png$/i.test(ent.name)) continue;
+      const abs = path.join(thumbDir, ent.name);
+      fs.unlinkSync(abs);
+      removedThumbs.push(ent.name);
+    }
+
+    const built = [];
+    const failed = [];
+    for (const name of allNames) {
+      try {
+        const srcPath = resolveSafeGeneratedPngPath(`/generated/${name}`);
+        if (!srcPath) {
+          failed.push({ name, error: "无效或不存在" });
+          continue;
+        }
+        const destPath = path.join(thumbDir, path.basename(name));
+        const buf = await fs.promises.readFile(srcPath);
+        const outBuf = await sharp(buf)
+          .rotate()
+          .resize({
+            width: dim,
+            height: dim,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .png({ compressionLevel: 9, effort: 6 })
+          .toBuffer();
+        await fs.promises.writeFile(destPath, outBuf);
+        built.push(name);
+      } catch (e) {
+        failed.push({ name, error: e.message || String(e) });
+      }
+    }
+    clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+    appendAdminAudit(req, authed, "generated_png_reset_thumbs", {
+      dim,
+      removedThumbs: removedThumbs.length,
+      rebuilt: built.length,
+      failed: failed.length,
+    });
+    res.json({
+      ok: true,
+      dim,
+      removedThumbs,
+      built,
+      failed,
+      totalSourcePngs: allNames.length,
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message || "重建全部缩略图失败" });
   }
 }
 
@@ -10142,6 +10517,8 @@ app.get("/api/admin/generated-pngs", handleAdminGeneratedPngsList);
 app.get("/api/admin/gpngs", handleAdminGeneratedPngsList);
 app.post("/api/admin/generated-pngs/rebuild-thumbs", handleAdminGeneratedPngsRebuildThumbs);
 app.post("/api/admin/gpngs-rebuild", handleAdminGeneratedPngsRebuildThumbs);
+app.post("/api/admin/generated-pngs/reset-thumbs", handleAdminGeneratedPngsResetThumbs);
+app.post("/api/admin/gpngs-reset", handleAdminGeneratedPngsResetThumbs);
 app.post("/api/admin/generated-pngs/delete", handleAdminGeneratedPngsDelete);
 app.post("/api/admin/gpngs-delete", handleAdminGeneratedPngsDelete);
 app.get("/api/admin/chapter-illustrations", handleAdminChapterIllustrationsList);
@@ -10166,7 +10543,10 @@ async function handleCharacterProfilesRepairImages(req, res) {
     writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, result.profiles);
     let thumbBuild = { built: [], failed: [] };
     try {
-      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(result.profiles, 480);
+      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(
+        result.profiles,
+        READER_IMAGE_MAX_EDGE
+      );
     } catch (thumbErr) {
       console.warn("[character-profiles:repair:auto-thumbs]", thumbErr?.message || thumbErr);
     }
@@ -10503,7 +10883,7 @@ async function handleBcdExtractHeroFromComparison(req, res) {
     const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(filePath, outBuf);
     try {
-      await ensureGeneratedThumbForFilename(filename, 480);
+      await ensureGeneratedThumbForFilename(filename, READER_IMAGE_MAX_EDGE);
     } catch (thumbErr) {
       console.warn("[bcd-extract-hero:auto-thumb]", thumbErr?.message || thumbErr);
     }
@@ -10569,7 +10949,7 @@ async function handleBcdExtractAllPeriodsFromComparison(req, res) {
         const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
         fs.writeFileSync(filePath, outBuf);
         try {
-          await ensureGeneratedThumbForFilename(filename, 480);
+          await ensureGeneratedThumbForFilename(filename, READER_IMAGE_MAX_EDGE);
         } catch (thumbErr) {
           console.warn("[bcd-extract-period:auto-thumb]", thumbErr?.message || thumbErr);
         }
@@ -10969,7 +11349,7 @@ app.post("/api/generate-illustration", async (req, res) => {
     const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(filePath, buf);
     try {
-      await ensureGeneratedThumbForFilename(filename, 480);
+      await ensureGeneratedThumbForFilename(filename, READER_IMAGE_MAX_EDGE);
     } catch (thumbErr) {
       console.warn("[generate-illustration:auto-thumb]", thumbErr?.message || thumbErr);
     }
@@ -12516,6 +12896,221 @@ app.get("/api/admin/audit-log", (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "读取审计日志失败" });
+  }
+});
+
+app.get("/api/admin/remote-sync/config", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const remote = getRemoteSyncConfig();
+    res.json({
+      configured: Boolean(remote.baseUrl && remote.adminToken),
+      baseUrl: remote.baseUrl || "",
+      tokenMasked: maskRemoteSyncToken(remote.adminToken),
+      note: "仅同步已发布内容、人物/插画配置、public/generated；不含账号与提问数据。",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取远端同步配置失败" });
+  }
+});
+
+app.post("/api/admin/remote-sync/config/save", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const current = getRemoteSyncConfig();
+    const baseUrl = normalizeRemoteSyncBaseUrl(req.body?.baseUrl || "");
+    const incomingToken = safeText(req.body?.adminToken || "");
+    const adminToken = incomingToken || current.adminToken;
+    if (req.body?.baseUrl && !baseUrl) {
+      return res.status(400).json({ error: "请输入有效的远端站点地址" });
+    }
+    saveSystemSecrets({ remoteSyncBaseUrl: baseUrl, remoteSyncAdminToken: adminToken });
+    appendAdminAudit(req, authed, "remote_sync_config_save", {
+      baseUrl,
+      hasToken: Boolean(adminToken),
+    });
+    res.json({
+      ok: true,
+      configured: Boolean(baseUrl && adminToken),
+      baseUrl,
+      tokenMasked: maskRemoteSyncToken(adminToken),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "保存远端同步配置失败" });
+  }
+});
+
+app.get("/api/admin/sync/snapshot", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    res.json({ ok: true, snapshot: buildSyncSnapshot() });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "生成同步快照失败" });
+  }
+});
+
+app.post("/api/admin/sync/export", (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const paths = Array.isArray(req.body?.paths) ? req.body.paths : [];
+    if (!paths.length) {
+      return res.status(400).json({ error: "缺少 paths" });
+    }
+    const label = safeText(req.body?.label || "sync");
+    const result = buildSyncPackageZipFromRelPaths(paths, label);
+    const fileName = `askbible-sync-${label}-${Date.now()}.zip`;
+    appendAdminAudit(req, authed, "remote_sync_export", {
+      label,
+      addedCount: result.addedCount,
+    });
+    res.download(result.zipPath, fileName);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "导出同步包失败" });
+  }
+});
+
+app.post("/api/admin/sync/import", upload.single("package"), (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    if (!req.file) {
+      return res.status(400).json({ error: "缺少同步包" });
+    }
+    const result = applySyncZipBuffer(
+      fs.readFileSync(req.file.path),
+      safeText(req.body?.source || "upload"),
+      req,
+      authed
+    );
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch {}
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "导入同步包失败" });
+  }
+});
+
+app.post("/api/admin/remote-sync/preview", async (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const remoteSnapshotPayload = await fetchRemoteSyncJson("/api/admin/sync/snapshot");
+    const remoteSnapshot = remoteSnapshotPayload?.snapshot || { files: [] };
+    const localSnapshot = buildSyncSnapshot();
+    const diff = compareSyncSnapshots(localSnapshot, remoteSnapshot);
+    res.json({
+      ok: true,
+      remoteBaseUrl: getRemoteSyncConfig().baseUrl,
+      localGeneratedAt: localSnapshot.generatedAt,
+      remoteGeneratedAt: safeText(remoteSnapshot.generatedAt || ""),
+      summary: {
+        localFileCount: diff.localFileCount,
+        remoteFileCount: diff.remoteFileCount,
+        onlyRemoteCount: diff.onlyRemote.length,
+        onlyLocalCount: diff.onlyLocal.length,
+        differentCount: diff.different.length,
+        pullCandidateCount: diff.pullPaths.length,
+        pushCandidateCount: diff.pushPaths.length,
+        groupCounts: diff.groupCounts,
+      },
+      samples: {
+        onlyRemote: diff.onlyRemote.slice(0, 20).map((x) => x.rel),
+        onlyLocal: diff.onlyLocal.slice(0, 20).map((x) => x.rel),
+        different: diff.different.slice(0, 20).map((x) => x.rel),
+      },
+      pullPaths: diff.pullPaths,
+      pushPaths: diff.pushPaths,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "远端同步预检失败" });
+  }
+});
+
+app.post("/api/admin/remote-sync/pull", async (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const remoteSnapshotPayload = await fetchRemoteSyncJson("/api/admin/sync/snapshot");
+    const remoteSnapshot = remoteSnapshotPayload?.snapshot || { files: [] };
+    const localSnapshot = buildSyncSnapshot();
+    const diff = compareSyncSnapshots(localSnapshot, remoteSnapshot);
+    if (!diff.pullPaths.length) {
+      return res.json({ ok: true, appliedCount: 0, backupId: "", message: "本机已是最新，无需补齐。" });
+    }
+    const zipBuffer = await fetchRemoteSyncZip("/api/admin/sync/export", {
+      label: "remote-pull",
+      paths: diff.pullPaths,
+    });
+    const result = applySyncZipBuffer(zipBuffer, "remote-pull", req, authed);
+    appendAdminAudit(req, authed, "remote_sync_pull", {
+      appliedCount: result.appliedCount,
+      backupId: result.backupId,
+      remoteBaseUrl: getRemoteSyncConfig().baseUrl,
+    });
+    res.json({ ok: true, ...result, requestedCount: diff.pullPaths.length });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "远端补齐到本机失败" });
+  }
+});
+
+app.post("/api/admin/remote-sync/push", async (req, res) => {
+  try {
+    const authed = requirePermission(req, res, "manage_deploy");
+    if (!authed) return;
+    const remoteSnapshotPayload = await fetchRemoteSyncJson("/api/admin/sync/snapshot");
+    const remoteSnapshot = remoteSnapshotPayload?.snapshot || { files: [] };
+    const localSnapshot = buildSyncSnapshot();
+    const diff = compareSyncSnapshots(localSnapshot, remoteSnapshot);
+    if (!diff.pushPaths.length) {
+      return res.json({ ok: true, pushedCount: 0, message: "线上已经与本机一致，无需推送。" });
+    }
+    const exportZip = buildSyncPackageZipFromRelPaths(diff.pushPaths, "remote-push");
+    const buf = fs.readFileSync(exportZip.zipPath);
+    const remote = getRemoteSyncConfig();
+    const form = new FormData();
+    form.append(
+      "package",
+      new Blob([buf], { type: "application/zip" }),
+      path.basename(exportZip.zipPath)
+    );
+    form.append("source", "local-push");
+    const resRemote = await fetch(`${remote.baseUrl}/api/admin/sync/import`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${remote.adminToken}`,
+      },
+      body: form,
+    });
+    const data = await resRemote.json().catch(() => ({}));
+    if (!resRemote.ok) {
+      throw new Error(data.error || `远端导入失败 HTTP ${resRemote.status}`);
+    }
+    appendAdminAudit(req, authed, "remote_sync_push", {
+      pushedCount: data.appliedCount || exportZip.addedCount,
+      remoteBaseUrl: remote.baseUrl,
+      remoteBackupId: data.backupId || "",
+    });
+    res.json({
+      ok: true,
+      pushedCount: data.appliedCount || exportZip.addedCount,
+      remoteBackupId: data.backupId || "",
+      requestedCount: diff.pushPaths.length,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "本机推送到远端失败" });
   }
 });
 

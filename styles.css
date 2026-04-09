@@ -3841,6 +3841,7 @@ button.toolbar-trigger:hover,
   display: block;
   width: 100%;
   max-width: 100%;
+  position: relative;
 }
 
 .chapter-illustration-img {
@@ -3852,6 +3853,22 @@ button.toolbar-trigger:hover,
   border-radius: 12px;
   box-shadow: none;
   outline: none;
+}
+
+.chapter-illustration-watermark {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(10px, 2.4vw, 22px);
+  width: clamp(56px, 11vw, 104px);
+  height: clamp(56px, 11vw, 104px);
+  transform: translateX(-50%);
+  border-radius: 18px;
+  background:
+    url("/assets/icons/icon.svg") center / contain no-repeat;
+  opacity: 0.1;
+  filter: grayscale(1) brightness(1.08);
+  mix-blend-mode: multiply;
+  pointer-events: none;
 }
 
 /* 右页视频槽：与左栏对称分列（仅宽屏有内容；窄屏由脚本清空） */

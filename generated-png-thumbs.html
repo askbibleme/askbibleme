@@ -171,7 +171,7 @@
       <p class="gthumb-lead">
         递归列出 <code>public/generated/</code> 下的
         <code>.png</code>（插画出图、人物立绘、上传后转存的 PNG 等；自动排除 <code>thumbs/</code>）。预览为实时缩图。勾选后可<strong>批量写入</strong>
-        <code>public/generated/thumbs/</code> 同名小图（默认最长边 480px）；写好后读经页「本章人员」会<strong>优先用静态小图</strong>，减轻
+        <code>public/generated/thumbs/</code> 同名小图（默认最长边 960px）；写好后读经页「本章人员」会<strong>优先用静态小图</strong>，减轻
         <code>/api/roster-portrait</code> 压力。单次最多 80 张，可分页多批操作。
       </p>
       <div id="gthumbAuth" class="gthumb-auth">
@@ -184,12 +184,13 @@
         <button type="button" id="gthumbSearch">筛选</button>
         <label style="font-size:13px;color:var(--muted)"
           >最长边(px)
-          <input type="number" id="gthumbDim" value="480" min="64" max="720" style="width: 72px"
+          <input type="number" id="gthumbDim" value="960" min="64" max="1280" style="width: 72px"
         /></label>
         <button type="button" id="gthumbReload">刷新列表</button>
         <button type="button" id="gthumbSelectPage">本页全选</button>
         <button type="button" id="gthumbClear">取消全选</button>
         <button type="button" class="primary" id="gthumbBatch">批量生成所选缩略图</button>
+        <button type="button" class="primary" id="gthumbResetAll">清空旧图并重建全部 960</button>
         <button type="button" class="danger" id="gthumbDeleteSelected">删除所选</button>
         <span class="gthumb-status" id="gthumbStatus" aria-live="polite"></span>
       </div>
@@ -561,7 +562,7 @@
             return;
           }
           const dimEl = document.getElementById("gthumbDim");
-          const maxEdge = Number(dimEl && dimEl.value) || 480;
+          const maxEdge = Number(dimEl && dimEl.value) || 960;
           if (
             !window.confirm(
               "将为 " +
@@ -620,6 +621,69 @@
             setStatus(String(e.message || e), "err");
           }
         }
+        async function resetAllThumbs() {
+          const dimEl = document.getElementById("gthumbDim");
+          const maxEdge = Number(dimEl && dimEl.value) || 960;
+          if (
+            !window.confirm(
+              "将删除 public/generated/thumbs/ 里的旧缩略图，并按最长边 " +
+                maxEdge +
+                "px 为所有 generated PNG 全量重建。继续？"
+            )
+          ) {
+            return;
+          }
+          setStatus("清空旧图并重建全部中…", "");
+          const reqUrl = apiUrl("/api/admin/gpngs-reset");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...authHeaders(),
+                },
+                body: JSON.stringify({ maxEdge: maxEdge }),
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            const j = parsed.ok ? parsed.data : {};
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setAuthVisible(false);
+                setStatus("接口 404：请先部署最新 server.js 并重启 Node。", "err");
+              } else {
+                setStatus("返回非 JSON（HTTP " + res.status + "）", "err");
+              }
+              return;
+            }
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) setAuthVisible(true);
+              setStatus(j.error || "失败 HTTP " + res.status, "err");
+              return;
+            }
+            const removed = Array.isArray(j.removedThumbs)
+              ? j.removedThumbs.length
+              : 0;
+            const built = Array.isArray(j.built) ? j.built.length : 0;
+            const failed = Array.isArray(j.failed) ? j.failed.length : 0;
+            setStatus(
+              "重建完成：已删除旧图 " +
+                removed +
+                " 张，重建 " +
+                built +
+                " 张，失败 " +
+                failed +
+                " 张。",
+              failed ? "err" : "ok"
+            );
+            await loadList();
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        }
         document.getElementById("gthumbReload").addEventListener("click", function () {
           lastQ = String(document.getElementById("gthumbQ").value || "").trim();
           page = 1;
@@ -660,6 +724,9 @@
         });
         document.getElementById("gthumbBatch").addEventListener("click", function () {
           void batchRebuild();
+        });
+        document.getElementById("gthumbResetAll").addEventListener("click", function () {
+          void resetAllThumbs();
         });
         document
           .getElementById("gthumbDeleteSelected")

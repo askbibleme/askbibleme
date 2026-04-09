@@ -464,7 +464,7 @@ function chapterRosterPortraitImgSrc(normalizedPath) {
         bust
       );
     }
-    const q = new URLSearchParams({ n: baseName, w: "480" });
+    const q = new URLSearchParams({ n: baseName, w: "960" });
     return appendCacheBustToUrl(
       resolveStudyApiPath("/api/roster-portrait?" + q.toString()),
       bust
@@ -5694,7 +5694,7 @@ function syncChapterIllustrationSlot() {
     escapeHtml(fallbackSrc) +
     '" data-src-fallback-2="' +
     escapeHtml(finalSrc) +
-    '" alt="" decoding="sync" fetchpriority="high" loading="eager" /></figure>';
+    '" alt="" decoding="sync" fetchpriority="high" loading="eager" /><span class="chapter-illustration-watermark" aria-hidden="true"></span></figure>';
   const imgEl = slot.querySelector(".chapter-illustration-img");
   bindChapterIllustrationImageFallback(imgEl);
 }
@@ -7300,6 +7300,26 @@ function ensureDeployTabExists() {
       <button id="deployRefreshBtn" class="secondary-btn" type="button">刷新状态</button>
     </div>
     <div id="deployStatusBox" class="result-box">尚未读取部署状态。</div>
+    <div class="section-title">远端内容同步</div>
+    <div class="result-box">仅同步已发布内容、人物/插画配置、public/generated 图片与缩略图；不含账号、提问、权限、SQLite 数据。</div>
+    <div class="admin-grid">
+      <div>
+        <div class="label">远端站点地址</div>
+        <input id="remoteSyncBaseUrlInput" class="custom-textarea single-input" placeholder="例如 https://askbible.me" />
+      </div>
+      <div>
+        <div class="label">远端管理员 Token</div>
+        <input id="remoteSyncAdminTokenInput" type="password" class="custom-textarea single-input" placeholder="粘贴远端管理员 Bearer Token" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="saveRemoteSyncConfigBtn" class="secondary-btn" type="button">保存远端配置</button>
+      <button id="refreshRemoteSyncConfigBtn" class="secondary-btn" type="button">刷新配置</button>
+      <button id="previewRemoteSyncBtn" class="primary-btn" type="button">差异预检</button>
+      <button id="pullRemoteSyncBtn" class="secondary-btn" type="button">远端补齐到本机</button>
+      <button id="pushRemoteSyncBtn" class="secondary-btn" type="button">本机推送到远端</button>
+    </div>
+    <div id="remoteSyncStatusBox" class="result-box">尚未读取远端同步配置。</div>
     <div class="section-title">数据备份与恢复</div>
     <div class="modal-actions">
       <button id="createDataBackupBtn" class="primary-btn" type="button">创建数据备份</button>
@@ -10030,6 +10050,14 @@ async function initDeployManagerTab() {
   const rollbackBtn = document.getElementById("deployRollbackBtn");
   const refreshBtn = document.getElementById("deployRefreshBtn");
   const statusBox = document.getElementById("deployStatusBox");
+  const remoteSyncBaseUrlInput = document.getElementById("remoteSyncBaseUrlInput");
+  const remoteSyncAdminTokenInput = document.getElementById("remoteSyncAdminTokenInput");
+  const saveRemoteSyncConfigBtn = document.getElementById("saveRemoteSyncConfigBtn");
+  const refreshRemoteSyncConfigBtn = document.getElementById("refreshRemoteSyncConfigBtn");
+  const previewRemoteSyncBtn = document.getElementById("previewRemoteSyncBtn");
+  const pullRemoteSyncBtn = document.getElementById("pullRemoteSyncBtn");
+  const pushRemoteSyncBtn = document.getElementById("pushRemoteSyncBtn");
+  const remoteSyncStatusBox = document.getElementById("remoteSyncStatusBox");
   const createDataBackupBtn = document.getElementById("createDataBackupBtn");
   const refreshDataBackupBtn = document.getElementById("refreshDataBackupBtn");
   const downloadDataBackupBtn = document.getElementById("downloadDataBackupBtn");
@@ -10232,6 +10260,45 @@ async function initDeployManagerTab() {
     }；生效来源：${sourceMap[data.source] || data.source || "未知"}${shadowHint}${
       data.masked ? `；当前生效 Key 尾号：${data.masked}` : ""
     }${envBlock ? `\n${envBlock}` : ""}`;
+  }
+
+  async function loadRemoteSyncConfig() {
+    if (!remoteSyncStatusBox) return;
+    const res = await fetch("/api/admin/remote-sync/config", { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "读取远端同步配置失败");
+    if (remoteSyncBaseUrlInput) remoteSyncBaseUrlInput.value = String(data.baseUrl || "");
+    if (remoteSyncAdminTokenInput) remoteSyncAdminTokenInput.value = "";
+    remoteSyncStatusBox.textContent = data.configured
+      ? `已配置远端：${data.baseUrl || ""}；Token：${data.tokenMasked || ""}。仅同步内容/人物/插画，不含账号与提问。`
+      : "尚未配置远端站点地址与管理员 Token。";
+  }
+
+  function formatRemoteSyncSummary(data) {
+    const summary = data?.summary || {};
+    const formatGroup = (title, obj) => {
+      const entries = Object.entries(obj || {});
+      return `${title}：${
+        entries.length ? entries.map(([k, v]) => `${k}${v}`).join("，") : "无"
+      }`;
+    };
+    const formatSamples = (title, arr) =>
+      `${title}：${Array.isArray(arr) && arr.length ? arr.slice(0, 8).join("；") : "无"}`;
+    return [
+      `远端：${data?.remoteBaseUrl || "未配置"}；本机 ${summary.localFileCount || 0} 项；远端 ${
+        summary.remoteFileCount || 0
+      } 项；仅远端 ${summary.onlyRemoteCount || 0} 项；仅本机 ${
+        summary.onlyLocalCount || 0
+      } 项；内容不同 ${summary.differentCount || 0} 项；可补齐到本机 ${
+        summary.pullCandidateCount || 0
+      } 项；可推送到远端 ${summary.pushCandidateCount || 0} 项`,
+      formatGroup("仅远端分布", summary.groupCounts?.remoteOnly),
+      formatGroup("仅本机分布", summary.groupCounts?.localOnly),
+      formatGroup("差异分布", summary.groupCounts?.different),
+      formatSamples("仅远端示例", data?.samples?.onlyRemote),
+      formatSamples("仅本机示例", data?.samples?.onlyLocal),
+      formatSamples("差异示例", data?.samples?.different),
+    ].join("\n");
   }
 
   uploadBtn?.addEventListener("click", async () => {
@@ -10489,6 +10556,97 @@ async function initDeployManagerTab() {
     }
   });
 
+  saveRemoteSyncConfigBtn?.addEventListener("click", async () => {
+    if (!remoteSyncStatusBox) return;
+    remoteSyncStatusBox.textContent = "正在保存远端同步配置...";
+    const res = await fetch("/api/admin/remote-sync/config/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        baseUrl: String(remoteSyncBaseUrlInput?.value || "").trim(),
+        adminToken: String(remoteSyncAdminTokenInput?.value || "").trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      remoteSyncStatusBox.textContent = data.error || "保存失败";
+      return;
+    }
+    remoteSyncStatusBox.textContent = `远端配置已保存：${data.baseUrl || ""}；Token：${
+      data.tokenMasked || ""
+    }。`;
+    if (remoteSyncAdminTokenInput) remoteSyncAdminTokenInput.value = "";
+  });
+
+  refreshRemoteSyncConfigBtn?.addEventListener("click", async () => {
+    try {
+      await loadRemoteSyncConfig();
+    } catch (error) {
+      if (remoteSyncStatusBox) remoteSyncStatusBox.textContent = error?.message || "读取失败";
+    }
+  });
+
+  previewRemoteSyncBtn?.addEventListener("click", async () => {
+    if (!remoteSyncStatusBox) return;
+    remoteSyncStatusBox.textContent = "正在预检远端差异...";
+    const res = await fetch("/api/admin/remote-sync/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      remoteSyncStatusBox.textContent = data.error || "预检失败";
+      return;
+    }
+    remoteSyncStatusBox.textContent = formatRemoteSyncSummary(data);
+  });
+
+  pullRemoteSyncBtn?.addEventListener("click", async () => {
+    if (!remoteSyncStatusBox) return;
+    if (!confirm("确认从远端补齐到本机？会覆盖内容不同的内容/人物/插画文件，并自动创建回滚备份。")) {
+      return;
+    }
+    remoteSyncStatusBox.textContent = "正在从远端补齐到本机...";
+    const res = await fetch("/api/admin/remote-sync/pull", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      remoteSyncStatusBox.textContent = data.error || "远端补齐失败";
+      return;
+    }
+    remoteSyncStatusBox.textContent = `补齐完成：写入 ${data.appliedCount || 0} 项；备份 ${
+      data.backupId || "无"
+    }。`;
+    await loadDataBackups().catch(() => {});
+    await loadAuditLog().catch(() => {});
+  });
+
+  pushRemoteSyncBtn?.addEventListener("click", async () => {
+    if (!remoteSyncStatusBox) return;
+    if (!confirm("确认把本机内容/人物/插画差异推送到远端？不会同步账号与提问数据。")) {
+      return;
+    }
+    remoteSyncStatusBox.textContent = "正在推送本机差异到远端...";
+    const res = await fetch("/api/admin/remote-sync/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      remoteSyncStatusBox.textContent = data.error || "推送失败";
+      return;
+    }
+    remoteSyncStatusBox.textContent = `推送完成：远端写入 ${data.pushedCount || 0} 项；远端备份 ${
+      data.remoteBackupId || "无"
+    }。`;
+    await loadAuditLog().catch(() => {});
+  });
+
   saveSystemOpenAiKeyBtn?.addEventListener("click", async () => {
     const apiKey = String(systemOpenAiKeyInput?.value || "").trim();
     if (!apiKey) {
@@ -10544,6 +10702,9 @@ async function initDeployManagerTab() {
 
   refreshBtn?.addEventListener("click", loadStatus);
   await loadStatus();
+  await loadRemoteSyncConfig().catch((error) => {
+    if (remoteSyncStatusBox) remoteSyncStatusBox.textContent = error?.message || "读取失败";
+  });
   await loadDataBackups().catch((error) => {
     if (dataBackupStatusBox) dataBackupStatusBox.textContent = error?.message || "读取失败";
   });
