@@ -49,6 +49,14 @@ import {
   resolveChapterRosterPortrait,
   sanitizeCharacterFigurePortraitSlotByZh,
 } from "./src/chapter-illustration/index.js";
+import {
+  characterProfilesUsesSqlite,
+  loadCharacterProfilesRootFromSqlite,
+  saveCharacterProfilesRootToSqlite,
+  migrateSeedJsonToSqliteIfEmpty,
+  countCharacterProfilesInSqlite,
+  getCharacterProfilesDbPathForLog,
+} from "./src/character-profiles-persistence.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -3235,8 +3243,8 @@ function collectGeneratedImageRelativePathsFromValue(input, out = new Set()) {
 }
 
 function listDeploySyncAdminRelativePaths() {
-  return [
-    CHARACTER_ILLUSTRATION_PROFILES_FILE,
+  const paths = [
+    !characterProfilesUsesSqlite() && CHARACTER_ILLUSTRATION_PROFILES_FILE,
     CHAPTER_ILLUSTRATION_STATE_FILE,
     CHARACTER_STAGE_RULES_FILE,
     CHAPTER_KEY_PEOPLE_FILE,
@@ -3244,6 +3252,7 @@ function listDeploySyncAdminRelativePaths() {
     .filter(Boolean)
     .filter((abs) => fs.existsSync(abs))
     .map((abs) => path.relative(__dirname, abs).replaceAll("\\", "/"));
+  return paths;
 }
 
 function normalizeRemoteSyncBaseUrl(input) {
@@ -8257,10 +8266,15 @@ const CHAPTER_ILLUSTRATION_STATE_FILE = path.join(
   "chapter_illustration_states.json"
 );
 
+/** 默认 JSON 路径；未启用 SQLite 时读写此文件。启用 SQLite 后仅作可选种子来源（见 CHARACTER_PROFILES_SEED_JSON）。 */
 const CHARACTER_ILLUSTRATION_PROFILES_FILE = path.join(
   ADMIN_DIR,
   "character_illustration_profiles.json"
 );
+/** 首次初始化 SQLite 时导入的种子 JSON（默认同仓库 admin_data 模板）。 */
+const CHARACTER_PROFILES_SEED_JSON = process.env.CHARACTER_PROFILES_SEED_JSON
+  ? path.resolve(process.env.CHARACTER_PROFILES_SEED_JSON)
+  : path.join(__dirname, "admin_data", "character_illustration_profiles.json");
 const CHARACTER_PROFILE_IMAGE_AUDIT_FILE = path.join(
   ADMIN_DIR,
   "character_profile_image_audit.json"
@@ -8412,46 +8426,71 @@ function loadChapterKeyPeopleGlobal(bookId, chapter) {
   }
 }
 
+const DEFAULT_CHARACTER_ILLUSTRATION_PROFILES_ROOT = {
+  characters: {
+    亚伯拉罕: {
+      englishName: "Abraham",
+      scripturePersonalityZh: "圣经中称许的信心之父，信而顺服，蒙召即往未知之地。",
+      scripturePersonalityEn:
+        "Portrayed as the father of faith—trusting God’s promise, leaving familiar ground in obedience; steady, reverent demeanor rather than bravado.",
+      shortSceneTagEn: "lean patriarch with full beard and staff",
+      appearanceEn:
+        "Lean man about 75, full beard, weathered face, striped ancient Near Eastern robe to the ankle, simple belt, wooden walking staff, calm posture",
+    },
+    摩西: {
+      englishName: "Moses",
+      shortSceneTagEn: "strong-bearded man in desert robe",
+      appearanceEn:
+        "Man about 80, long white-streaked beard, sun-darkened skin, coarse desert robe, rope belt, holding wooden staff, upright bearing",
+    },
+    大卫: {
+      englishName: "David",
+      shortSceneTagEn: "ruddy young warrior-king with harp",
+      appearanceEn:
+        "Young adult male, ruddy complexion, curly dark hair and short beard, simple royal headband optional, knee-length tunic, lyre or sling implied by scene, athletic build",
+    },
+    撒拉: {
+      englishName: "Sarah",
+      shortSceneTagEn: "dignified matriarch beside Abraham",
+      appearanceEn:
+        "Woman past middle age, covered hair with simple veil, modest layered robe, composed posture, shorter than Abraham, warm but firm expression",
+    },
+  },
+};
+
+function persistCharacterIllustrationProfilesRoot(root) {
+  if (characterProfilesUsesSqlite()) {
+    saveCharacterProfilesRootToSqlite(root);
+    return;
+  }
+  ensureDir(ADMIN_DIR);
+  writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, root);
+}
+
 function ensureCharacterIllustrationProfilesFile() {
+  if (characterProfilesUsesSqlite()) {
+    migrateSeedJsonToSqliteIfEmpty(CHARACTER_PROFILES_SEED_JSON);
+    if (countCharacterProfilesInSqlite() === 0) {
+      saveCharacterProfilesRootToSqlite(
+        JSON.parse(JSON.stringify(DEFAULT_CHARACTER_ILLUSTRATION_PROFILES_ROOT))
+      );
+    }
+    return;
+  }
   ensureDir(ADMIN_DIR);
   if (!fs.existsSync(CHARACTER_ILLUSTRATION_PROFILES_FILE)) {
-    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, {
-      characters: {
-        亚伯拉罕: {
-          englishName: "Abraham",
-          scripturePersonalityZh: "圣经中称许的信心之父，信而顺服，蒙召即往未知之地。",
-          scripturePersonalityEn:
-            "Portrayed as the father of faith—trusting God’s promise, leaving familiar ground in obedience; steady, reverent demeanor rather than bravado.",
-          shortSceneTagEn: "lean patriarch with full beard and staff",
-          appearanceEn:
-            "Lean man about 75, full beard, weathered face, striped ancient Near Eastern robe to the ankle, simple belt, wooden walking staff, calm posture",
-        },
-        摩西: {
-          englishName: "Moses",
-          shortSceneTagEn: "strong-bearded man in desert robe",
-          appearanceEn:
-            "Man about 80, long white-streaked beard, sun-darkened skin, coarse desert robe, rope belt, holding wooden staff, upright bearing",
-        },
-        大卫: {
-          englishName: "David",
-          shortSceneTagEn: "ruddy young warrior-king with harp",
-          appearanceEn:
-            "Young adult male, ruddy complexion, curly dark hair and short beard, simple royal headband optional, knee-length tunic, lyre or sling implied by scene, athletic build",
-        },
-        撒拉: {
-          englishName: "Sarah",
-          shortSceneTagEn: "dignified matriarch beside Abraham",
-          appearanceEn:
-            "Woman past middle age, covered hair with simple veil, modest layered robe, composed posture, shorter than Abraham, warm but firm expression",
-        },
-      },
-    });
+    writeJson(
+      CHARACTER_ILLUSTRATION_PROFILES_FILE,
+      JSON.parse(JSON.stringify(DEFAULT_CHARACTER_ILLUSTRATION_PROFILES_ROOT))
+    );
   }
 }
 
 function loadCharacterIllustrationProfiles() {
   ensureCharacterIllustrationProfilesFile();
-  const root = readJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, { characters: {} });
+  const root = characterProfilesUsesSqlite()
+    ? loadCharacterProfilesRootFromSqlite()
+    : readJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, { characters: {} });
   const recovered = applyCharacterProfileImageAuditRecovery(root);
   const englishBackfilled = applyCharacterProfileEnglishNameDefaults(recovered);
   const bookBackfilled = applyCharacterProfileSourceBookDefaults(englishBackfilled.root);
@@ -8465,7 +8504,7 @@ function loadCharacterIllustrationProfiles() {
     roleBackfilled.changed ||
     lifespanBackfilled.changed
   ) {
-    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, lifespanBackfilled.root);
+    persistCharacterIllustrationProfilesRoot(lifespanBackfilled.root);
     rememberCharacterProfileImageAuditFromProfiles(lifespanBackfilled.root);
   }
   return lifespanBackfilled.root;
@@ -8579,7 +8618,7 @@ function applyCharacterProfileImageAuditRecovery(profilesRoot) {
     }
   }
   if (changed) {
-    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, root);
+    persistCharacterIllustrationProfilesRoot(root);
     rememberCharacterProfileImageAuditFromProfiles(root);
   }
   return root;
@@ -9361,7 +9400,7 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
       out.characters[key] = row;
     }
     ensureDir(ADMIN_DIR);
-    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, out);
+    persistCharacterIllustrationProfilesRoot(out);
     rememberCharacterProfileImageAuditFromProfiles(out);
     let thumbBuild = { built: [], failed: [] };
     try {
@@ -11254,7 +11293,7 @@ async function handleCharacterProfilesRepairImages(req, res) {
     if (!authed) return;
     const profiles = loadCharacterIllustrationProfiles();
     const result = repairCharacterProfileImageRefs(profiles);
-    writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, result.profiles);
+    persistCharacterIllustrationProfilesRoot(result.profiles);
     rememberCharacterProfileImageAuditFromProfiles(result.profiles);
     let thumbBuild = { built: [], failed: [] };
     try {
@@ -15428,6 +15467,12 @@ const listenHost =
     : "0.0.0.0";
 app.listen(port, listenHost, () => {
   console.log(`http://localhost:${port}/`);
+  if (characterProfilesUsesSqlite()) {
+    console.log(
+      "[character-profiles] SQLite（与代码发布解耦）:",
+      getCharacterProfilesDbPathForLog()
+    );
+  }
   console.log(
     "[routes] 插画 GPT 文案: POST /api/chapter-illustration/gpt-copy；自检 GET /api/chapter-illustration/gpt-copy-probe"
   );
