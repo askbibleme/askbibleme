@@ -1288,6 +1288,30 @@
           countEl.textContent = base + " · 失效引用 " + invalidCount + " 处";
         }
 
+        function hasInvalidRefForZhField(zh, fieldName) {
+          var name = String(zh || "").trim();
+          var field = String(fieldName || "").trim();
+          if (!name || !field) return false;
+          var refs = Array.isArray(invalidRefAudit && invalidRefAudit.invalidRefs)
+            ? invalidRefAudit.invalidRefs
+            : [];
+          var i;
+          for (i = 0; i < refs.length; i++) {
+            var row = refs[i];
+            if (!row) continue;
+            if (String(row.zhName || "").trim() !== name) continue;
+            if (String(row.field || "").trim() === field) return true;
+          }
+          return false;
+        }
+
+        function cardHasUsableHeroImage(card, zh) {
+          if (!card) return false;
+          var hero = String(card.getAttribute("data-hero-image-url") || "").trim();
+          if (!hero) return false;
+          return !hasInvalidRefForZhField(zh || cardZhDisplayKey(card), "heroImageUrl");
+        }
+
         function sortKeys(obj) {
           return Object.keys(obj || {}).sort(compareBcdKeysForHistoricalOrder);
         }
@@ -1406,8 +1430,7 @@
               queue.push(zh);
               continue;
             }
-            var hero = String(card.getAttribute("data-hero-image-url") || "").trim();
-            if (!hero) queue.push(zh);
+            if (!cardHasUsableHeroImage(card, zh)) queue.push(zh);
           }
           if (!queue.length) {
             setStatus("备选库中人物均已具备主图，无需批量补全。", "ok");
@@ -1442,7 +1465,7 @@
                 setStatus("批量：无法为「" + zh + "」创建卡片，已跳过。", "err");
                 continue;
               }
-              if (String(card.getAttribute("data-hero-image-url") || "").trim()) {
+              if (cardHasUsableHeroImage(card, zh)) {
                 ok += 1;
                 continue;
               }
@@ -1502,8 +1525,7 @@
               return;
             }
             btn.classList.add("bcd-preset-name--in-list");
-            var hero = String(card.getAttribute("data-hero-image-url") || "").trim();
-            if (hero) {
+            if (cardHasUsableHeroImage(card, zh)) {
               span.textContent = "已添加 · 主图已生成";
               span.className = "bcd-preset-status bcd-preset-status--ok";
             } else {

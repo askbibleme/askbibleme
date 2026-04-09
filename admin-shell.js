@@ -276,6 +276,7 @@
     }
   })();
 
+  let currentMarked = false;
   for (let g = 0; g < NAV_GROUPS.length; g++) {
     const group = NAV_GROUPS[g];
     const sub = document.createElement("div");
@@ -289,9 +290,10 @@
       a.href = it.href;
       a.textContent = it.label;
       if (it.note) a.title = String(it.note);
-      if (pathMatchesCurrent(it.href)) {
+      if (!currentMarked && pathMatchesCurrent(it.href)) {
         a.classList.add("is-current");
         a.setAttribute("aria-current", "page");
+        currentMarked = true;
       }
       aside.appendChild(a);
     }

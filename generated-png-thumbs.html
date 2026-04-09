@@ -190,12 +190,44 @@
       }
       .gthumb-profile-list {
         margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px dashed rgba(139, 111, 71, 0.25);
+        padding: 12px 14px;
+        border: 1px solid rgba(139, 111, 71, 0.18);
+        border-radius: 12px;
+        background: rgba(255, 253, 248, 0.72);
         font-size: 12px;
         line-height: 1.65;
         color: var(--muted);
         white-space: pre-wrap;
+      }
+      .gthumb-profile-list-box {
+        margin-top: 12px;
+      }
+      .gthumb-profile-list-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        border: 1px solid rgba(139, 111, 71, 0.18);
+        border-radius: 12px;
+        background: rgba(255, 253, 248, 0.9);
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ink);
+        cursor: pointer;
+        list-style: none;
+      }
+      .gthumb-profile-list-toggle::-webkit-details-marker {
+        display: none;
+      }
+      .gthumb-profile-list-toggle::after {
+        content: "展开";
+        flex: 0 0 auto;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .gthumb-profile-list-box[open] .gthumb-profile-list-toggle::after {
+        content: "收起";
       }
     </style>
   </head>
@@ -220,7 +252,10 @@
           <button type="button" id="gthumbProfilePreview">人物引用预检</button>
           <button type="button" class="primary" id="gthumbProfileRepair">一键修复人物引用</button>
         </div>
-        <div id="gthumbProfileList" class="gthumb-profile-list">尚未读取缺图人物清单。</div>
+        <details id="gthumbProfileListBox" class="gthumb-profile-list-box">
+          <summary id="gthumbProfileListToggle" class="gthumb-profile-list-toggle">缺图人物清单</summary>
+          <div id="gthumbProfileList" class="gthumb-profile-list">尚未读取缺图人物清单。</div>
+        </details>
       </div>
       <div class="gthumb-toolbar">
         <input type="text" id="gthumbQ" placeholder="筛选文件名…" style="width: min(100%, 200px)" />
@@ -272,6 +307,8 @@
         const pageLabel = document.getElementById("gthumbPageLabel");
         const profileSummaryEl = document.getElementById("gthumbProfileSummary");
         const profileListEl = document.getElementById("gthumbProfileList");
+        const profileListBoxEl = document.getElementById("gthumbProfileListBox");
+        const profileListToggleEl = document.getElementById("gthumbProfileListToggle");
         const profilePreviewBtn = document.getElementById("gthumbProfilePreview");
         const profileRepairBtn = document.getElementById("gthumbProfileRepair");
         let page = 1;
@@ -400,6 +437,14 @@
         }
         function setProfileList(text) {
           if (profileListEl) profileListEl.textContent = text || "";
+        }
+        function setProfileListTitle(text, open) {
+          if (profileListToggleEl) {
+            profileListToggleEl.textContent = text || "缺图人物清单";
+          }
+          if (profileListBoxEl && typeof open === "boolean") {
+            profileListBoxEl.open = open;
+          }
         }
         function fmtBytes(n) {
           if (n < 1024) return n + " B";
@@ -544,6 +589,7 @@
         function formatInvalidRefList(data) {
           const refs = Array.isArray(data && data.invalidRefs) ? data.invalidRefs : [];
           if (!refs.length) {
+            setProfileListTitle("缺图人物清单（0 人）", false);
             return "当前没有检测到失效人物图片引用。";
           }
           const grouped = Object.create(null);
@@ -573,11 +619,13 @@
             lines.push("");
             lines.push("… 其余 " + (names.length - 30) + " 人未展开");
           }
+          setProfileListTitle("缺图人物清单（" + names.length + " 人）", false);
           return lines.join("\n");
         }
         async function loadProfileAudit() {
           setProfileSummary("正在读取人物档案统计…");
           setProfileList("正在读取缺图人物清单…");
+          setProfileListTitle("缺图人物清单", false);
           const reqUrl = apiUrl("/api/admin/bible-character-profiles/repair-images-preview");
           try {
             const res = await fetch(
@@ -589,13 +637,16 @@
               if (res.status === 404) {
                 setProfileSummary("接口 404：线上还没有人物引用预检接口，请先部署最新 server.js 并重启。");
                 setProfileList("接口 404：还拿不到缺图人物清单。");
+                setProfileListTitle("缺图人物清单（不可用）", false);
               } else if (res.status === 401 || res.status === 403) {
                 setAuthVisible(true);
                 setProfileSummary("未登录或无管理员权限，无法读取人物档案统计。");
                 setProfileList("未登录或无管理员权限，无法读取缺图人物清单。");
+                setProfileListTitle("缺图人物清单（无权限）", false);
               } else {
                 setProfileSummary("读取人物档案统计失败：HTTP " + res.status);
                 setProfileList("读取缺图人物清单失败：HTTP " + res.status);
+                setProfileListTitle("缺图人物清单（读取失败）", false);
               }
               return null;
             }
@@ -603,6 +654,7 @@
             if (!res.ok) {
               setProfileSummary(j.error || "读取人物档案统计失败");
               setProfileList(j.error || "读取缺图人物清单失败");
+              setProfileListTitle("缺图人物清单（读取失败）", false);
               return null;
             }
             lastProfileAudit = j;
@@ -612,6 +664,7 @@
           } catch (e) {
             setProfileSummary(String(e.message || e));
             setProfileList(String(e.message || e));
+            setProfileListTitle("缺图人物清单（读取失败）", false);
             return null;
           }
         }
