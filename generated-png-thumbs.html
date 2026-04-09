@@ -66,6 +66,20 @@
         background: var(--accent);
         color: #fff;
       }
+      .gthumb-toolbar button.danger,
+      .gthumb-row-delete {
+        border: 1px solid rgba(180, 35, 24, 0.28);
+        background: rgba(180, 35, 24, 0.08);
+        color: #9f1f1f;
+      }
+      .gthumb-row-delete {
+        min-height: 34px;
+        padding: 0 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
       .gthumb-status {
         flex: 1 1 180px;
         font-size: 14px;
@@ -155,8 +169,8 @@
     <div class="gthumb-wrap">
       <h1>出图 PNG 列表与缩略</h1>
       <p class="gthumb-lead">
-        列出 <code>public/generated/</code> 根目录下的
-        <code>.png</code>（插画出图、人物立绘等）。预览为实时缩图。勾选后可<strong>批量写入</strong>
+        递归列出 <code>public/generated/</code> 下的
+        <code>.png</code>（插画出图、人物立绘、上传后转存的 PNG 等；自动排除 <code>thumbs/</code>）。预览为实时缩图。勾选后可<strong>批量写入</strong>
         <code>public/generated/thumbs/</code> 同名小图（默认最长边 320px）；写好后读经页「本章人员」会<strong>优先用静态小图</strong>，减轻
         <code>/api/roster-portrait</code> 压力。单次最多 80 张，可分页多批操作。
       </p>
@@ -176,6 +190,7 @@
         <button type="button" id="gthumbSelectPage">本页全选</button>
         <button type="button" id="gthumbClear">取消全选</button>
         <button type="button" class="primary" id="gthumbBatch">批量生成所选缩略图</button>
+        <button type="button" class="danger" id="gthumbDeleteSelected">删除所选</button>
         <span class="gthumb-status" id="gthumbStatus" aria-live="polite"></span>
       </div>
       <div class="gthumb-table-wrap">
@@ -187,6 +202,7 @@
               <th>文件名</th>
               <th style="width: 88px">原图大小</th>
               <th style="width: 100px">小图</th>
+              <th style="width: 92px">操作</th>
             </tr>
           </thead>
           <tbody id="gthumbBody"></tbody>
@@ -408,6 +424,10 @@
                   "<td>" +
                   badge +
                   "</td>" +
+                  '<td><button type="button" class="gthumb-row-delete" data-name="' +
+                  name +
+                  '">删除</button></td>' +
+                  "</td>" +
                   "</tr>"
                 );
               })
@@ -427,6 +447,74 @@
             if (n) out.push(n);
           });
           return out;
+        }
+        async function deleteNames(names) {
+          const list = Array.isArray(names) ? names.filter(Boolean) : [];
+          if (!list.length) {
+            setStatus("请先选择要删除的 PNG。", "err");
+            return;
+          }
+          const msg =
+            list.length === 1
+              ? "将删除 1 个 PNG，并同步删除 thumbs/ 里的同名小图。继续？"
+              : "将删除 " +
+                list.length +
+                " 个 PNG，并同步删除 thumbs/ 里的同名小图。继续？";
+          if (!window.confirm(msg)) return;
+          setStatus("删除中…", "");
+          const reqUrl = apiUrl("/api/admin/gpngs-delete");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...authHeaders(),
+                },
+                body: JSON.stringify({ names: list }),
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            const j = parsed.ok ? parsed.data : {};
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setAuthVisible(false);
+                setStatus("接口 404：请先部署最新 server.js 并重启 Node。", "err");
+              } else {
+                setStatus("返回非 JSON（HTTP " + res.status + "）", "err");
+              }
+              return;
+            }
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) setAuthVisible(true);
+              setStatus(j.error || "失败 HTTP " + res.status, "err");
+              return;
+            }
+            const deleted = Array.isArray(j.deleted) ? j.deleted.length : 0;
+            const missing = Array.isArray(j.missing) ? j.missing.length : 0;
+            const failed = Array.isArray(j.failed) ? j.failed.length : 0;
+            let done =
+              "删除完成：成功 " +
+              deleted +
+              "，缺失 " +
+              missing +
+              "，失败 " +
+              failed +
+              "。";
+            if (failed && j.failed && j.failed[0]) {
+              done +=
+                " 例：" +
+                String(j.failed[0].name || "") +
+                " — " +
+                String(j.failed[0].error || "");
+            }
+            setStatus(done, failed ? "err" : "ok");
+            await loadList();
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
         }
         async function batchRebuild() {
           const names = selectedNames();
@@ -532,6 +620,21 @@
         });
         document.getElementById("gthumbBatch").addEventListener("click", function () {
           void batchRebuild();
+        });
+        document
+          .getElementById("gthumbDeleteSelected")
+          .addEventListener("click", function () {
+            void deleteNames(selectedNames());
+          });
+        bodyEl.addEventListener("click", function (ev) {
+          const btn =
+            ev.target && ev.target.closest
+              ? ev.target.closest(".gthumb-row-delete")
+              : null;
+          if (!btn) return;
+          const name = String(btn.getAttribute("data-name") || "").trim();
+          if (!name) return;
+          void deleteNames([name]);
         });
         void loadList();
       })();

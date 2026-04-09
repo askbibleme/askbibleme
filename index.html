@@ -76,10 +76,10 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=158" />
-    <script src="/theme-apply.js?v=3"></script>
-    <script src="/site-chrome.js?v=19" defer></script>
-    <script src="/seo-apply.js?v=4" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=159" />
+    <script src="/theme-apply.js?v=4"></script>
+    <script src="/site-chrome.js?v=20" defer></script>
+    <script src="/seo-apply.js?v=5" defer></script>
   </head>
   <body>
     <div class="page-shell">
@@ -270,59 +270,6 @@
             </div>
 
             <div
-              id="chapterIllustrationSlot"
-              class="chapter-illustration-slot"
-              aria-live="polite"
-              aria-label="本章插画"
-              hidden
-            ></div>
-
-            <!-- 本章视频：在大标题与章节插图（若有）下方；卷首页时在「介绍」卡片上方 -->
-            <div
-              id="chapterVideosSlot"
-              class="chapter-videos-slot"
-              aria-live="polite"
-              aria-label="本章视频"
-            ></div>
-
-            <div class="repeated-words-wrap">
-              <div id="repeatedWordsLine" class="repeated-words-line">—</div>
-            </div>
-
-            <div id="leftBlocks" class="blocks-stack"></div>
-          </section>
-
-          <section class="book-page right-page">
-            <div class="page-head-spacer"></div>
-
-            <!-- 宽屏时与左栏 #chapterVideosSlot 分列展示多路视频；窄屏仅左栏渲染 -->
-            <div
-              id="chapterVideosSlotRight"
-              class="chapter-videos-slot chapter-videos-slot--right-col"
-              aria-live="polite"
-              aria-label="本章视频"
-            ></div>
-
-            <div id="rightBlocks" class="blocks-stack"></div>
-
-            <div class="chapter-feedback-wrap">
-              <div class="chapter-feedback-title">参与贡献</div>
-              <textarea
-                id="chapterQuestionInput"
-                class="chapter-feedback-input"
-                placeholder="点击输入你的好问题……"
-              ></textarea>
-              <div class="chapter-feedback-actions">
-                <button type="button" id="submitChapterQuestionBtn" class="chapter-feedback-btn">
-                  登录
-                </button>
-                <div id="chapterQuestionStatus" class="chapter-feedback-status"></div>
-              </div>
-              <div id="chapterApprovedTitle" class="chapter-feedback-approved-title">社区贡献</div>
-              <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
-            </div>
-
-            <div
               id="chapterEndPersonnelSection"
               class="chapter-end-notes-table-wrap"
               hidden
@@ -358,6 +305,59 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <!-- 本章视频：在大标题与章节插图（若有）下方；卷首页时在「介绍」卡片上方 -->
+            <div
+              id="chapterVideosSlot"
+              class="chapter-videos-slot"
+              aria-live="polite"
+              aria-label="本章视频"
+            ></div>
+
+            <div class="repeated-words-wrap">
+              <div id="repeatedWordsLine" class="repeated-words-line">—</div>
+            </div>
+
+            <div id="leftBlocks" class="blocks-stack"></div>
+          </section>
+
+          <section class="book-page right-page">
+            <div class="page-head-spacer"></div>
+
+            <!-- 宽屏时与左栏 #chapterVideosSlot 分列展示多路视频；窄屏仅左栏渲染 -->
+            <div
+              id="chapterVideosSlotRight"
+              class="chapter-videos-slot chapter-videos-slot--right-col"
+              aria-live="polite"
+              aria-label="本章视频"
+            ></div>
+
+            <div id="rightBlocks" class="blocks-stack"></div>
+
+            <div
+              id="chapterIllustrationSlot"
+              class="chapter-illustration-slot"
+              aria-live="polite"
+              aria-label="本章插画"
+              hidden
+            ></div>
+
+            <div class="chapter-feedback-wrap">
+              <div class="chapter-feedback-title">参与贡献</div>
+              <textarea
+                id="chapterQuestionInput"
+                class="chapter-feedback-input"
+                placeholder="点击输入你的好问题……"
+              ></textarea>
+              <div class="chapter-feedback-actions">
+                <button type="button" id="submitChapterQuestionBtn" class="chapter-feedback-btn">
+                  登录
+                </button>
+                <div id="chapterQuestionStatus" class="chapter-feedback-status"></div>
+              </div>
+              <div id="chapterApprovedTitle" class="chapter-feedback-approved-title">社区贡献</div>
+              <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
             </div>
 
             <div id="chapterEndNextGuide" class="chapter-end-next-guide" hidden>
@@ -1183,7 +1183,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="/main.js"></script>
+    <script type="module" src="/main.js?v=2"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>
       (function () {

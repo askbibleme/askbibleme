@@ -46,6 +46,11 @@
           label: "插画管理",
         },
         {
+          href: "/chapter-illustration-library.html",
+          label: "章插图总表",
+          note: "按章节查看、跳转生成、删除页面插图/文件",
+        },
+        {
           href: "/generated-png-thumbs.html",
           label: "PNG 与缩略图",
           note: "public/generated 与 thumbs 批量处理",

@@ -1467,6 +1467,23 @@ watermark / text / logo</pre>
         });
         chapterSel.addEventListener("change", onChapterContextChanged);
 
+        function applyInitialSelectionFromQuery() {
+          try {
+            const qs = new URLSearchParams(window.location.search || "");
+            const version = String(qs.get("version") || "").trim();
+            const lang = String(qs.get("lang") || "").trim();
+            const bookId = String(qs.get("bookId") || "").trim();
+            const chapter = String(qs.get("chapter") || "").trim();
+            if (version) versionSel.value = version;
+            if (lang) langSel.value = lang;
+            if (bookId) {
+              bookSel.value = bookId;
+              fillChapterSelectForBook(bookId);
+            }
+            if (chapter) chapterSel.value = chapter;
+          } catch (_) {}
+        }
+
         async function checkIllustrationGptRouteProbe() {
           const warnEl = document.getElementById("iaGptRouteWarn");
           if (!warnEl) return;
@@ -1577,6 +1594,7 @@ watermark / text / logo</pre>
           });
 
           if (bookSel.options.length) fillChapterSelectForBook(bookSel.value);
+          applyInitialSelectionFromQuery();
 
           authEl.hidden = true;
           appEl.hidden = false;

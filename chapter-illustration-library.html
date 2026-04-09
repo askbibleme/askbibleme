@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>章插图总表 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=12" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .illlib-wrap { max-width: 1180px; margin: 0 auto; padding: 22px 18px 56px; box-sizing: border-box; }
+      .illlib-wrap h1 { margin: 0 0 8px; font-size: calc(22px * var(--font-scale)); font-weight: 800; color: var(--ink); }
+      .illlib-lead { margin: 0 0 16px; font-size: 14px; line-height: 1.6; color: var(--muted-soft); }
+      .illlib-lead code { padding: 2px 6px; border-radius: 6px; background: rgba(139,111,71,0.12); font-size: .9em; }
+      .illlib-toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; align-items:center; }
+      .illlib-toolbar input[type="text"] { padding: 8px 10px; border-radius: 10px; border:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:13px; }
+      .illlib-toolbar button, .illlib-action { min-height: 40px; padding: 0 14px; border-radius: 10px; font-weight:700; cursor:pointer; border:1px solid var(--line); background:var(--paper); color:var(--ink); text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
+      .illlib-action--primary { border:none; background: var(--accent); color:#fff; }
+      .illlib-action--danger { border:1px solid rgba(180,35,24,.28); background: rgba(180,35,24,.08); color:#9f1f1f; }
+      .illlib-action[disabled] { opacity:.45; cursor:not-allowed; }
+      .illlib-status { flex:1 1 220px; font-size:14px; color:var(--muted); }
+      .illlib-status.err { color:#b42318; }
+      .illlib-status.ok { color:#1d6b3a; }
+      .illlib-auth { display:none; margin-bottom:16px; padding:14px 16px; border-radius:14px; border:1px solid rgba(180,35,24,.35); background:rgba(180,35,24,.06); font-size:14px; line-height:1.6; }
+      .illlib-auth.is-visible { display:block; }
+      .illlib-table-wrap { overflow-x:auto; border-radius:12px; border:1px solid var(--line); background:var(--paper); }
+      .illlib-table { width:100%; border-collapse: collapse; font-size:13px; }
+      .illlib-table th, .illlib-table td { padding: 10px 10px; border-bottom:1px solid rgba(0,0,0,.08); text-align:left; vertical-align:middle; }
+      .illlib-table th { font-weight:800; color:var(--muted); font-size:12px; }
+      .illlib-preview { width: 88px; height: 88px; object-fit: contain; display:block; border-radius:10px; background: rgba(0,0,0,.04); }
+      .illlib-code { font-size:12px; word-break:break-all; }
+      .illlib-meta { font-size:12px; color:var(--muted-soft); line-height:1.45; }
+      .illlib-actions { display:flex; flex-wrap:wrap; gap:8px; }
+      .illlib-pager { margin-top:14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/chapter-illustration-library.html">
+    <div class="illlib-wrap">
+      <h1>章插图总表</h1>
+      <p class="illlib-lead">
+        按“书卷 + 章节”列出已经挂到读经页上的章插图。可直接 <strong>查看</strong>、跳到 <strong>插画管理</strong> 继续生成/修改，也可 <strong>删除页面插图</strong>；若该图只被这一章使用，还可一并 <strong>删除底层生成文件</strong>。
+      </p>
+      <div id="illlibAuth" class="illlib-auth">
+        <strong>需要管理员登录。</strong>请先在读经站登录管理员账号，或
+        <a href="/admin-user-login.html">用户登录</a> ·
+        <a href="/admin-hub.html">管理首页</a>
+      </div>
+      <div class="illlib-toolbar">
+        <input type="text" id="illlibQ" placeholder="筛选书卷 / 章节 / 文件名…" style="width:min(100%, 260px)" />
+        <button type="button" id="illlibSearch">筛选</button>
+        <button type="button" id="illlibReload">刷新列表</button>
+        <span class="illlib-status" id="illlibStatus" aria-live="polite"></span>
+      </div>
+      <div class="illlib-table-wrap">
+        <table class="illlib-table" aria-label="章插图总表">
+          <thead>
+            <tr>
+              <th style="width:100px">预览</th>
+              <th style="width:120px">书卷章节</th>
+              <th>当前图片</th>
+              <th style="width:150px">引用</th>
+              <th style="width:120px">更新时间</th>
+              <th style="width:260px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="illlibBody"></tbody>
+        </table>
+      </div>
+      <div class="illlib-pager">
+        <button type="button" id="illlibPrev">上一页</button>
+        <span id="illlibPageLabel" style="font-size:14px;color:var(--muted)"></span>
+        <button type="button" id="illlibNext">下一页</button>
+      </div>
+    </div>
+    <script src="/admin-shell.js?v=6" defer></script>
+    <script>
+      (function () {
+        const TOKEN_KEY = "bible_user_auth_token_v1";
+        const authBox = document.getElementById("illlibAuth");
+        const st = document.getElementById("illlibStatus");
+        const bodyEl = document.getElementById("illlibBody");
+        const pageLabel = document.getElementById("illlibPageLabel");
+        let page = 1;
+        const pageSize = 24;
+        let lastQ = "";
+        let probedOrigin = "";
+
+        function setAuthVisible(on) { if (authBox) authBox.classList.toggle("is-visible", Boolean(on)); }
+        function normalizeApiOrigin(s) { return String(s || "").trim().replace(/\/+$/, ""); }
+        function isPrivateLanHost(h) { const s = String(h || "").toLowerCase(); return /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(s); }
+        async function probeApiOrigin() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          if (m && String(m.getAttribute("content") || "").trim()) return;
+          try {
+            const proto = window.location.protocol || "";
+            if (proto === "capacitor:" || proto === "file:") return;
+            const h = String(window.location.hostname || "");
+            const loopback = h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (!loopback && !isPrivateLanHost(h)) return;
+          } catch (_) { return; }
+          const pageHost = String(window.location.hostname || "");
+          const hostCandidates =
+            pageHost === "localhost" || pageHost === "127.0.0.1" || pageHost === "::1"
+              ? ["127.0.0.1", "localhost"]
+              : [pageHost];
+          for (const host of hostCandidates) {
+            for (const p of [3000, 3001]) {
+              const origin = "http://" + host + ":" + p;
+              try {
+                const r = await fetch(origin + "/api/chapter-illustration/gpt-copy-probe", { method: "GET", cache: "no-store" });
+                if (r.ok) { probedOrigin = origin; return; }
+              } catch (_) {}
+            }
+          }
+        }
+        function getApiBase() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          const fromMeta = m && String(m.getAttribute("content") || "").trim();
+          if (fromMeta) return normalizeApiOrigin(fromMeta);
+          if (probedOrigin) return normalizeApiOrigin(probedOrigin);
+          try {
+            const proto = window.location.protocol || "";
+            const h = String(window.location.hostname || "");
+            const loopback = h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (loopback && window.location.port && window.location.port !== "3000" && window.location.port !== "") {
+              return (proto === "https:" ? "https" : "http") + "://" + h + ":3000";
+            }
+          } catch (_) {}
+          return "";
+        }
+        function apiUrl(path) {
+          const p = path.startsWith("/") ? path : "/" + path;
+          const base = getApiBase();
+          if (!base) return p;
+          try { const origin = normalizeApiOrigin(base); return new URL(p, origin.endsWith("/") ? origin : origin + "/").href; }
+          catch (_) { return String(base).replace(/\/$/, "") + p; }
+        }
+        function fetchOpts(extra) {
+          const ex = { ...(extra || {}) };
+          const url = String(ex._url || "");
+          delete ex._url;
+          const cross = /^https?:\/\//i.test(url);
+          return { cache: "no-store", mode: cross ? "cors" : "same-origin", credentials: cross ? "omit" : "same-origin", ...ex };
+        }
+        function authHeaders() {
+          const t = String(localStorage.getItem(TOKEN_KEY) || "").trim();
+          return t ? { Authorization: "Bearer " + t } : {};
+        }
+        function setStatus(msg, kind) {
+          if (!st) return;
+          st.textContent = msg || "";
+          st.classList.remove("err", "ok");
+          if (kind === "err") st.classList.add("err");
+          if (kind === "ok") st.classList.add("ok");
+        }
+        async function parseJsonBody(res) {
+          const raw = await res.text();
+          if (!raw.trim()) return { ok: true, data: {} };
+          try { return { ok: true, data: JSON.parse(raw) }; }
+          catch (_) { return { ok: false, data: {}, rawSnippet: raw.replace(/\s+/g, " ").trim().slice(0, 200) }; }
+        }
+        function previewSrc(imageUrl) {
+          const raw = String(imageUrl || "").trim();
+          if (!raw) return "";
+          if (raw.startsWith("/generated/")) {
+            const name = raw.split("?")[0].split("/").pop() || "";
+            return apiUrl("/api/ci?n=" + encodeURIComponent(name) + "&w=160");
+          }
+          return raw;
+        }
+        function manageHref(row) {
+          const q = new URLSearchParams({
+            version: "default",
+            lang: "zh",
+            bookId: String(row.bookId || ""),
+            chapter: String(row.chapter || ""),
+          });
+          return "/illustration-admin.html?" + q.toString();
+        }
+        function readerHref(row) {
+          const q = new URLSearchParams({
+            version: "default",
+            lang: "zh",
+            bookId: String(row.bookId || ""),
+            chapter: String(row.chapter || ""),
+          });
+          return "/index.html?" + q.toString();
+        }
+        function esc(s) {
+          return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+        }
+        function fmtTime(iso) {
+          const raw = String(iso || "").trim();
+          if (!raw) return "—";
+          const d = new Date(raw);
+          if (Number.isNaN(d.getTime())) return raw;
+          return d.toLocaleString("zh-CN", { hour12: false });
+        }
+        async function loadList() {
+          setStatus("加载中…", "");
+          await probeApiOrigin();
+          const hasTok = Boolean(String(localStorage.getItem(TOKEN_KEY) || "").trim());
+          if (!hasTok) setAuthVisible(true);
+          const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+          if (lastQ) q.set("q", lastQ);
+          const reqUrl = apiUrl("/api/admin/chapter-ills?" + q.toString());
+          try {
+            const res = await fetch(reqUrl, fetchOpts({ _url: reqUrl, headers: { ...authHeaders() } }));
+            const parsed = await parseJsonBody(res);
+            if (!parsed.ok) {
+              if (res.status === 404) setStatus("接口 404：请先部署最新 server.js 并重启。", "err");
+              else if (res.status === 401 || res.status === 403) { setAuthVisible(true); setStatus("未登录或无管理员权限（HTTP " + res.status + "）。", "err"); }
+              else setStatus("返回非 JSON（HTTP " + res.status + "）：" + (parsed.rawSnippet || ""), "err");
+              return;
+            }
+            const j = parsed.data || {};
+            if (!res.ok) {
+              setAuthVisible(res.status === 401 || res.status === 403);
+              setStatus(j.error || "加载失败（HTTP " + res.status + "）", "err");
+              return;
+            }
+            setAuthVisible(false);
+            const items = Array.isArray(j.items) ? j.items : [];
+            const total = Number(j.total) || 0;
+            const pages = Math.max(1, Math.ceil(total / pageSize));
+            if (page > pages) { page = pages; return loadList(); }
+            pageLabel.textContent = "第 " + page + " / " + pages + " 页 · 共 " + total + " 章有插图";
+            bodyEl.innerHTML = items.map(function (it) {
+              const canDeleteFile = !!it.generatedName && Number(it.usageCount || 0) <= 1;
+              const usageText = Number(it.usageCount || 0) > 1 ? " · 多章共用" : "";
+              return (
+                "<tr>" +
+                '<td><img class="illlib-preview" src="' + esc(previewSrc(it.imageUrl)) + '" alt="" loading="lazy" decoding="async" /></td>' +
+                "<td><strong>" + esc(it.bookName || it.bookId) + " " + esc(it.chapter) + "章</strong><div class=\"illlib-meta\">" + esc(it.bookId) + "</div></td>" +
+                "<td><div class=\"illlib-code\"><code>" + esc(it.imageUrl || "") + "</code></div></td>" +
+                "<td><div class=\"illlib-meta\">已发布 " + esc(it.refCount) + " 份" + (Number(it.variantCount || 0) > 1 ? " · 多图来源 " + esc(it.variantCount) : "") + usageText + "</div></td>" +
+                "<td>" + esc(fmtTime(it.updatedAt)) + "</td>" +
+                '<td><div class="illlib-actions">' +
+                '<a class="illlib-action illlib-action--primary" href="' + esc(manageHref(it)) + '">管理/生成</a>' +
+                '<a class="illlib-action" href="' + esc(readerHref(it)) + '" target="_blank" rel="noreferrer">查看读经页</a>' +
+                '<button type="button" class="illlib-action illlib-action--danger illlib-clear" data-book-id="' + esc(it.bookId) + '" data-chapter="' + esc(it.chapter) + '" data-image-url="' + esc(it.imageUrl || "") + '">删除页面插画</button>' +
+                '<button type="button" class="illlib-action illlib-action--danger illlib-delete-file" data-book-id="' + esc(it.bookId) + '" data-chapter="' + esc(it.chapter) + '" data-image-url="' + esc(it.imageUrl || "") + '" data-generated-name="' + esc(it.generatedName || "") + '"' + (canDeleteFile ? "" : " disabled") + ">" + (canDeleteFile ? "删除文件" : "多章共用") + "</button>" +
+                "</div></td>" +
+                "</tr>"
+              );
+            }).join("");
+            setStatus("已加载 " + items.length + " 条。", "ok");
+          } catch (e) {
+            setAuthVisible(true);
+            setStatus(String(e.message || e), "err");
+          }
+        }
+        async function clearIllustration(bookId, chapter) {
+          const reqUrl = apiUrl("/api/admin/published/chapter-illustration");
+          const res = await fetch(reqUrl, fetchOpts({
+            _url: reqUrl,
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ version: "default", lang: "zh", bookId: bookId, chapter: Number(chapter), imageUrl: "" }),
+          }));
+          return { res: res, parsed: await parseJsonBody(res) };
+        }
+        async function deleteGeneratedFile(name) {
+          const reqUrl = apiUrl("/api/admin/gpngs-delete");
+          const res = await fetch(reqUrl, fetchOpts({
+            _url: reqUrl,
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ names: [name] }),
+          }));
+          return { res: res, parsed: await parseJsonBody(res) };
+        }
+        async function handleClear(btn) {
+          const bookId = String(btn.getAttribute("data-book-id") || "").trim();
+          const chapter = Number(btn.getAttribute("data-chapter") || "");
+          if (!bookId || !Number.isFinite(chapter)) return;
+          if (!window.confirm("将清除这章读经页上的插图引用。继续？")) return;
+          setStatus("删除页面插画中…", "");
+          const out = await clearIllustration(bookId, chapter);
+          if (!out.parsed.ok) return setStatus("返回非 JSON（HTTP " + out.res.status + "）", "err");
+          if (!out.res.ok) return setStatus((out.parsed.data && out.parsed.data.error) || ("失败 HTTP " + out.res.status), "err");
+          setStatus("已清除页面插画。", "ok");
+          await loadList();
+        }
+        async function handleDeleteFile(btn) {
+          const bookId = String(btn.getAttribute("data-book-id") || "").trim();
+          const chapter = Number(btn.getAttribute("data-chapter") || "");
+          const generatedName = String(btn.getAttribute("data-generated-name") || "").trim();
+          if (!bookId || !Number.isFinite(chapter) || !generatedName) return;
+          if (!window.confirm("将先清除这章插图引用，再删除 /generated/" + generatedName + " 文件。继续？")) return;
+          setStatus("删除文件中…", "");
+          const cleared = await clearIllustration(bookId, chapter);
+          if (!cleared.parsed.ok) return setStatus("返回非 JSON（HTTP " + cleared.res.status + "）", "err");
+          if (!cleared.res.ok) return setStatus((cleared.parsed.data && cleared.parsed.data.error) || ("失败 HTTP " + cleared.res.status), "err");
+          const deleted = await deleteGeneratedFile(generatedName);
+          if (!deleted.parsed.ok) return setStatus("返回非 JSON（HTTP " + deleted.res.status + "）", "err");
+          if (!deleted.res.ok) return setStatus((deleted.parsed.data && deleted.parsed.data.error) || ("失败 HTTP " + deleted.res.status), "err");
+          setStatus("已清除页面插画并删除文件。", "ok");
+          await loadList();
+        }
+        document.getElementById("illlibReload").addEventListener("click", function () { void loadList(); });
+        document.getElementById("illlibSearch").addEventListener("click", function () {
+          lastQ = String(document.getElementById("illlibQ").value || "").trim();
+          page = 1;
+          void loadList();
+        });
+        document.getElementById("illlibPrev").addEventListener("click", function () { if (page > 1) { page--; void loadList(); } });
+        document.getElementById("illlibNext").addEventListener("click", function () { page++; void loadList(); });
+        bodyEl.addEventListener("click", function (ev) {
+          const clearBtn = ev.target && ev.target.closest ? ev.target.closest(".illlib-clear") : null;
+          if (clearBtn) return void handleClear(clearBtn);
+          const deleteBtn = ev.target && ev.target.closest ? ev.target.closest(".illlib-delete-file") : null;
+          if (deleteBtn && !deleteBtn.disabled) return void handleDeleteFile(deleteBtn);
+        });
+        void loadList();
+      })();
+    </script>
+  </body>
+</html>

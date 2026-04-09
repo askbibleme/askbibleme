@@ -430,6 +430,84 @@ function chapterRosterPortraitImgSrc(normalizedPath) {
   return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
 }
 
+function preferredChapterIllustrationWidth() {
+  try {
+    const vw = Math.max(
+      0,
+      window.innerWidth || document.documentElement?.clientWidth || 0
+    );
+    if (vw && vw <= 1200) return 960;
+  } catch (_) {
+    /* ignore */
+  }
+  return 1400;
+}
+
+function chapterIllustrationOptimizedSrcs(normalizedPath) {
+  const raw = String(normalizedPath || "").trim();
+  if (!raw) return [];
+  const directSrc = resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+  const imgPath = String(raw.split("?")[0] || "");
+  const imgName = imgPath.startsWith("/generated/")
+    ? imgPath.slice("/generated/".length)
+    : "";
+  if (!imgName) return [directSrc];
+  const width = preferredChapterIllustrationWidth();
+  return [
+    resolveStudyApiPath(`/api/ci?n=${encodeURIComponent(imgName)}&w=${width}`),
+    resolveStudyApiPath(
+      `/api/chapter-illustration-image?n=${encodeURIComponent(imgName)}&w=${width}`
+    ),
+    directSrc,
+  ];
+}
+
+function bindChapterIllustrationImageFallback(imgEl) {
+  if (!imgEl) return;
+  imgEl.addEventListener(
+    "error",
+    function handleChapterIllustrationError() {
+      const fallbacks = [
+        String(imgEl.getAttribute("data-src-fallback") || "").trim(),
+        String(imgEl.getAttribute("data-src-fallback-2") || "").trim(),
+      ].filter(Boolean);
+      for (let i = 0; i < fallbacks.length; i++) {
+        const fallback = fallbacks[i];
+        if (fallback && imgEl.src !== fallback) {
+          imgEl.src = fallback;
+          return;
+        }
+      }
+    },
+    { once: false }
+  );
+}
+
+function bindChapterCharacterRosterImageFallbacks(root) {
+  if (!root) return;
+  const imgs = root.querySelectorAll(".chapter-character-roster-img");
+  imgs.forEach((imgEl) => {
+    imgEl.addEventListener(
+      "error",
+      function handleRosterImageError() {
+        const fallback = String(
+          imgEl.getAttribute("data-src-fallback") || ""
+        ).trim();
+        const finalFallback = String(
+          imgEl.getAttribute("data-src-final-fallback") || ""
+        ).trim();
+        if (fallback && imgEl.src !== fallback) {
+          imgEl.src = fallback;
+          return;
+        }
+        if (finalFallback && imgEl.src !== finalFallback) {
+          imgEl.src = finalFallback;
+        }
+      }
+    );
+  });
+}
+
 /** 与 .book-spread 双栏断点一致：宽屏视频分列到左右页 */
 function shouldSplitChapterVideosAcrossColumns() {
   try {
@@ -5581,14 +5659,10 @@ function syncChapterIllustrationSlot() {
   }
   slot.hidden = false;
   const normalizedUrl = url.startsWith("/") ? url : "/" + url;
-  const src = resolveStudyApiPath(normalizedUrl);
-  const imgPath = String(normalizedUrl.split("?")[0] || "");
-  const imgName = imgPath.startsWith("/generated/")
-    ? imgPath.slice("/generated/".length)
-    : "";
-  const optimizedSrc = imgName
-    ? resolveStudyApiPath(`/api/chapter-illustration-image?n=${encodeURIComponent(imgName)}&w=1400`)
-    : src;
+  const srcCandidates = chapterIllustrationOptimizedSrcs(normalizedUrl);
+  const optimizedSrc = srcCandidates[0] || "";
+  const fallbackSrc = srcCandidates[1] || srcCandidates[0] || "";
+  const finalSrc = srcCandidates[srcCandidates.length - 1] || "";
   const opacityRaw = Number(state.chapterIllustrationGlobalSettings?.overlayOpacity);
   const opacity = Number.isFinite(opacityRaw)
     ? Math.max(0, Math.min(100, Math.round(opacityRaw)))
@@ -5599,20 +5673,12 @@ function syncChapterIllustrationSlot() {
     ';" src="' +
     escapeHtml(optimizedSrc) +
     '" data-src-fallback="' +
-    escapeHtml(src) +
+    escapeHtml(fallbackSrc) +
+    '" data-src-fallback-2="' +
+    escapeHtml(finalSrc) +
     '" alt="" decoding="sync" fetchpriority="high" loading="eager" /></figure>';
   const imgEl = slot.querySelector(".chapter-illustration-img");
-  if (imgEl) {
-    imgEl.addEventListener(
-      "error",
-      function handleChapterIllustrationError() {
-        const fallback = String(imgEl.getAttribute("data-src-fallback") || "").trim();
-        if (!fallback || imgEl.src === fallback) return;
-        imgEl.src = fallback;
-      },
-      { once: true }
-    );
-  }
+  bindChapterIllustrationImageFallback(imgEl);
 }
 
 function syncChapterCharacterRoster() {
@@ -5645,33 +5711,32 @@ function syncChapterCharacterRoster() {
     const f = figures[i];
     const raw = normalizeIllustrationImageUrlForReader(f && f.imageUrl);
     if (!raw) continue;
+    const directSrc = resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+    const optimizedSrc = chapterRosterPortraitImgSrc(raw);
     const thumbRaw = f && f.rosterThumbUrl
       ? normalizeIllustrationImageUrlForReader(f.rosterThumbUrl)
       : "";
     const src = thumbRaw
       ? resolveStudyApiPath(thumbRaw.startsWith("/") ? thumbRaw : "/" + thumbRaw)
-      : chapterRosterPortraitImgSrc(raw);
+      : optimizedSrc;
     const name = escapeHtml(String(f.zhName || "").trim());
     if (!name) continue;
     const isCurrentChapter = Boolean(f && f.isCurrentChapter);
-    const layoutScale = Math.min(
-      1,
-      Math.max(0.5, Number(f && f.layoutScale) || 1)
-    );
-    const scaleStyle =
-      layoutScale === 1
-        ? ""
-        : ` style="--chapter-character-scale:${layoutScale.toFixed(3)}"`;
     cards.push(
       `<figure class="chapter-character-roster-item${
         isCurrentChapter ? " is-current-chapter" : ""
-      }"${isCurrentChapter ? ' aria-current="true"' : ""}${scaleStyle}><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
+      }"${isCurrentChapter ? ' aria-current="true"' : ""}><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
         src
+      )}" data-src-fallback="${escapeHtml(
+        optimizedSrc
+      )}" data-src-final-fallback="${escapeHtml(
+        directSrc
       )}" alt="${name}" decoding="async" loading="lazy" /></div><figcaption class="chapter-character-roster-caption">${name}</figcaption></figure>`
     );
   }
   if (cards.length) {
     rosterEl.innerHTML = cards.join("");
+    bindChapterCharacterRosterImageFallbacks(rosterEl);
     bindTimelineDragScroll(rosterEl);
     requestAnimationFrame(() => {
       syncChapterCharacterTimelineProgress(rosterEl);
@@ -10712,7 +10777,11 @@ function stopJobsAutoRefresh() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((error) => {
+    navigator.serviceWorker.register("/sw.js?v=52").then((reg) => {
+      try {
+        reg.update();
+      } catch (_) {}
+    }).catch((error) => {
       console.warn("Service worker register failed:", error);
     });
   });

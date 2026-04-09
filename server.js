@@ -3457,6 +3457,20 @@ function listPublishedContentVersionIds() {
   }
 }
 
+function getBookLabelById(bookId) {
+  const target = String(bookId || "").trim();
+  if (!target) return "";
+  for (const testament of testamentOptions) {
+    const books = Array.isArray(testament?.books) ? testament.books : [];
+    for (const book of books) {
+      if (String(book?.usfx || "").trim() === target) {
+        return String(book?.cn || book?.en || target).trim();
+      }
+    }
+  }
+  return target;
+}
+
 function isDivineSpeechVerseText(rawText) {
   const text = safeText(rawText);
   if (!text) return false;
@@ -8846,6 +8860,11 @@ async function handleBibleCharacterPortraitUpload(req, res) {
     const dest = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(dest, pngBuf);
     try {
+      await ensureGeneratedThumbForFilename(filename, 320);
+    } catch (thumbErr) {
+      console.warn("[bible-character-upload:auto-thumb]", thumbErr?.message || thumbErr);
+    }
+    try {
       fs.unlinkSync(file.path);
     } catch {
       /* ignore */
@@ -8905,12 +8924,32 @@ app.post(
   bibleCharacterPortraitUploadPostRoute
 );
 
+function sanitizeGeneratedRelativePngPath(rawPath) {
+  const raw = String(rawPath || "").trim().replace(/\\/g, "/");
+  if (!raw) return "";
+  const noQuery = raw.split("?")[0].replace(/^\/+/, "");
+  const base = path.posix.basename(noQuery);
+  if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(base)) return "";
+  const parts = noQuery.split("/").filter(Boolean);
+  if (!parts.length) return "";
+  const clean = [];
+  for (const part of parts) {
+    if (part === "." || part === "..") return "";
+    if (!/^[a-zA-Z0-9_.-]+$/.test(part)) return "";
+    clean.push(part);
+  }
+  if (clean[0] === "generated") clean.shift();
+  if (!clean.length) return "";
+  if (clean[0] === "thumbs") return "";
+  return clean.join("/");
+}
+
 function resolveSafeGeneratedPngPath(urlPath) {
   const s = String(urlPath || "").trim();
   if (!s.startsWith("/generated/")) return null;
-  const name = path.basename(s);
-  if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(name)) return null;
-  const full = path.resolve(path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, name));
+  const rel = sanitizeGeneratedRelativePngPath(s.slice("/generated/".length));
+  if (!rel) return null;
+  const full = path.resolve(path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, rel));
   const root = path.resolve(CHAPTER_ILLUSTRATION_GENERATED_DIR) + path.sep;
   if (!full.startsWith(root)) return null;
   try {
@@ -9042,18 +9081,33 @@ async function handleChapterIllustrationImageGet(req, res) {
 app.get("/api/chapter-illustration-image", handleChapterIllustrationImageGet);
 app.get("/api/ci", handleChapterIllustrationImageGet);
 
-function listGeneratedRootPngFilenames() {
-  const dir = CHAPTER_ILLUSTRATION_GENERATED_DIR;
-  if (!fs.existsSync(dir)) return [];
-  const names = [];
-  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (!ent.isFile()) continue;
-    const name = ent.name;
-    if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(name)) continue;
-    names.push(name);
+function listGeneratedPngRelativePaths() {
+  const root = CHAPTER_ILLUSTRATION_GENERATED_DIR;
+  if (!fs.existsSync(root)) return [];
+  const out = [];
+
+  function walk(absDir, relDir = "") {
+    const entries = fs.readdirSync(absDir, { withFileTypes: true });
+    for (const ent of entries) {
+      const name = ent.name;
+      if (!name || name.startsWith(".")) continue;
+      const nextRel = relDir ? `${relDir}/${name}` : name;
+      const nextAbs = path.join(absDir, name);
+      if (ent.isDirectory()) {
+        if (name === "thumbs") continue;
+        walk(nextAbs, nextRel);
+        continue;
+      }
+      if (!ent.isFile()) continue;
+      const rel = sanitizeGeneratedRelativePngPath(nextRel);
+      if (!rel) continue;
+      out.push(rel);
+    }
   }
-  names.sort((a, b) => a.localeCompare(b, "en"));
-  return names;
+
+  walk(root, "");
+  out.sort((a, b) => a.localeCompare(b, "en"));
+  return out;
 }
 
 /** 若已存在 public/generated/thumbs/<同名>.png，读经章末人物优先用静态小图（免动态缩图） */
@@ -9356,6 +9410,31 @@ async function ensureGeneratedRosterThumbsForProfiles(profilesRoot, maxEdge = 32
   return { built, failed };
 }
 
+async function ensureGeneratedThumbForFilename(name, maxEdge = 320) {
+  const base = path.basename(String(name || "").trim());
+  if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(base)) return false;
+  const srcPath = resolveSafeGeneratedPngPath(`/generated/${base}`);
+  if (!srcPath) return false;
+  const sharp = await getSharp();
+  const dim = Math.min(720, Math.max(64, Math.round(Number(maxEdge) || 320)));
+  const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
+  ensureDir(thumbDir);
+  const destPath = path.join(thumbDir, base);
+  const buf = await fs.promises.readFile(srcPath);
+  const outBuf = await sharp(buf)
+    .rotate()
+    .resize({
+      width: dim,
+      height: dim,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .png({ compressionLevel: 9, effort: 6 })
+    .toBuffer();
+  await fs.promises.writeFile(destPath, outBuf);
+  return true;
+}
+
 function handleAdminGeneratedPngsList(req, res) {
   const authed = requireAdminUser(req, res);
   if (!authed) return;
@@ -9366,7 +9445,7 @@ function handleAdminGeneratedPngsList(req, res) {
       Math.max(8, Math.floor(Number(req.query.pageSize) || 24))
     );
     const q = safeText(req.query.q || "").toLowerCase();
-    let names = listGeneratedRootPngFilenames();
+    let names = listGeneratedPngRelativePaths();
     if (q) names = names.filter((n) => n.toLowerCase().includes(q));
     const total = names.length;
     const start = (page - 1) * pageSize;
@@ -9376,7 +9455,7 @@ function handleAdminGeneratedPngsList(req, res) {
     const items = slice.map((name) => {
       const full = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, name);
       const st = fs.statSync(full);
-      const th = path.join(thumbDir, name);
+      const th = path.join(thumbDir, path.basename(name));
       return {
         name,
         bytes: st.size,
@@ -9407,8 +9486,8 @@ async function handleAdminGeneratedPngsRebuildThumbs(req, res) {
     const names = [];
     const seen = new Set();
     for (const raw of namesIn) {
-      const n = path.basename(safeText(String(raw || "")));
-      if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(n)) continue;
+      const n = sanitizeGeneratedRelativePngPath(safeText(String(raw || "")));
+      if (!n) continue;
       if (seen.has(n)) continue;
       seen.add(n);
       names.push(n);
@@ -9430,7 +9509,7 @@ async function handleAdminGeneratedPngsRebuildThumbs(req, res) {
           failed.push({ name, error: "无效或不存在" });
           continue;
         }
-        const destPath = path.join(thumbDir, name);
+        const destPath = path.join(thumbDir, path.basename(name));
         const buf = await fs.promises.readFile(srcPath);
         const outBuf = await sharp(buf)
           .rotate()
@@ -9461,11 +9540,239 @@ async function handleAdminGeneratedPngsRebuildThumbs(req, res) {
   }
 }
 
+async function handleAdminGeneratedPngsDelete(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const body = req.body || {};
+    const namesIn = Array.isArray(body.names) ? body.names : [];
+    const MAX = 80;
+    const names = [];
+    const seen = new Set();
+    for (const raw of namesIn) {
+      const n = sanitizeGeneratedRelativePngPath(safeText(String(raw || "")));
+      if (!n) continue;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      names.push(n);
+      if (names.length >= MAX) break;
+    }
+    if (!names.length) {
+      return res.status(400).json({
+        error: "缺少有效的 names 数组（public/generated 根目录下的 .png 文件名）",
+      });
+    }
+    const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
+    ensureDir(thumbDir);
+    const deleted = [];
+    const missing = [];
+    const failed = [];
+    for (const name of names) {
+      const srcPath = resolveSafeGeneratedPngPath(`/generated/${name}`);
+      if (!srcPath) {
+        missing.push(name);
+        continue;
+      }
+      try {
+        await fs.promises.unlink(srcPath);
+        const thumbPath = path.join(thumbDir, path.basename(name));
+        let thumbDeleted = false;
+        try {
+          await fs.promises.unlink(thumbPath);
+          thumbDeleted = true;
+        } catch (thumbErr) {
+          if (thumbErr && thumbErr.code !== "ENOENT") throw thumbErr;
+        }
+        deleted.push({ name, thumbDeleted });
+      } catch (e) {
+        failed.push({ name, error: e.message || String(e) });
+      }
+    }
+    clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+    appendAdminAudit(req, authed, "generated_png_delete", {
+      requested: names.length,
+      deleted: deleted.length,
+      missing: missing.length,
+      failed: failed.length,
+    });
+    res.json({ ok: true, deleted, missing, failed });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message || "删除失败" });
+  }
+}
+
+function listPublishedChapterIllustrationSummaries() {
+  const rowsByKey = new Map();
+  const imageUsage = new Map();
+  const versions = listPublishedContentVersionIds();
+
+  for (const versionId of versions) {
+    const versionDir = path.join(CONTENT_PUBLISHED_DIR, versionId);
+    let langs = [];
+    try {
+      langs = fs
+        .readdirSync(versionDir, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name);
+    } catch {
+      continue;
+    }
+    for (const lang of langs) {
+      const langDir = path.join(versionDir, lang);
+      let bookDirs = [];
+      try {
+        bookDirs = fs
+          .readdirSync(langDir, { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => d.name);
+      } catch {
+        continue;
+      }
+      for (const bookId of bookDirs) {
+        const bookDir = path.join(langDir, bookId);
+        let chapterFiles = [];
+        try {
+          chapterFiles = fs
+            .readdirSync(bookDir, { withFileTypes: true })
+            .filter((d) => d.isFile() && /\.json$/i.test(d.name))
+            .map((d) => d.name);
+        } catch {
+          continue;
+        }
+        for (const fileName of chapterFiles) {
+          const chapter = Number(String(fileName).replace(/\.json$/i, ""));
+          if (!Number.isFinite(chapter)) continue;
+          const fullPath = path.join(bookDir, fileName);
+          const data = readJson(fullPath, null);
+          const ill = normalizeChapterIllustrationForSave(data?.chapterIllustration);
+          if (!ill || !ill.imageUrl) continue;
+          const key = `${bookId}:${chapter}`;
+          const ref = {
+            versionId,
+            lang,
+            imageUrl: ill.imageUrl,
+            updatedAt: safeText(ill.updatedAt || ""),
+          };
+          let row = rowsByKey.get(key);
+          if (!row) {
+            row = {
+              bookId,
+              bookName: getBookLabelById(bookId),
+              chapter,
+              refs: [],
+            };
+            rowsByKey.set(key, row);
+          }
+          row.refs.push(ref);
+        }
+      }
+    }
+  }
+
+  function refPriority(ref) {
+    const v = String(ref?.versionId || "");
+    const l = String(ref?.lang || "");
+    if (v === "default" && l === "zh") return 0;
+    if (v === "default") return 1;
+    if (l === "zh") return 2;
+    return 3;
+  }
+
+  const rows = [];
+  for (const row of rowsByKey.values()) {
+    const refs = Array.isArray(row.refs) ? row.refs.slice() : [];
+    refs.sort((a, b) => {
+      const pd = refPriority(a) - refPriority(b);
+      if (pd !== 0) return pd;
+      const vd = String(a.versionId).localeCompare(String(b.versionId));
+      if (vd !== 0) return vd;
+      return String(a.lang).localeCompare(String(b.lang));
+    });
+    const preferred = refs[0] || {};
+    const imageUrl = safeText(preferred.imageUrl || "");
+    const uniqueUrls = [...new Set(refs.map((x) => safeText(x.imageUrl || "")).filter(Boolean))];
+    if (imageUrl) {
+      imageUsage.set(imageUrl, (imageUsage.get(imageUrl) || 0) + 1);
+    }
+    rows.push({
+      bookId: row.bookId,
+      bookName: row.bookName,
+      chapter: row.chapter,
+      imageUrl,
+      updatedAt:
+        safeText(preferred.updatedAt || "") ||
+        refs.map((x) => safeText(x.updatedAt || "")).filter(Boolean).sort().reverse()[0] ||
+        "",
+      refCount: refs.length,
+      variantCount: uniqueUrls.length,
+      refs: refs.map((ref) => ({
+        versionId: ref.versionId,
+        lang: ref.lang,
+        imageUrl: ref.imageUrl,
+        updatedAt: ref.updatedAt,
+      })),
+    });
+  }
+
+  rows.forEach((row) => {
+    row.usageCount = row.imageUrl ? imageUsage.get(row.imageUrl) || 0 : 0;
+    const normalizedImage = safeText(row.imageUrl || "");
+    row.generatedName = normalizedImage.startsWith("/generated/")
+      ? path.basename(normalizedImage.split("?")[0])
+      : "";
+  });
+
+  rows.sort((a, b) => {
+    const bd = String(a.bookId).localeCompare(String(b.bookId));
+    if (bd !== 0) return bd;
+    return Number(a.chapter) - Number(b.chapter);
+  });
+  return rows;
+}
+
+function handleAdminChapterIllustrationsList(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+    const pageSize = Math.min(80, Math.max(8, Math.floor(Number(req.query.pageSize) || 24)));
+    const q = safeText(req.query.q || "").toLowerCase();
+    let rows = listPublishedChapterIllustrationSummaries();
+    if (q) {
+      rows = rows.filter((row) => {
+        const hay = [
+          row.bookId,
+          row.bookName,
+          String(row.chapter),
+          row.imageUrl,
+          row.generatedName,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    const total = rows.length;
+    const start = (page - 1) * pageSize;
+    const items = rows.slice(start, start + pageSize);
+    res.set("Cache-Control", "no-store");
+    res.json({ total, page, pageSize, items });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message || "列出章节插图失败" });
+  }
+}
+
 app.get("/api/admin/generated-pngs", handleAdminGeneratedPngsList);
 /** 短路径：个别反代对较长 path 返回 404 时可用 */
 app.get("/api/admin/gpngs", handleAdminGeneratedPngsList);
 app.post("/api/admin/generated-pngs/rebuild-thumbs", handleAdminGeneratedPngsRebuildThumbs);
 app.post("/api/admin/gpngs-rebuild", handleAdminGeneratedPngsRebuildThumbs);
+app.post("/api/admin/generated-pngs/delete", handleAdminGeneratedPngsDelete);
+app.post("/api/admin/gpngs-delete", handleAdminGeneratedPngsDelete);
+app.get("/api/admin/chapter-illustrations", handleAdminChapterIllustrationsList);
+app.get("/api/admin/chapter-ills", handleAdminChapterIllustrationsList);
 
 async function handleCharacterProfilesRepairImages(req, res) {
   try {
@@ -9812,6 +10119,11 @@ async function handleBcdExtractHeroFromComparison(req, res) {
     const filename = `ill-bcd-hero-crop-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.png`;
     const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(filePath, outBuf);
+    try {
+      await ensureGeneratedThumbForFilename(filename, 320);
+    } catch (thumbErr) {
+      console.warn("[bcd-extract-hero:auto-thumb]", thumbErr?.message || thumbErr);
+    }
     res.json({
       success: true,
       imageUrl: `/generated/${filename}`,
@@ -9873,6 +10185,11 @@ async function handleBcdExtractAllPeriodsFromComparison(req, res) {
         const filename = `ill-bcd-period-${ts}-${col}-${rand}.png`;
         const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
         fs.writeFileSync(filePath, outBuf);
+        try {
+          await ensureGeneratedThumbForFilename(filename, 320);
+        } catch (thumbErr) {
+          console.warn("[bcd-extract-period:auto-thumb]", thumbErr?.message || thumbErr);
+        }
         imageUrls.push(`/generated/${filename}`);
       }
     } catch (e) {
@@ -10268,6 +10585,13 @@ app.post("/api/generate-illustration", async (req, res) => {
     }
     const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(filePath, buf);
+    if (bookIdRaw === "char" && nameEnTok && nameSlotTok) {
+      try {
+        await ensureGeneratedThumbForFilename(filename, 320);
+      } catch (thumbErr) {
+        console.warn("[generate-illustration:auto-thumb]", thumbErr?.message || thumbErr);
+      }
+    }
 
     const imageUrl = `/generated/${filename}`;
     res.json({
@@ -13317,13 +13641,40 @@ app.get("/api/dev/livereload-status", (_req, res) => {
 app.use(
   "/generated",
   express.static(path.join(__dirname, "public", "generated"), {
-    maxAge: "1d",
+    maxAge: 0,
     etag: true,
+    setHeaders(res, filePath) {
+      const ext = path.extname(String(filePath || "")).toLowerCase();
+      if (ext === ".png" || ext === ".jpg" || ext === ".jpeg" || ext === ".webp" || ext === ".svg") {
+        res.setHeader(
+          "Cache-Control",
+          "no-store, no-cache, max-age=0, must-revalidate"
+        );
+      }
+    },
   })
 );
 
 /* 静态资源放在所有 /api 路由之后，避免根目录下出现与 /api/... 冲突的路径时被 express.static 抢先返回 HTML */
-app.use(express.static(__dirname));
+app.use(
+  express.static(__dirname, {
+    maxAge: 0,
+    etag: true,
+    setHeaders(res, filePath) {
+      const ext = path.extname(String(filePath || "")).toLowerCase();
+      const base = path.basename(String(filePath || "")).toLowerCase();
+      const noStoreExt = new Set([".html", ".js", ".css", ".webmanifest", ".json"]);
+      if (noStoreExt.has(ext) || base === "sw.js") {
+        res.setHeader(
+          "Cache-Control",
+          "no-store, no-cache, max-age=0, must-revalidate"
+        );
+        return;
+      }
+      res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+    },
+  })
+);
 
 const port = Number(process.env.PORT) || 3000;
 /* 默认 0.0.0.0：本机 localhost 与局域网其它设备均可访问；仅本机时用 LISTEN_HOST=127.0.0.1 */
