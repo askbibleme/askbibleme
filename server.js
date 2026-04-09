@@ -60,6 +60,37 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * Render 会为所有服务设置 RENDER=true。已有 Web Service 从 Git 部署时，Blueprint（render.yaml）里的
+ * env 不一定已同步到 Dashboard，会导致生产校验缺变量而 exit(1)。未配置时填入与 render.yaml
+ * 及持久盘 mountPath: /var/data 一致的路径（含 DATA_ROOT，避免 admin_data 落在临时发布目录）。
+ */
+function applyRenderProductionEnvDefaults() {
+  if (String(process.env.NODE_ENV || "").trim() !== "production") return;
+  if (process.env.RENDER !== "true") return;
+  const filled = [];
+  if (!String(process.env.DATA_ROOT || "").trim()) {
+    process.env.DATA_ROOT = "/var/data";
+    filled.push("DATA_ROOT");
+  }
+  if (!String(process.env.CHARACTER_DATA_DIR || "").trim()) {
+    process.env.CHARACTER_DATA_DIR = "/var/data/creative_runtime_data";
+    filled.push("CHARACTER_DATA_DIR");
+  }
+  if (!String(process.env.GENERATED_ASSETS_DIR || "").trim()) {
+    process.env.GENERATED_ASSETS_DIR = "/var/data/generated_png";
+    filled.push("GENERATED_ASSETS_DIR");
+  }
+  if (filled.length) {
+    console.log(
+      "[render-defaults] 已补全环境变量（与 render.yaml 一致；建议在 Dashboard 显式配置）:",
+      filled.join(", ")
+    );
+  }
+}
+applyRenderProductionEnvDefaults();
+
 const DATA_ROOT = process.env.DATA_ROOT
   ? path.resolve(process.env.DATA_ROOT)
   : __dirname;
