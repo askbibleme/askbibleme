@@ -7008,14 +7008,7 @@ function generatedImageUrlExists(url) {
   const raw = String(url || "").trim();
   if (!raw) return false;
   if (!raw.startsWith("/generated/")) return true;
-  const name = path.basename(raw.split("?")[0]);
-  if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(name)) return false;
-  const abs = path.join(__dirname, "public", "generated", name);
-  try {
-    return fs.existsSync(abs) && fs.statSync(abs).isFile();
-  } catch {
-    return false;
-  }
+  return Boolean(resolveSafeGeneratedPngPath(raw));
 }
 
 function resolveExistingChapterRosterPortrait(entry, preferredSlot) {
@@ -7037,7 +7030,7 @@ function resolveExistingChapterRosterPortrait(entry, preferredSlot) {
       return { url: slots[i], portraitSlot: i };
     }
   }
-  return primary;
+  return { url: "", portraitSlot: null };
 }
 
 function readerRosterScaleForEntry(entry, portraitSlot) {
