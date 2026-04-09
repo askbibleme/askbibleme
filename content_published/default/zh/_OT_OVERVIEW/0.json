@@ -22,6 +22,24 @@
       "updatedAt": "2026-04-06T14:00:42.457Z",
       "posterUrl": "/api/published/chapter-video-poster?version=default&lang=zh&bookId=_OT_OVERVIEW&chapter=0&id=6612a7796d870ae7198987924830840a",
       "posterUpdatedAt": "2026-04-06T14:00:42.555Z"
+    },
+    {
+      "id": "fa1328f02b8c3ad52de104aa8367e39c",
+      "title": "测试标题",
+      "mime": "video/mp4",
+      "ext": "mp4",
+      "updatedAt": "2026-04-09T21:35:42.672Z",
+      "posterUrl": "/api/published/chapter-video-poster?version=default&lang=zh&bookId=_OT_OVERVIEW&chapter=0&id=fa1328f02b8c3ad52de104aa8367e39c",
+      "posterUpdatedAt": "2026-04-09T21:35:42.831Z"
+    },
+    {
+      "id": "a0340febdad95fcf260d4dc67b4f3128",
+      "title": "测试第三个视频",
+      "mime": "video/mp4",
+      "ext": "mp4",
+      "updatedAt": "2026-04-09T21:39:20.233Z",
+      "posterUrl": "/api/published/chapter-video-poster?version=default&lang=zh&bookId=_OT_OVERVIEW&chapter=0&id=a0340febdad95fcf260d4dc67b4f3128",
+      "posterUpdatedAt": "2026-04-09T21:39:20.252Z"
     }
   ]
 }

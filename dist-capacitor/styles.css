@@ -1783,8 +1783,26 @@ body:has(
   display: none;
 }
 
-.book-layout.book-layout--landing .chapter-videos-slot:not(:empty) {
+/* 卷首页视频槽：仅占左栏满宽（含宽屏双栏，不拉通右页） */
+.book-layout.book-layout--landing .book-page.left-page .chapter-videos-slot:not(:empty) {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
   margin-bottom: 10px;
+  align-self: stretch;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1101px) {
+  .book-layout.book-layout--landing
+    .book-page.left-page
+    .chapter-videos-slot:not(:empty)
+    .chapter-video-landing-panel-inner
+    .chapter-video-el {
+    max-height: min(62vh, 720px);
+  }
 }
 
 .book-layout.book-layout--landing .blocks-stack:empty {
@@ -2962,6 +2980,9 @@ body:has(
   bottom: 0;
   left: 0;
   width: 28px;
+  /* 与 .book-spread / .book-layout 的 26px 圆角对齐，避免大屏双栏时竖条直角顶穿弧角 */
+  border-top-left-radius: 26px;
+  border-bottom-left-radius: 26px;
   background: linear-gradient(
     to right,
     rgba(120, 96, 63, 0.14),
@@ -2979,6 +3000,8 @@ body:has(
   bottom: 0;
   right: 0;
   width: 48px;
+  border-top-right-radius: 26px;
+  border-bottom-right-radius: 26px;
   background: linear-gradient(
     to left,
     rgba(70, 52, 30, 0.28),
@@ -3778,6 +3801,13 @@ button.toolbar-trigger:hover,
   letter-spacing: 1px;
 }
 
+/* 卷首页 / 概论：首行是书名标题而非章号，大字约为读经章号页的一半 */
+.book-layout--landing .page-chapter-number {
+  font-size: calc(50px * var(--font-scale));
+  line-height: 1.08;
+  letter-spacing: -1px;
+}
+
 .repeated-words-wrap {
   text-align: center;
   margin-bottom: 30px;
@@ -3841,6 +3871,7 @@ button.toolbar-trigger:hover,
   display: block;
   width: 100%;
   max-width: 100%;
+  position: relative;
 }
 
 .chapter-illustration-img {
@@ -3852,6 +3883,22 @@ button.toolbar-trigger:hover,
   border-radius: 12px;
   box-shadow: none;
   outline: none;
+}
+
+.chapter-illustration-watermark {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(10px, 2.4vw, 22px);
+  width: clamp(56px, 11vw, 104px);
+  height: clamp(56px, 11vw, 104px);
+  transform: translateX(-50%);
+  border-radius: 18px;
+  background:
+    url("/assets/icons/icon.svg") center / contain no-repeat;
+  opacity: 0.1;
+  filter: grayscale(1) brightness(1.08);
+  mix-blend-mode: multiply;
+  pointer-events: none;
 }
 
 /* 右页视频槽：与左栏对称分列（仅宽屏有内容；窄屏由脚本清空） */
@@ -3887,6 +3934,128 @@ button.toolbar-trigger:hover,
   background: transparent;
   object-fit: contain;
   vertical-align: middle;
+}
+
+/* 卷首页多视频：手风琴（标题在上，仅展开项有播放器） */
+.chapter-videos-inner--landing-pick {
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 单卡片外壳：外框弧型收边；内部分段，视频区保持直角（由 overflow 裁切贴外框） */
+.chapter-video-landing-shell {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(190, 170, 140, 0.45);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 253, 248, 0.55);
+}
+
+.chapter-video-landing-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.chapter-video-landing-acc-item {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.chapter-video-landing-shell .chapter-video-landing-acc-item:not(:first-child) {
+  border-top: 1px solid rgba(190, 170, 140, 0.35);
+}
+
+.chapter-video-landing-title-btn {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 0;
+  background: rgba(255, 253, 248, 0.75);
+  color: var(--ink);
+  font-size: calc(17px * var(--font-scale));
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  line-height: 1.35;
+  transition: background 0.15s ease;
+}
+
+.chapter-video-landing-title-btn:hover {
+  background: rgba(255, 253, 248, 0.95);
+}
+
+.chapter-video-landing-title-btn.is-active {
+  background: rgba(139, 111, 71, 0.14);
+  font-weight: 800;
+}
+
+/* 单视频：与按钮同款样式，不可点 */
+.chapter-video-landing-title-static {
+  cursor: default;
+}
+
+.chapter-video-landing-acc-item.is-expanded .chapter-video-landing-title-btn {
+  border-bottom: 1px solid rgba(190, 170, 140, 0.3);
+}
+
+.chapter-video-landing-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  transition: grid-template-rows 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.chapter-video-landing-acc-item.is-expanded .chapter-video-landing-panel {
+  grid-template-rows: 1fr;
+}
+
+/* 视频区与播放器四角平直，无弧型收边 */
+.chapter-video-landing-panel-inner {
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-radius: 0;
+  background: transparent;
+}
+
+.chapter-video-landing-acc-item.is-expanded .chapter-video-landing-panel-inner {
+  padding: 0;
+}
+
+.chapter-video-landing-panel-inner .chapter-video-el {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(56vh, 460px);
+  border-radius: 0;
+  vertical-align: middle;
+  background: #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-video-landing-panel {
+    transition: none;
+  }
 }
 
 /* =========================
@@ -4093,11 +4262,31 @@ button.toolbar-trigger:hover,
   cursor: not-allowed;
 }
 
-/* 章末：本章人员立绘（表内 #chapterEndPersonnelRoster）；单行横向滚动 */
+/* 章末：本卷人物轴（表内 #chapterEndPersonnelRoster）；单行横向滚动 */
+.chapter-character-timeline-shell {
+  position: relative;
+  width: 100%;
+}
+
+.chapter-character-timeline-shell::before {
+  display: none;
+}
+
+.chapter-character-timeline-shell::after {
+  display: none;
+}
+
+.chapter-character-timeline-center {
+  display: none;
+}
+
 .chapter-character-roster {
+  --chapter-character-roster-figure-height: 300px;
+  --chapter-character-roster-column-gap: 50px;
+  --chapter-character-roster-img-clip-w: min(170px, 24vw);
   display: flex;
   flex-wrap: nowrap;
-  gap: 14px 18px;
+  gap: 0;
   justify-content: flex-start;
   align-items: flex-end;
 }
@@ -4106,44 +4295,87 @@ button.toolbar-trigger:hover,
   margin: 0;
   flex: 0 0 auto;
   flex-shrink: 0;
-  width: min(28vw, 132px);
+  width: auto;
   max-width: none;
+  position: relative;
+}
+
+.chapter-character-roster-item + .chapter-character-roster-item {
+  margin-inline-start: var(--chapter-character-roster-column-gap);
 }
 
 .chapter-character-roster-img-wrap {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  min-height: 140px;
-  max-height: 200px;
-  padding: 6px 4px 0;
+  height: var(--chapter-character-roster-figure-height);
+  max-width: var(--chapter-character-roster-img-clip-w);
+  margin-inline: auto;
+  padding: 2px 1px 0;
   border-radius: 12px;
   box-sizing: border-box;
   background: transparent;
+  overflow-x: hidden;
 }
 
 .chapter-character-roster-img {
   display: block;
-  max-width: 100%;
-  max-height: 192px;
+  max-width: none;
+  max-height: none;
   width: auto;
-  height: auto;
+  height: var(--chapter-character-roster-figure-height);
   object-fit: contain;
   object-position: bottom center;
 }
 
 .chapter-character-roster-caption {
-  margin: 8px 0 0;
+  margin: 2px 0 0;
   text-align: center;
-  font-size: calc(14px * var(--font-scale));
-  font-weight: 700;
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 800;
   color: var(--ink);
-  line-height: 1.35;
+  line-height: 1.08;
+}
+
+.chapter-character-roster-role {
+  display: block;
+  margin-top: 3px;
+  font-size: calc(10px * var(--font-scale));
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.chapter-character-roster-role--primary {
+  color: #8e6a2f;
+}
+
+.chapter-character-roster-role--secondary {
+  color: #8a7c67;
+}
+
+.chapter-character-roster-marker {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 18px);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(154, 123, 80, 0.12);
+  color: #896b43;
+  font-size: calc(11px * var(--font-scale));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .chapter-character-roster--personnel-cell {
   margin: 0;
-  padding: 4px 2px 6px;
+  padding: 10px max(4px, calc(50% - 86px)) 8px;
   min-height: 0;
   width: 100%;
   max-width: 100%;
@@ -4153,6 +4385,80 @@ button.toolbar-trigger:hover,
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
+  scroll-behavior: smooth;
+  cursor: grab;
+  touch-action: pan-x pan-y;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 22px,
+    #000 calc(100% - 22px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 22px,
+    #000 calc(100% - 22px),
+    transparent 100%
+  );
+}
+
+/* 中屏、大屏：人物立绘区加高（小屏仍用上方 300px） */
+@media (min-width: 641px) {
+  .chapter-character-roster {
+    --chapter-character-roster-figure-height: 480px;
+  }
+}
+
+@media (max-width: 640px) {
+  .chapter-character-roster {
+    --chapter-character-roster-column-gap: 50px;
+    --chapter-character-roster-img-clip-w: min(138px, 28vw);
+  }
+
+  .chapter-character-roster-item {
+    width: auto;
+    max-width: none;
+  }
+
+  .chapter-character-roster-img-wrap {
+    height: var(--chapter-character-roster-figure-height);
+  }
+
+  .chapter-character-roster-img {
+    height: var(--chapter-character-roster-figure-height);
+  }
+
+  .chapter-character-roster-caption {
+    font-size: calc(13px * var(--font-scale));
+    margin-top: 1px;
+    line-height: 1.04;
+  }
+
+  .chapter-character-roster--personnel-cell {
+    padding-left: 3px;
+    padding-right: 3px;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 14px,
+      #000 calc(100% - 14px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 14px,
+      #000 calc(100% - 14px),
+      transparent 100%
+    );
+  }
+}
+
+.chapter-character-roster--personnel-cell.is-dragging {
+  cursor: grabbing;
+  scroll-behavior: auto;
 }
 
 .chapter-character-roster--personnel-cell::-webkit-scrollbar {
@@ -4162,6 +4468,43 @@ button.toolbar-trigger:hover,
 .chapter-character-roster--personnel-cell::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.2);
+}
+
+.chapter-character-progress {
+  padding: 8px 34px 14px;
+}
+
+.chapter-character-progress-track {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(164, 142, 109, 0.18);
+  overflow: hidden;
+}
+
+.chapter-character-progress-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--chapter-progress-start, 0%);
+  width: var(--chapter-progress-width, 0%);
+  min-width: 20px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(176, 141, 92, 0.95), rgba(144, 113, 73, 0.95));
+}
+
+.chapter-character-progress-pointer {
+  position: absolute;
+  left: var(--chapter-progress-pointer, 50%);
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 10px solid var(--brand-bible);
+  filter: drop-shadow(0 1px 1px rgba(144, 104, 29, 0.18));
 }
 
 /* 本章人员：单行滚动需 fixed 表格；透明底、无外框/单元格线/阴影 */
@@ -4176,7 +4519,7 @@ button.toolbar-trigger:hover,
 }
 
 #chapterEndPersonnelSection .chapter-end-notes-table-caption {
-  padding: 0 0 6px;
+  display: none;
 }
 
 #chapterEndPersonnelSection .chapter-end-notes-table-cell {
@@ -4185,7 +4528,7 @@ button.toolbar-trigger:hover,
   overflow: hidden;
   border: none;
   background: transparent;
-  padding: 2px 0 8px;
+  padding: 0 0 4px;
   min-height: 0;
 }
 
@@ -5122,67 +5465,107 @@ body.member-profile-open {
   gap: 3px;
 }
 
-/* 小屏：首行三列标题（旧约｜新约｜章节），次行同宽比内容区；总宽分 7 份 → 3:3:1 */
+/* 宽屏：顶部分段（仅小屏用）不占位 */
+#bookChapterPanel .book-chapter-compact-tabs {
+  display: none;
+  width: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.book-chapter-compact-tab {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(190, 170, 140, 0.45);
+  background: rgba(255, 253, 248, 0.72);
+  color: var(--muted);
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.book-chapter-compact-tab:hover {
+  background: rgba(255, 253, 248, 0.92);
+}
+
+.book-chapter-compact-tab.is-active {
+  background: rgba(139, 111, 71, 0.16);
+  border-color: rgba(139, 111, 71, 0.38);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+/* 小屏：顶部分段切换 + 下单栏全宽滚动（与宽屏三栏并列完全不同） */
 @media (max-width: 700px) {
+  #bookChapterPanel .book-chapter-compact-tabs {
+    display: flex !important;
+    flex-direction: row;
+    gap: 6px;
+    padding: 2px 0 8px;
+  }
+
   #bookChapterPanel .book-chapter-triple {
-    grid-template-columns: 3fr 3fr 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-    column-gap: 4px;
-    row-gap: 4px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    gap: 0;
     align-items: stretch;
   }
 
   #bookChapterPanel .book-chapter-col {
-    display: contents;
-  }
-
-  /* DOM 为「每栏标题+内容」交替，自动排列会把书卷格挤到首行；固定为第 1 行标题、第 2 行内容 */
-  #bookChapterPanel .book-chapter-col--ot > .book-chapter-section-title {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  #bookChapterPanel .book-chapter-col--ot > .book-grid--ot {
-    grid-column: 1;
-    grid-row: 2;
+    display: none !important;
+    flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
   }
 
-  #bookChapterPanel .book-chapter-col--nt > .book-chapter-section-title {
-    grid-column: 2;
-    grid-row: 1;
+  #bookChapterPanel .book-chapter-triple[data-bc-tab="ot"] .book-chapter-col--ot,
+  #bookChapterPanel .book-chapter-triple[data-bc-tab="nt"] .book-chapter-col--nt,
+  #bookChapterPanel .book-chapter-triple[data-bc-tab="ch"] .book-chapter-col--chapters {
+    display: flex !important;
   }
 
-  #bookChapterPanel .book-chapter-col--nt > .book-grid--nt {
-    grid-column: 2;
-    grid-row: 2;
-    min-height: 0;
-  }
-
-  #bookChapterPanel .book-chapter-col--chapters > .book-chapter-section-title {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  #bookChapterPanel .book-chapter-col--chapters > .book-chapter-chapter-grid {
-    grid-column: 3;
-    grid-row: 2;
-    min-height: 0;
-  }
-
-  #bookChapterPanel .book-chapter-section-title {
-    margin-bottom: 0;
-    text-align: center;
-    font-size: calc(14px * var(--font-scale));
-    padding: 1px 1px 2px;
+  #bookChapterPanel .book-chapter-col .book-chapter-section-title {
+    display: none !important;
   }
 
   #bookChapterPanel .book-grid--ot {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  #bookChapterPanel .book-chapter-chapter-grid {
+  #bookChapterPanel .book-grid--nt {
     grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #bookChapterPanel .book-chapter-chapter-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 4px;
+  }
+}
+
+/* 极小屏：书卷简称（中/英/西）与顶栏栏目名同字号字重（与 main.js 480px 断点一致） */
+@media (max-width: 480px) {
+  #bookChapterPanel .book-grid--ot .book-item,
+  #bookChapterPanel .book-grid--nt .book-item {
+    font-size: calc(15px * var(--font-scale)) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.02em;
+    min-height: 30px !important;
   }
 }
 
@@ -5207,6 +5590,11 @@ body.member-profile-open {
 #bookChapterPanel .chapter-item {
   min-height: 32px !important;
   padding: 4px 4px !important;
+}
+
+#bookChapterPanel .chapter-item:not(.chapter-item--intro) {
+  font-size: calc(16px * var(--font-scale)) !important;
+  font-weight: 800 !important;
 }
 
 #bookChapterPanel .book-item:hover,
@@ -5989,6 +6377,67 @@ a.admin-modal-hub-link.primary-btn {
     /* 勿用 translateZ(0)：在 iPad WKWebView 上易与 position:fixed 顶栏产生错误叠层，滚动时正文盖过菜单 */
   }
 
+  .book-layout {
+    border: 1px solid rgba(223, 209, 186, 0.72);
+    background:
+      linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(248, 241, 230, 0.96)),
+      var(--book-spread-paper-gradient, var(--paper));
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.2),
+      0 2px 0 rgba(255, 255, 255, 0.55) inset,
+      0 -1px 0 rgba(180, 157, 122, 0.08) inset;
+  }
+
+  .book-layout::before,
+  .book-layout::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .book-layout::before {
+    display: block;
+    z-index: 0;
+    transform: translateY(8px) scale(0.992);
+    background: rgba(235, 224, 207, 0.72);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+    opacity: 0.85;
+  }
+
+  .book-layout::after {
+    display: block;
+    z-index: 3;
+    background:
+      linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.42) 0%,
+        rgba(255, 255, 255, 0.1) 6%,
+        rgba(255, 255, 255, 0) 16%
+      ),
+      linear-gradient(
+        to right,
+        rgba(188, 164, 126, 0.06) 0%,
+        rgba(255, 255, 255, 0) 12%,
+        rgba(255, 255, 255, 0) 88%,
+        rgba(188, 164, 126, 0.06) 100%
+      );
+    mix-blend-mode: multiply;
+  }
+
+  .book-spread {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.58),
+      inset 0 0 0 1px rgba(233, 220, 201, 0.36);
+  }
+
+  .book-page {
+    background:
+      linear-gradient(180deg, rgba(255, 254, 251, 0.6), rgba(255, 251, 244, 0.36)),
+      radial-gradient(circle at top center, rgba(214, 190, 150, 0.08), rgba(255, 255, 255, 0) 52%);
+  }
+
   .book-page:first-child::before,
   .book-page:last-child::after,
   .book-page.right-page::before {
@@ -6150,6 +6599,10 @@ a.admin-modal-hub-link.primary-btn {
 
   .page-chapter-number {
     font-size: calc(84px * var(--font-scale));
+  }
+
+  .book-layout--landing .page-chapter-number {
+    font-size: calc(42px * var(--font-scale));
   }
 
   .page-book-title {
@@ -6347,13 +6800,26 @@ a.admin-modal-hub-link.primary-btn {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    border-color: rgba(223, 209, 186, 0.66);
+    box-shadow:
+      0 14px 28px rgba(0, 0, 0, 0.18),
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 -1px 0 rgba(180, 157, 122, 0.08) inset;
+    background-clip: padding-box;
+    isolation: isolate;
   }
 
   .book-spread {
     border-radius: 18px;
-    /* 亚像素圆角抗锯齿时避免透出下层 */
+    /* 小屏统一按圆角裁切，避免四角漏出直角底色 */
+    overflow: hidden;
+    clip-path: inset(0 round 18px);
+    background-clip: padding-box;
     isolation: isolate;
     /* 同上：避免 translateZ 触发与 fixed 顶栏的合成层错乱 */
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.48),
+      inset 0 0 0 1px rgba(233, 220, 201, 0.3);
   }
 
   .book-page {
@@ -6474,6 +6940,10 @@ a.admin-modal-hub-link.primary-btn {
 
   .page-chapter-number {
     font-size: calc(72px * var(--font-scale));
+  }
+
+  .book-layout--landing .page-chapter-number {
+    font-size: calc(36px * var(--font-scale));
   }
 
   .page-book-title {
@@ -6684,6 +7154,19 @@ a.admin-modal-hub-link.primary-btn {
   .book-layout,
   .book-spread {
     border-radius: 16px;
+  }
+
+  .book-spread {
+    clip-path: inset(0 round 16px);
+  }
+
+  .book-layout::before {
+    transform: translateY(6px) scale(0.994);
+    opacity: 0.72;
+  }
+
+  .book-layout::after {
+    opacity: 0.82;
   }
 
   .member-hub--bookmark .member-hub-trigger {

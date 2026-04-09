@@ -1783,8 +1783,26 @@ body:has(
   display: none;
 }
 
-.book-layout.book-layout--landing .chapter-videos-slot:not(:empty) {
+/* 卷首页视频槽：仅占左栏满宽（含宽屏双栏，不拉通右页） */
+.book-layout.book-layout--landing .book-page.left-page .chapter-videos-slot:not(:empty) {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
   margin-bottom: 10px;
+  align-self: stretch;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1101px) {
+  .book-layout.book-layout--landing
+    .book-page.left-page
+    .chapter-videos-slot:not(:empty)
+    .chapter-video-landing-panel-inner
+    .chapter-video-el {
+    max-height: min(62vh, 720px);
+  }
 }
 
 .book-layout.book-layout--landing .blocks-stack:empty {
@@ -2962,6 +2980,9 @@ body:has(
   bottom: 0;
   left: 0;
   width: 28px;
+  /* 与 .book-spread / .book-layout 的 26px 圆角对齐，避免大屏双栏时竖条直角顶穿弧角 */
+  border-top-left-radius: 26px;
+  border-bottom-left-radius: 26px;
   background: linear-gradient(
     to right,
     rgba(120, 96, 63, 0.14),
@@ -2979,6 +3000,8 @@ body:has(
   bottom: 0;
   right: 0;
   width: 48px;
+  border-top-right-radius: 26px;
+  border-bottom-right-radius: 26px;
   background: linear-gradient(
     to left,
     rgba(70, 52, 30, 0.28),
@@ -3778,6 +3801,13 @@ button.toolbar-trigger:hover,
   letter-spacing: 1px;
 }
 
+/* 卷首页 / 概论：首行是书名标题而非章号，大字约为读经章号页的一半 */
+.book-layout--landing .page-chapter-number {
+  font-size: calc(50px * var(--font-scale));
+  line-height: 1.08;
+  letter-spacing: -1px;
+}
+
 .repeated-words-wrap {
   text-align: center;
   margin-bottom: 30px;
@@ -3904,6 +3934,128 @@ button.toolbar-trigger:hover,
   background: transparent;
   object-fit: contain;
   vertical-align: middle;
+}
+
+/* 卷首页多视频：手风琴（标题在上，仅展开项有播放器） */
+.chapter-videos-inner--landing-pick {
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 单卡片外壳：外框弧型收边；内部分段，视频区保持直角（由 overflow 裁切贴外框） */
+.chapter-video-landing-shell {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(190, 170, 140, 0.45);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 253, 248, 0.55);
+}
+
+.chapter-video-landing-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.chapter-video-landing-acc-item {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.chapter-video-landing-shell .chapter-video-landing-acc-item:not(:first-child) {
+  border-top: 1px solid rgba(190, 170, 140, 0.35);
+}
+
+.chapter-video-landing-title-btn {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 0;
+  background: rgba(255, 253, 248, 0.75);
+  color: var(--ink);
+  font-size: calc(17px * var(--font-scale));
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  line-height: 1.35;
+  transition: background 0.15s ease;
+}
+
+.chapter-video-landing-title-btn:hover {
+  background: rgba(255, 253, 248, 0.95);
+}
+
+.chapter-video-landing-title-btn.is-active {
+  background: rgba(139, 111, 71, 0.14);
+  font-weight: 800;
+}
+
+/* 单视频：与按钮同款样式，不可点 */
+.chapter-video-landing-title-static {
+  cursor: default;
+}
+
+.chapter-video-landing-acc-item.is-expanded .chapter-video-landing-title-btn {
+  border-bottom: 1px solid rgba(190, 170, 140, 0.3);
+}
+
+.chapter-video-landing-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  transition: grid-template-rows 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.chapter-video-landing-acc-item.is-expanded .chapter-video-landing-panel {
+  grid-template-rows: 1fr;
+}
+
+/* 视频区与播放器四角平直，无弧型收边 */
+.chapter-video-landing-panel-inner {
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-radius: 0;
+  background: transparent;
+}
+
+.chapter-video-landing-acc-item.is-expanded .chapter-video-landing-panel-inner {
+  padding: 0;
+}
+
+.chapter-video-landing-panel-inner .chapter-video-el {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(56vh, 460px);
+  border-radius: 0;
+  vertical-align: middle;
+  background: #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-video-landing-panel {
+    transition: none;
+  }
 }
 
 /* =========================
@@ -4129,10 +4281,12 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-character-roster {
-  --chapter-character-roster-figure-height: 480px;
+  --chapter-character-roster-figure-height: 300px;
+  --chapter-character-roster-column-gap: 50px;
+  --chapter-character-roster-img-clip-w: min(170px, 24vw);
   display: flex;
   flex-wrap: nowrap;
-  gap: 4px 6px;
+  gap: 0;
   justify-content: flex-start;
   align-items: flex-end;
 }
@@ -4146,15 +4300,22 @@ button.toolbar-trigger:hover,
   position: relative;
 }
 
+.chapter-character-roster-item + .chapter-character-roster-item {
+  margin-inline-start: var(--chapter-character-roster-column-gap);
+}
+
 .chapter-character-roster-img-wrap {
   display: flex;
   align-items: flex-end;
   justify-content: center;
   height: var(--chapter-character-roster-figure-height);
+  max-width: var(--chapter-character-roster-img-clip-w);
+  margin-inline: auto;
   padding: 2px 1px 0;
   border-radius: 12px;
   box-sizing: border-box;
   background: transparent;
+  overflow-x: hidden;
 }
 
 .chapter-character-roster-img {
@@ -4243,9 +4404,17 @@ button.toolbar-trigger:hover,
   );
 }
 
+/* 中屏、大屏：人物立绘区加高（小屏仍用上方 300px） */
+@media (min-width: 641px) {
+  .chapter-character-roster {
+    --chapter-character-roster-figure-height: 480px;
+  }
+}
+
 @media (max-width: 640px) {
   .chapter-character-roster {
-    gap: 2px;
+    --chapter-character-roster-column-gap: 50px;
+    --chapter-character-roster-img-clip-w: min(138px, 28vw);
   }
 
   .chapter-character-roster-item {
@@ -5296,67 +5465,107 @@ body.member-profile-open {
   gap: 3px;
 }
 
-/* 小屏：首行三列标题（旧约｜新约｜章节），次行同宽比内容区；总宽分 7 份 → 3:3:1 */
+/* 宽屏：顶部分段（仅小屏用）不占位 */
+#bookChapterPanel .book-chapter-compact-tabs {
+  display: none;
+  width: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.book-chapter-compact-tab {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(190, 170, 140, 0.45);
+  background: rgba(255, 253, 248, 0.72);
+  color: var(--muted);
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.book-chapter-compact-tab:hover {
+  background: rgba(255, 253, 248, 0.92);
+}
+
+.book-chapter-compact-tab.is-active {
+  background: rgba(139, 111, 71, 0.16);
+  border-color: rgba(139, 111, 71, 0.38);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+/* 小屏：顶部分段切换 + 下单栏全宽滚动（与宽屏三栏并列完全不同） */
 @media (max-width: 700px) {
+  #bookChapterPanel .book-chapter-compact-tabs {
+    display: flex !important;
+    flex-direction: row;
+    gap: 6px;
+    padding: 2px 0 8px;
+  }
+
   #bookChapterPanel .book-chapter-triple {
-    grid-template-columns: 3fr 3fr 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-    column-gap: 4px;
-    row-gap: 4px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    gap: 0;
     align-items: stretch;
   }
 
   #bookChapterPanel .book-chapter-col {
-    display: contents;
-  }
-
-  /* DOM 为「每栏标题+内容」交替，自动排列会把书卷格挤到首行；固定为第 1 行标题、第 2 行内容 */
-  #bookChapterPanel .book-chapter-col--ot > .book-chapter-section-title {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  #bookChapterPanel .book-chapter-col--ot > .book-grid--ot {
-    grid-column: 1;
-    grid-row: 2;
+    display: none !important;
+    flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
   }
 
-  #bookChapterPanel .book-chapter-col--nt > .book-chapter-section-title {
-    grid-column: 2;
-    grid-row: 1;
+  #bookChapterPanel .book-chapter-triple[data-bc-tab="ot"] .book-chapter-col--ot,
+  #bookChapterPanel .book-chapter-triple[data-bc-tab="nt"] .book-chapter-col--nt,
+  #bookChapterPanel .book-chapter-triple[data-bc-tab="ch"] .book-chapter-col--chapters {
+    display: flex !important;
   }
 
-  #bookChapterPanel .book-chapter-col--nt > .book-grid--nt {
-    grid-column: 2;
-    grid-row: 2;
-    min-height: 0;
-  }
-
-  #bookChapterPanel .book-chapter-col--chapters > .book-chapter-section-title {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  #bookChapterPanel .book-chapter-col--chapters > .book-chapter-chapter-grid {
-    grid-column: 3;
-    grid-row: 2;
-    min-height: 0;
-  }
-
-  #bookChapterPanel .book-chapter-section-title {
-    margin-bottom: 0;
-    text-align: center;
-    font-size: calc(14px * var(--font-scale));
-    padding: 1px 1px 2px;
+  #bookChapterPanel .book-chapter-col .book-chapter-section-title {
+    display: none !important;
   }
 
   #bookChapterPanel .book-grid--ot {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  #bookChapterPanel .book-chapter-chapter-grid {
+  #bookChapterPanel .book-grid--nt {
     grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #bookChapterPanel .book-chapter-chapter-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 4px;
+  }
+}
+
+/* 极小屏：书卷简称（中/英/西）与顶栏栏目名同字号字重（与 main.js 480px 断点一致） */
+@media (max-width: 480px) {
+  #bookChapterPanel .book-grid--ot .book-item,
+  #bookChapterPanel .book-grid--nt .book-item {
+    font-size: calc(15px * var(--font-scale)) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.02em;
+    min-height: 30px !important;
   }
 }
 
@@ -5381,6 +5590,11 @@ body.member-profile-open {
 #bookChapterPanel .chapter-item {
   min-height: 32px !important;
   padding: 4px 4px !important;
+}
+
+#bookChapterPanel .chapter-item:not(.chapter-item--intro) {
+  font-size: calc(16px * var(--font-scale)) !important;
+  font-weight: 800 !important;
 }
 
 #bookChapterPanel .book-item:hover,
@@ -6387,6 +6601,10 @@ a.admin-modal-hub-link.primary-btn {
     font-size: calc(84px * var(--font-scale));
   }
 
+  .book-layout--landing .page-chapter-number {
+    font-size: calc(42px * var(--font-scale));
+  }
+
   .page-book-title {
     font-size: calc(30px * var(--font-scale));
   }
@@ -6722,6 +6940,10 @@ a.admin-modal-hub-link.primary-btn {
 
   .page-chapter-number {
     font-size: calc(72px * var(--font-scale));
+  }
+
+  .book-layout--landing .page-chapter-number {
+    font-size: calc(36px * var(--font-scale));
   }
 
   .page-book-title {

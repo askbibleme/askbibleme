@@ -1,0 +1,97 @@
+{
+  "items": [
+    {
+      "zhName": "亚当",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Adam-hero-1775602611329.png",
+      "imageUrl": "/generated/ill-char-Adam-hero-1775602611329.png",
+      "comparisonSheetUrl": "/generated/ill-char-Adam-hero-1775602611329.png",
+      "periods": []
+    },
+    {
+      "zhName": "夏娃",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Eve-hero-1775602363777.png",
+      "imageUrl": "/generated/ill-char-Eve-hero-1775602363777.png",
+      "comparisonSheetUrl": "/generated/ill-char-Eve-hero-1775602363777.png",
+      "periods": []
+    },
+    {
+      "zhName": "亚伯拉罕",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Abraham-hero-1775606539857.png",
+      "imageUrl": "/generated/ill-char-Abraham-hero-1775606539857.png",
+      "comparisonSheetUrl": "/generated/ill-char-Abraham-hero-1775606539857.png",
+      "periods": [
+        {
+          "imageUrl": ""
+        },
+        {
+          "imageUrl": ""
+        }
+      ]
+    },
+    {
+      "zhName": "撒拉",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Sarah-hero-1775607406504.png",
+      "imageUrl": "/generated/ill-char-Sarah-hero-1775607406504.png",
+      "comparisonSheetUrl": "/generated/ill-char-Sarah-hero-1775607406504.png",
+      "periods": []
+    },
+    {
+      "zhName": "以撒",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Isaac-hero-1775608112445.png",
+      "imageUrl": "/generated/ill-char-Isaac-sheet-1775608068554.png",
+      "comparisonSheetUrl": "/generated/ill-char-Isaac-sheet-1775608068554.png",
+      "periods": [
+        {
+          "imageUrl": "/generated/ill-char-Isaac-hero-1775608112445.png"
+        },
+        {
+          "imageUrl": "/generated/ill-char-Isaac-p1-1775608161080.png"
+        }
+      ]
+    },
+    {
+      "zhName": "利百加",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Rebekah-hero-1775607693110.png",
+      "imageUrl": "/generated/ill-char-Rebekah-sheet-1775607646191.png",
+      "comparisonSheetUrl": "/generated/ill-char-Rebekah-sheet-1775607646191.png",
+      "periods": [
+        {
+          "imageUrl": "/generated/ill-char-Rebekah-hero-1775607693110.png"
+        },
+        {
+          "imageUrl": "/generated/ill-bcd-period-1775592333997-2-d0f87725.png"
+        }
+      ]
+    },
+    {
+      "zhName": "以扫",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Esau-hero-1775612085323.png",
+      "imageUrl": "/generated/ill-char-Esau-hero-1775612085323.png",
+      "comparisonSheetUrl": "/generated/ill-char-Esau-hero-1775612085323.png",
+      "periods": []
+    },
+    {
+      "zhName": "雅各",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Jacob-hero-1775613092490.png",
+      "imageUrl": "/generated/ill-char-Jacob-hero-1775613092490.png",
+      "comparisonSheetUrl": "/generated/ill-char-Jacob-hero-1775613092490.png",
+      "periods": []
+    },
+    {
+      "zhName": "拉班",
+      "savedAt": "2026-04-09T18:54:15.855Z",
+      "heroImageUrl": "/generated/ill-char-Laban-hero-1775609940590.png",
+      "imageUrl": "/generated/ill-char-Laban-hero-1775609940590.png",
+      "comparisonSheetUrl": "/generated/ill-char-Laban-hero-1775609940590.png",
+      "periods": []
+    }
+  ]
+}

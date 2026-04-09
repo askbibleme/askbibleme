@@ -24,6 +24,15 @@ import {
   BUILTIN_COLOR_THEME_VARIABLE_KEYS,
 } from "./src/color-themes-builtin.js";
 import {
+  BIBLE_CHARACTER_PRIMARY_BOOK_BY_ZH,
+  BIBLE_PRIMARY_CHARACTERS_BY_BOOK,
+} from "./src/bible-primary-characters.js";
+import {
+  buildRelatedBookIdsByProfile,
+  buildPrimaryCharacterEntriesByBook,
+  resolveCharacterIdentity,
+} from "./src/bible-character-identities.js";
+import {
   runScenePipelineFromPublishedData,
   generateIllustrationPrompt,
   analyzeChapterForIllustration,
@@ -1973,58 +1982,6 @@ const BIBLE_CHARACTER_ROLE_BY_ZH = Object.freeze({
   波提乏的妻子: "次人物",
 });
 
-const BIBLE_CHARACTER_PRIMARY_BOOK_BY_ZH = Object.freeze({
-  摩西: "EXO",
-  亚伦: "EXO",
-  米利暗: "EXO",
-  约书亚: "JOS",
-  喇合: "JOS",
-  底波拉: "JDG",
-  基甸: "JDG",
-  路得: "RUT",
-  撒母耳: "1SA",
-  扫罗: "1SA",
-  大卫: "1SA",
-  约拿单: "1SA",
-  所罗门: "1KI",
-  以利亚: "1KI",
-  以利沙: "2KI",
-  以赛亚: "ISA",
-  耶利米: "JER",
-  以西结: "EZK",
-  但以理: "DAN",
-  以斯帖: "EST",
-  末底改: "EST",
-  约伯: "JOB",
-  马利亚: "MAT",
-  约瑟夫: "MAT",
-  施洗约翰: "MAT",
-  耶稣: "MAT",
-  彼得: "MAT",
-  约翰: "MAT",
-  雅各布: "MAT",
-  保罗: "ACT",
-});
-
-const BIBLE_PRIMARY_CHARACTERS_BY_BOOK = Object.freeze({
-  GEN: Object.freeze(["亚当", "夏娃", "亚伯拉罕", "撒拉", "以撒", "利百加", "雅各", "约瑟"]),
-  EXO: Object.freeze(["摩西", "亚伦", "米利暗"]),
-  JOS: Object.freeze(["约书亚", "喇合"]),
-  JDG: Object.freeze(["底波拉", "基甸"]),
-  RUT: Object.freeze(["路得"]),
-  "1SA": Object.freeze(["撒母耳", "扫罗", "大卫", "约拿单"]),
-  "1KI": Object.freeze(["所罗门", "以利亚"]),
-  "2KI": Object.freeze(["以利沙"]),
-  ISA: Object.freeze(["以赛亚"]),
-  JER: Object.freeze(["耶利米"]),
-  EZK: Object.freeze(["以西结"]),
-  DAN: Object.freeze(["但以理"]),
-  EST: Object.freeze(["以斯帖", "末底改"]),
-  JOB: Object.freeze(["约伯"]),
-  MAT: Object.freeze(["马利亚", "约瑟夫", "施洗约翰", "耶稣", "彼得", "约翰", "雅各布"]),
-  ACT: Object.freeze(["保罗"]),
-});
-
 const BIBLE_EXPLICIT_LIFESPAN_ZH_BY_ZH = Object.freeze({
   亚当: "活了930岁",
   塞特: "活了912岁",
@@ -2081,6 +2038,63 @@ const BIBLE_EXPLICIT_LIFESPAN_ZH_BY_ZH = Object.freeze({
   耶稣: "约33岁",
 });
 
+function buildPrimaryCharacterDirectorySummary() {
+  const primaryEntriesByBook = buildPrimaryCharacterEntriesByBook(
+    BIBLE_PRIMARY_CHARACTERS_BY_BOOK
+  );
+  const oldBookIds = new Set(
+    (Array.isArray(testamentOptions?.[0]?.books) ? testamentOptions[0].books : [])
+      .map((book) => String(book?.usfx || "").trim())
+      .filter((bookId) => bookId && !String(bookId).startsWith("_"))
+  );
+  const newBookIds = new Set(
+    (Array.isArray(testamentOptions?.[1]?.books) ? testamentOptions[1].books : [])
+      .map((book) => String(book?.usfx || "").trim())
+      .filter((bookId) => bookId && !String(bookId).startsWith("_"))
+  );
+  const labelById = Object.create(null);
+  testamentOptions.forEach((group) => {
+    (Array.isArray(group?.books) ? group.books : []).forEach((book) => {
+      const bookId = String(book?.usfx || "").trim();
+      if (!bookId || bookId.startsWith("_")) return;
+      labelById[bookId] = String(book?.cn || book?.en || bookId).trim();
+    });
+  });
+  const oldRows = [];
+  const newRows = [];
+  const oldUnique = new Set();
+  const newUnique = new Set();
+  Object.keys(primaryEntriesByBook).forEach((bookId) => {
+    const names = Array.isArray(primaryEntriesByBook[bookId])
+      ? primaryEntriesByBook[bookId]
+      : [];
+    const row = {
+      bookId,
+      bookNameZh: labelById[bookId] || bookId,
+      primaryCount: names.length,
+    };
+    if (oldBookIds.has(bookId)) {
+      oldRows.push(row);
+      names.forEach((name) => oldUnique.add(String(name?.profileKey || "").trim()));
+      return;
+    }
+    if (newBookIds.has(bookId)) {
+      newRows.push(row);
+      names.forEach((name) => newUnique.add(String(name?.profileKey || "").trim()));
+    }
+  });
+  return {
+    bookLabelById: labelById,
+    primaryEntriesByBook,
+    summary: {
+      oldTestamentUniquePrimary: oldUnique.size,
+      newTestamentUniquePrimary: newUnique.size,
+      oldTestamentBooks: oldRows,
+      newTestamentBooks: newRows,
+    },
+  };
+}
+
 function normalizeBibleCharacterKey(raw) {
   return safeText(raw || "")
     .trim()
@@ -2109,7 +2123,8 @@ function toBibleEnglishDisplayName(raw) {
 }
 
 function resolveCharacterEnglishName(chineseName, englishName) {
-  const zh = safeText(chineseName || "").trim();
+  const identity = resolveCharacterIdentity("", chineseName);
+  const zh = safeText(identity.displayNameZh || chineseName || "").trim();
   const current = safeText(englishName || "").trim();
   if (zh && BIBLE_CHARACTER_ENGLISH_NAME_BY_ZH[zh]) {
     return BIBLE_CHARACTER_ENGLISH_NAME_BY_ZH[zh];
@@ -2121,7 +2136,9 @@ function resolveCharacterEnglishName(chineseName, englishName) {
 function resolveCharacterSourceBookId(chineseName, currentBookId) {
   const current = safeText(currentBookId || "").trim().toUpperCase();
   if (current) return current;
-  const zh = safeText(chineseName || "").trim();
+  const identity = resolveCharacterIdentity("", chineseName);
+  const zh = safeText(identity.displayNameZh || chineseName || "").trim();
+  if (identity.sourceBookId) return safeText(identity.sourceBookId).trim().toUpperCase();
   if (!zh) return "";
   const presetBook = CHARACTER_PRESET_BY_BOOK.find((book) =>
     Array.isArray(book?.names) && book.names.some((name) => String(name || "").trim() === zh)
@@ -2143,7 +2160,8 @@ function normalizeCharacterRoleZh(raw) {
 function resolveCharacterRoleZh(chineseName, currentRole, sourceBookId) {
   const normalized = normalizeCharacterRoleZh(currentRole);
   if (normalized) return normalized;
-  const zh = safeText(chineseName || "").trim();
+  const identity = resolveCharacterIdentity(sourceBookId, chineseName);
+  const zh = safeText(identity.displayNameZh || chineseName || "").trim();
   const bookId = resolveCharacterSourceBookId(zh, sourceBookId);
   const primaryNames = bookId ? BIBLE_PRIMARY_CHARACTERS_BY_BOOK[bookId] : null;
   if (zh && Array.isArray(primaryNames)) {
@@ -2156,7 +2174,8 @@ function resolveCharacterRoleZh(chineseName, currentRole, sourceBookId) {
 }
 
 function resolveCharacterLifespanZh(chineseName, englishName) {
-  const zh = safeText(chineseName || "").trim();
+  const identity = resolveCharacterIdentity("", chineseName);
+  const zh = safeText(identity.displayNameZh || chineseName || "").trim();
   const enKey = normalizeBibleCharacterKey(englishName);
   if (zh && BIBLE_EXPLICIT_LIFESPAN_ZH_BY_ZH[zh]) {
     return BIBLE_EXPLICIT_LIFESPAN_ZH_BY_ZH[zh];
@@ -2211,6 +2230,38 @@ function applyCharacterProfileSourceBookDefaults(profilesRoot) {
     if (!next || next === safeText(row.sourceBookId || "").trim().toUpperCase()) continue;
     row.sourceBookId = next;
     changed = true;
+  }
+  return { root, changed };
+}
+
+function applyCharacterProfileIdentityDefaults(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const chars =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  const relatedBookIdsByProfile = buildRelatedBookIdsByProfile(BIBLE_PRIMARY_CHARACTERS_BY_BOOK);
+  let changed = false;
+  for (const [profileKey, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    const identity = resolveCharacterIdentity(row.sourceBookId || "", profileKey);
+    const displayNameZh = safeText(identity.displayNameZh || profileKey).trim();
+    if (displayNameZh && displayNameZh !== safeText(row.displayNameZh || "").trim()) {
+      row.displayNameZh = displayNameZh;
+      changed = true;
+    }
+    const related = Array.isArray(relatedBookIdsByProfile[profileKey])
+      ? relatedBookIdsByProfile[profileKey]
+      : [];
+    if (related.length) {
+      const current = Array.isArray(row.bookIds)
+        ? row.bookIds.map((x) => safeText(x).trim().toUpperCase()).filter(Boolean)
+        : [];
+      const merged = [...new Set([...current, ...related])];
+      if (JSON.stringify(merged) !== JSON.stringify(current)) {
+        row.bookIds = merged;
+        changed = true;
+      }
+    }
   }
   return { root, changed };
 }
@@ -3820,6 +3871,9 @@ function flattenBooks() {
       testamentName: testament.name,
       bookId: book.usfx,
       bookCn: book.cn,
+      bookCnAbbr: book.cnAbbr || book.cn,
+      bookEnAbbr: book.enAbbr || book.usfx,
+      bookEsAbbr: book.esAbbr || book.usfx,
       bookEn: book.en || book.cn,
       chapters: book.chapters,
       overviewOnly: book.overviewOnly === true,
@@ -8408,11 +8462,13 @@ function loadCharacterIllustrationProfiles() {
   const recovered = applyCharacterProfileImageAuditRecovery(root);
   const englishBackfilled = applyCharacterProfileEnglishNameDefaults(recovered);
   const bookBackfilled = applyCharacterProfileSourceBookDefaults(englishBackfilled.root);
-  const roleBackfilled = applyCharacterProfileRoleDefaults(bookBackfilled.root);
+  const identityBackfilled = applyCharacterProfileIdentityDefaults(bookBackfilled.root);
+  const roleBackfilled = applyCharacterProfileRoleDefaults(identityBackfilled.root);
   const lifespanBackfilled = applyCharacterProfileLifespanDefaults(roleBackfilled.root);
   if (
     englishBackfilled.changed ||
     bookBackfilled.changed ||
+    identityBackfilled.changed ||
     roleBackfilled.changed ||
     lifespanBackfilled.changed
   ) {
@@ -9159,6 +9215,7 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
       existingRoot.characters && typeof existingRoot.characters === "object"
         ? existingRoot.characters
         : {};
+    const relatedBookIdsByProfile = buildRelatedBookIdsByProfile(BIBLE_PRIMARY_CHARACTERS_BY_BOOK);
     const out = { characters: {} };
     for (const [zh, entry] of Object.entries(characters)) {
       const key = safeText(zh).slice(0, 32);
@@ -9178,9 +9235,26 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
         shortSceneTagEn: safeText(entry.shortSceneTagEn || "").slice(0, 160),
         appearanceEn: safeText(entry.appearanceEn || "").slice(0, 1200),
       };
+      const identity = resolveCharacterIdentity(
+        resolvedSourceBookId,
+        safeText(entry.displayNameZh || key || "")
+      );
+      row.displayNameZh = safeText(
+        entry.displayNameZh || prev.displayNameZh || identity.displayNameZh || key
+      ).slice(0, 32);
       if (resolvedSourceBookId) row.sourceBookId = resolvedSourceBookId;
+      const sentBookIds = Array.isArray(entry.bookIds) ? entry.bookIds : [];
+      const prevBookIds = Array.isArray(prev.bookIds) ? prev.bookIds : [];
+      const impliedBookIds = Array.isArray(relatedBookIdsByProfile[key])
+        ? relatedBookIdsByProfile[key]
+        : [];
+      const mergedBookIds = [...new Set([...prevBookIds, ...sentBookIds, ...impliedBookIds, resolvedSourceBookId])]
+        .map((x) => safeText(x).trim().toUpperCase())
+        .filter(Boolean)
+        .slice(0, 12);
+      if (mergedBookIds.length) row.bookIds = mergedBookIds;
       row.characterRoleZh = resolveCharacterRoleZh(
-        key,
+        row.displayNameZh || key,
         entry.characterRoleZh || prev.characterRoleZh || "",
         resolvedSourceBookId
       );
@@ -14211,6 +14285,23 @@ app.get("/api/admin/bootstrap", (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "后台初始化失败" });
+  }
+});
+
+app.get("/api/admin/bible-primary-characters", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    const { bookLabelById, summary, primaryEntriesByBook } = buildPrimaryCharacterDirectorySummary();
+    res.json({
+      primaryCharactersByBook: BIBLE_PRIMARY_CHARACTERS_BY_BOOK,
+      primaryEntriesByBook,
+      bookLabelById,
+      summary,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取主人物目录失败" });
   }
 });
 

@@ -123,6 +123,8 @@ const state = {
   bookIntroMarkdown: null,
   /** 卷首页附属视频：来自已发布 0.json 的 chapterVideos */
   bookLandingChapterVideos: [],
+  /** 卷首页多视频时，当前选中的条目下标（配合 landing pick UI） */
+  bookLandingVideoPickIndex: 0,
   /** 卷首页插画：来自已发布 0.json 的 chapterIllustration */
   bookLandingChapterIllustration: null,
   /**
@@ -645,6 +647,206 @@ function renderChapterVideosSlotHtml(videoListOverride, columnMode = "single") {
   return `<div class="chapter-videos-inner">${parts.join("")}</div>`;
 }
 
+/** 卷首页多视频：与 render / 手风琴切换共用，保证下标与 DOM 一致 */
+function buildBookLandingVideoStreamEntries(list) {
+  if (!Array.isArray(list)) return null;
+  const v = String(state.frontState.contentVersion || "").trim();
+  const lang = String(state.frontState.contentLang || "").trim();
+  const bookId = String(state.frontState.bookId || "").trim();
+  const chapter = Number(state.frontState.chapter ?? NaN);
+  if (!v || !lang || !bookId || !Number.isFinite(chapter) || chapter < 0) {
+    return null;
+  }
+  const bookLabel = getBookLabelForPrimaryScripture();
+  const entries = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const it = list[i];
+    const id = String(it?.id || "").trim();
+    if (!id) continue;
+    const title = String(it?.title || "视频").trim() || "视频";
+    const q = new URLSearchParams({
+      version: v,
+      lang,
+      bookId,
+      chapter: String(chapter),
+      id,
+    });
+    const rawUrl = `/api/published/chapter-video?${q.toString()}`;
+    let src = resolveStudyApiPath(rawUrl);
+    const cv = String(it?.updatedAt || "").trim();
+    if (cv) {
+      src += (src.includes("?") ? "&" : "?") + "_cv=" + encodeURIComponent(cv);
+    }
+    const posterRaw = String(it?.posterUrl || it?.poster || "").trim();
+    let posterUrl = "";
+    if (posterRaw) {
+      let p = /^https?:\/\//i.test(posterRaw)
+        ? posterRaw
+        : resolveStudyApiPath(
+            posterRaw.startsWith("/") ? posterRaw : `/${posterRaw}`
+          );
+      const pcv = String(it?.posterUpdatedAt || it?.updatedAt || "").trim();
+      if (pcv) {
+        p += (p.includes("?") ? "&" : "?") + "_cv=" + encodeURIComponent(pcv);
+      }
+      posterUrl = p;
+    }
+    const usePreview = !posterUrl;
+    const posterAttr = posterUrl ? ` poster="${escapeHtml(posterUrl)}"` : "";
+    const previewData = usePreview ? ' data-chapter-video-preview="1"' : "";
+    const mime = String(it?.mime || "video/mp4").trim() || "video/mp4";
+    entries.push({
+      title,
+      src,
+      mime,
+      posterUrl,
+      posterAttr,
+      previewData,
+      usePreview,
+    });
+  }
+  if (!entries.length) return null;
+  return { entries, bookLabel, chapter };
+}
+
+function updateLandingAccordionVideoElement(video, entry, titleStr) {
+  if (!video || !entry) return;
+  try {
+    video.pause();
+  } catch (_) {
+    /* ignore */
+  }
+  delete video.dataset.chapterPreviewBound;
+  delete video.dataset.chapterPreviewFrameReady;
+  if (entry.posterUrl) {
+    video.setAttribute("poster", entry.posterUrl);
+  } else {
+    video.removeAttribute("poster");
+  }
+  if (entry.usePreview) {
+    video.setAttribute("data-chapter-video-preview", "1");
+  } else {
+    video.removeAttribute("data-chapter-video-preview");
+  }
+  video.setAttribute("title", titleStr);
+  video.innerHTML = `<source src="${escapeHtml(entry.src)}" type="${escapeHtml(
+    entry.mime
+  )}" />`;
+  try {
+    video.load();
+  } catch (_) {
+    /* ignore */
+  }
+  bindChapterVideoPreviewFrame(video);
+}
+
+function handleBookLandingAccordionClick(event) {
+  const slot = document.getElementById("chapterVideosSlot");
+  if (!slot || !slot.contains(event.target)) return;
+  const btn = event.target.closest(".chapter-video-landing-title-btn");
+  if (!btn || !slot.contains(btn)) return;
+  const root = slot.querySelector(".chapter-videos-inner--landing-pick");
+  if (!root || !root.contains(btn)) return;
+  const newIdx = Number(btn.getAttribute("data-landing-video-idx"));
+  if (!Number.isFinite(newIdx)) return;
+  const oldIdx = state.bookLandingVideoPickIndex;
+  if (newIdx === oldIdx) return;
+
+  const items = root.querySelectorAll(".chapter-video-landing-acc-item");
+  if (newIdx < 0 || newIdx >= items.length) return;
+
+  const built = buildBookLandingVideoStreamEntries(state.bookLandingChapterVideos);
+  if (!built || !built.entries[newIdx]) return;
+
+  const oldItem = items[oldIdx];
+  const newItem = items[newIdx];
+  const newInner = newItem && newItem.querySelector(".chapter-video-landing-panel-inner");
+  const oldInner = oldItem && oldItem.querySelector(".chapter-video-landing-panel-inner");
+  if (!newInner) return;
+
+  let video =
+    (oldInner && oldInner.querySelector("video.chapter-video-el")) ||
+    (newInner && newInner.querySelector("video.chapter-video-el"));
+  if (!video) return;
+
+  const { entries, bookLabel, chapter } = built;
+  const e = entries[newIdx];
+  const vt = `${formatBookChapterLabel(bookLabel, chapter)} · ${e.title}`;
+
+  newInner.appendChild(video);
+  updateLandingAccordionVideoElement(video, e, vt);
+
+  if (oldItem && oldItem !== newItem) {
+    oldItem.classList.remove("is-expanded");
+    const ob = oldItem.querySelector(".chapter-video-landing-title-btn");
+    if (ob) {
+      ob.classList.remove("is-active");
+      ob.setAttribute("aria-pressed", "false");
+      ob.setAttribute("aria-expanded", "false");
+    }
+  }
+  newItem.classList.add("is-expanded");
+  const nb = newItem.querySelector(".chapter-video-landing-title-btn");
+  if (nb) {
+    nb.classList.add("is-active");
+    nb.setAttribute("aria-pressed", "true");
+    nb.setAttribute("aria-expanded", "true");
+  }
+
+  state.bookLandingVideoPickIndex = newIdx;
+}
+
+function ensureBookLandingVideoAccordionDelegate() {
+  const slot = document.getElementById("chapterVideosSlot");
+  if (!slot || slot.dataset.landingAccordionDelegate === "1") return;
+  slot.dataset.landingAccordionDelegate = "1";
+  slot.addEventListener("click", handleBookLandingAccordionClick);
+}
+
+/**
+ * 卷首页视频：与多条共用手风琴外壳；多条可切换，单条为同款标题条 + 视频（标题非按钮）。
+ * 返回空字符串则回退为普通纵向列表。
+ */
+function renderBookLandingMultiVideoPickerHtml(list) {
+  const built = buildBookLandingVideoStreamEntries(list);
+  if (!built) return "";
+  const { entries, bookLabel, chapter } = built;
+  const single = entries.length === 1;
+
+  let pick = Number(state.bookLandingVideoPickIndex);
+  if (!Number.isFinite(pick)) pick = 0;
+  pick = Math.max(0, Math.min(pick, entries.length - 1));
+  state.bookLandingVideoPickIndex = pick;
+
+  const itemsHtml = entries
+    .map((e, idx) => {
+      const isActive = idx === pick;
+      const vt = `${formatBookChapterLabel(bookLabel, chapter)} · ${e.title}`;
+      const videoBlock =
+        isActive || single
+          ? `<div class="chapter-video-landing-panel-inner"><video class="chapter-video-el"${e.previewData} controls playsinline preload="metadata"${e.posterAttr} title="${escapeHtml(vt)}"><source src="${escapeHtml(
+              e.src
+            )}" type="${escapeHtml(e.mime)}" /></video></div>`
+          : '<div class="chapter-video-landing-panel-inner" aria-hidden="true"></div>';
+      const expanded = isActive || single;
+      const titleHtml = single
+        ? `<div class="chapter-video-landing-title-btn is-active chapter-video-landing-title-static">${escapeHtml(
+            e.title
+          )}</div>`
+        : `<button type="button" class="chapter-video-landing-title-btn${
+            isActive ? " is-active" : ""
+          }" data-landing-video-idx="${idx}" aria-pressed="${
+            isActive ? "true" : "false"
+          }" aria-expanded="${isActive}">${escapeHtml(e.title)}</button>`;
+      return `<div class="chapter-video-landing-acc-item${
+        expanded ? " is-expanded" : ""
+      }">${titleHtml}<div class="chapter-video-landing-panel">${videoBlock}</div></div>`;
+    })
+    .join("");
+
+  return `<div class="chapter-videos-inner chapter-videos-inner--landing-pick"><div class="chapter-video-landing-shell"><div class="chapter-video-landing-accordion" role="group" aria-label="视频列表">${itemsHtml}</div></div></div>`;
+}
+
 function clearChapterVideoSlots() {
   const left = document.getElementById("chapterVideosSlot");
   const right = document.getElementById("chapterVideosSlotRight");
@@ -657,6 +859,27 @@ function mountChapterVideoSlots(videoListOverride) {
   const left = document.getElementById("chapterVideosSlot");
   const right = document.getElementById("chapterVideosSlotRight");
   if (!left) return;
+  const list = Array.isArray(videoListOverride)
+    ? videoListOverride
+    : state.studyContent?.chapterVideos;
+  const landingVideoCount = Array.isArray(list)
+    ? list.filter((it) => String(it?.id || "").trim()).length
+    : 0;
+  const useLandingVideoShell =
+    isBookLandingChapter() && landingVideoCount >= 1;
+
+  if (useLandingVideoShell) {
+    const pickHtml = renderBookLandingMultiVideoPickerHtml(list);
+    if (pickHtml) {
+      left.innerHTML = pickHtml;
+      if (right) right.innerHTML = "";
+      attachChapterVideoLazySources(left);
+      attachChapterVideoPreviewFrames(left);
+      ensureBookLandingVideoAccordionDelegate();
+      return;
+    }
+  }
+
   const split = shouldSplitChapterVideosAcrossColumns();
   if (split) {
     left.innerHTML = renderChapterVideosSlotHtml(videoListOverride, "left");
@@ -1293,13 +1516,118 @@ const BOOK_CANONICAL_ORDER_MAP = (() => {
   return m;
 })();
 
-function formatBookGridButtonLabel(book, bookLabelFn) {
-  const name = bookLabelFn(book);
-  if (book?.overviewOnly || BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER.has(book.bookId)) {
-    return name;
+/** 书卷目录：此宽度以下显示简称（中/英/西；希伯来仍全名） */
+const BOOK_DIR_ABBREV_MAX_WIDTH_PX = 480;
+
+function isBookDirectoryAbbrevViewport() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.matchMedia(
+      `(max-width: ${BOOK_DIR_ABBREV_MAX_WIDTH_PX}px)`
+    ).matches;
+  } catch {
+    return false;
   }
-  const ord = BOOK_CANONICAL_ORDER_MAP.get(book.bookId);
-  return ord != null ? `${ord}. ${name}` : name;
+}
+
+let bookChapterDirectoryViewportMqBound = false;
+function ensureBookChapterDirectoryViewportListener() {
+  if (bookChapterDirectoryViewportMqBound || typeof window === "undefined") {
+    return;
+  }
+  bookChapterDirectoryViewportMqBound = true;
+  const mq = window.matchMedia(
+    `(max-width: ${BOOK_DIR_ABBREV_MAX_WIDTH_PX}px)`
+  );
+  const handler = () => {
+    const panel = document.getElementById("bookChapterPanel");
+    if (!panel || panel.hasAttribute("hidden")) return;
+    renderBookChapterPanel();
+  };
+  if (typeof mq.addEventListener === "function") {
+    mq.addEventListener("change", handler);
+  } else {
+    mq.addListener(handler);
+  }
+}
+
+const BOOK_CHAPTER_COMPACT_MAX_WIDTH_PX = 700;
+
+function isBookChapterCompactLayoutViewport() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.matchMedia(
+      `(max-width: ${BOOK_CHAPTER_COMPACT_MAX_WIDTH_PX}px)`
+    ).matches;
+  } catch {
+    return false;
+  }
+}
+
+let bookChapterCompact700MqBound = false;
+function ensureBookChapterCompact700LayoutListener() {
+  if (bookChapterCompact700MqBound || typeof window === "undefined") return;
+  bookChapterCompact700MqBound = true;
+  const mq = window.matchMedia(
+    `(max-width: ${BOOK_CHAPTER_COMPACT_MAX_WIDTH_PX}px)`
+  );
+  const onMq = () => {
+    const panel = document.getElementById("bookChapterPanel");
+    if (!panel || panel.hasAttribute("hidden")) return;
+    renderBookChapterPanel();
+  };
+  if (typeof mq.addEventListener === "function") {
+    mq.addEventListener("change", onMq);
+  } else {
+    mq.addListener(onMq);
+  }
+}
+
+let bookChapterCompactTabClicksBound = false;
+function ensureBookChapterCompactTabClicks() {
+  if (bookChapterCompactTabClicksBound) return;
+  const panel = document.getElementById("bookChapterPanel");
+  if (!panel) return;
+  bookChapterCompactTabClicksBound = true;
+  panel.addEventListener("click", (event) => {
+    const btn = event.target.closest(".book-chapter-compact-tab");
+    if (!btn || !panel.contains(btn)) return;
+    const tab = btn.getAttribute("data-bc-tab");
+    if (tab === "ot" || tab === "nt" || tab === "ch") {
+      setBookChapterCompactTab(tab);
+    }
+  });
+}
+
+function setBookChapterCompactTab(tab) {
+  const triple = document.querySelector("#bookChapterPanel .book-chapter-triple");
+  if (triple) triple.setAttribute("data-bc-tab", tab);
+  document.querySelectorAll("#bookChapterPanel .book-chapter-compact-tab").forEach((b) => {
+    const on = b.getAttribute("data-bc-tab") === tab;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+}
+
+function pickBookChapterCompactTabFromState() {
+  return state.frontState.testament === "新约" ? "nt" : "ot";
+}
+
+function syncBookChapterCompactLayoutAfterRender() {
+  ensureBookChapterCompactTabClicks();
+  ensureBookChapterCompact700LayoutListener();
+  if (!isBookChapterCompactLayoutViewport()) return;
+  const triple = document.querySelector("#bookChapterPanel .book-chapter-triple");
+  const cur = triple?.getAttribute("data-bc-tab");
+  const next =
+    cur === "ot" || cur === "nt" || cur === "ch"
+      ? cur
+      : pickBookChapterCompactTabFromState();
+  setBookChapterCompactTab(next);
+}
+
+function formatBookGridButtonLabel(book, bookLabelFn) {
+  return bookLabelFn(book);
 }
 
 /** 与 getLocalizedCopy、书卷名一致：按主经文语言，不用 uiLang（避免英文经卷 + 中文界面时分组仍中文） */
@@ -1315,15 +1643,19 @@ function pickBibleGridSectionLabel(labels) {
   );
 }
 
-function buildGroupedBookGridHtml(books, bookLabel, sections) {
+function buildGroupedBookGridHtml(books, bookLabel, sections, bookButtonFullName) {
   const booksById = new Map(books.map((b) => [b.bookId, b]));
   const mappedIds = new Set(sections.flatMap((s) => s.bookIds));
+  const fullNameFn = bookButtonFullName || bookLabel;
 
   const buttonHtml = (book) => {
     const active = book.bookId === state.frontState.bookId ? "active" : "";
+    const full = escapeHtml(fullNameFn(book));
     return `<button type="button" class="book-item ${active}" data-book-grid-id="${escapeHtml(
       book.bookId
-    )}">${escapeHtml(formatBookGridButtonLabel(book, bookLabel))}</button>`;
+    )}" title="${full}" aria-label="${full}">${escapeHtml(
+      formatBookGridButtonLabel(book, bookLabel)
+    )}</button>`;
   };
 
   const parts = [];
@@ -1368,12 +1700,22 @@ function buildGroupedBookGridHtml(books, bookLabel, sections) {
   return parts.join("");
 }
 
-function buildOldTestamentBookGridHtml(books, bookLabel) {
-  return buildGroupedBookGridHtml(books, bookLabel, OLD_TESTAMENT_SECTIONS);
+function buildOldTestamentBookGridHtml(books, bookLabel, bookButtonFullName) {
+  return buildGroupedBookGridHtml(
+    books,
+    bookLabel,
+    OLD_TESTAMENT_SECTIONS,
+    bookButtonFullName
+  );
 }
 
-function buildNewTestamentBookGridHtml(books, bookLabel) {
-  return buildGroupedBookGridHtml(books, bookLabel, NEW_TESTAMENT_SECTIONS);
+function buildNewTestamentBookGridHtml(books, bookLabel, bookButtonFullName) {
+  return buildGroupedBookGridHtml(
+    books,
+    bookLabel,
+    NEW_TESTAMENT_SECTIONS,
+    bookButtonFullName
+  );
 }
 
 function getCurrentBookMeta() {
@@ -2604,6 +2946,7 @@ async function init() {
     initBookChapterNavDeepLink();
     initShareNavDeepLink();
     bindChapterVideosLayoutResize();
+    ensureBookLandingVideoAccordionDelegate();
     initFavoritesPanelTabs();
     initVerseSearchOverlay();
     initChapterNav();
@@ -5099,6 +5442,7 @@ function renderBookChapterPanel() {
     chapterGridId: "chapterGrid",
     closePanelId: "bookChapterPanel",
   });
+  ensureBookChapterDirectoryViewportListener();
 }
 
 function renderBookChapterGrids({
@@ -5114,18 +5458,35 @@ function renderBookChapterGrids({
 
   const scriptureLang = getPrimaryScriptureLang();
 
-  const bookLabel = (book) =>
+  const bookGridFullName = (book) =>
     scriptureLang === "en" || scriptureLang === "es" || scriptureLang === "he"
       ? BOOK_NAME_EN_BY_ID[book.bookId] || book.bookEn || book.bookCn || book.bookId
       : book.bookCn || book.bookEn || book.bookId;
+
+  /* 极小屏：中/英/西 显示简称；希伯来始终全名。宽屏一律全名 */
+  const bookLabel = (book) => {
+    if (!isBookDirectoryAbbrevViewport()) {
+      return bookGridFullName(book);
+    }
+    if (scriptureLang === "he") {
+      return bookGridFullName(book);
+    }
+    if (scriptureLang === "en") {
+      return String(book.bookEnAbbr || book.bookId || "").trim();
+    }
+    if (scriptureLang === "es") {
+      return String(book.bookEsAbbr || book.bookId || "").trim();
+    }
+    return String(book.bookCnAbbr || book.bookCn || book.bookId).trim();
+  };
 
   const fillBookGrid = (container, testamentName) => {
     const books = getBooksForTestament(testamentName);
     container.innerHTML =
       testamentName === "旧约"
-        ? buildOldTestamentBookGridHtml(books, bookLabel)
+        ? buildOldTestamentBookGridHtml(books, bookLabel, bookGridFullName)
         : testamentName === "新约"
-          ? buildNewTestamentBookGridHtml(books, bookLabel)
+          ? buildNewTestamentBookGridHtml(books, bookLabel, bookGridFullName)
           : [...books]
               .sort((a, b) => {
                 const oa = a.overviewOnly
@@ -5139,9 +5500,12 @@ function renderBookChapterGrids({
               .map((book) => {
                 const active =
                   book.bookId === state.frontState.bookId ? "active" : "";
+                const full = escapeHtml(bookGridFullName(book));
                 return `<button type="button" class="book-item ${active}" data-book-grid-id="${escapeHtml(
                   book.bookId
-                )}">${escapeHtml(formatBookGridButtonLabel(book, bookLabel))}</button>`;
+                )}" title="${full}" aria-label="${full}">${escapeHtml(
+                  formatBookGridButtonLabel(book, bookLabel)
+                )}</button>`;
               })
               .join("");
 
@@ -5199,6 +5563,8 @@ function renderBookChapterGrids({
       await refreshCurrentPage();
     });
   });
+
+  syncBookChapterCompactLayoutAfterRender();
 }
 
 function renderPrimaryVersionPanel() {
@@ -5405,6 +5771,7 @@ async function loadStudyContent() {
   } catch (_) {}
   state.bookIntroMarkdown = null;
   state.bookLandingChapterVideos = [];
+  state.bookLandingVideoPickIndex = 0;
   state.bookLandingChapterIllustration = null;
   if (isBookLandingChapter()) {
     state.studyContent = null;
@@ -5439,6 +5806,7 @@ async function loadStudyContent() {
       }
       if (Array.isArray(data0.chapterVideos) && data0.chapterVideos.length) {
         state.bookLandingChapterVideos = data0.chapterVideos;
+        state.bookLandingVideoPickIndex = 0;
       }
     }
     return;

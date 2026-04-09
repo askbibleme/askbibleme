@@ -76,10 +76,10 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=158" />
-    <script src="/theme-apply.js?v=3"></script>
-    <script src="/site-chrome.js?v=19" defer></script>
-    <script src="/seo-apply.js?v=4" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=186" />
+    <script src="/theme-apply.js?v=4"></script>
+    <script src="/site-chrome.js?v=20" defer></script>
+    <script src="/seo-apply.js?v=5" defer></script>
   </head>
   <body>
     <div class="page-shell">
@@ -270,12 +270,42 @@
             </div>
 
             <div
-              id="chapterIllustrationSlot"
-              class="chapter-illustration-slot"
-              aria-live="polite"
-              aria-label="本章插画"
+              id="chapterEndPersonnelSection"
+              class="chapter-end-notes-table-wrap"
               hidden
-            ></div>
+              aria-label="本章人员"
+            >
+              <table class="chapter-end-notes-table">
+                <caption id="chapterEndPersonnelTableCaption" class="chapter-end-notes-table-caption">
+                  本章人员
+                </caption>
+                <tbody>
+                  <tr>
+                    <td class="chapter-end-notes-table-cell">
+                      <div class="chapter-character-timeline-shell">
+                        <div class="chapter-character-timeline-center" aria-hidden="true"></div>
+                        <div
+                          id="chapterEndPersonnelRoster"
+                          class="chapter-character-roster chapter-character-roster--personnel-cell"
+                          aria-live="polite"
+                        ></div>
+                        <div
+                          id="chapterCharacterProgress"
+                          class="chapter-character-progress"
+                          aria-hidden="true"
+                          hidden
+                        >
+                          <div class="chapter-character-progress-track">
+                            <div class="chapter-character-progress-range"></div>
+                            <div class="chapter-character-progress-pointer"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
             <!-- 本章视频：在大标题与章节插图（若有）下方；卷首页时在「介绍」卡片上方 -->
             <div
@@ -305,6 +335,14 @@
 
             <div id="rightBlocks" class="blocks-stack"></div>
 
+            <div
+              id="chapterIllustrationSlot"
+              class="chapter-illustration-slot"
+              aria-live="polite"
+              aria-label="本章插画"
+              hidden
+            ></div>
+
             <div class="chapter-feedback-wrap">
               <div class="chapter-feedback-title">参与贡献</div>
               <textarea
@@ -320,30 +358,6 @@
               </div>
               <div id="chapterApprovedTitle" class="chapter-feedback-approved-title">社区贡献</div>
               <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
-            </div>
-
-            <div
-              id="chapterEndPersonnelSection"
-              class="chapter-end-notes-table-wrap"
-              hidden
-              aria-label="本章人员"
-            >
-              <table class="chapter-end-notes-table">
-                <caption id="chapterEndPersonnelTableCaption" class="chapter-end-notes-table-caption">
-                  本章人员
-                </caption>
-                <tbody>
-                  <tr>
-                    <td class="chapter-end-notes-table-cell">
-                      <div
-                        id="chapterEndPersonnelRoster"
-                        class="chapter-character-roster chapter-character-roster--personnel-cell"
-                        aria-live="polite"
-                      ></div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
 
             <div id="chapterEndNextGuide" class="chapter-end-next-guide" hidden>
@@ -594,8 +608,53 @@
             </button>
           </div>
 
+          <div
+            class="book-chapter-compact-tabs"
+            role="tablist"
+            aria-label="书卷与章节切换"
+          >
+            <button
+              type="button"
+              class="book-chapter-compact-tab is-active"
+              role="tab"
+              id="bookChapterTabOt"
+              aria-selected="true"
+              aria-controls="bookChapterPaneOt"
+              data-bc-tab="ot"
+            >
+              旧约
+            </button>
+            <button
+              type="button"
+              class="book-chapter-compact-tab"
+              role="tab"
+              id="bookChapterTabNt"
+              aria-selected="false"
+              aria-controls="bookChapterPaneNt"
+              data-bc-tab="nt"
+            >
+              新约
+            </button>
+            <button
+              type="button"
+              class="book-chapter-compact-tab"
+              role="tab"
+              id="bookChapterTabCh"
+              aria-selected="false"
+              aria-controls="bookChapterPaneCh"
+              data-bc-tab="ch"
+            >
+              章节
+            </button>
+          </div>
+
           <div class="book-chapter-triple" role="group" aria-label="书卷与章节">
-            <section class="book-chapter-col book-chapter-col--ot" aria-labelledby="bookChapterOtHeading">
+            <section
+              class="book-chapter-col book-chapter-col--ot"
+              id="bookChapterPaneOt"
+              role="tabpanel"
+              aria-labelledby="bookChapterTabOt"
+            >
               <div
                 id="bookChapterOtHeading"
                 class="chapter-grid-title book-chapter-section-title"
@@ -605,7 +664,12 @@
               </div>
               <div id="bookGridOt" class="book-grid book-grid--ot"></div>
             </section>
-            <section class="book-chapter-col book-chapter-col--nt" aria-labelledby="bookChapterNtHeading">
+            <section
+              class="book-chapter-col book-chapter-col--nt"
+              id="bookChapterPaneNt"
+              role="tabpanel"
+              aria-labelledby="bookChapterTabNt"
+            >
               <div
                 id="bookChapterNtHeading"
                 class="chapter-grid-title book-chapter-section-title"
@@ -615,7 +679,12 @@
               </div>
               <div id="bookGridNt" class="book-grid book-grid--nt"></div>
             </section>
-            <section class="book-chapter-col book-chapter-col--chapters" aria-labelledby="bookChapterChHeading">
+            <section
+              class="book-chapter-col book-chapter-col--chapters"
+              id="bookChapterPaneCh"
+              role="tabpanel"
+              aria-labelledby="bookChapterTabCh"
+            >
               <div
                 id="bookChapterChHeading"
                 class="chapter-grid-title book-chapter-section-title"
@@ -1169,7 +1238,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="/main.js"></script>
+    <script type="module" src="/main.js?v=12"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>
       (function () {

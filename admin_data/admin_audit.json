@@ -1,6 +1,76 @@
 {
   "items": [
     {
+      "id": "audit_1775770760252_gucimw",
+      "at": "2026-04-09T21:39:20.252Z",
+      "action": "chapter_video_poster_upload",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "versionId": "default",
+        "lang": "zh",
+        "bookId": "_OT_OVERVIEW",
+        "chapter": 0,
+        "videoId": "a0340febdad95fcf260d4dc67b4f3128"
+      }
+    },
+    {
+      "id": "audit_1775770760234_5c100v",
+      "at": "2026-04-09T21:39:20.234Z",
+      "action": "chapter_video_upload",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "versionId": "default",
+        "lang": "zh",
+        "bookId": "_OT_OVERVIEW",
+        "chapter": 0,
+        "videoId": "a0340febdad95fcf260d4dc67b4f3128",
+        "source": "upload"
+      }
+    },
+    {
+      "id": "audit_1775770542831_s6sx2j",
+      "at": "2026-04-09T21:35:42.831Z",
+      "action": "chapter_video_poster_upload",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "versionId": "default",
+        "lang": "zh",
+        "bookId": "_OT_OVERVIEW",
+        "chapter": 0,
+        "videoId": "fa1328f02b8c3ad52de104aa8367e39c"
+      }
+    },
+    {
+      "id": "audit_1775770542673_9n8ftg",
+      "at": "2026-04-09T21:35:42.673Z",
+      "action": "chapter_video_upload",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "versionId": "default",
+        "lang": "zh",
+        "bookId": "_OT_OVERVIEW",
+        "chapter": 0,
+        "videoId": "fa1328f02b8c3ad52de104aa8367e39c",
+        "source": "upload"
+      }
+    },
+    {
       "id": "audit_1775717971850_9l0j48",
       "at": "2026-04-09T06:59:31.850Z",
       "action": "bible_character_profiles_repair_images",

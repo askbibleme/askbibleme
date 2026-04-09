@@ -1114,7 +1114,7 @@
           "波提乏的妻子",
         ];
 
-        const BCD_PRIMARY_CHARACTERS_BY_BOOK = Object.freeze({
+        var BCD_PRIMARY_CHARACTERS_BY_BOOK = Object.freeze({
           GEN: Object.freeze(["亚当", "夏娃", "亚伯拉罕", "撒拉", "以撒", "利百加", "雅各", "约瑟"]),
           EXO: Object.freeze(["摩西", "亚伦", "米利暗"]),
           JOS: Object.freeze(["约书亚", "喇合"]),
@@ -1154,7 +1154,7 @@
         }
 
         /** 备选库：经卷 → 姓名顺序（创世记即 GENESIS_CORE_CHARACTERS）；追加经卷时请同步 src/bible-character-preset-order.js 内 CHARACTER_PRESET_BY_BOOK */
-        const CHARACTER_PRESET_BY_BOOK = [
+        var CHARACTER_PRESET_BY_BOOK = [
           {
             bookId: "GEN",
             bookNameZh: "创世记",
@@ -1162,7 +1162,7 @@
           },
         ];
 
-        const BCD_BOOK_LABEL_BY_ID = Object.freeze({
+        var BCD_BOOK_LABEL_BY_ID = Object.freeze({
           GEN: "创世记",
           EXO: "出埃及记",
           JOS: "约书亚记",
@@ -1182,7 +1182,7 @@
           ACT: "使徒行传",
         });
 
-        const BCD_EXTRA_CHARACTER_BOOK_BY_ZH = Object.freeze({
+        var BCD_EXTRA_CHARACTER_BOOK_BY_ZH = Object.freeze({
           摩西: "EXO",
           亚伦: "EXO",
           米利暗: "EXO",
@@ -1215,6 +1215,72 @@
           保罗: "ACT",
         });
 
+        var BCD_SPECIAL_IDENTITY_RULES = Object.freeze([
+          Object.freeze({ bookId: "GEN", displayNameZh: "法老", profileKey: "法老（约瑟时代）" }),
+          Object.freeze({ bookId: "EXO", displayNameZh: "法老", profileKey: "法老（出埃及记）" }),
+          Object.freeze({ bookId: "GEN", displayNameZh: "亚比米勒", profileKey: "亚比米勒（族长时代）" }),
+          Object.freeze({ bookId: "JDG", displayNameZh: "亚比米勒", profileKey: "亚比米勒（士师时代）" }),
+          Object.freeze({ bookId: "MAT", displayNameZh: "希律", chapterFrom: 1, chapterTo: 2, profileKey: "希律（大帝）" }),
+          Object.freeze({ bookId: "LUK", displayNameZh: "希律", chapterFrom: 1, chapterTo: 2, profileKey: "希律（大帝）" }),
+          Object.freeze({ bookId: "MAT", displayNameZh: "希律", chapterFrom: 3, chapterTo: 28, profileKey: "希律（安提帕）" }),
+          Object.freeze({ bookId: "MRK", displayNameZh: "希律", profileKey: "希律（安提帕）" }),
+          Object.freeze({ bookId: "LUK", displayNameZh: "希律", chapterFrom: 3, chapterTo: 23, profileKey: "希律（安提帕）" }),
+          Object.freeze({ bookId: "ACT", displayNameZh: "希律", profileKey: "希律（亚基帕一世）" }),
+          Object.freeze({ bookId: "LUK", displayNameZh: "凯撒", chapterFrom: 2, chapterTo: 2, profileKey: "凯撒（奥古斯都）" }),
+          Object.freeze({ bookId: "ACT", displayNameZh: "凯撒", profileKey: "凯撒（罗马皇帝）" }),
+        ]);
+
+        function resolveBcdCharacterIdentity(bookId, rawName, chapter) {
+          var name = String(rawName || "").trim();
+          var bid = String(bookId || "").trim().toUpperCase();
+          if (!name) return { profileKey: "", displayNameZh: "", sourceBookId: bid };
+          var ch = Number(chapter);
+          var special = null;
+          for (var ri = 0; ri < BCD_SPECIAL_IDENTITY_RULES.length; ri++) {
+            var rule = BCD_SPECIAL_IDENTITY_RULES[ri];
+            if (String(rule.bookId || "").trim().toUpperCase() !== bid) continue;
+            if (String(rule.displayNameZh || "").trim() !== name) continue;
+            var from = Number(rule.chapterFrom);
+            var to = Number(rule.chapterTo);
+            if (Number.isFinite(from) && Number.isFinite(to) && Number.isFinite(ch)) {
+              if (ch < from || ch > to) continue;
+            }
+            special = rule;
+            break;
+          }
+          if (special) {
+            return {
+              profileKey: String(special.profileKey || name).trim(),
+              displayNameZh: String(special.displayNameZh || name).trim(),
+              sourceBookId: bid,
+            };
+          }
+          if (/\)$/.test(name) && name.indexOf("（") !== -1) {
+            var base = name.replace(/（[^（）]+）$/g, "").trim();
+            return { profileKey: name, displayNameZh: base || name, sourceBookId: bid };
+          }
+          return { profileKey: name, displayNameZh: name, sourceBookId: bid };
+        }
+
+        function normalizePresetEntry(bookId, entry) {
+          if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+            var rawKey = String(entry.profileKey || entry.key || entry.name || entry.displayNameZh || "").trim();
+            var rawLabel = String(entry.displayNameZh || entry.label || rawKey).trim();
+            var id0 = resolveBcdCharacterIdentity(bookId, rawKey || rawLabel);
+            return {
+              profileKey: String(rawKey || id0.profileKey || "").trim(),
+              displayNameZh: String(rawLabel || id0.displayNameZh || rawKey).trim(),
+              sourceBookId: String(entry.sourceBookId || id0.sourceBookId || bookId || "").trim().toUpperCase(),
+            };
+          }
+          var id1 = resolveBcdCharacterIdentity(bookId, entry);
+          return {
+            profileKey: id1.profileKey,
+            displayNameZh: id1.displayNameZh,
+            sourceBookId: id1.sourceBookId,
+          };
+        }
+
         function inferBcdCharacterBookId(zhName) {
           var zh = String(zhName || "").trim();
           if (!zh) return "";
@@ -1223,7 +1289,11 @@
             var names = Array.isArray(CHARACTER_PRESET_BY_BOOK[b].names)
               ? CHARACTER_PRESET_BY_BOOK[b].names
               : [];
-            if (names.indexOf(zh) !== -1) {
+            if (
+              names.some(function (entry) {
+                return normalizePresetEntry(CHARACTER_PRESET_BY_BOOK[b].bookId, entry).profileKey === zh;
+              })
+            ) {
               return String(CHARACTER_PRESET_BY_BOOK[b].bookId || "").trim();
             }
           }
@@ -1343,6 +1413,7 @@
         let invalidRefAudit = { invalidRefCount: 0, invalidRefs: [], repaired: [], touchedCharacters: 0 };
         /** 右侧当前编辑的人物键；新建未填名为 "__new__" */
         let selectedBcdKey = null;
+        let bcdPresetPanelBound = false;
 
         function setStatus(msg, kind) {
           statusEl.textContent = msg || "";
@@ -1420,6 +1491,121 @@
             .replace(/"/g, "&quot;");
         }
 
+        function buildPrimaryBookMap(primaryByBook) {
+          var out = Object.create(null);
+          Object.keys(primaryByBook || {}).forEach(function (bookId) {
+            var names = Array.isArray(primaryByBook[bookId]) ? primaryByBook[bookId] : [];
+            names.forEach(function (entry) {
+              var k = normalizePresetEntry(bookId, entry).profileKey;
+              if (k && !out[k]) out[k] = bookId;
+            });
+          });
+          return out;
+        }
+
+        function mergePresetBooksWithPrimaryDirectory(primaryByBook, bookLabelById) {
+          var existingById = Object.create(null);
+          CHARACTER_PRESET_BY_BOOK.forEach(function (book) {
+            var bid = String(book && book.bookId || "").trim();
+            if (!bid) return;
+            existingById[bid] = {
+              bookId: bid,
+              bookNameZh: String(book.bookNameZh || (bookLabelById && bookLabelById[bid]) || bid),
+              names: Array.isArray(book.names) ? book.names.slice() : [],
+            };
+          });
+          Object.keys(primaryByBook || {}).forEach(function (bookId) {
+            var bid = String(bookId || "").trim();
+            if (!bid) return;
+            var incoming = Array.isArray(primaryByBook[bid]) ? primaryByBook[bid] : [];
+            if (existingById[bid]) {
+              existingById[bid].bookNameZh = String(
+                (bookLabelById && bookLabelById[bid]) || existingById[bid].bookNameZh || bid
+              );
+              existingById[bid].names = mergeGenesisPresetNames(
+                existingById[bid].names.map(function (entry) {
+                  return normalizePresetEntry(bid, entry).profileKey;
+                }),
+                incoming.map(function (entry) {
+                  return normalizePresetEntry(bid, entry).profileKey;
+                })
+              ).map(function (profileKey) {
+                return normalizePresetEntry(bid, profileKey);
+              });
+              return;
+            }
+            existingById[bid] = {
+              bookId: bid,
+              bookNameZh: String((bookLabelById && bookLabelById[bid]) || bid),
+              names: incoming.map(function (entry) {
+                return normalizePresetEntry(bid, entry);
+              }).filter(Boolean),
+            };
+          });
+          var bookOrder = [];
+          Object.keys(bookLabelById || {}).forEach(function (bookId) {
+            var bid = String(bookId || "").trim();
+            if (bid) bookOrder.push(bid);
+          });
+          CHARACTER_PRESET_BY_BOOK.forEach(function (book) {
+            var bid = String(book && book.bookId || "").trim();
+            if (bid && bookOrder.indexOf(bid) === -1) bookOrder.push(bid);
+          });
+          return bookOrder
+            .filter(function (bookId) {
+              return existingById[bookId] && Array.isArray(existingById[bookId].names);
+            })
+            .map(function (bookId) {
+              return existingById[bookId];
+            });
+        }
+
+        async function loadPrimaryCharacterDirectory() {
+          var res = await fetch(apiUrl("/api/admin/bible-primary-characters"), {
+            headers: { Authorization: "Bearer " + getToken() },
+            cache: "no-store",
+          });
+          var raw = await res.text();
+          var data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) {
+            throw new Error(data.error || "读取主人物目录失败 HTTP " + res.status);
+          }
+          if (data.primaryCharactersByBook && typeof data.primaryCharactersByBook === "object") {
+            BCD_PRIMARY_CHARACTERS_BY_BOOK = Object.freeze(
+              Object.fromEntries(
+                Object.keys(data.primaryCharactersByBook).map(function (bookId) {
+                  var names = Array.isArray(data.primaryCharactersByBook[bookId])
+                    ? data.primaryCharactersByBook[bookId].map(function (name) {
+                        return String(name || "").trim();
+                      }).filter(Boolean)
+                    : [];
+                  return [bookId, Object.freeze(names)];
+                })
+              )
+            );
+            BCD_EXTRA_CHARACTER_BOOK_BY_ZH = Object.freeze(
+              buildPrimaryBookMap(BCD_PRIMARY_CHARACTERS_BY_BOOK)
+            );
+            CHARACTER_PRESET_BY_BOOK = mergePresetBooksWithPrimaryDirectory(
+              data.primaryEntriesByBook && typeof data.primaryEntriesByBook === "object"
+                ? data.primaryEntriesByBook
+                : data.primaryCharactersByBook,
+              data.bookLabelById || {}
+            );
+          }
+          if (data.bookLabelById && typeof data.bookLabelById === "object") {
+            BCD_BOOK_LABEL_BY_ID = Object.freeze(
+              Object.assign({}, BCD_BOOK_LABEL_BY_ID, data.bookLabelById)
+            );
+          }
+          initPresetPanel();
+        }
+
         function buildPresetPanelHtml() {
           var parts = [];
           var b;
@@ -1436,14 +1622,18 @@
             parts.push('<ol class="bcd-preset-list">');
             var i;
             for (i = 0; i < book.names.length; i++) {
-              var zh = book.names[i];
+              var presetEntry = normalizePresetEntry(book.bookId, book.names[i]);
               parts.push(
                 '<li><button type="button" class="bcd-preset-name" data-zh="' +
-                  escapePresetHtml(zh) +
+                  escapePresetHtml(presetEntry.profileKey) +
+                  '" data-label="' +
+                  escapePresetHtml(presetEntry.displayNameZh) +
+                  '" data-book-id="' +
+                  escapePresetHtml(book.bookId) +
                   '"><span class="bcd-preset-ord">' +
                   String(i + 1) +
                   '</span><span>' +
-                  escapePresetHtml(zh) +
+                  escapePresetHtml(presetEntry.displayNameZh) +
                   '</span><span class="bcd-preset-status bcd-preset-status--bare"></span></button></li>'
               );
             }
@@ -1464,7 +1654,10 @@
           for (b = 0; b < CHARACTER_PRESET_BY_BOOK.length; b++) {
             var names = CHARACTER_PRESET_BY_BOOK[b].names || [];
             var i;
-            for (i = 0; i < names.length; i++) o[names[i]] = true;
+            for (i = 0; i < names.length; i++) {
+              var key = normalizePresetEntry(CHARACTER_PRESET_BY_BOOK[b].bookId, names[i]).profileKey;
+              if (key) o[key] = true;
+            }
           }
           return o;
         }
@@ -1477,7 +1670,7 @@
             var names = CHARACTER_PRESET_BY_BOOK[b].names || [];
             var i;
             for (i = 0; i < names.length; i++) {
-              var zh = String(names[i] || "").trim();
+              var zh = normalizePresetEntry(CHARACTER_PRESET_BY_BOOK[b].bookId, names[i]).profileKey;
               if (zh) out.push(zh);
             }
           }
@@ -1666,12 +1859,15 @@
             return String(BCD_EXTRA_CHARACTER_BOOK_BY_ZH[key] || "").trim();
           }
 
-          function renderExtraRowHtml(zh) {
+        function renderExtraRowHtml(zh) {
+            var identity = resolveBcdCharacterIdentity(inferBookIdForExtraZh(zh), zh);
             return (
               '<li><button type="button" class="bcd-preset-name bcd-preset-name--extra" data-zh="' +
-              escapePresetHtml(zh) +
+              escapePresetHtml(identity.profileKey) +
+              '" data-label="' +
+              escapePresetHtml(identity.displayNameZh) +
               '"><span class="bcd-preset-ord">·</span><span>' +
-              escapePresetHtml(zh) +
+              escapePresetHtml(identity.displayNameZh) +
               '</span><span class="bcd-preset-status"></span></button></li>'
             );
           }
@@ -1840,12 +2036,12 @@
           }
         }
 
-        function addPresetCard(zhName) {
+        function addPresetCard(profileKey, displayNameZh, preferredBookId) {
           if (!getToken()) {
             setStatus("请先登录。", "err");
             return;
           }
-          var k = String(zhName || "").trim();
+          var k = String(profileKey || "").trim();
           if (!k) return;
           var found = findCardByZh(k);
           if (found) {
@@ -1856,7 +2052,13 @@
             return;
           }
           var wrap = document.createElement("div");
-          wrap.innerHTML = cardTemplate(k, {}, { isNew: true });
+          var sourceBookId = String(preferredBookId || inferBcdCharacterBookId(k) || "").trim();
+          var identity = resolveBcdCharacterIdentity(sourceBookId, displayNameZh || k);
+          wrap.innerHTML = cardTemplate(k, {
+            displayNameZh: String(displayNameZh || identity.displayNameZh || k).trim(),
+            sourceBookId: sourceBookId,
+            bookIds: sourceBookId ? [sourceBookId] : [],
+          }, { isNew: true });
           var card = wrap.firstElementChild;
           listEl.insertBefore(card, listEl.firstChild);
           bindCardEvents(card);
@@ -1866,7 +2068,10 @@
           applyEditorSingleView();
           renderHeroGallery();
           card.querySelector(".bcd-key").focus();
-          setStatus("已从备选库添加「" + k + "」；可用「智能生成」或手动编辑后保存。", "ok");
+          setStatus(
+            "已从备选库添加「" + String(displayNameZh || identity.displayNameZh || k) + "」；可用「智能生成」或手动编辑后保存。",
+            "ok"
+          );
         }
 
         function refreshCardRefAfterRender(card, fallbackZh) {
@@ -1878,37 +2083,42 @@
         function initPresetPanel() {
           if (!presetInnerEl) return;
           presetInnerEl.innerHTML = buildPresetPanelHtml();
-          presetInnerEl.addEventListener("click", function (e) {
-            var newB =
-              e.target && e.target.closest ? e.target.closest(".bcd-preset-name--newrow") : null;
-            if (newB && presetInnerEl.contains(newB)) {
+          if (!bcdPresetPanelBound) {
+            presetInnerEl.addEventListener("click", function (e) {
+              var newB =
+                e.target && e.target.closest ? e.target.closest(".bcd-preset-name--newrow") : null;
+              if (newB && presetInnerEl.contains(newB)) {
+                if (!getToken()) {
+                  setStatus("请先登录。", "err");
+                  return;
+                }
+                setSelectedBcdKey("__new__");
+                applyEditorSingleView();
+                syncPresetSelectionClasses();
+                return;
+              }
+              var btn = e.target && e.target.closest ? e.target.closest(".bcd-preset-name[data-zh]") : null;
+              if (!btn || !presetInnerEl.contains(btn)) return;
+              var zh = String(btn.getAttribute("data-zh") || "").trim();
+              var label = String(btn.getAttribute("data-label") || "").trim();
+              var bookId = String(btn.getAttribute("data-book-id") || "").trim();
+              if (!zh) return;
               if (!getToken()) {
                 setStatus("请先登录。", "err");
                 return;
               }
-              setSelectedBcdKey("__new__");
-              applyEditorSingleView();
-              syncPresetSelectionClasses();
-              return;
-            }
-            var btn = e.target && e.target.closest ? e.target.closest(".bcd-preset-name[data-zh]") : null;
-            if (!btn || !presetInnerEl.contains(btn)) return;
-            var zh = String(btn.getAttribute("data-zh") || "").trim();
-            if (!zh) return;
-            if (!getToken()) {
-              setStatus("请先登录。", "err");
-              return;
-            }
-            var found = findCardByZh(zh);
-            if (found) {
-              setSelectedBcdKey(zh);
-              applyEditorSingleView();
-              syncPresetSelectionClasses();
-              setStatus("已选择「" + zh + "」。", "ok");
-              return;
-            }
-            addPresetCard(zh);
-          });
+              var found = findCardByZh(zh);
+              if (found) {
+                setSelectedBcdKey(zh);
+                applyEditorSingleView();
+                syncPresetSelectionClasses();
+                setStatus("已选择「" + zh + "」。", "ok");
+                return;
+              }
+              addPresetCard(zh, label || zh, bookId || inferBcdCharacterBookId(zh));
+            });
+            bcdPresetPanelBound = true;
+          }
           renderPresetExtraSection();
         }
 
@@ -3545,6 +3755,11 @@
           const englishName = safe(en.englishName || "");
           const scripturePersonalityZh = safe(en.scripturePersonalityZh || "");
           const scripturePersonalityEn = safe(en.scripturePersonalityEn || "");
+          const displayNameZh = safe(en.displayNameZh || key || "");
+          const sourceBookId = safe(en.sourceBookId || inferBcdCharacterBookId(key) || "");
+          const bookIds = Array.isArray(en.bookIds)
+            ? en.bookIds.map(function (x) { return String(x || "").trim(); }).filter(Boolean)
+            : sourceBookId ? [sourceBookId] : [];
           const lifespanZh = safe(en.lifespanZh || "");
           const eraLabelZh = safe(en.eraLabelZh || "");
           const characterRoleZh = safe(
@@ -3593,6 +3808,12 @@
             (isNew ? " bcd-card--new" : "") +
             '" data-key="' +
             k +
+            '" data-display-name="' +
+            displayNameZh +
+            '" data-source-book-id="' +
+            sourceBookId +
+            '" data-book-ids="' +
+            safe(bookIds.join(",")) +
             '" data-hero-image-url="' +
             heroImageUrl +
             '" data-hero-roster-height="' +
@@ -4147,6 +4368,9 @@
               var v = String(keyInput.value || "").trim();
               if (card.classList.contains("bcd-card--new") && v) {
                 card.setAttribute("data-key", v);
+                if (!String(card.getAttribute("data-display-name") || "").trim()) {
+                  card.setAttribute("data-display-name", v);
+                }
               }
               if (card.classList.contains("bcd-card--new")) {
                 setSelectedBcdKey(v || "__new__");
@@ -4380,6 +4604,14 @@
           for (let i = 0; i < cards.length; i++) {
             const card = cards[i];
             const key = cardZhDisplayKey(card);
+            const displayNameZh = String(card.getAttribute("data-display-name") || key || "").trim();
+            const sourceBookId = String(card.getAttribute("data-source-book-id") || "").trim().toUpperCase();
+            const bookIds = String(card.getAttribute("data-book-ids") || "")
+              .split(",")
+              .map(function (x) {
+                return String(x || "").trim().toUpperCase();
+              })
+              .filter(Boolean);
             if (!key) continue;
             if (characters[key]) {
               throw new Error("中文名重复：「" + key + "」出现多次，请只保留一条。");
@@ -4398,6 +4630,9 @@
               var spOnlyZh = card.querySelector(".bcd-scripture-personality-zh");
               var spOnlyEn = card.querySelector(".bcd-scripture-personality-en");
               characters[key] = {
+                displayNameZh: displayNameZh,
+                sourceBookId: sourceBookId,
+                bookIds: bookIds,
                 englishName: String(card.querySelector(".bcd-en").value || "").trim(),
                 shortSceneTagEn: "",
                 appearanceEn: "",
@@ -4440,6 +4675,9 @@
               continue;
             }
             const row = {
+              displayNameZh: displayNameZh,
+              sourceBookId: sourceBookId,
+              bookIds: bookIds,
               englishName: String(card.querySelector(".bcd-en").value || "").trim(),
               scripturePersonalityZh: String(
                 (card.querySelector(".bcd-scripture-personality-zh") &&
@@ -4728,6 +4966,7 @@
           }
           setStatus("加载中…", null);
           try {
+            await loadPrimaryCharacterDirectory();
             await loadProfiles();
             setStatus("已重新载入。", "ok");
           } catch (e) {
@@ -4830,6 +5069,7 @@
           authEl.hidden = true;
           setStatus("加载中…", null);
           try {
+            await loadPrimaryCharacterDirectory();
             await loadProfiles();
             const autoRepair = await autoRepairProfileImagesIfNeeded();
             if (autoRepair && autoRepair.repaired) {

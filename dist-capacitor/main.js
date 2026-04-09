@@ -15,6 +15,7 @@ const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
 const COLOR_THEME_STORAGE_KEY = "bible_color_theme_id_v1";
 const QA_INTERACTIONS_KEY = "bible_qa_interactions_v1";
 const VERSE_SEARCH_PREFS_KEY = "bible_verse_search_prefs_v1";
+const CLIENT_FRESHNESS_VERSION = "v53";
 let verseSearchDebounceTimer = null;
 let verseSearchSeq = 0;
 /** Safari/iOS 将「↩」绘成彩色系统符号；用 currentColor SVG 与 ♥/✎ 同色 */
@@ -94,6 +95,25 @@ const BOOK_NAME_EN_BY_ID = {
   _NT_OVERVIEW: "New Testament Overview",
 };
 
+function clearEphemeralClientState() {
+  try {
+    [
+      FRONT_STATE_KEY,
+      FONT_SCALE_KEY,
+      VIEWPORT_SCROLL_KEY,
+      COLOR_THEME_STORAGE_KEY,
+      "bible_front_state_v3",
+      "bible_front_state_v2",
+      "bible_font_scale_v0",
+      "bible_viewport_scroll_v0",
+    ].forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* ignore */
+  }
+}
+
+clearEphemeralClientState();
+
 const state = {
   bootstrap: null,
   frontState: loadFrontState(),
@@ -103,6 +123,8 @@ const state = {
   bookIntroMarkdown: null,
   /** 卷首页附属视频：来自已发布 0.json 的 chapterVideos */
   bookLandingChapterVideos: [],
+  /** 卷首页多视频时，当前选中的条目下标（配合 landing pick UI） */
+  bookLandingVideoPickIndex: 0,
   /** 卷首页插画：来自已发布 0.json 的 chapterIllustration */
   bookLandingChapterIllustration: null,
   /**
@@ -110,6 +132,8 @@ const state = {
    * 此时 studyContent 为空，插图单独放此处供读经页展示。
    */
   chapterIllustrationWhenStudyMissing: null,
+  /** 本卷人物轴：整卷已生成角色 + 当前章节高亮 */
+  bookCharacterTimeline: null,
   /** 章节插图全局显示设置（来自 /api/chapter-illustration/global-settings） */
   chapterIllustrationGlobalSettings: { overlayOpacity: 85 },
   favorites: loadFavorites(),
@@ -400,10 +424,27 @@ function resolveStudyApiPath(path) {
   }
 }
 
+function cacheBustTokenForIllustrationUrl(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  const target = s.split("?")[0];
+  const base = target.split("/").pop() || "";
+  const match = base.match(/-(\d{10,})\.(png|webp|jpg|jpeg)$/i);
+  return match ? String(match[1]) : "";
+}
+
+function appendCacheBustToUrl(url, token) {
+  const raw = String(url || "").trim();
+  const tk = String(token || "").trim();
+  if (!raw || !tk) return raw;
+  return raw + (raw.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(tk);
+}
+
 /** 本章人员立绘：/generated 下 PNG 走服务端缩图，减轻带宽（方案 1） */
 function chapterRosterPortraitImgSrc(normalizedPath) {
   const raw = String(normalizedPath || "").trim();
   if (!raw) return "";
+  const bust = cacheBustTokenForIllustrationUrl(raw);
   let genPath = "";
   if (raw.startsWith("/generated/")) {
     genPath = raw.split("?")[0];
@@ -420,12 +461,96 @@ function chapterRosterPortraitImgSrc(normalizedPath) {
   if (genPath) {
     const baseName = genPath.replace(/^\/generated\//, "").split("/").pop() || "";
     if (!baseName) {
-      return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+      return appendCacheBustToUrl(
+        resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw),
+        bust
+      );
     }
-    const q = new URLSearchParams({ n: baseName, w: "320" });
-    return resolveStudyApiPath("/api/roster-portrait?" + q.toString());
+    const q = new URLSearchParams({ n: baseName, w: "960" });
+    return appendCacheBustToUrl(
+      resolveStudyApiPath("/api/roster-portrait?" + q.toString()),
+      bust
+    );
   }
-  return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+  return appendCacheBustToUrl(
+    resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw),
+    bust
+  );
+}
+
+function preferredChapterIllustrationWidth() {
+  return 960;
+}
+
+function chapterIllustrationOptimizedSrcs(normalizedPath) {
+  const raw = String(normalizedPath || "").trim();
+  if (!raw) return [];
+  const directSrc = resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
+  const imgPath = String(raw.split("?")[0] || "");
+  const imgName = imgPath.startsWith("/generated/")
+    ? imgPath.slice("/generated/".length)
+    : "";
+  if (!imgName) return [directSrc];
+  const width = preferredChapterIllustrationWidth();
+  return [
+    resolveStudyApiPath(`/api/ci?n=${encodeURIComponent(imgName)}&w=${width}`),
+    resolveStudyApiPath(
+      `/api/chapter-illustration-image?n=${encodeURIComponent(imgName)}&w=${width}`
+    ),
+    directSrc,
+  ];
+}
+
+function bindChapterIllustrationImageFallback(imgEl) {
+  if (!imgEl) return;
+  imgEl.addEventListener(
+    "error",
+    function handleChapterIllustrationError() {
+      const fallbacks = [
+        String(imgEl.getAttribute("data-src-fallback") || "").trim(),
+        String(imgEl.getAttribute("data-src-fallback-2") || "").trim(),
+      ].filter(Boolean);
+      for (let i = 0; i < fallbacks.length; i++) {
+        const fallback = fallbacks[i];
+        if (fallback && imgEl.src !== fallback) {
+          imgEl.src = fallback;
+          return;
+        }
+      }
+    },
+    { once: false }
+  );
+}
+
+function bindChapterCharacterRosterImageFallbacks(root) {
+  if (!root) return;
+  const imgs = root.querySelectorAll(".chapter-character-roster-img");
+  imgs.forEach((imgEl) => {
+    function advanceRosterImageFallback() {
+      const fallback = String(
+        imgEl.getAttribute("data-src-fallback") || ""
+      ).trim();
+      const finalFallback = String(
+        imgEl.getAttribute("data-src-final-fallback") || ""
+      ).trim();
+      if (fallback && imgEl.src !== fallback) {
+        imgEl.src = fallback;
+        return;
+      }
+      if (finalFallback && imgEl.src !== finalFallback) {
+        imgEl.src = finalFallback;
+      }
+    }
+    imgEl.addEventListener(
+      "error",
+      function handleRosterImageError() {
+        advanceRosterImageFallback();
+      }
+    );
+    if (imgEl.complete && !imgEl.naturalWidth) {
+      advanceRosterImageFallback();
+    }
+  });
 }
 
 /** 与 .book-spread 双栏断点一致：宽屏视频分列到左右页 */
@@ -522,6 +647,206 @@ function renderChapterVideosSlotHtml(videoListOverride, columnMode = "single") {
   return `<div class="chapter-videos-inner">${parts.join("")}</div>`;
 }
 
+/** 卷首页多视频：与 render / 手风琴切换共用，保证下标与 DOM 一致 */
+function buildBookLandingVideoStreamEntries(list) {
+  if (!Array.isArray(list)) return null;
+  const v = String(state.frontState.contentVersion || "").trim();
+  const lang = String(state.frontState.contentLang || "").trim();
+  const bookId = String(state.frontState.bookId || "").trim();
+  const chapter = Number(state.frontState.chapter ?? NaN);
+  if (!v || !lang || !bookId || !Number.isFinite(chapter) || chapter < 0) {
+    return null;
+  }
+  const bookLabel = getBookLabelForPrimaryScripture();
+  const entries = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const it = list[i];
+    const id = String(it?.id || "").trim();
+    if (!id) continue;
+    const title = String(it?.title || "视频").trim() || "视频";
+    const q = new URLSearchParams({
+      version: v,
+      lang,
+      bookId,
+      chapter: String(chapter),
+      id,
+    });
+    const rawUrl = `/api/published/chapter-video?${q.toString()}`;
+    let src = resolveStudyApiPath(rawUrl);
+    const cv = String(it?.updatedAt || "").trim();
+    if (cv) {
+      src += (src.includes("?") ? "&" : "?") + "_cv=" + encodeURIComponent(cv);
+    }
+    const posterRaw = String(it?.posterUrl || it?.poster || "").trim();
+    let posterUrl = "";
+    if (posterRaw) {
+      let p = /^https?:\/\//i.test(posterRaw)
+        ? posterRaw
+        : resolveStudyApiPath(
+            posterRaw.startsWith("/") ? posterRaw : `/${posterRaw}`
+          );
+      const pcv = String(it?.posterUpdatedAt || it?.updatedAt || "").trim();
+      if (pcv) {
+        p += (p.includes("?") ? "&" : "?") + "_cv=" + encodeURIComponent(pcv);
+      }
+      posterUrl = p;
+    }
+    const usePreview = !posterUrl;
+    const posterAttr = posterUrl ? ` poster="${escapeHtml(posterUrl)}"` : "";
+    const previewData = usePreview ? ' data-chapter-video-preview="1"' : "";
+    const mime = String(it?.mime || "video/mp4").trim() || "video/mp4";
+    entries.push({
+      title,
+      src,
+      mime,
+      posterUrl,
+      posterAttr,
+      previewData,
+      usePreview,
+    });
+  }
+  if (!entries.length) return null;
+  return { entries, bookLabel, chapter };
+}
+
+function updateLandingAccordionVideoElement(video, entry, titleStr) {
+  if (!video || !entry) return;
+  try {
+    video.pause();
+  } catch (_) {
+    /* ignore */
+  }
+  delete video.dataset.chapterPreviewBound;
+  delete video.dataset.chapterPreviewFrameReady;
+  if (entry.posterUrl) {
+    video.setAttribute("poster", entry.posterUrl);
+  } else {
+    video.removeAttribute("poster");
+  }
+  if (entry.usePreview) {
+    video.setAttribute("data-chapter-video-preview", "1");
+  } else {
+    video.removeAttribute("data-chapter-video-preview");
+  }
+  video.setAttribute("title", titleStr);
+  video.innerHTML = `<source src="${escapeHtml(entry.src)}" type="${escapeHtml(
+    entry.mime
+  )}" />`;
+  try {
+    video.load();
+  } catch (_) {
+    /* ignore */
+  }
+  bindChapterVideoPreviewFrame(video);
+}
+
+function handleBookLandingAccordionClick(event) {
+  const slot = document.getElementById("chapterVideosSlot");
+  if (!slot || !slot.contains(event.target)) return;
+  const btn = event.target.closest(".chapter-video-landing-title-btn");
+  if (!btn || !slot.contains(btn)) return;
+  const root = slot.querySelector(".chapter-videos-inner--landing-pick");
+  if (!root || !root.contains(btn)) return;
+  const newIdx = Number(btn.getAttribute("data-landing-video-idx"));
+  if (!Number.isFinite(newIdx)) return;
+  const oldIdx = state.bookLandingVideoPickIndex;
+  if (newIdx === oldIdx) return;
+
+  const items = root.querySelectorAll(".chapter-video-landing-acc-item");
+  if (newIdx < 0 || newIdx >= items.length) return;
+
+  const built = buildBookLandingVideoStreamEntries(state.bookLandingChapterVideos);
+  if (!built || !built.entries[newIdx]) return;
+
+  const oldItem = items[oldIdx];
+  const newItem = items[newIdx];
+  const newInner = newItem && newItem.querySelector(".chapter-video-landing-panel-inner");
+  const oldInner = oldItem && oldItem.querySelector(".chapter-video-landing-panel-inner");
+  if (!newInner) return;
+
+  let video =
+    (oldInner && oldInner.querySelector("video.chapter-video-el")) ||
+    (newInner && newInner.querySelector("video.chapter-video-el"));
+  if (!video) return;
+
+  const { entries, bookLabel, chapter } = built;
+  const e = entries[newIdx];
+  const vt = `${formatBookChapterLabel(bookLabel, chapter)} · ${e.title}`;
+
+  newInner.appendChild(video);
+  updateLandingAccordionVideoElement(video, e, vt);
+
+  if (oldItem && oldItem !== newItem) {
+    oldItem.classList.remove("is-expanded");
+    const ob = oldItem.querySelector(".chapter-video-landing-title-btn");
+    if (ob) {
+      ob.classList.remove("is-active");
+      ob.setAttribute("aria-pressed", "false");
+      ob.setAttribute("aria-expanded", "false");
+    }
+  }
+  newItem.classList.add("is-expanded");
+  const nb = newItem.querySelector(".chapter-video-landing-title-btn");
+  if (nb) {
+    nb.classList.add("is-active");
+    nb.setAttribute("aria-pressed", "true");
+    nb.setAttribute("aria-expanded", "true");
+  }
+
+  state.bookLandingVideoPickIndex = newIdx;
+}
+
+function ensureBookLandingVideoAccordionDelegate() {
+  const slot = document.getElementById("chapterVideosSlot");
+  if (!slot || slot.dataset.landingAccordionDelegate === "1") return;
+  slot.dataset.landingAccordionDelegate = "1";
+  slot.addEventListener("click", handleBookLandingAccordionClick);
+}
+
+/**
+ * 卷首页视频：与多条共用手风琴外壳；多条可切换，单条为同款标题条 + 视频（标题非按钮）。
+ * 返回空字符串则回退为普通纵向列表。
+ */
+function renderBookLandingMultiVideoPickerHtml(list) {
+  const built = buildBookLandingVideoStreamEntries(list);
+  if (!built) return "";
+  const { entries, bookLabel, chapter } = built;
+  const single = entries.length === 1;
+
+  let pick = Number(state.bookLandingVideoPickIndex);
+  if (!Number.isFinite(pick)) pick = 0;
+  pick = Math.max(0, Math.min(pick, entries.length - 1));
+  state.bookLandingVideoPickIndex = pick;
+
+  const itemsHtml = entries
+    .map((e, idx) => {
+      const isActive = idx === pick;
+      const vt = `${formatBookChapterLabel(bookLabel, chapter)} · ${e.title}`;
+      const videoBlock =
+        isActive || single
+          ? `<div class="chapter-video-landing-panel-inner"><video class="chapter-video-el"${e.previewData} controls playsinline preload="metadata"${e.posterAttr} title="${escapeHtml(vt)}"><source src="${escapeHtml(
+              e.src
+            )}" type="${escapeHtml(e.mime)}" /></video></div>`
+          : '<div class="chapter-video-landing-panel-inner" aria-hidden="true"></div>';
+      const expanded = isActive || single;
+      const titleHtml = single
+        ? `<div class="chapter-video-landing-title-btn is-active chapter-video-landing-title-static">${escapeHtml(
+            e.title
+          )}</div>`
+        : `<button type="button" class="chapter-video-landing-title-btn${
+            isActive ? " is-active" : ""
+          }" data-landing-video-idx="${idx}" aria-pressed="${
+            isActive ? "true" : "false"
+          }" aria-expanded="${isActive}">${escapeHtml(e.title)}</button>`;
+      return `<div class="chapter-video-landing-acc-item${
+        expanded ? " is-expanded" : ""
+      }">${titleHtml}<div class="chapter-video-landing-panel">${videoBlock}</div></div>`;
+    })
+    .join("");
+
+  return `<div class="chapter-videos-inner chapter-videos-inner--landing-pick"><div class="chapter-video-landing-shell"><div class="chapter-video-landing-accordion" role="group" aria-label="视频列表">${itemsHtml}</div></div></div>`;
+}
+
 function clearChapterVideoSlots() {
   const left = document.getElementById("chapterVideosSlot");
   const right = document.getElementById("chapterVideosSlotRight");
@@ -534,6 +859,27 @@ function mountChapterVideoSlots(videoListOverride) {
   const left = document.getElementById("chapterVideosSlot");
   const right = document.getElementById("chapterVideosSlotRight");
   if (!left) return;
+  const list = Array.isArray(videoListOverride)
+    ? videoListOverride
+    : state.studyContent?.chapterVideos;
+  const landingVideoCount = Array.isArray(list)
+    ? list.filter((it) => String(it?.id || "").trim()).length
+    : 0;
+  const useLandingVideoShell =
+    isBookLandingChapter() && landingVideoCount >= 1;
+
+  if (useLandingVideoShell) {
+    const pickHtml = renderBookLandingMultiVideoPickerHtml(list);
+    if (pickHtml) {
+      left.innerHTML = pickHtml;
+      if (right) right.innerHTML = "";
+      attachChapterVideoLazySources(left);
+      attachChapterVideoPreviewFrames(left);
+      ensureBookLandingVideoAccordionDelegate();
+      return;
+    }
+  }
+
   const split = shouldSplitChapterVideosAcrossColumns();
   if (split) {
     left.innerHTML = renderChapterVideosSlotHtml(videoListOverride, "left");
@@ -727,23 +1073,23 @@ function highlightVerseSearchSnippet(snippet, query) {
 }
 
 function loadFontScale() {
-  const raw = Number(localStorage.getItem(FONT_SCALE_KEY));
-  if (Number.isFinite(raw) && raw >= 0.85 && raw <= 1.3) return raw;
   return 1;
 }
 
 function saveFontScale() {
-  localStorage.setItem(FONT_SCALE_KEY, String(state.frontState.fontScale));
+  try {
+    localStorage.removeItem(FONT_SCALE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function loadViewportScrollY() {
-  const raw = Number(localStorage.getItem(VIEWPORT_SCROLL_KEY));
-  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+  return 0;
 }
 
 function saveViewportScrollY(y) {
-  const safeY = Math.max(0, Number(y) || 0);
-  localStorage.setItem(VIEWPORT_SCROLL_KEY, String(safeY));
+  void y;
 }
 
 function loadFavorites() {
@@ -916,63 +1262,50 @@ function backfillGlobalFavoritesFromLocal() {
 }
 
 function loadFrontState() {
-  const parsed = safeJsonParse(localStorage.getItem(FRONT_STATE_KEY), null);
-
-  const legacyScriptureIds =
-    Array.isArray(parsed?.scriptureVersionIds) &&
-    parsed.scriptureVersionIds.length
-      ? parsed.scriptureVersionIds
-      : [];
-
+  const parsed =
+    typeof sessionStorage !== "undefined"
+      ? safeJsonParse(sessionStorage.getItem(FRONT_STATE_KEY), null)
+      : null;
   return {
     uiLang: parsed?.uiLang || "zh",
     contentVersion: parsed?.contentVersion || "default",
     contentLang: parsed?.contentLang || "zh",
-    primaryScriptureVersionId:
-      parsed?.primaryScriptureVersionId || legacyScriptureIds[0] || "cuvs_zh",
-    secondaryScriptureVersionIds: Array.isArray(
-      parsed?.secondaryScriptureVersionIds
-    )
-      ? parsed.secondaryScriptureVersionIds
-      : legacyScriptureIds.slice(1).length
-      ? legacyScriptureIds.slice(1)
-      : [],
+    primaryScriptureVersionId: parsed?.primaryScriptureVersionId || "cuvs_zh",
+    secondaryScriptureVersionIds: [],
     testament: parsed?.testament || "旧约",
-    /* 无本地记录时打开「圣经简介」卷首页（_BIBLE_INTRO / chapter 0），非创世记第 1 章 */
+    /* 同一页面刷新时保留当前章；新开页面仍默认首页 */
     bookId: parsed?.bookId || "_BIBLE_INTRO",
     chapter:
       parsed == null ? 0 : Number(parsed.chapter != null ? parsed.chapter : 0),
-    hideScripture: parsed?.hideScripture === true,
-    showQuestions:
-      typeof parsed?.showQuestions === "boolean"
-        ? parsed.showQuestions
-        : true,
-    showScripture:
-      typeof parsed?.showScripture === "boolean"
-        ? parsed.showScripture
-        : true,
+    hideScripture: false,
+    showQuestions: true,
+    showScripture: true,
     fontScale: loadFontScale(),
   };
 }
 
 function saveFrontState() {
-  localStorage.setItem(
-    FRONT_STATE_KEY,
-    JSON.stringify({
-      uiLang: state.frontState.uiLang,
-      contentVersion: state.frontState.contentVersion,
-      contentLang: state.frontState.contentLang,
-      primaryScriptureVersionId: state.frontState.primaryScriptureVersionId,
-      secondaryScriptureVersionIds:
-        state.frontState.secondaryScriptureVersionIds,
-      testament: state.frontState.testament,
-      bookId: state.frontState.bookId,
-      chapter: state.frontState.chapter,
-      hideScripture: state.frontState.hideScripture,
-      showQuestions: state.frontState.showQuestions,
-      showScripture: state.frontState.showScripture,
-    })
-  );
+  try {
+    sessionStorage.setItem(
+      FRONT_STATE_KEY,
+      JSON.stringify({
+        uiLang: state.frontState.uiLang,
+        contentVersion: state.frontState.contentVersion,
+        contentLang: state.frontState.contentLang,
+        primaryScriptureVersionId: state.frontState.primaryScriptureVersionId,
+        testament: state.frontState.testament,
+        bookId: state.frontState.bookId,
+        chapter: state.frontState.chapter,
+      })
+    );
+  } catch {
+    /* ignore */
+  }
+  try {
+    localStorage.removeItem(FRONT_STATE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function applyFontScale() {
@@ -1183,13 +1516,118 @@ const BOOK_CANONICAL_ORDER_MAP = (() => {
   return m;
 })();
 
-function formatBookGridButtonLabel(book, bookLabelFn) {
-  const name = bookLabelFn(book);
-  if (book?.overviewOnly || BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER.has(book.bookId)) {
-    return name;
+/** 书卷目录：此宽度以下显示简称（中/英/西；希伯来仍全名） */
+const BOOK_DIR_ABBREV_MAX_WIDTH_PX = 480;
+
+function isBookDirectoryAbbrevViewport() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.matchMedia(
+      `(max-width: ${BOOK_DIR_ABBREV_MAX_WIDTH_PX}px)`
+    ).matches;
+  } catch {
+    return false;
   }
-  const ord = BOOK_CANONICAL_ORDER_MAP.get(book.bookId);
-  return ord != null ? `${ord}. ${name}` : name;
+}
+
+let bookChapterDirectoryViewportMqBound = false;
+function ensureBookChapterDirectoryViewportListener() {
+  if (bookChapterDirectoryViewportMqBound || typeof window === "undefined") {
+    return;
+  }
+  bookChapterDirectoryViewportMqBound = true;
+  const mq = window.matchMedia(
+    `(max-width: ${BOOK_DIR_ABBREV_MAX_WIDTH_PX}px)`
+  );
+  const handler = () => {
+    const panel = document.getElementById("bookChapterPanel");
+    if (!panel || panel.hasAttribute("hidden")) return;
+    renderBookChapterPanel();
+  };
+  if (typeof mq.addEventListener === "function") {
+    mq.addEventListener("change", handler);
+  } else {
+    mq.addListener(handler);
+  }
+}
+
+const BOOK_CHAPTER_COMPACT_MAX_WIDTH_PX = 700;
+
+function isBookChapterCompactLayoutViewport() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.matchMedia(
+      `(max-width: ${BOOK_CHAPTER_COMPACT_MAX_WIDTH_PX}px)`
+    ).matches;
+  } catch {
+    return false;
+  }
+}
+
+let bookChapterCompact700MqBound = false;
+function ensureBookChapterCompact700LayoutListener() {
+  if (bookChapterCompact700MqBound || typeof window === "undefined") return;
+  bookChapterCompact700MqBound = true;
+  const mq = window.matchMedia(
+    `(max-width: ${BOOK_CHAPTER_COMPACT_MAX_WIDTH_PX}px)`
+  );
+  const onMq = () => {
+    const panel = document.getElementById("bookChapterPanel");
+    if (!panel || panel.hasAttribute("hidden")) return;
+    renderBookChapterPanel();
+  };
+  if (typeof mq.addEventListener === "function") {
+    mq.addEventListener("change", onMq);
+  } else {
+    mq.addListener(onMq);
+  }
+}
+
+let bookChapterCompactTabClicksBound = false;
+function ensureBookChapterCompactTabClicks() {
+  if (bookChapterCompactTabClicksBound) return;
+  const panel = document.getElementById("bookChapterPanel");
+  if (!panel) return;
+  bookChapterCompactTabClicksBound = true;
+  panel.addEventListener("click", (event) => {
+    const btn = event.target.closest(".book-chapter-compact-tab");
+    if (!btn || !panel.contains(btn)) return;
+    const tab = btn.getAttribute("data-bc-tab");
+    if (tab === "ot" || tab === "nt" || tab === "ch") {
+      setBookChapterCompactTab(tab);
+    }
+  });
+}
+
+function setBookChapterCompactTab(tab) {
+  const triple = document.querySelector("#bookChapterPanel .book-chapter-triple");
+  if (triple) triple.setAttribute("data-bc-tab", tab);
+  document.querySelectorAll("#bookChapterPanel .book-chapter-compact-tab").forEach((b) => {
+    const on = b.getAttribute("data-bc-tab") === tab;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+}
+
+function pickBookChapterCompactTabFromState() {
+  return state.frontState.testament === "新约" ? "nt" : "ot";
+}
+
+function syncBookChapterCompactLayoutAfterRender() {
+  ensureBookChapterCompactTabClicks();
+  ensureBookChapterCompact700LayoutListener();
+  if (!isBookChapterCompactLayoutViewport()) return;
+  const triple = document.querySelector("#bookChapterPanel .book-chapter-triple");
+  const cur = triple?.getAttribute("data-bc-tab");
+  const next =
+    cur === "ot" || cur === "nt" || cur === "ch"
+      ? cur
+      : pickBookChapterCompactTabFromState();
+  setBookChapterCompactTab(next);
+}
+
+function formatBookGridButtonLabel(book, bookLabelFn) {
+  return bookLabelFn(book);
 }
 
 /** 与 getLocalizedCopy、书卷名一致：按主经文语言，不用 uiLang（避免英文经卷 + 中文界面时分组仍中文） */
@@ -1205,15 +1643,19 @@ function pickBibleGridSectionLabel(labels) {
   );
 }
 
-function buildGroupedBookGridHtml(books, bookLabel, sections) {
+function buildGroupedBookGridHtml(books, bookLabel, sections, bookButtonFullName) {
   const booksById = new Map(books.map((b) => [b.bookId, b]));
   const mappedIds = new Set(sections.flatMap((s) => s.bookIds));
+  const fullNameFn = bookButtonFullName || bookLabel;
 
   const buttonHtml = (book) => {
     const active = book.bookId === state.frontState.bookId ? "active" : "";
+    const full = escapeHtml(fullNameFn(book));
     return `<button type="button" class="book-item ${active}" data-book-grid-id="${escapeHtml(
       book.bookId
-    )}">${escapeHtml(formatBookGridButtonLabel(book, bookLabel))}</button>`;
+    )}" title="${full}" aria-label="${full}">${escapeHtml(
+      formatBookGridButtonLabel(book, bookLabel)
+    )}</button>`;
   };
 
   const parts = [];
@@ -1258,12 +1700,22 @@ function buildGroupedBookGridHtml(books, bookLabel, sections) {
   return parts.join("");
 }
 
-function buildOldTestamentBookGridHtml(books, bookLabel) {
-  return buildGroupedBookGridHtml(books, bookLabel, OLD_TESTAMENT_SECTIONS);
+function buildOldTestamentBookGridHtml(books, bookLabel, bookButtonFullName) {
+  return buildGroupedBookGridHtml(
+    books,
+    bookLabel,
+    OLD_TESTAMENT_SECTIONS,
+    bookButtonFullName
+  );
 }
 
-function buildNewTestamentBookGridHtml(books, bookLabel) {
-  return buildGroupedBookGridHtml(books, bookLabel, NEW_TESTAMENT_SECTIONS);
+function buildNewTestamentBookGridHtml(books, bookLabel, bookButtonFullName) {
+  return buildGroupedBookGridHtml(
+    books,
+    bookLabel,
+    NEW_TESTAMENT_SECTIONS,
+    bookButtonFullName
+  );
 }
 
 function getCurrentBookMeta() {
@@ -1464,7 +1916,7 @@ function getLocalizedCopy() {
       enterChapterOne: "Chapter 1",
       bookIntroEmpty: "No introduction has been published for this book yet.",
       noContent: "No content yet for this chapter in the selected version/language.",
-      chapterEndPersonnelTableCaption: "People in this chapter",
+      chapterEndPersonnelTableCaption: "Book Characters",
       promoHelpAria:
         "About Berean-style reading and AskBible.me (opens in new tab)",
     };
@@ -1525,7 +1977,7 @@ function getLocalizedCopy() {
       enterChapterOne: "Capitulo 1",
       bookIntroEmpty: "Aun no hay introduccion publicada para este libro.",
       noContent: "Aun no hay contenido para este capitulo en la version/idioma seleccionados.",
-      chapterEndPersonnelTableCaption: "Personas en este capitulo",
+      chapterEndPersonnelTableCaption: "Personajes del libro",
       promoHelpAria: "Sobre el estilo Berea y AskBible.me (nueva pestana)",
     };
   }
@@ -1585,7 +2037,7 @@ function getLocalizedCopy() {
       enterChapterOne: "פרק 1",
       bookIntroEmpty: "עדיין לא פורסמה הקדמה לספר זה.",
       noContent: "עדיין אין תוכן לפרק זה בגרסה או בשפה שנבחרו.",
-      chapterEndPersonnelTableCaption: "אנשים בפרק זה",
+      chapterEndPersonnelTableCaption: "דמויות הספר",
       promoHelpAria: "אודות לימוד בסגנון בראיים ו-AskBible.me (בלשונית חדשה)",
     };
   }
@@ -1644,7 +2096,7 @@ function getLocalizedCopy() {
     enterChapterOne: "进入第 1 章",
     bookIntroEmpty: "本书卷暂无介绍内容。",
     noContent: "这一章还没有该版本 / 该语言的内容。",
-    chapterEndPersonnelTableCaption: "本章人员",
+    chapterEndPersonnelTableCaption: "本卷人物",
     promoHelpAria: "了解庇哩亚式读经与 AskBible.me（新窗口打开）",
   };
 }
@@ -2494,6 +2946,7 @@ async function init() {
     initBookChapterNavDeepLink();
     initShareNavDeepLink();
     bindChapterVideosLayoutResize();
+    ensureBookLandingVideoAccordionDelegate();
     initFavoritesPanelTabs();
     initVerseSearchOverlay();
     initChapterNav();
@@ -2922,11 +3375,7 @@ function getColorThemesMetaFromBootstrap() {
 }
 
 function getStoredColorThemeId() {
-  try {
-    return String(localStorage.getItem(COLOR_THEME_STORAGE_KEY) || "").trim();
-  } catch {
-    return "";
-  }
+  return "";
 }
 
 function applyColorVariablesToRoot(variables) {
@@ -2998,15 +3447,7 @@ async function fetchCurrentUser() {
       normalizeUserTotalOnlineSeconds(user);
       state.currentUser = user;
       const nm = String(user?.name || "").trim();
-      if (nm) {
-        const tid = String(user?.colorThemeId || "").trim();
-        try {
-          if (tid) localStorage.setItem(COLOR_THEME_STORAGE_KEY, tid);
-          else localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
-        } catch (_) {
-          /* ignore */
-        }
-      }
+      void nm;
     }
   } catch {
     state.currentUser = null;
@@ -3627,7 +4068,7 @@ function initChapterQuestionCollector() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "提交失败");
       localStorage.setItem(LAST_QUESTION_SUBMIT_AT_KEY, String(now));
-      statusEl.textContent = "已提交，感谢你的好问题";
+      statusEl.textContent = String(data.message || "已提交，感谢你的好问题");
       inputEl.value = "";
       await loadApprovedChapterQuestions();
       renderStudyContent();
@@ -5001,6 +5442,7 @@ function renderBookChapterPanel() {
     chapterGridId: "chapterGrid",
     closePanelId: "bookChapterPanel",
   });
+  ensureBookChapterDirectoryViewportListener();
 }
 
 function renderBookChapterGrids({
@@ -5016,18 +5458,35 @@ function renderBookChapterGrids({
 
   const scriptureLang = getPrimaryScriptureLang();
 
-  const bookLabel = (book) =>
+  const bookGridFullName = (book) =>
     scriptureLang === "en" || scriptureLang === "es" || scriptureLang === "he"
       ? BOOK_NAME_EN_BY_ID[book.bookId] || book.bookEn || book.bookCn || book.bookId
       : book.bookCn || book.bookEn || book.bookId;
+
+  /* 极小屏：中/英/西 显示简称；希伯来始终全名。宽屏一律全名 */
+  const bookLabel = (book) => {
+    if (!isBookDirectoryAbbrevViewport()) {
+      return bookGridFullName(book);
+    }
+    if (scriptureLang === "he") {
+      return bookGridFullName(book);
+    }
+    if (scriptureLang === "en") {
+      return String(book.bookEnAbbr || book.bookId || "").trim();
+    }
+    if (scriptureLang === "es") {
+      return String(book.bookEsAbbr || book.bookId || "").trim();
+    }
+    return String(book.bookCnAbbr || book.bookCn || book.bookId).trim();
+  };
 
   const fillBookGrid = (container, testamentName) => {
     const books = getBooksForTestament(testamentName);
     container.innerHTML =
       testamentName === "旧约"
-        ? buildOldTestamentBookGridHtml(books, bookLabel)
+        ? buildOldTestamentBookGridHtml(books, bookLabel, bookGridFullName)
         : testamentName === "新约"
-          ? buildNewTestamentBookGridHtml(books, bookLabel)
+          ? buildNewTestamentBookGridHtml(books, bookLabel, bookGridFullName)
           : [...books]
               .sort((a, b) => {
                 const oa = a.overviewOnly
@@ -5041,9 +5500,12 @@ function renderBookChapterGrids({
               .map((book) => {
                 const active =
                   book.bookId === state.frontState.bookId ? "active" : "";
+                const full = escapeHtml(bookGridFullName(book));
                 return `<button type="button" class="book-item ${active}" data-book-grid-id="${escapeHtml(
                   book.bookId
-                )}">${escapeHtml(formatBookGridButtonLabel(book, bookLabel))}</button>`;
+                )}" title="${full}" aria-label="${full}">${escapeHtml(
+                  formatBookGridButtonLabel(book, bookLabel)
+                )}</button>`;
               })
               .join("");
 
@@ -5101,6 +5563,8 @@ function renderBookChapterGrids({
       await refreshCurrentPage();
     });
   });
+
+  syncBookChapterCompactLayoutAfterRender();
 }
 
 function renderPrimaryVersionPanel() {
@@ -5292,6 +5756,7 @@ async function loadScripture() {
 async function loadStudyContent() {
   const loadGen = ++studyContentLoadGeneration;
   state.chapterIllustrationWhenStudyMissing = null;
+  state.bookCharacterTimeline = null;
   try {
     const gsRes = await fetch(resolveStudyApiPath("/api/chapter-illustration/global-settings"), {
       cache: "no-store",
@@ -5306,6 +5771,7 @@ async function loadStudyContent() {
   } catch (_) {}
   state.bookIntroMarkdown = null;
   state.bookLandingChapterVideos = [];
+  state.bookLandingVideoPickIndex = 0;
   state.bookLandingChapterIllustration = null;
   if (isBookLandingChapter()) {
     state.studyContent = null;
@@ -5340,6 +5806,7 @@ async function loadStudyContent() {
       }
       if (Array.isArray(data0.chapterVideos) && data0.chapterVideos.length) {
         state.bookLandingChapterVideos = data0.chapterVideos;
+        state.bookLandingVideoPickIndex = 0;
       }
     }
     return;
@@ -5398,6 +5865,7 @@ async function loadStudyContent() {
   }
 
   state.studyContent = data;
+  void loadBookCharacterTimeline(params, loadGen);
   const shouldEnrichFigures =
     data &&
     data.missing !== true &&
@@ -5467,6 +5935,97 @@ async function enrichChapterCharacterFiguresIfNeeded(params, loadGen) {
   } catch (_) {}
 }
 
+async function loadBookCharacterTimeline(params, loadGen) {
+  try {
+    const res = await fetch(
+      resolveStudyApiPath(`/api/study-character-timeline?${params.toString()}`),
+      { cache: "no-store" }
+    );
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    if (loadGen !== studyContentLoadGeneration) return;
+    const figures = Array.isArray(data?.figures) ? data.figures : [];
+    const activeNames = Array.isArray(data?.activeNames) ? data.activeNames : [];
+    state.bookCharacterTimeline = { figures, activeNames };
+    syncChapterCharacterRoster();
+  } catch (_) {}
+}
+
+function bindTimelineDragScroll(scroller) {
+  if (!scroller || scroller.dataset.dragScrollBound === "1") return;
+  scroller.dataset.dragScrollBound = "1";
+
+  let dragging = false;
+  let startX = 0;
+  let startScrollLeft = 0;
+
+  const stopDrag = () => {
+    dragging = false;
+    scroller.classList.remove("is-dragging");
+  };
+
+  scroller.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    dragging = true;
+    startX = event.clientX;
+    startScrollLeft = scroller.scrollLeft;
+    scroller.classList.add("is-dragging");
+    try {
+      scroller.setPointerCapture(event.pointerId);
+    } catch (_) {}
+  });
+
+  scroller.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const delta = event.clientX - startX;
+    scroller.scrollLeft = startScrollLeft - delta;
+  });
+
+  scroller.addEventListener("pointerup", stopDrag);
+  scroller.addEventListener("pointercancel", stopDrag);
+  scroller.addEventListener("lostpointercapture", stopDrag);
+}
+
+function centerChapterCharacterTimeline(scroller) {
+  if (!scroller) return;
+  const active = [...scroller.querySelectorAll(".chapter-character-roster-item.is-current-chapter")];
+  if (!active.length) {
+    scroller.scrollLeft = 0;
+    return;
+  }
+  const first = active[0];
+  const last = active[active.length - 1];
+  const clusterStart = first.offsetLeft;
+  const clusterEnd = last.offsetLeft + last.offsetWidth;
+  const clusterCenter = (clusterStart + clusterEnd) / 2;
+  const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+  const target = Math.max(0, Math.min(maxScroll, clusterCenter - scroller.clientWidth / 2));
+  scroller.scrollTo({ left: target, behavior: "smooth" });
+}
+
+function syncChapterCharacterTimelineProgress(scroller) {
+  const progressEl = document.getElementById("chapterCharacterProgress");
+  if (!progressEl) return;
+  const book = getBookMetaById(state.frontState.bookId);
+  const totalChapters = Math.max(1, Number(book?.chapters) || 0);
+  const chapterNum = Math.max(1, Number(state.frontState.chapter) || 1);
+  if (totalChapters <= 0 || isBookLandingChapter()) {
+    progressEl.hidden = true;
+    progressEl.style.removeProperty("--chapter-progress-start");
+    progressEl.style.removeProperty("--chapter-progress-width");
+    progressEl.style.removeProperty("--chapter-progress-pointer");
+    return;
+  }
+  const normalized = totalChapters <= 1 ? 0.5 : (chapterNum - 1) / (totalChapters - 1);
+  const pointerPct = Math.max(0, Math.min(100, normalized * 100));
+  const widthPct = Math.max(6, Math.min(16, 100 / totalChapters * 3.2));
+  const startPct = Math.max(0, Math.min(100 - widthPct, pointerPct - widthPct / 2));
+  progressEl.style.setProperty("--chapter-progress-start", `${startPct}%`);
+  progressEl.style.setProperty("--chapter-progress-width", `${widthPct}%`);
+  progressEl.style.setProperty("--chapter-progress-pointer", `${pointerPct}%`);
+  progressEl.hidden = false;
+}
+
 function syncChapterIllustrationSlot() {
   const slot = document.getElementById("chapterIllustrationSlot");
   if (!slot) return;
@@ -5485,7 +6044,11 @@ function syncChapterIllustrationSlot() {
     return;
   }
   slot.hidden = false;
-  const src = resolveStudyApiPath(url.startsWith("/") ? url : "/" + url);
+  const normalizedUrl = url.startsWith("/") ? url : "/" + url;
+  const srcCandidates = chapterIllustrationOptimizedSrcs(normalizedUrl);
+  const optimizedSrc = srcCandidates[0] || "";
+  const fallbackSrc = srcCandidates[1] || srcCandidates[0] || "";
+  const finalSrc = srcCandidates[srcCandidates.length - 1] || "";
   const opacityRaw = Number(state.chapterIllustrationGlobalSettings?.overlayOpacity);
   const opacity = Number.isFinite(opacityRaw)
     ? Math.max(0, Math.min(100, Math.round(opacityRaw)))
@@ -5494,48 +6057,92 @@ function syncChapterIllustrationSlot() {
     '<figure class="chapter-illustration-figure"><img class="chapter-illustration-img" style="opacity:' +
     String((opacity / 100).toFixed(2)) +
     ';" src="' +
-    escapeHtml(src) +
-    '" alt="" decoding="async" loading="lazy" /></figure>';
+    escapeHtml(optimizedSrc) +
+    '" data-src-fallback="' +
+    escapeHtml(fallbackSrc) +
+    '" data-src-fallback-2="' +
+    escapeHtml(finalSrc) +
+    '" alt="" decoding="sync" fetchpriority="high" loading="eager" /><span class="chapter-illustration-watermark" aria-hidden="true"></span></figure>';
+  const imgEl = slot.querySelector(".chapter-illustration-img");
+  bindChapterIllustrationImageFallback(imgEl);
 }
 
 function syncChapterCharacterRoster() {
   const section = document.getElementById("chapterEndPersonnelSection");
   const rosterEl = document.getElementById("chapterEndPersonnelRoster");
+  const progressEl = document.getElementById("chapterCharacterProgress");
   if (!section || !rosterEl) return;
   if (isBookLandingChapter()) {
     section.hidden = true;
     rosterEl.innerHTML = "";
+    if (progressEl) progressEl.hidden = true;
     return;
   }
   section.hidden = false;
   rosterEl.innerHTML = "";
+  if (progressEl) progressEl.hidden = true;
   if (!state.studyContent) {
     return;
   }
-  const figures = Array.isArray(state.studyContent.chapterCharacterFigures)
-    ? state.studyContent.chapterCharacterFigures
+  const timelineFigures = Array.isArray(state.bookCharacterTimeline?.figures)
+    ? state.bookCharacterTimeline.figures
     : [];
+  const figures = timelineFigures.length
+    ? timelineFigures
+    : Array.isArray(state.studyContent.chapterCharacterFigures)
+      ? state.studyContent.chapterCharacterFigures
+      : [];
   const cards = [];
   for (let i = 0; i < figures.length; i++) {
     const f = figures[i];
     const raw = normalizeIllustrationImageUrlForReader(f && f.imageUrl);
     if (!raw) continue;
+    const bust = cacheBustTokenForIllustrationUrl(raw);
+    const directSrc = appendCacheBustToUrl(
+      resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw),
+      bust
+    );
+    const optimizedSrc = chapterRosterPortraitImgSrc(raw);
     const thumbRaw = f && f.rosterThumbUrl
       ? normalizeIllustrationImageUrlForReader(f.rosterThumbUrl)
       : "";
     const src = thumbRaw
-      ? resolveStudyApiPath(thumbRaw.startsWith("/") ? thumbRaw : "/" + thumbRaw)
-      : chapterRosterPortraitImgSrc(raw);
+      ? appendCacheBustToUrl(
+          resolveStudyApiPath(thumbRaw.startsWith("/") ? thumbRaw : "/" + thumbRaw),
+          cacheBustTokenForIllustrationUrl(thumbRaw) || bust
+        )
+      : optimizedSrc;
     const name = escapeHtml(String(f.zhName || "").trim());
     if (!name) continue;
+    const isCurrentChapter = Boolean(f && f.isCurrentChapter);
+    const roleZh = String((f && f.characterRoleZh) || "").trim();
+    const roleBadge = roleZh
+      ? `<span class="chapter-character-roster-role chapter-character-roster-role--${
+          roleZh === "主人物" ? "primary" : "secondary"
+        }">${escapeHtml(roleZh)}</span>`
+      : "";
     cards.push(
-      `<figure class="chapter-character-roster-item"><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
+      `<figure class="chapter-character-roster-item${
+        isCurrentChapter ? " is-current-chapter" : ""
+      }${roleZh === "主人物" ? " is-primary-character" : " is-secondary-character"}"${
+        isCurrentChapter ? ' aria-current="true"' : ""
+      }><div class="chapter-character-roster-img-wrap"><img class="chapter-character-roster-img" src="${escapeHtml(
         src
-      )}" alt="${name}" decoding="async" loading="lazy" /></div><figcaption class="chapter-character-roster-caption">${name}</figcaption></figure>`
+      )}" data-src-fallback="${escapeHtml(
+        optimizedSrc
+      )}" data-src-final-fallback="${escapeHtml(
+        directSrc
+      )}" alt="${name}" decoding="async" loading="lazy" /></div><figcaption class="chapter-character-roster-caption">${name}${roleBadge}</figcaption></figure>`
     );
   }
   if (cards.length) {
     rosterEl.innerHTML = cards.join("");
+    bindChapterCharacterRosterImageFallbacks(rosterEl);
+    bindTimelineDragScroll(rosterEl);
+    requestAnimationFrame(() => {
+      syncChapterCharacterTimelineProgress(rosterEl);
+      centerChapterCharacterTimeline(rosterEl);
+    });
   }
 }
 
@@ -7069,6 +7676,26 @@ function ensureDeployTabExists() {
       <button id="deployRefreshBtn" class="secondary-btn" type="button">刷新状态</button>
     </div>
     <div id="deployStatusBox" class="result-box">尚未读取部署状态。</div>
+    <div class="section-title">远端内容同步</div>
+    <div class="result-box">仅同步已发布内容、人物/插画配置、public/generated 图片与缩略图；不含账号、提问、权限、SQLite 数据。</div>
+    <div class="admin-grid">
+      <div>
+        <div class="label">远端站点地址</div>
+        <input id="remoteSyncBaseUrlInput" class="custom-textarea single-input" placeholder="例如 https://askbible.me" />
+      </div>
+      <div>
+        <div class="label">远端管理员 Token</div>
+        <input id="remoteSyncAdminTokenInput" type="password" class="custom-textarea single-input" placeholder="粘贴远端管理员 Bearer Token" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="saveRemoteSyncConfigBtn" class="secondary-btn" type="button">保存远端配置</button>
+      <button id="refreshRemoteSyncConfigBtn" class="secondary-btn" type="button">刷新配置</button>
+      <button id="previewRemoteSyncBtn" class="primary-btn" type="button">差异预检</button>
+      <button id="pullRemoteSyncBtn" class="secondary-btn" type="button">远端补齐到本机</button>
+      <button id="pushRemoteSyncBtn" class="secondary-btn" type="button">本机推送到远端</button>
+    </div>
+    <div id="remoteSyncStatusBox" class="result-box">尚未读取远端同步配置。</div>
     <div class="section-title">数据备份与恢复</div>
     <div class="modal-actions">
       <button id="createDataBackupBtn" class="primary-btn" type="button">创建数据备份</button>
@@ -9799,6 +10426,14 @@ async function initDeployManagerTab() {
   const rollbackBtn = document.getElementById("deployRollbackBtn");
   const refreshBtn = document.getElementById("deployRefreshBtn");
   const statusBox = document.getElementById("deployStatusBox");
+  const remoteSyncBaseUrlInput = document.getElementById("remoteSyncBaseUrlInput");
+  const remoteSyncAdminTokenInput = document.getElementById("remoteSyncAdminTokenInput");
+  const saveRemoteSyncConfigBtn = document.getElementById("saveRemoteSyncConfigBtn");
+  const refreshRemoteSyncConfigBtn = document.getElementById("refreshRemoteSyncConfigBtn");
+  const previewRemoteSyncBtn = document.getElementById("previewRemoteSyncBtn");
+  const pullRemoteSyncBtn = document.getElementById("pullRemoteSyncBtn");
+  const pushRemoteSyncBtn = document.getElementById("pushRemoteSyncBtn");
+  const remoteSyncStatusBox = document.getElementById("remoteSyncStatusBox");
   const createDataBackupBtn = document.getElementById("createDataBackupBtn");
   const refreshDataBackupBtn = document.getElementById("refreshDataBackupBtn");
   const downloadDataBackupBtn = document.getElementById("downloadDataBackupBtn");
@@ -9871,11 +10506,25 @@ async function initDeployManagerTab() {
       return;
     }
     const blob = await res.blob();
+    const generatedAssetCount = Math.max(
+      0,
+      Number(res.headers.get("X-Package-Generated-Asset-Count") || 0) || 0
+    );
+    const adminSyncFileCount = Math.max(
+      0,
+      Number(res.headers.get("X-Package-Admin-Sync-File-Count") || 0) || 0
+    );
+    const missingCount = Math.max(
+      0,
+      Number(res.headers.get("X-Package-Missing-Count") || 0) || 0
+    );
     const ts = new Date().toISOString().replaceAll(":", "-");
     const fileVersion = version || `changed-${ts}`;
     const fileName = `askbible-changed-${fileVersion}.zip`;
     downloadTextFile(fileName, blob, "application/zip");
-    statusBox.textContent = `改动升级包已下载：${fileName}`;
+    statusBox.textContent = `改动升级包已下载：${fileName}；已附带 ${generatedAssetCount} 个生成图片、${adminSyncFileCount} 个人物/插画配置文件${
+      missingCount ? `；另有 ${missingCount} 章未找到源 JSON` : ""
+    }。`;
   }
 
   async function loadStatus() {
@@ -9987,6 +10636,45 @@ async function initDeployManagerTab() {
     }；生效来源：${sourceMap[data.source] || data.source || "未知"}${shadowHint}${
       data.masked ? `；当前生效 Key 尾号：${data.masked}` : ""
     }${envBlock ? `\n${envBlock}` : ""}`;
+  }
+
+  async function loadRemoteSyncConfig() {
+    if (!remoteSyncStatusBox) return;
+    const res = await fetch("/api/admin/remote-sync/config", { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "读取远端同步配置失败");
+    if (remoteSyncBaseUrlInput) remoteSyncBaseUrlInput.value = String(data.baseUrl || "");
+    if (remoteSyncAdminTokenInput) remoteSyncAdminTokenInput.value = "";
+    remoteSyncStatusBox.textContent = data.configured
+      ? `已配置远端：${data.baseUrl || ""}；Token：${data.tokenMasked || ""}。仅同步内容/人物/插画，不含账号与提问。`
+      : "尚未配置远端站点地址与管理员 Token。";
+  }
+
+  function formatRemoteSyncSummary(data) {
+    const summary = data?.summary || {};
+    const formatGroup = (title, obj) => {
+      const entries = Object.entries(obj || {});
+      return `${title}：${
+        entries.length ? entries.map(([k, v]) => `${k}${v}`).join("，") : "无"
+      }`;
+    };
+    const formatSamples = (title, arr) =>
+      `${title}：${Array.isArray(arr) && arr.length ? arr.slice(0, 8).join("；") : "无"}`;
+    return [
+      `远端：${data?.remoteBaseUrl || "未配置"}；本机 ${summary.localFileCount || 0} 项；远端 ${
+        summary.remoteFileCount || 0
+      } 项；仅远端 ${summary.onlyRemoteCount || 0} 项；仅本机 ${
+        summary.onlyLocalCount || 0
+      } 项；内容不同 ${summary.differentCount || 0} 项；可补齐到本机 ${
+        summary.pullCandidateCount || 0
+      } 项；可推送到远端 ${summary.pushCandidateCount || 0} 项`,
+      formatGroup("仅远端分布", summary.groupCounts?.remoteOnly),
+      formatGroup("仅本机分布", summary.groupCounts?.localOnly),
+      formatGroup("差异分布", summary.groupCounts?.different),
+      formatSamples("仅远端示例", data?.samples?.onlyRemote),
+      formatSamples("仅本机示例", data?.samples?.onlyLocal),
+      formatSamples("差异示例", data?.samples?.different),
+    ].join("\n");
   }
 
   uploadBtn?.addEventListener("click", async () => {
@@ -10244,6 +10932,97 @@ async function initDeployManagerTab() {
     }
   });
 
+  saveRemoteSyncConfigBtn?.addEventListener("click", async () => {
+    if (!remoteSyncStatusBox) return;
+    remoteSyncStatusBox.textContent = "正在保存远端同步配置...";
+    const res = await fetch("/api/admin/remote-sync/config/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        baseUrl: String(remoteSyncBaseUrlInput?.value || "").trim(),
+        adminToken: String(remoteSyncAdminTokenInput?.value || "").trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      remoteSyncStatusBox.textContent = data.error || "保存失败";
+      return;
+    }
+    remoteSyncStatusBox.textContent = `远端配置已保存：${data.baseUrl || ""}；Token：${
+      data.tokenMasked || ""
+    }。`;
+    if (remoteSyncAdminTokenInput) remoteSyncAdminTokenInput.value = "";
+  });
+
+  refreshRemoteSyncConfigBtn?.addEventListener("click", async () => {
+    try {
+      await loadRemoteSyncConfig();
+    } catch (error) {
+      if (remoteSyncStatusBox) remoteSyncStatusBox.textContent = error?.message || "读取失败";
+    }
+  });
+
+  previewRemoteSyncBtn?.addEventListener("click", async () => {
+    if (!remoteSyncStatusBox) return;
+    remoteSyncStatusBox.textContent = "正在预检远端差异...";
+    const res = await fetch("/api/admin/remote-sync/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      remoteSyncStatusBox.textContent = data.error || "预检失败";
+      return;
+    }
+    remoteSyncStatusBox.textContent = formatRemoteSyncSummary(data);
+  });
+
+  pullRemoteSyncBtn?.addEventListener("click", async () => {
+    if (!remoteSyncStatusBox) return;
+    if (!confirm("确认从远端补齐到本机？会覆盖内容不同的内容/人物/插画文件，并自动创建回滚备份。")) {
+      return;
+    }
+    remoteSyncStatusBox.textContent = "正在从远端补齐到本机...";
+    const res = await fetch("/api/admin/remote-sync/pull", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      remoteSyncStatusBox.textContent = data.error || "远端补齐失败";
+      return;
+    }
+    remoteSyncStatusBox.textContent = `补齐完成：写入 ${data.appliedCount || 0} 项；备份 ${
+      data.backupId || "无"
+    }。`;
+    await loadDataBackups().catch(() => {});
+    await loadAuditLog().catch(() => {});
+  });
+
+  pushRemoteSyncBtn?.addEventListener("click", async () => {
+    if (!remoteSyncStatusBox) return;
+    if (!confirm("确认把本机内容/人物/插画差异推送到远端？不会同步账号与提问数据。")) {
+      return;
+    }
+    remoteSyncStatusBox.textContent = "正在推送本机差异到远端...";
+    const res = await fetch("/api/admin/remote-sync/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      remoteSyncStatusBox.textContent = data.error || "推送失败";
+      return;
+    }
+    remoteSyncStatusBox.textContent = `推送完成：远端写入 ${data.pushedCount || 0} 项；远端备份 ${
+      data.remoteBackupId || "无"
+    }。`;
+    await loadAuditLog().catch(() => {});
+  });
+
   saveSystemOpenAiKeyBtn?.addEventListener("click", async () => {
     const apiKey = String(systemOpenAiKeyInput?.value || "").trim();
     if (!apiKey) {
@@ -10299,6 +11078,9 @@ async function initDeployManagerTab() {
 
   refreshBtn?.addEventListener("click", loadStatus);
   await loadStatus();
+  await loadRemoteSyncConfig().catch((error) => {
+    if (remoteSyncStatusBox) remoteSyncStatusBox.textContent = error?.message || "读取失败";
+  });
   await loadDataBackups().catch((error) => {
     if (dataBackupStatusBox) dataBackupStatusBox.textContent = error?.message || "读取失败";
   });
@@ -10571,7 +11353,13 @@ function stopJobsAutoRefresh() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((error) => {
+    navigator.serviceWorker.register(`/sw.js?v=${CLIENT_FRESHNESS_VERSION}`, {
+      updateViaCache: "none",
+    }).then((reg) => {
+      try {
+        reg.update();
+      } catch (_) {}
+    }).catch((error) => {
       console.warn("Service worker register failed:", error);
     });
   });
