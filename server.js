@@ -15501,20 +15501,19 @@ const listenHost =
     : "0.0.0.0";
 
 /**
- * 生产环境：创作 JSON 与出图 PNG 必须指向仓库外的持久路径，避免发布覆盖。
+ * 生产环境：必须显式配置创作 JSON 与出图目录（持久卷），禁止依赖仓库内默认路径。
+ * 不做「相对 __dirname 必须在树外」校验：部分平台把代码也放在数据盘前缀下，会误判。
  */
 function assertProductionExternalCreativeLayout() {
   if (String(process.env.NODE_ENV || "").trim() !== "production") return;
+  const genRaw = String(process.env.GENERATED_ASSETS_DIR || "").trim();
+  const creRaw = String(process.env.CHARACTER_DATA_DIR || "").trim();
   const missing = [];
-  if (!String(process.env.GENERATED_ASSETS_DIR || "").trim()) {
-    missing.push("GENERATED_ASSETS_DIR");
-  }
-  if (!String(process.env.CHARACTER_DATA_DIR || "").trim()) {
-    missing.push("CHARACTER_DATA_DIR");
-  }
+  if (!genRaw) missing.push("GENERATED_ASSETS_DIR");
+  if (!creRaw) missing.push("CHARACTER_DATA_DIR");
   if (missing.length) {
     console.error(
-      "[fatal] NODE_ENV=production 时必须外置创作与出图数据，未设置环境变量:",
+      "[fatal] NODE_ENV=production 时必须设置（Render 等请在 Environment 或 blueprint 中配置）:",
       missing.join(", ")
     );
     console.error(
@@ -15522,29 +15521,42 @@ function assertProductionExternalCreativeLayout() {
     );
     process.exit(1);
   }
-  const repoRoot = path.resolve(__dirname);
-  const repoSep = repoRoot + path.sep;
-  const outsideRepo = (abs) => {
-    const x = path.resolve(abs);
-    if (process.platform === "win32") {
-      const xl = x.toLowerCase();
-      const rl = repoRoot.toLowerCase();
-      if (xl === rl) return false;
-      return !xl.startsWith(rl + "\\") && !xl.startsWith(rl + "/");
+  if (process.platform !== "win32") {
+    if (!genRaw.startsWith("/")) {
+      console.error("[fatal] GENERATED_ASSETS_DIR 须为绝对路径，当前:", genRaw);
+      process.exit(1);
     }
-    return x !== repoRoot && !x.startsWith(repoSep);
-  };
+    if (!creRaw.startsWith("/")) {
+      console.error("[fatal] CHARACTER_DATA_DIR 须为绝对路径，当前:", creRaw);
+      process.exit(1);
+    }
+  } else {
+    const absWin = (s) => /^[A-Za-z]:[\\/]/.test(s) || s.startsWith("\\\\");
+    if (!absWin(genRaw)) {
+      console.error("[fatal] GENERATED_ASSETS_DIR 须为绝对路径，当前:", genRaw);
+      process.exit(1);
+    }
+    if (!absWin(creRaw)) {
+      console.error("[fatal] CHARACTER_DATA_DIR 须为绝对路径，当前:", creRaw);
+      process.exit(1);
+    }
+  }
   const genAbs = path.resolve(CHAPTER_ILLUSTRATION_GENERATED_DIR);
   const creativeAbs = path.resolve(CHARACTER_DATA_DIR);
-  const bad = [];
-  if (!outsideRepo(genAbs)) {
-    bad.push(`GENERATED_ASSETS_DIR 解析后须在应用目录外，当前: ${genAbs}`);
+  const defaultGenAbs = path.resolve(path.join(__dirname, "public", "generated"));
+  const adminDataAbs = path.resolve(ADMIN_DIR);
+  if (genAbs === defaultGenAbs) {
+    console.error(
+      "[fatal] GENERATED_ASSETS_DIR 不能指向仓库内 public/generated，请设持久卷路径:",
+      genAbs
+    );
+    process.exit(1);
   }
-  if (!outsideRepo(creativeAbs)) {
-    bad.push(`CHARACTER_DATA_DIR 解析后须在应用目录外，当前: ${creativeAbs}`);
-  }
-  if (bad.length) {
-    console.error("[fatal] 生产环境外置路径不能落在应用源码/部署目录内:\n", bad.join("\n"));
+  if (creativeAbs === adminDataAbs) {
+    console.error(
+      "[fatal] CHARACTER_DATA_DIR 不能指向仓库内 admin_data，请设独立持久目录:",
+      creativeAbs
+    );
     process.exit(1);
   }
 }
