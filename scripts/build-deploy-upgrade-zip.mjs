@@ -29,8 +29,22 @@ function shouldSkipPackageRelPath(rel, kind = "upgrade") {
       "admin_data/community_articles.json",
       "admin_data/promo_page.json",
       "admin_data/question_submissions.json",
+      /* 与 server.js shouldSkipPackageRelPath(rel, "upgrade") 一致 */
+      "content_published/",
+      "content_builds/",
+      "data/",
+      "chapter_videos/",
+      "dist-capacitor/",
+      "admin_data/jobs/",
+      "deploy-builds/",
     ];
     if (upgradeSkips.some((p) => normalized.startsWith(p))) return true;
+    if (
+      normalized.startsWith("admin_data/auth.sqlite") ||
+      normalized.startsWith("admin_data/analytics.sqlite")
+    ) {
+      return true;
+    }
   }
   return false;
 }

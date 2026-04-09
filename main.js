@@ -5520,7 +5520,12 @@ function syncChapterCharacterRoster() {
     const f = figures[i];
     const raw = normalizeIllustrationImageUrlForReader(f && f.imageUrl);
     if (!raw) continue;
-    const src = chapterRosterPortraitImgSrc(raw);
+    const thumbRaw = f && f.rosterThumbUrl
+      ? normalizeIllustrationImageUrlForReader(f.rosterThumbUrl)
+      : "";
+    const src = thumbRaw
+      ? resolveStudyApiPath(thumbRaw.startsWith("/") ? thumbRaw : "/" + thumbRaw)
+      : chapterRosterPortraitImgSrc(raw);
     const name = escapeHtml(String(f.zhName || "").trim());
     if (!name) continue;
     cards.push(

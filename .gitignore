@@ -23,3 +23,9 @@ data/prompts.json
 # OpenAI 出图缓存（运行时写入 public/generated/）；人物/插画发布用 ill- 前缀纳入版本库
 public/generated/*.png
 !public/generated/ill-*.png
+
+# 本地章节视频源文件体积过大，勿直接提交到 GitHub
+chapter_videos/**/*.mp4
+
+# 本地下载的 Node 运行时，仅用于当前机器调试
+.tools/

@@ -1,0 +1,46 @@
+{
+  "id": "job_1775187794852",
+  "type": "retry_failed",
+  "scope": "book",
+  "versionMode": "single",
+  "version": "gospel",
+  "langMode": "single",
+  "lang": "zh",
+  "bookId": "GEN",
+  "chapter": null,
+  "startChapter": 1,
+  "endChapter": 3,
+  "autoPublish": true,
+  "buildId": "build_1775187794852_retry_job_1775021372720",
+  "status": "completed",
+  "done": 3,
+  "total": 3,
+  "targets": [
+    {
+      "versionId": "gospel",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 1
+    },
+    {
+      "versionId": "gospel",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 2
+    },
+    {
+      "versionId": "gospel",
+      "lang": "zh",
+      "bookId": "GEN",
+      "chapter": 3
+    }
+  ],
+  "errors": [],
+  "startedAt": "2026-04-03T03:43:14.854Z",
+  "finishedAt": "2026-04-03T03:44:56.660Z",
+  "createdAt": "2026-04-03T03:43:14.852Z",
+  "updatedAt": "2026-04-03T03:44:56.660Z",
+  "progressText": "任务完成：3 / 3，并已自动合并发布",
+  "completionSummary": "完成：成功 3，失败 0，已自动合并发布",
+  "retryOfJobId": "job_1775021372720"
+}

@@ -14,7 +14,6 @@ import Database from "better-sqlite3";
 import multer from "multer";
 import AdmZip from "adm-zip";
 import OpenAI from "openai";
-import sharp from "sharp";
 import { testamentOptions } from "./src/books.js";
 import { compareZhNamesByBibleRosterOrder } from "./src/bible-character-preset-order.js";
 import {
@@ -47,6 +46,19 @@ const app = express();
 const SERVER_BOOT_TS = Date.now();
 const SERVER_BOOT_ISO = new Date(SERVER_BOOT_TS).toISOString();
 app.use(express.json({ limit: "10mb" }));
+
+let sharpModulePromise = null;
+async function getSharp() {
+  if (!sharpModulePromise) {
+    sharpModulePromise = import("sharp")
+      .then((mod) => mod.default)
+      .catch((error) => {
+        sharpModulePromise = null;
+        throw error;
+      });
+  }
+  return sharpModulePromise;
+}
 
 /** 本机环回上的其它端口（如 Live Server 5500、Vite 5173）可带 Cookie/Authorization 调 Node API */
 function isLoopbackBrowserOrigin(origin) {
@@ -523,7 +535,7 @@ const READ_CACHE_TTL_MS = 60 * 1000;
 const readApiCache = new Map();
 
 /** 查经 JSON 读缓存键前缀；全局章人物表等变更时请 bump，避免旧缓存章末人物错位 */
-const STUDY_CONTENT_CACHE_TAG = "study:v7";
+const STUDY_CONTENT_CACHE_TAG = "study:v8";
 const writeRateLimitMap = new Map();
 const writeDedupeMap = new Map();
 
@@ -2587,8 +2599,22 @@ function shouldSkipPackageRelPath(rel, kind = "upgrade") {
       "admin_data/community_articles.json",
       "admin_data/promo_page.json",
       "admin_data/question_submissions.json",
+      /* 热更新网站：不重复打包大体量目录（apply 只覆盖 zip 内文件，线上已有内容保留） */
+      "content_published/",
+      "content_builds/",
+      "data/",
+      "chapter_videos/",
+      "dist-capacitor/",
+      "admin_data/jobs/",
+      "deploy-builds/",
     ];
     if (upgradeSkips.some((p) => normalized.startsWith(p))) return true;
+    if (
+      normalized.startsWith("admin_data/auth.sqlite") ||
+      normalized.startsWith("admin_data/analytics.sqlite")
+    ) {
+      return true;
+    }
   }
   return false;
 }
@@ -6005,6 +6031,8 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
       if (typeof resolved.portraitSlot === "number") {
         row.portraitSlot = resolved.portraitSlot;
       }
+      const rt = rosterThumbRelativeUrlIfExists(imageUrl);
+      if (rt) row.rosterThumbUrl = rt;
       figures.push(row);
     }
     figures.sort((x, y) =>
@@ -8304,6 +8332,7 @@ const CHAPTER_ILLUSTRATION_GENERATED_DIR = path.join(
 );
 
 async function finalizeIllustrationUploadToPngBuffer(buf) {
+  const sharp = await getSharp();
   const meta = await sharp(buf).metadata();
   if (!meta.width || !meta.height) {
     throw new Error("无法读取图片尺寸");
@@ -8518,16 +8547,22 @@ async function handleRosterPortraitGet(req, res) {
       : 320;
 
     const buf = await fs.promises.readFile(filePath);
-    const outBuf = await sharp(buf)
-      .rotate()
-      .resize({
-        width: dim,
-        height: dim,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .png({ compressionLevel: 9, effort: 6 })
-      .toBuffer();
+    let outBuf = buf;
+    try {
+      const sharp = await getSharp();
+      outBuf = await sharp(buf)
+        .rotate()
+        .resize({
+          width: dim,
+          height: dim,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .png({ compressionLevel: 9, effort: 6 })
+        .toBuffer();
+    } catch (e) {
+      console.warn("[roster-portrait:fallback]", e.message || e);
+    }
 
     res.setHeader("Content-Type", "image/png");
     res.setHeader(
@@ -8546,6 +8581,146 @@ async function handleRosterPortraitGet(req, res) {
 app.get("/api/roster-portrait", handleRosterPortraitGet);
 /** 短路径：个别反代对长 URL 段不友好时可用 */
 app.get("/api/rp", handleRosterPortraitGet);
+
+function listGeneratedRootPngFilenames() {
+  const dir = CHAPTER_ILLUSTRATION_GENERATED_DIR;
+  if (!fs.existsSync(dir)) return [];
+  const names = [];
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!ent.isFile()) continue;
+    const name = ent.name;
+    if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(name)) continue;
+    names.push(name);
+  }
+  names.sort((a, b) => a.localeCompare(b, "en"));
+  return names;
+}
+
+/** 若已存在 public/generated/thumbs/<同名>.png，读经章末人物优先用静态小图（免动态缩图） */
+function rosterThumbRelativeUrlIfExists(imageUrlNorm) {
+  const base = path.basename(String(imageUrlNorm || "").split("?")[0]);
+  if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(base)) return "";
+  const thumbAbs = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs", base);
+  try {
+    if (fs.existsSync(thumbAbs) && fs.statSync(thumbAbs).isFile()) {
+      return `/generated/thumbs/${base}`;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return "";
+}
+
+function handleAdminGeneratedPngsList(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+    const pageSize = Math.min(
+      80,
+      Math.max(8, Math.floor(Number(req.query.pageSize) || 24))
+    );
+    const q = safeText(req.query.q || "").toLowerCase();
+    let names = listGeneratedRootPngFilenames();
+    if (q) names = names.filter((n) => n.toLowerCase().includes(q));
+    const total = names.length;
+    const start = (page - 1) * pageSize;
+    const slice = names.slice(start, start + pageSize);
+    const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
+    ensureDir(thumbDir);
+    const items = slice.map((name) => {
+      const full = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, name);
+      const st = fs.statSync(full);
+      const th = path.join(thumbDir, name);
+      return {
+        name,
+        bytes: st.size,
+        mtime: st.mtime.toISOString(),
+        hasThumb: fs.existsSync(th),
+      };
+    });
+    res.set("Cache-Control", "no-store");
+    res.json({ total, page, pageSize, items });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message || "列出失败" });
+  }
+}
+
+async function handleAdminGeneratedPngsRebuildThumbs(req, res) {
+  const authed = requireAdminUser(req, res);
+  if (!authed) return;
+  try {
+    const sharp = await getSharp();
+    const body = req.body || {};
+    const namesIn = Array.isArray(body.names) ? body.names : [];
+    const dim = Math.min(
+      720,
+      Math.max(64, Math.round(Number(body.maxEdge) || 320))
+    );
+    const MAX = 80;
+    const names = [];
+    const seen = new Set();
+    for (const raw of namesIn) {
+      const n = path.basename(safeText(String(raw || "")));
+      if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(n)) continue;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      names.push(n);
+      if (names.length >= MAX) break;
+    }
+    if (!names.length) {
+      return res.status(400).json({
+        error: "缺少有效的 names 数组（public/generated 根目录下的 .png 文件名）",
+      });
+    }
+    const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
+    ensureDir(thumbDir);
+    const built = [];
+    const failed = [];
+    for (const name of names) {
+      try {
+        const srcPath = resolveSafeGeneratedPngPath(`/generated/${name}`);
+        if (!srcPath) {
+          failed.push({ name, error: "无效或不存在" });
+          continue;
+        }
+        const destPath = path.join(thumbDir, name);
+        const buf = await fs.promises.readFile(srcPath);
+        const outBuf = await sharp(buf)
+          .rotate()
+          .resize({
+            width: dim,
+            height: dim,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .png({ compressionLevel: 9, effort: 6 })
+          .toBuffer();
+        await fs.promises.writeFile(destPath, outBuf);
+        built.push(name);
+      } catch (e) {
+        failed.push({ name, error: e.message || String(e) });
+      }
+    }
+    clearReadCacheByPrefix(`${STUDY_CONTENT_CACHE_TAG}:`);
+    appendAdminAudit(req, authed, "generated_png_rebuild_thumbs", {
+      dim,
+      built: built.length,
+      failed: failed.length,
+    });
+    res.json({ ok: true, dim, built, failed });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message || "生成失败" });
+  }
+}
+
+app.get("/api/admin/generated-pngs", handleAdminGeneratedPngsList);
+/** 短路径：个别反代对较长 path 返回 404 时可用 */
+app.get("/api/admin/gpngs", handleAdminGeneratedPngsList);
+app.post("/api/admin/generated-pngs/rebuild-thumbs", handleAdminGeneratedPngsRebuildThumbs);
+app.post("/api/admin/gpngs-rebuild", handleAdminGeneratedPngsRebuildThumbs);
 
 function bcdRgbDist2(r1, g1, b1, r2, g2, b2) {
   const dr = r1 - r2;
@@ -8664,6 +8839,7 @@ async function bcdExtractHeroPngFromComparisonBuffer(
   columnIndex,
   opts
 ) {
+  const sharp = await getSharp();
   opts = opts && typeof opts === "object" ? opts : {};
   const skipFlood = opts.skipFlood === true;
   let preScale = Number(opts.preScale);
@@ -8912,6 +9088,7 @@ app.post("/api/admin/bcd-cut-hero", handleBcdExtractHeroFromComparison);
  */
 async function trimTransparentIllustrationPngBuffer(buf) {
   try {
+    const sharp = await getSharp();
     const meta = await sharp(buf).metadata();
     const w0 = meta.width || 0;
     const h0 = meta.height || 0;
@@ -12147,6 +12324,7 @@ app.get("/api/dev/livereload-status", (_req, res) => {
     ["illustration-admin.html", false],
     ["bible-character-designer.html", false],
     ["chapter-key-people.html", false],
+    ["generated-png-thumbs.html", false],
   ];
   for (const [name, qianOnly] of adminToolHtml) {
     app.get(`/${name}`, (req, res) => {

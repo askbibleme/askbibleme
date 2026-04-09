@@ -1,0 +1,232 @@
+{
+  "id": "job_1775195368074",
+  "type": "bulk_generate",
+  "scope": "book",
+  "versionMode": "single",
+  "version": "default",
+  "langMode": "single",
+  "lang": "zh",
+  "bookId": "EXO",
+  "chapter": null,
+  "startChapter": 7,
+  "endChapter": 40,
+  "autoPublish": true,
+  "buildId": "build_1775195368074_book_default_zh",
+  "status": "completed",
+  "done": 34,
+  "total": 34,
+  "targets": [
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 7
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 8
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 9
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 10
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 11
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 12
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 13
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 14
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 15
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 16
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 17
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 18
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 19
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 20
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 21
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 22
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 23
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 24
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 25
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 26
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 27
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 28
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 29
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 30
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 31
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 32
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 33
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 34
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 35
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 36
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 37
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 38
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 39
+    },
+    {
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "EXO",
+      "chapter": 40
+    }
+  ],
+  "errors": [],
+  "startedAt": "2026-04-03T05:49:28.079Z",
+  "finishedAt": "2026-04-03T06:05:23.123Z",
+  "createdAt": "2026-04-03T05:49:28.074Z",
+  "updatedAt": "2026-04-03T06:05:23.123Z",
+  "progressText": "任务完成：34 / 34，并已自动合并发布",
+  "completionSummary": "完成：成功 34，失败 0，已自动合并发布",
+  "retryOfJobId": ""
+}

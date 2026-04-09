@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4a443f" />
+    <meta name="askbible-api-base" content="" />
+    <title>出图缩略 · AskBible.me</title>
+    <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/admin-shell.css?v=12" />
+    <script src="/theme-apply.js?v=2"></script>
+    <style>
+      .gthumb-wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 22px 18px 56px;
+        box-sizing: border-box;
+      }
+      .gthumb-wrap h1 {
+        margin: 0 0 8px;
+        font-size: calc(22px * var(--font-scale));
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .gthumb-lead {
+        margin: 0 0 16px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--muted-soft);
+      }
+      .gthumb-lead code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: rgba(139, 111, 71, 0.12);
+        font-size: 0.9em;
+      }
+      .gthumb-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+        align-items: center;
+      }
+      .gthumb-toolbar input[type="text"],
+      .gthumb-toolbar input[type="number"] {
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .gthumb-toolbar button {
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .gthumb-toolbar button.primary {
+        border: none;
+        background: var(--accent);
+        color: #fff;
+      }
+      .gthumb-status {
+        flex: 1 1 180px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .gthumb-status.err {
+        color: #b42318;
+      }
+      .gthumb-status.ok {
+        color: #1d6b3a;
+      }
+      .gthumb-auth {
+        display: none;
+        margin-bottom: 16px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid rgba(180, 35, 24, 0.35);
+        background: rgba(180, 35, 24, 0.06);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .gthumb-auth.is-visible {
+        display: block;
+      }
+      .gthumb-table-wrap {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+      }
+      .gthumb-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .gthumb-table th,
+      .gthumb-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        text-align: left;
+        vertical-align: middle;
+      }
+      .gthumb-table th {
+        font-weight: 800;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .gthumb-preview {
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+        background: rgba(0, 0, 0, 0.04);
+        border-radius: 8px;
+        display: block;
+      }
+      .gthumb-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .gthumb-badge--yes {
+        background: rgba(29, 107, 58, 0.15);
+        color: #1d6b3a;
+      }
+      .gthumb-badge--no {
+        background: rgba(180, 35, 24, 0.1);
+        color: #b42318;
+      }
+      .gthumb-pager {
+        margin-top: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+      .gthumb-hint {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted-soft);
+        line-height: 1.55;
+      }
+    </style>
+  </head>
+  <body class="admin-shell-page" data-admin-current="/generated-png-thumbs.html">
+    <div class="gthumb-wrap">
+      <h1>出图 PNG 列表与缩略</h1>
+      <p class="gthumb-lead">
+        列出 <code>public/generated/</code> 根目录下的
+        <code>.png</code>（插画出图、人物立绘等）。预览为实时缩图。勾选后可<strong>批量写入</strong>
+        <code>public/generated/thumbs/</code> 同名小图（默认最长边 320px）；写好后读经页「本章人员」会<strong>优先用静态小图</strong>，减轻
+        <code>/api/roster-portrait</code> 压力。单次最多 80 张，可分页多批操作。
+      </p>
+      <div id="gthumbAuth" class="gthumb-auth">
+        <strong>需要管理员登录。</strong>请先在读经站登录管理员账号，或
+        <a href="/admin-user-login.html">用户登录</a> ·
+        <a href="/admin-hub.html">管理首页</a>
+      </div>
+      <div class="gthumb-toolbar">
+        <input type="text" id="gthumbQ" placeholder="筛选文件名…" style="width: min(100%, 200px)" />
+        <button type="button" id="gthumbSearch">筛选</button>
+        <label style="font-size:13px;color:var(--muted)"
+          >最长边(px)
+          <input type="number" id="gthumbDim" value="320" min="64" max="720" style="width: 72px"
+        /></label>
+        <button type="button" id="gthumbReload">刷新列表</button>
+        <button type="button" id="gthumbSelectPage">本页全选</button>
+        <button type="button" id="gthumbClear">取消全选</button>
+        <button type="button" class="primary" id="gthumbBatch">批量生成所选缩略图</button>
+        <span class="gthumb-status" id="gthumbStatus" aria-live="polite"></span>
+      </div>
+      <div class="gthumb-table-wrap">
+        <table class="gthumb-table" aria-label="出图列表">
+          <thead>
+            <tr>
+              <th style="width: 36px"><input type="checkbox" id="gthumbMaster" title="本页全选" /></th>
+              <th style="width: 72px">图示</th>
+              <th>文件名</th>
+              <th style="width: 88px">原图大小</th>
+              <th style="width: 100px">小图</th>
+            </tr>
+          </thead>
+          <tbody id="gthumbBody"></tbody>
+        </table>
+      </div>
+      <div class="gthumb-pager">
+        <button type="button" id="gthumbPrev">上一页</button>
+        <span id="gthumbPageLabel" style="font-size:14px;color:var(--muted)"></span>
+        <button type="button" id="gthumbNext">下一页</button>
+      </div>
+      <p class="gthumb-hint">
+        若预览裂图：请确认 API 可访问（本页与站点同域或已设
+        <code>askbible-api-base</code>）。生成失败时看下方状态里的 <code>failed</code> 项。
+      </p>
+    </div>
+    <script src="/admin-shell.js?v=6" defer></script>
+    <script>
+      (function () {
+        const TOKEN_KEY = "bible_user_auth_token_v1";
+        const authBox = document.getElementById("gthumbAuth");
+        const st = document.getElementById("gthumbStatus");
+        const bodyEl = document.getElementById("gthumbBody");
+        const pageLabel = document.getElementById("gthumbPageLabel");
+        let page = 1;
+        const pageSize = 24;
+        let lastQ = "";
+        let ckpProbedOrigin = "";
+
+        function setAuthVisible(on) {
+          if (authBox) authBox.classList.toggle("is-visible", Boolean(on));
+        }
+        function normalizeApiOrigin(s) {
+          let u = String(s || "").trim().replace(/\/+$/, "");
+          return u;
+        }
+        function ckpIsPrivateLanHost(h) {
+          const s = String(h || "").toLowerCase();
+          return /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(s);
+        }
+        async function probeCkApiOrigin() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          if (m && String(m.getAttribute("content") || "").trim()) return;
+          try {
+            const proto = window.location.protocol || "";
+            if (proto === "capacitor:" || proto === "file:") return;
+            const h = String(window.location.hostname || "");
+            const loopback = h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (!loopback && !ckpIsPrivateLanHost(h)) return;
+          } catch (_) {
+            return;
+          }
+          const pageHost = String(window.location.hostname || "");
+          const hostCandidates =
+            pageHost === "localhost" || pageHost === "127.0.0.1" || pageHost === "::1"
+              ? ["127.0.0.1", "localhost"]
+              : [pageHost];
+          for (const host of hostCandidates) {
+            for (const p of [3000, 3001]) {
+              const origin = "http://" + host + ":" + p;
+              try {
+                const r = await fetch(origin + "/api/chapter-illustration/gpt-copy-probe", {
+                  method: "GET",
+                  cache: "no-store",
+                });
+                if (r.ok) {
+                  ckpProbedOrigin = origin;
+                  return;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+        function getApiBase() {
+          const m = document.querySelector('meta[name="askbible-api-base"]');
+          const fromMeta = m && String(m.getAttribute("content") || "").trim();
+          if (fromMeta) return normalizeApiOrigin(fromMeta);
+          if (ckpProbedOrigin) return normalizeApiOrigin(ckpProbedOrigin);
+          try {
+            const proto = window.location.protocol || "";
+            const h = String(window.location.hostname || "");
+            const loopback = h === "localhost" || h === "127.0.0.1" || h === "::1";
+            if (
+              loopback &&
+              window.location.port &&
+              window.location.port !== "3000" &&
+              window.location.port !== ""
+            ) {
+              return (proto === "https:" ? "https" : "http") + "://" + h + ":3000";
+            }
+          } catch (_) {}
+          return "";
+        }
+        function apiUrl(path) {
+          const p = path.startsWith("/") ? path : "/" + path;
+          const base = getApiBase();
+          if (!base) return p;
+          try {
+            const origin = normalizeApiOrigin(base);
+            return new URL(p, origin.endsWith("/") ? origin : origin + "/").href;
+          } catch (_) {
+            return String(base).replace(/\/$/, "") + p;
+          }
+        }
+        function fetchOpts(extra) {
+          const ex = { ...(extra || {}) };
+          const url = String(ex._url || "");
+          delete ex._url;
+          const cross = /^https?:\/\//i.test(url);
+          return {
+            cache: "no-store",
+            mode: cross ? "cors" : "same-origin",
+            credentials: cross ? "omit" : "same-origin",
+            ...ex,
+          };
+        }
+        function authHeaders() {
+          const t = String(localStorage.getItem(TOKEN_KEY) || "").trim();
+          return t ? { Authorization: "Bearer " + t } : {};
+        }
+        function setStatus(msg, kind) {
+          if (!st) return;
+          st.textContent = msg || "";
+          st.classList.remove("err", "ok");
+          if (kind === "err") st.classList.add("err");
+          if (kind === "ok") st.classList.add("ok");
+        }
+        async function parseJsonBody(res) {
+          const raw = await res.text();
+          if (!raw.trim()) return { ok: true, data: {} };
+          try {
+            return { ok: true, data: JSON.parse(raw) };
+          } catch (_) {
+            return {
+              ok: false,
+              data: {},
+              rawSnippet: raw.replace(/\s+/g, " ").trim().slice(0, 200),
+            };
+          }
+        }
+        function previewSrc(name) {
+          const q = new URLSearchParams({ n: name, w: "96" });
+          return apiUrl("/api/rp?" + q.toString());
+        }
+        function fmtBytes(n) {
+          if (n < 1024) return n + " B";
+          if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+          return (n / 1048576).toFixed(2) + " MB";
+        }
+        async function loadList() {
+          setStatus("加载中…", "");
+          await probeCkApiOrigin();
+          const hasTok = Boolean(String(localStorage.getItem(TOKEN_KEY) || "").trim());
+          if (!hasTok) setAuthVisible(true);
+          const q = new URLSearchParams({
+            page: String(page),
+            pageSize: String(pageSize),
+          });
+          if (lastQ) q.set("q", lastQ);
+          const reqUrl = apiUrl("/api/admin/gpngs?" + q.toString());
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({ _url: reqUrl, headers: { ...authHeaders() } })
+            );
+            const parsed = await parseJsonBody(res);
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setAuthVisible(false);
+                setStatus(
+                  "接口 404：线上尚未运行含「出图列表」的 server.js。请部署最新升级包后，在 Render 选 Manual Deploy → Restart service，再刷新本页。",
+                  "err"
+                );
+              } else if (res.status === 401 || res.status === 403) {
+                setAuthVisible(true);
+                setStatus("未登录或无管理员权限（HTTP " + res.status + "）。", "err");
+              } else {
+                setAuthVisible(false);
+                setStatus("返回非 JSON（HTTP " + res.status + "）：" + (parsed.rawSnippet || ""), "err");
+              }
+              return;
+            }
+            const j = parsed.data;
+            if (!res.ok) {
+              setAuthVisible(res.status === 401 || res.status === 403);
+              setStatus(j.error || "加载失败（HTTP " + res.status + "）", "err");
+              return;
+            }
+            setAuthVisible(false);
+            const items = Array.isArray(j.items) ? j.items : [];
+            const total = Number(j.total) || 0;
+            const pages = Math.max(1, Math.ceil(total / pageSize));
+            if (page > pages) {
+              page = pages;
+              return loadList();
+            }
+            pageLabel.textContent =
+              "第 " + page + " / " + pages + " 页 · 共 " + total + " 个 PNG";
+            bodyEl.innerHTML = items
+              .map(function (it) {
+                const name = String(it.name || "").replace(/"/g, "&quot;");
+                const esc = name.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+                const badge = it.hasThumb
+                  ? '<span class="gthumb-badge gthumb-badge--yes">已有</span>'
+                  : '<span class="gthumb-badge gthumb-badge--no">未生成</span>';
+                return (
+                  "<tr>" +
+                  '<td><input type="checkbox" class="gthumb-row-check" data-name="' +
+                  name +
+                  '" /></td>' +
+                  '<td><img class="gthumb-preview" src="' +
+                  previewSrc(it.name) +
+                  '" alt="" loading="lazy" decoding="async" /></td>' +
+                  "<td><code style=\"font-size:12px\">" +
+                  esc +
+                  "</code></td>" +
+                  "<td>" +
+                  fmtBytes(Number(it.bytes) || 0) +
+                  "</td>" +
+                  "<td>" +
+                  badge +
+                  "</td>" +
+                  "</tr>"
+                );
+              })
+              .join("");
+            document.getElementById("gthumbMaster").checked = false;
+            setStatus("已加载 " + items.length + " 条。", "ok");
+          } catch (e) {
+            setAuthVisible(true);
+            setStatus(String(e.message || e), "err");
+          }
+        }
+        function selectedNames() {
+          const boxes = bodyEl.querySelectorAll(".gthumb-row-check:checked");
+          const out = [];
+          boxes.forEach(function (el) {
+            const n = el.getAttribute("data-name");
+            if (n) out.push(n);
+          });
+          return out;
+        }
+        async function batchRebuild() {
+          const names = selectedNames();
+          if (!names.length) {
+            setStatus("请先勾选要生成缩略图的行。", "err");
+            return;
+          }
+          const dimEl = document.getElementById("gthumbDim");
+          const maxEdge = Number(dimEl && dimEl.value) || 320;
+          if (
+            !window.confirm(
+              "将为 " +
+                names.length +
+                " 个文件写入 public/generated/thumbs/（最长边 " +
+                maxEdge +
+                "px），并清空查经缓存。继续？"
+            )
+          ) {
+            return;
+          }
+          setStatus("生成中…", "");
+          const reqUrl = apiUrl("/api/admin/gpngs-rebuild");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...authHeaders(),
+                },
+                body: JSON.stringify({ names: names, maxEdge: maxEdge }),
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            const j = parsed.ok ? parsed.data : {};
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setAuthVisible(false);
+                setStatus("接口 404：请先部署最新 server.js 并重启 Node。", "err");
+              } else {
+                setStatus("返回非 JSON（HTTP " + res.status + "）", "err");
+              }
+              return;
+            }
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) setAuthVisible(true);
+              setStatus(j.error || "失败 HTTP " + res.status, "err");
+              return;
+            }
+            const built = Array.isArray(j.built) ? j.built.length : 0;
+            const failed = Array.isArray(j.failed) ? j.failed.length : 0;
+            let msg = "完成：成功 " + built + "，失败 " + failed + "。";
+            if (failed && j.failed && j.failed[0]) {
+              msg +=
+                " 例：" +
+                String(j.failed[0].name || "") +
+                " — " +
+                String(j.failed[0].error || "");
+            }
+            setStatus(msg, failed ? "err" : "ok");
+            await loadList();
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        }
+        document.getElementById("gthumbReload").addEventListener("click", function () {
+          void loadList();
+        });
+        document.getElementById("gthumbSearch").addEventListener("click", function () {
+          lastQ = String(document.getElementById("gthumbQ").value || "").trim();
+          page = 1;
+          void loadList();
+        });
+        document.getElementById("gthumbPrev").addEventListener("click", function () {
+          if (page > 1) {
+            page--;
+            void loadList();
+          }
+        });
+        document.getElementById("gthumbNext").addEventListener("click", function () {
+          page++;
+          void loadList();
+        });
+        document.getElementById("gthumbSelectPage").addEventListener("click", function () {
+          bodyEl.querySelectorAll(".gthumb-row-check").forEach(function (el) {
+            el.checked = true;
+          });
+          document.getElementById("gthumbMaster").checked = true;
+        });
+        document.getElementById("gthumbClear").addEventListener("click", function () {
+          bodyEl.querySelectorAll(".gthumb-row-check").forEach(function (el) {
+            el.checked = false;
+          });
+          document.getElementById("gthumbMaster").checked = false;
+        });
+        document.getElementById("gthumbMaster").addEventListener("change", function (ev) {
+          const on = ev.target.checked;
+          bodyEl.querySelectorAll(".gthumb-row-check").forEach(function (el) {
+            el.checked = on;
+          });
+        });
+        document.getElementById("gthumbBatch").addEventListener("click", function () {
+          void batchRebuild();
+        });
+        void loadList();
+      })();
+    </script>
+  </body>
+</html>

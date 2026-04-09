@@ -1,0 +1,241 @@
+{
+  "chapters": {
+    "default:zh:GEN:26": {
+      "bookName": "创世记",
+      "chapterNumber": 26,
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "theme": "这一章围绕以撒在饥荒中的选择、在惧怕中的软弱、在争竞中的退让，以及在神同在中的安稳展开，显出神对亚伯拉罕之约的持续信实，也让人看见人如何在现实压力中学习顺服与信靠。",
+      "summary": "饥荒中仍留在应许之地",
+      "chapterType": "narrative",
+      "sceneDescription": "Several robed figures gather in open biblical hills in a hushed tableau, standing still in quiet conversation or prayer, suggesting 饥荒中仍留在应许之地 without showing text or symbols.",
+      "prompt": "",
+      "imageUrl": "",
+      "localPath": "",
+      "confidence": 0.72,
+      "warning": null,
+      "transparentBackground": true,
+      "overlayOpacity": 85,
+      "stylePreset": "biblical_copperplate_engraving",
+      "sceneVariant": 1,
+      "analysis": {
+        "chapterType": "narrative",
+        "storyUnits": [
+          {
+            "id": "seg_0",
+            "title": "饥荒中仍留在应许之地",
+            "rangeStart": 1,
+            "rangeEnd": 6
+          },
+          {
+            "id": "seg_1",
+            "title": "惧怕让人重复旧有的失败",
+            "rangeStart": 7,
+            "rangeEnd": 11
+          },
+          {
+            "id": "seg_2",
+            "title": "蒙福之后也会引来嫉妒与压力",
+            "rangeStart": 12,
+            "rangeEnd": 17
+          },
+          {
+            "id": "seg_3",
+            "title": "一口一口井挖出忍让与空间",
+            "rangeStart": 18,
+            "rangeEnd": 22
+          },
+          {
+            "id": "seg_4",
+            "title": "神再次显现，坚固惧怕中的人",
+            "rangeStart": 23,
+            "rangeEnd": 25
+          },
+          {
+            "id": "seg_5",
+            "title": "从被赶逐到被求和",
+            "rangeStart": 26,
+            "rangeEnd": 33
+          },
+          {
+            "id": "seg_6",
+            "title": "家庭中的另一处隐忧",
+            "rangeStart": 34,
+            "rangeEnd": 35
+          }
+        ],
+        "candidateScenes": [
+          {
+            "id": "c_0",
+            "scene": "covenant_open_sky",
+            "priority": 85,
+            "reason": "covenant or sign in open air",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_1",
+            "scene": "segment_0",
+            "priority": 70,
+            "reason": "story unit: 饥荒中仍留在应许之地",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_2",
+            "scene": "segment_1",
+            "priority": 65,
+            "reason": "story unit: 惧怕让人重复旧有的失败",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_3",
+            "scene": "segment_2",
+            "priority": 60,
+            "reason": "story unit: 蒙福之后也会引来嫉妒与压力",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_4",
+            "scene": "segment_3",
+            "priority": 55,
+            "reason": "story unit: 一口一口井挖出忍让与空间",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_5",
+            "scene": "generic_open_land",
+            "priority": 30,
+            "reason": "fallback — figure in open biblical land",
+            "source": "heuristic"
+          }
+        ],
+        "visualAnchors": [
+          "well"
+        ],
+        "difficultyLevel": "low"
+      },
+      "selection": {
+        "selectedScene": "segment_0",
+        "reason": "story unit: 饥荒中仍留在应许之地",
+        "characters": "one or two robed figures",
+        "location": "open biblical hills",
+        "action": "standing still in quiet conversation or prayer",
+        "anchorObject": "story moment",
+        "candidateId": "c_1",
+        "variantIndex": 1,
+        "candidatePickIndex": 1,
+        "confidence": 0.72,
+        "warning": null
+      },
+      "updatedAt": "2026-04-07T02:42:50.765Z"
+    },
+    "default:zh:GEN:27": {
+      "bookName": "创世记",
+      "chapterNumber": 27,
+      "versionId": "default",
+      "lang": "zh",
+      "bookId": "GEN",
+      "theme": "在争夺祝福的过程中，这个家庭里每个人都带着自己的欲望、偏爱和惧怕行事，结果带来更深的伤害与分裂。",
+      "summary": "以撒要单独给以扫祝福",
+      "chapterType": "narrative",
+      "sceneDescription": "Several robed figures gather in open biblical hills in a hushed tableau, standing still in quiet conversation or prayer, suggesting 利百加策划，雅各犹豫却顺从 without showing text or symbols.",
+      "prompt": "",
+      "imageUrl": "",
+      "localPath": "",
+      "confidence": 0.72,
+      "warning": null,
+      "transparentBackground": true,
+      "overlayOpacity": 85,
+      "stylePreset": "biblical_copperplate_engraving",
+      "sceneVariant": 1,
+      "analysis": {
+        "chapterType": "narrative",
+        "storyUnits": [
+          {
+            "id": "seg_0",
+            "title": "以撒要单独给以扫祝福",
+            "rangeStart": 1,
+            "rangeEnd": 5
+          },
+          {
+            "id": "seg_1",
+            "title": "利百加策划，雅各犹豫却顺从",
+            "rangeStart": 6,
+            "rangeEnd": 17
+          },
+          {
+            "id": "seg_2",
+            "title": "雅各欺骗父亲并得了祝福",
+            "rangeStart": 18,
+            "rangeEnd": 29
+          },
+          {
+            "id": "seg_3",
+            "title": "真相揭开，以扫痛哭",
+            "rangeStart": 30,
+            "rangeEnd": 40
+          },
+          {
+            "id": "seg_4",
+            "title": "怨恨升级，雅各被迫逃走",
+            "rangeStart": 41,
+            "rangeEnd": 46
+          }
+        ],
+        "candidateScenes": [
+          {
+            "id": "c_0",
+            "scene": "segment_0",
+            "priority": 70,
+            "reason": "story unit: 以撒要单独给以扫祝福",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_1",
+            "scene": "segment_1",
+            "priority": 65,
+            "reason": "story unit: 利百加策划，雅各犹豫却顺从",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_2",
+            "scene": "segment_2",
+            "priority": 60,
+            "reason": "story unit: 雅各欺骗父亲并得了祝福",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_3",
+            "scene": "segment_3",
+            "priority": 55,
+            "reason": "story unit: 真相揭开，以扫痛哭",
+            "source": "heuristic"
+          },
+          {
+            "id": "c_4",
+            "scene": "generic_open_land",
+            "priority": 30,
+            "reason": "fallback — figure in open biblical land",
+            "source": "heuristic"
+          }
+        ],
+        "visualAnchors": [],
+        "difficultyLevel": "low"
+      },
+      "selection": {
+        "selectedScene": "segment_1",
+        "reason": "story unit: 利百加策划，雅各犹豫却顺从",
+        "characters": "one or two robed figures",
+        "location": "open biblical hills",
+        "action": "standing still in quiet conversation or prayer",
+        "anchorObject": "story moment",
+        "candidateId": "c_1",
+        "variantIndex": 1,
+        "candidatePickIndex": 1,
+        "confidence": 0.72,
+        "warning": null
+      },
+      "updatedAt": "2026-04-07T02:19:40.898Z"
+    }
+  }
+}
