@@ -8217,7 +8217,7 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
     writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, out);
     let thumbBuild = { built: [], failed: [] };
     try {
-      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(out, 320);
+      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(out, 480);
     } catch (thumbErr) {
       console.warn("[character-profiles:auto-thumbs]", thumbErr?.message || thumbErr);
     }
@@ -8860,7 +8860,7 @@ async function handleBibleCharacterPortraitUpload(req, res) {
     const dest = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(dest, pngBuf);
     try {
-      await ensureGeneratedThumbForFilename(filename, 320);
+      await ensureGeneratedThumbForFilename(filename, 480);
     } catch (thumbErr) {
       console.warn("[bible-character-upload:auto-thumb]", thumbErr?.message || thumbErr);
     }
@@ -8990,10 +8990,10 @@ async function handleRosterPortraitGet(req, res) {
       res.status(400).type("text/plain").send("Invalid path");
       return;
     }
-    const wRaw = Number(req.query.w ?? req.query.max ?? 320);
+    const wRaw = Number(req.query.w ?? req.query.max ?? 480);
     const dim = Number.isFinite(wRaw)
       ? Math.min(720, Math.max(48, Math.round(wRaw)))
-      : 320;
+      : 480;
 
     const buf = await fs.promises.readFile(filePath);
     let outBuf = buf;
@@ -9043,10 +9043,10 @@ async function handleChapterIllustrationImageGet(req, res) {
       res.status(400).type("text/plain").send("Invalid path");
       return;
     }
-    const widthRaw = Number(req.query.w ?? 1400);
+    const widthRaw = Number(req.query.w ?? 960);
     const width = Number.isFinite(widthRaw)
       ? Math.min(2200, Math.max(320, Math.round(widthRaw)))
-      : 1400;
+      : 960;
 
     const buf = await fs.promises.readFile(filePath);
     let outBuf = buf;
@@ -9371,13 +9371,13 @@ function collectGeneratedPortraitBaseNamesFromProfiles(profilesRoot) {
   return out;
 }
 
-async function ensureGeneratedRosterThumbsForProfiles(profilesRoot, maxEdge = 320) {
+async function ensureGeneratedRosterThumbsForProfiles(profilesRoot, maxEdge = 480) {
   const names = collectGeneratedPortraitBaseNamesFromProfiles(profilesRoot);
   if (!names.length) {
     return { built: [], failed: [] };
   }
   const sharp = await getSharp();
-  const dim = Math.min(720, Math.max(64, Math.round(Number(maxEdge) || 320)));
+  const dim = Math.min(720, Math.max(64, Math.round(Number(maxEdge) || 480)));
   const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
   ensureDir(thumbDir);
   const built = [];
@@ -9410,13 +9410,13 @@ async function ensureGeneratedRosterThumbsForProfiles(profilesRoot, maxEdge = 32
   return { built, failed };
 }
 
-async function ensureGeneratedThumbForFilename(name, maxEdge = 320) {
+async function ensureGeneratedThumbForFilename(name, maxEdge = 480) {
   const base = path.basename(String(name || "").trim());
   if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(base)) return false;
   const srcPath = resolveSafeGeneratedPngPath(`/generated/${base}`);
   if (!srcPath) return false;
   const sharp = await getSharp();
-  const dim = Math.min(720, Math.max(64, Math.round(Number(maxEdge) || 320)));
+  const dim = Math.min(720, Math.max(64, Math.round(Number(maxEdge) || 480)));
   const thumbDir = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, "thumbs");
   ensureDir(thumbDir);
   const destPath = path.join(thumbDir, base);
@@ -9480,7 +9480,7 @@ async function handleAdminGeneratedPngsRebuildThumbs(req, res) {
     const namesIn = Array.isArray(body.names) ? body.names : [];
     const dim = Math.min(
       720,
-      Math.max(64, Math.round(Number(body.maxEdge) || 320))
+      Math.max(64, Math.round(Number(body.maxEdge) || 480))
     );
     const MAX = 80;
     const names = [];
@@ -9783,7 +9783,7 @@ async function handleCharacterProfilesRepairImages(req, res) {
     writeJson(CHARACTER_ILLUSTRATION_PROFILES_FILE, result.profiles);
     let thumbBuild = { built: [], failed: [] };
     try {
-      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(result.profiles, 320);
+      thumbBuild = await ensureGeneratedRosterThumbsForProfiles(result.profiles, 480);
     } catch (thumbErr) {
       console.warn("[character-profiles:repair:auto-thumbs]", thumbErr?.message || thumbErr);
     }
@@ -10120,7 +10120,7 @@ async function handleBcdExtractHeroFromComparison(req, res) {
     const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
     fs.writeFileSync(filePath, outBuf);
     try {
-      await ensureGeneratedThumbForFilename(filename, 320);
+      await ensureGeneratedThumbForFilename(filename, 480);
     } catch (thumbErr) {
       console.warn("[bcd-extract-hero:auto-thumb]", thumbErr?.message || thumbErr);
     }
@@ -10186,7 +10186,7 @@ async function handleBcdExtractAllPeriodsFromComparison(req, res) {
         const filePath = path.join(CHAPTER_ILLUSTRATION_GENERATED_DIR, filename);
         fs.writeFileSync(filePath, outBuf);
         try {
-          await ensureGeneratedThumbForFilename(filename, 320);
+          await ensureGeneratedThumbForFilename(filename, 480);
         } catch (thumbErr) {
           console.warn("[bcd-extract-period:auto-thumb]", thumbErr?.message || thumbErr);
         }
@@ -10587,7 +10587,7 @@ app.post("/api/generate-illustration", async (req, res) => {
     fs.writeFileSync(filePath, buf);
     if (bookIdRaw === "char" && nameEnTok && nameSlotTok) {
       try {
-        await ensureGeneratedThumbForFilename(filename, 320);
+        await ensureGeneratedThumbForFilename(filename, 480);
       } catch (thumbErr) {
         console.warn("[generate-illustration:auto-thumb]", thumbErr?.message || thumbErr);
       }

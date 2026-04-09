@@ -424,23 +424,14 @@ function chapterRosterPortraitImgSrc(normalizedPath) {
     if (!baseName) {
       return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
     }
-    const q = new URLSearchParams({ n: baseName, w: "320" });
+    const q = new URLSearchParams({ n: baseName, w: "480" });
     return resolveStudyApiPath("/api/roster-portrait?" + q.toString());
   }
   return resolveStudyApiPath(raw.startsWith("/") ? raw : "/" + raw);
 }
 
 function preferredChapterIllustrationWidth() {
-  try {
-    const vw = Math.max(
-      0,
-      window.innerWidth || document.documentElement?.clientWidth || 0
-    );
-    if (vw && vw <= 1200) return 960;
-  } catch (_) {
-    /* ignore */
-  }
-  return 1400;
+  return 960;
 }
 
 function chapterIllustrationOptimizedSrcs(normalizedPath) {

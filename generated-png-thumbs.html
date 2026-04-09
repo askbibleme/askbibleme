@@ -171,7 +171,7 @@
       <p class="gthumb-lead">
         递归列出 <code>public/generated/</code> 下的
         <code>.png</code>（插画出图、人物立绘、上传后转存的 PNG 等；自动排除 <code>thumbs/</code>）。预览为实时缩图。勾选后可<strong>批量写入</strong>
-        <code>public/generated/thumbs/</code> 同名小图（默认最长边 320px）；写好后读经页「本章人员」会<strong>优先用静态小图</strong>，减轻
+        <code>public/generated/thumbs/</code> 同名小图（默认最长边 480px）；写好后读经页「本章人员」会<strong>优先用静态小图</strong>，减轻
         <code>/api/roster-portrait</code> 压力。单次最多 80 张，可分页多批操作。
       </p>
       <div id="gthumbAuth" class="gthumb-auth">
@@ -184,7 +184,7 @@
         <button type="button" id="gthumbSearch">筛选</button>
         <label style="font-size:13px;color:var(--muted)"
           >最长边(px)
-          <input type="number" id="gthumbDim" value="320" min="64" max="720" style="width: 72px"
+          <input type="number" id="gthumbDim" value="480" min="64" max="720" style="width: 72px"
         /></label>
         <button type="button" id="gthumbReload">刷新列表</button>
         <button type="button" id="gthumbSelectPage">本页全选</button>
@@ -523,7 +523,7 @@
             return;
           }
           const dimEl = document.getElementById("gthumbDim");
-          const maxEdge = Number(dimEl && dimEl.value) || 320;
+          const maxEdge = Number(dimEl && dimEl.value) || 480;
           if (
             !window.confirm(
               "将为 " +
