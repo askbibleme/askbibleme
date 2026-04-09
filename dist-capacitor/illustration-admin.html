@@ -1342,7 +1342,7 @@ watermark / text / logo</pre>
               setStatus(apiFailMessage(res, data), "err");
               return;
             }
-            setStatus("已保存到 admin_data/chapter_illustration_states.json。", "ok");
+            setStatus("已保存章节插画状态（服务器持久路径，见 CHARACTER_DATA_DIR / admin_data）。", "ok");
           } catch (e) {
             setStatus(String(e && e.message ? e.message : e), "err");
           } finally {

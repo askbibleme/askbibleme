@@ -4,14 +4,21 @@
  *
  * 默认 dry-run（只打印不写入）；
  * 传 --write 才会落盘。
+ *
+ * 目标文件：与 server 一致 — 若设置了 CHARACTER_DATA_DIR 则用其下 chapter_illustration_states.json，否则 admin_data/。
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const targetFile = path.join(root, "admin_data", "chapter_illustration_states.json");
+dotenv.config({ path: path.join(root, ".env") });
+const creativeDir = process.env.CHARACTER_DATA_DIR
+  ? path.resolve(process.env.CHARACTER_DATA_DIR)
+  : path.join(root, "admin_data");
+const targetFile = path.join(creativeDir, "chapter_illustration_states.json");
 
 const FROM = "biblical_copperplate_engraving";
 const TO = "biblical_candlelit_oil_painting";

@@ -231,28 +231,31 @@ const QUESTION_CORRECTIONS_FILE = path.join(
 );
 
 /**
- * 人像数据根目录（持久卷，与代码发布解耦；概念上同 question_submissions 等运行数据）。
- * 设置后下列 JSON 均在此目录，不再使用 admin_data 下同名文件，避免部署/拉仓库覆盖。
- * 可选与 CHARACTER_PROFILES_DB 联用（SQLite 仍建议放在此目录或同卷）。
+ * 人像 + 章节仿古插画等「创作侧」运行数据根目录（持久卷，与代码发布解耦；同 question_submissions）。
+ * 设置后下列 JSON 均在此目录，不再使用 admin_data 下同名文件。
+ * 可选与 CHARACTER_PROFILES_DB 联用（SQLite 建议放在此目录或同卷）。
  */
 const CHARACTER_DATA_DIR = process.env.CHARACTER_DATA_DIR
   ? path.resolve(process.env.CHARACTER_DATA_DIR)
   : "";
 
-function characterPortraitDataPath(fileName) {
+function creativeRuntimeDataPath(fileName) {
   return CHARACTER_DATA_DIR
     ? path.join(CHARACTER_DATA_DIR, fileName)
     : path.join(ADMIN_DIR, fileName);
 }
 
-const CHARACTER_ILLUSTRATION_PROFILES_FILE = characterPortraitDataPath(
+const CHARACTER_ILLUSTRATION_PROFILES_FILE = creativeRuntimeDataPath(
   "character_illustration_profiles.json"
 );
-const CHARACTER_PROFILE_IMAGE_AUDIT_FILE = characterPortraitDataPath(
+const CHARACTER_PROFILE_IMAGE_AUDIT_FILE = creativeRuntimeDataPath(
   "character_profile_image_audit.json"
 );
-const CHARACTER_STAGE_RULES_FILE = characterPortraitDataPath("character_stage_rules.json");
-const CHAPTER_KEY_PEOPLE_FILE = characterPortraitDataPath("chapter_key_people.json");
+const CHARACTER_STAGE_RULES_FILE = creativeRuntimeDataPath("character_stage_rules.json");
+const CHAPTER_KEY_PEOPLE_FILE = creativeRuntimeDataPath("chapter_key_people.json");
+const CHAPTER_ILLUSTRATION_STATE_FILE = creativeRuntimeDataPath(
+  "chapter_illustration_states.json"
+);
 /** SQLite 空库导入用；默认同仓库内模板（与 CHARACTER_DATA_DIR 无关）。 */
 const CHARACTER_PROFILES_SEED_JSON = process.env.CHARACTER_PROFILES_SEED_JSON
   ? path.resolve(process.env.CHARACTER_PROFILES_SEED_JSON)
@@ -8298,11 +8301,6 @@ function ensureChapterPromptLogFile() {
   }
 }
 
-const CHAPTER_ILLUSTRATION_STATE_FILE = path.join(
-  ADMIN_DIR,
-  "chapter_illustration_states.json"
-);
-
 function ensureChapterKeyPeopleFile() {
   ensureDir(path.dirname(CHAPTER_KEY_PEOPLE_FILE));
   if (!fs.existsSync(CHAPTER_KEY_PEOPLE_FILE)) {
@@ -8762,7 +8760,7 @@ function resolveCharacterLockLinesForGeneratePrompt(body) {
 }
 
 function ensureChapterIllustrationStateFile() {
-  ensureDir(ADMIN_DIR);
+  ensureDir(path.dirname(CHAPTER_ILLUSTRATION_STATE_FILE));
   if (!fs.existsSync(CHAPTER_ILLUSTRATION_STATE_FILE)) {
     writeJson(CHAPTER_ILLUSTRATION_STATE_FILE, {
       chapters: {},
@@ -15481,7 +15479,7 @@ const listenHost =
 app.listen(port, listenHost, () => {
   console.log(`http://localhost:${port}/`);
   if (CHARACTER_DATA_DIR) {
-    console.log("[character-data] 人像数据目录（持久卷）:", CHARACTER_DATA_DIR);
+    console.log("[creative-data] 人像与插画创作数据目录（持久卷）:", CHARACTER_DATA_DIR);
   }
   if (characterProfilesUsesSqlite()) {
     console.log(
