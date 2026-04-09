@@ -5997,6 +5997,42 @@ app.get("/api/scripture", (req, res) => {
 });
 
 /** 读经页章末人物带：keyPeople = 全局章人物表 + 已发布 JSON 的 chapterKeyPeople + 段标题正则，再匹配人物库立绘（与版本/语言无关） */
+function generatedImageUrlExists(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return false;
+  if (!raw.startsWith("/generated/")) return true;
+  const name = path.basename(raw.split("?")[0]);
+  if (!/^[a-zA-Z0-9_.-]+\.png$/i.test(name)) return false;
+  const abs = path.join(__dirname, "public", "generated", name);
+  try {
+    return fs.existsSync(abs) && fs.statSync(abs).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function resolveExistingChapterRosterPortrait(entry, preferredSlot) {
+  const primary = resolveChapterRosterPortrait(entry, preferredSlot);
+  if (generatedImageUrlExists(primary.url)) {
+    return primary;
+  }
+  const hero = String(entry?.heroImageUrl || "").trim();
+  if (hero && generatedImageUrlExists(hero)) {
+    return { url: hero, portraitSlot: null };
+  }
+  const periods = Array.isArray(entry?.periods) ? entry.periods : [];
+  const slots = [String(entry?.imageUrl || "").trim()];
+  for (let i = 0; i < periods.length; i++) {
+    slots.push(String(periods[i]?.imageUrl || "").trim());
+  }
+  for (let i = 0; i < slots.length; i++) {
+    if (slots[i] && generatedImageUrlExists(slots[i])) {
+      return { url: slots[i], portraitSlot: i };
+    }
+  }
+  return primary;
+}
+
 function buildChapterCharacterFiguresForReader(chapterData, meta) {
   try {
     if (!chapterData || typeof chapterData !== "object") return [];
@@ -6024,7 +6060,7 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
       if (!entry || typeof entry !== "object") continue;
       const pref =
         Object.prototype.hasOwnProperty.call(slotByZh, zh) ? slotByZh[zh] : undefined;
-      const resolved = resolveChapterRosterPortrait(entry, pref);
+      const resolved = resolveExistingChapterRosterPortrait(entry, pref);
       const imageUrl = normalizeIllustrationImageUrlForPublication(resolved.url);
       if (!imageUrl) continue;
       const row = { zhName: zh, imageUrl };
