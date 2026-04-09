@@ -15499,14 +15499,64 @@ const listenHost =
   process.env.LISTEN_HOST !== undefined && process.env.LISTEN_HOST !== ""
     ? process.env.LISTEN_HOST
     : "0.0.0.0";
+
+/**
+ * 生产环境：创作 JSON 与出图 PNG 必须指向仓库外的持久路径，避免发布覆盖。
+ */
+function assertProductionExternalCreativeLayout() {
+  if (String(process.env.NODE_ENV || "").trim() !== "production") return;
+  const missing = [];
+  if (!String(process.env.GENERATED_ASSETS_DIR || "").trim()) {
+    missing.push("GENERATED_ASSETS_DIR");
+  }
+  if (!String(process.env.CHARACTER_DATA_DIR || "").trim()) {
+    missing.push("CHARACTER_DATA_DIR");
+  }
+  if (missing.length) {
+    console.error(
+      "[fatal] NODE_ENV=production 时必须外置创作与出图数据，未设置环境变量:",
+      missing.join(", ")
+    );
+    console.error(
+      "  示例: GENERATED_ASSETS_DIR=/var/data/generated_png CHARACTER_DATA_DIR=/var/data/creative_runtime_data"
+    );
+    process.exit(1);
+  }
+  const repoRoot = path.resolve(__dirname);
+  const repoSep = repoRoot + path.sep;
+  const outsideRepo = (abs) => {
+    const x = path.resolve(abs);
+    if (process.platform === "win32") {
+      const xl = x.toLowerCase();
+      const rl = repoRoot.toLowerCase();
+      if (xl === rl) return false;
+      return !xl.startsWith(rl + "\\") && !xl.startsWith(rl + "/");
+    }
+    return x !== repoRoot && !x.startsWith(repoSep);
+  };
+  const genAbs = path.resolve(CHAPTER_ILLUSTRATION_GENERATED_DIR);
+  const creativeAbs = path.resolve(CHARACTER_DATA_DIR);
+  const bad = [];
+  if (!outsideRepo(genAbs)) {
+    bad.push(`GENERATED_ASSETS_DIR 解析后须在应用目录外，当前: ${genAbs}`);
+  }
+  if (!outsideRepo(creativeAbs)) {
+    bad.push(`CHARACTER_DATA_DIR 解析后须在应用目录外，当前: ${creativeAbs}`);
+  }
+  if (bad.length) {
+    console.error("[fatal] 生产环境外置路径不能落在应用源码/部署目录内:\n", bad.join("\n"));
+    process.exit(1);
+  }
+}
+
+assertProductionExternalCreativeLayout();
+
 app.listen(port, listenHost, () => {
   console.log(`http://localhost:${port}/`);
   if (CHARACTER_DATA_DIR) {
     console.log("[creative-data] 人像与插画创作数据目录（持久卷）:", CHARACTER_DATA_DIR);
   }
-  if (process.env.GENERATED_ASSETS_DIR) {
-    console.log("[generated-assets] 出图 PNG 目录（持久卷）:", CHAPTER_ILLUSTRATION_GENERATED_DIR);
-  }
+  console.log("[generated-assets] 出图 PNG 目录:", CHAPTER_ILLUSTRATION_GENERATED_DIR);
   if (characterProfilesUsesSqlite()) {
     console.log(
       "[character-profiles] SQLite:",
