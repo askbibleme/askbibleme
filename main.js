@@ -1039,16 +1039,21 @@ function backfillGlobalFavoritesFromLocal() {
 }
 
 function loadFrontState() {
+  const parsed =
+    typeof sessionStorage !== "undefined"
+      ? safeJsonParse(sessionStorage.getItem(FRONT_STATE_KEY), null)
+      : null;
   return {
-    uiLang: "zh",
-    contentVersion: "default",
-    contentLang: "zh",
-    primaryScriptureVersionId: "cuvs_zh",
+    uiLang: parsed?.uiLang || "zh",
+    contentVersion: parsed?.contentVersion || "default",
+    contentLang: parsed?.contentLang || "zh",
+    primaryScriptureVersionId: parsed?.primaryScriptureVersionId || "cuvs_zh",
     secondaryScriptureVersionIds: [],
-    testament: "旧约",
-    /* 每次重开都回到最新默认入口，不恢复旧阅读现场 */
-    bookId: "_BIBLE_INTRO",
-    chapter: 0,
+    testament: parsed?.testament || "旧约",
+    /* 同一页面刷新时保留当前章；新开页面仍默认首页 */
+    bookId: parsed?.bookId || "_BIBLE_INTRO",
+    chapter:
+      parsed == null ? 0 : Number(parsed.chapter != null ? parsed.chapter : 0),
     hideScripture: false,
     showQuestions: true,
     showScripture: true,
@@ -1057,6 +1062,22 @@ function loadFrontState() {
 }
 
 function saveFrontState() {
+  try {
+    sessionStorage.setItem(
+      FRONT_STATE_KEY,
+      JSON.stringify({
+        uiLang: state.frontState.uiLang,
+        contentVersion: state.frontState.contentVersion,
+        contentLang: state.frontState.contentLang,
+        primaryScriptureVersionId: state.frontState.primaryScriptureVersionId,
+        testament: state.frontState.testament,
+        bookId: state.frontState.bookId,
+        chapter: state.frontState.chapter,
+      })
+    );
+  } catch {
+    /* ignore */
+  }
   try {
     localStorage.removeItem(FRONT_STATE_KEY);
   } catch {
@@ -3704,7 +3725,7 @@ function initChapterQuestionCollector() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "提交失败");
       localStorage.setItem(LAST_QUESTION_SUBMIT_AT_KEY, String(now));
-      statusEl.textContent = "已提交，感谢你的好问题";
+      statusEl.textContent = String(data.message || "已提交，感谢你的好问题");
       inputEl.value = "";
       await loadApprovedChapterQuestions();
       renderStudyContent();

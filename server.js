@@ -2174,6 +2174,9 @@ function loadQuestionSubmissions() {
   data.items = data.items.map((item) => ({
     ...item,
     status: safeText(item?.status || "pending") || "pending",
+    moderationReasons: Array.isArray(item?.moderationReasons)
+      ? item.moderationReasons.map((x) => safeText(x || "")).filter(Boolean).slice(0, 8)
+      : [],
     reviewedAt: safeText(item?.reviewedAt || ""),
     replies: Array.isArray(item?.replies)
       ? item.replies
@@ -2194,6 +2197,116 @@ function loadQuestionSubmissions() {
 
 function saveQuestionSubmissions(data) {
   writeJson(QUESTION_SUBMISSIONS_FILE, data);
+}
+
+function normalizeQuestionModerationText(raw) {
+  return String(raw || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function assessQuestionSubmissionRisk({
+  questionText,
+  authed,
+  req,
+  db,
+  bookId,
+  chapter,
+}) {
+  const text = String(questionText || "").trim();
+  const normalized = normalizeQuestionModerationText(text);
+  const reasons = [];
+  let reject = false;
+  let pending = false;
+
+  const adPatterns = [
+    /(?:https?:\/\/|www\.|\.com\b|\.cn\b|\.net\b|\.cc\b|\.top\b|t\.me\/|wa\.me\/)/i,
+    /(?:微信|vx|v信|加微|加v|qq|q群|电报|telegram|whatsapp|联系我|私聊|公众号|扫码)/i,
+    /(?:代写|兼职|赚钱|推广|引流|返利|优惠|加群|课程咨询|办理|出售|购买|代理)/i,
+  ];
+  if (adPatterns.some((re) => re.test(text))) {
+    reject = true;
+    reasons.push("疑似广告或引流");
+  }
+
+  if (/(.)\1{7,}/.test(text) || /^[\W_]+$/.test(text)) {
+    pending = true;
+    reasons.push("疑似灌水字符");
+  }
+
+  if (text.length > 220) {
+    pending = true;
+    reasons.push("内容过长");
+  }
+
+  const tokenCount = normalized
+    ? normalized.split(/[\s,.;:!?，。！？；：、/\\|()[\]{}"'`~+-]+/).filter(Boolean).length
+    : 0;
+  if (tokenCount > 0 && tokenCount <= 2 && text.length >= 24) {
+    pending = true;
+    reasons.push("疑似重复刷词");
+  }
+
+  const items = Array.isArray(db?.items) ? db.items : [];
+  const userKey = safeText(authed?.id || authed?.email || "");
+  const ipHash = sha256Hex(getClientIp(req));
+  const nowMs = Date.now();
+  const recentByActor = items.filter((item) => {
+    const createdAtMs = Date.parse(String(item?.createdAt || ""));
+    if (!Number.isFinite(createdAtMs) || nowMs - createdAtMs > 10 * 60 * 1000) {
+      return false;
+    }
+    const sameUser = userKey && safeText(item?.userId || item?.userEmail || "") === userKey;
+    const sameIp = safeText(item?.ipHash || "") === ipHash;
+    return sameUser || sameIp;
+  });
+  if (recentByActor.length >= 5) {
+    pending = true;
+    reasons.push("短时间连续提问过多");
+  }
+
+  const sameQuestionRecent = recentByActor.filter((item) => {
+    const prev = normalizeQuestionModerationText(item?.questionText || "");
+    return prev && prev === normalized;
+  });
+  if (sameQuestionRecent.length >= 1) {
+    pending = true;
+    reasons.push("短时间重复提问");
+  }
+
+  const sameChapterBurst = recentByActor.filter(
+    (item) =>
+      safeText(item?.bookId || "") === safeText(bookId || "") &&
+      toSafeNumber(item?.chapter, 0) === toSafeNumber(chapter, 0)
+  );
+  if (sameChapterBurst.length >= 3) {
+    pending = true;
+    reasons.push("同章短时密集提问");
+  }
+
+  if (reject) {
+    return {
+      status: "rejected",
+      reasons,
+      userMessage: "内容疑似广告、引流或联系方式，未予发布。",
+      autoReviewed: true,
+    };
+  }
+  if (pending) {
+    return {
+      status: "pending",
+      reasons,
+      userMessage: "已收到你的问题；系统检测到异常特征，已转入人工复核。",
+      autoReviewed: false,
+    };
+  }
+  return {
+    status: "approved",
+    reasons: ["自动通过"],
+    userMessage: "已提交，感谢你的好问题",
+    autoReviewed: true,
+  };
 }
 
 function loadQuestionCorrections() {
@@ -11755,6 +11868,16 @@ app.post("/api/questions/submit", (req, res) => {
       return res.json({ ok: true, deduped: true });
     }
 
+    const db = loadQuestionSubmissions();
+    const moderation = assessQuestionSubmissionRisk({
+      questionText,
+      authed,
+      req,
+      db,
+      bookId: body.bookId,
+      chapter: body.chapter,
+    });
+
     const item = {
       id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       questionText,
@@ -11771,8 +11894,11 @@ app.post("/api/questions/submit", (req, res) => {
       ipHash: "",
       userAgent: "",
       deviceId: "",
-      status: "pending",
-      reviewedAt: "",
+      status: moderation.status,
+      moderationReasons: moderation.reasons,
+      reviewedAt: moderation.autoReviewed ? nowIso() : "",
+      reviewedBy: moderation.autoReviewed ? "system" : "",
+      reviewedByName: moderation.autoReviewed ? "系统风控" : "",
       createdAt: nowIso(),
     };
     const clientMeta = readClientMeta(req);
@@ -11780,10 +11906,15 @@ app.post("/api/questions/submit", (req, res) => {
     item.userAgent = clientMeta.userAgent;
     item.deviceId = clientMeta.deviceId;
 
-    const db = loadQuestionSubmissions();
     db.items = [item, ...(db.items || [])];
     saveQuestionSubmissions(db);
-    res.json({ ok: true, id: item.id });
+    res.json({
+      ok: true,
+      id: item.id,
+      status: item.status,
+      moderationReasons: item.moderationReasons || [],
+      message: moderation.userMessage,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "提交失败" });
@@ -12640,7 +12771,13 @@ app.get("/api/admin/questions/submissions", (req, res) => {
     const status = safeText(req.query.status || "pending");
     const db = loadQuestionSubmissions();
     const items = (db.items || [])
-      .filter((x) => (status === "all" ? true : safeText(x.status) === status))
+      .filter((x) =>
+        status === "all"
+          ? true
+          : ["pending", "approved", "rejected"].includes(status)
+            ? safeText(x.status) === status
+            : safeText(x.status) === "pending"
+      )
       .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     res.json({ items });
   } catch (error) {
@@ -13793,10 +13930,12 @@ app.get("/admin/questions-review", (req, res) => {
       listEl.innerHTML = items.map(item => {
         const meta = [item.bookId, item.chapter ? (item.chapter + "章") : "", item.contentLang || "", item.status || ""].filter(Boolean).join(" / ");
         const canReview = item.status === "pending";
+        const reasons = Array.isArray(item.moderationReasons) ? item.moderationReasons.filter(Boolean) : [];
         return '<div class="item">' +
           '<div class="meta">' + meta + ' · ' + (item.createdAt || "") + '</div>' +
           '<div class="q">' + String(item.questionText || "").replaceAll("<","&lt;").replaceAll(">","&gt;") + '</div>' +
           (item.note ? '<div class="meta">备注：' + String(item.note).replaceAll("<","&lt;").replaceAll(">","&gt;") + '</div>' : '') +
+          (reasons.length ? '<div class="meta">风控：' + reasons.map(x => String(x).replaceAll("<","&lt;").replaceAll(">","&gt;")).join("；") + '</div>' : '') +
           '<div class="actions">' +
             (canReview ? '<button data-act="approve" data-id="' + item.id + '">通过</button><button data-act="reject" data-id="' + item.id + '">拒绝</button>' : '') +
           '</div>' +

@@ -457,6 +457,20 @@
           });
           return out;
         }
+        function removeRowsByNames(names) {
+          const wanted = new Set(
+            (Array.isArray(names) ? names : []).map(function (x) {
+              return String(x || "").trim();
+            }).filter(Boolean)
+          );
+          if (!wanted.size) return;
+          const rows = bodyEl.querySelectorAll("tr");
+          rows.forEach(function (row) {
+            const box = row.querySelector(".gthumb-row-check");
+            const name = box ? String(box.getAttribute("data-name") || "").trim() : "";
+            if (name && wanted.has(name)) row.remove();
+          });
+        }
         async function deleteNames(names) {
           const list = Array.isArray(names) ? names.filter(Boolean) : [];
           if (!list.length) {
@@ -504,6 +518,13 @@
             const deleted = Array.isArray(j.deleted) ? j.deleted.length : 0;
             const missing = Array.isArray(j.missing) ? j.missing.length : 0;
             const failed = Array.isArray(j.failed) ? j.failed.length : 0;
+            const deletedNames = Array.isArray(j.deleted)
+              ? j.deleted
+                  .map(function (it) {
+                    return String((it && it.name) || "").trim();
+                  })
+                  .filter(Boolean)
+              : [];
             let done =
               "删除完成：成功 " +
               deleted +
@@ -512,6 +533,13 @@
               "，失败 " +
               failed +
               "。";
+            if (deletedNames.length) {
+              done += " 已删除：" + deletedNames.slice(0, 3).join("、");
+              if (deletedNames.length > 3) {
+                done += " 等 " + deletedNames.length + " 个";
+              }
+              done += "。";
+            }
             if (failed && j.failed && j.failed[0]) {
               done +=
                 " 例：" +
@@ -520,6 +548,7 @@
                 String(j.failed[0].error || "");
             }
             setStatus(done, failed ? "err" : "ok");
+            removeRowsByNames(deletedNames);
             await loadList();
           } catch (e) {
             setStatus(String(e.message || e), "err");
