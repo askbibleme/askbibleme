@@ -360,13 +360,15 @@
 章节主题 + 段落叙事 + 你在“编辑备注”里给出的补充要求
 
 [STYLE LOCK]
-semi-realistic biblical character illustration
+classical biblical candlelit oil painting
 historically grounded
 ancient Near Eastern clothing
 linen and wool fabric texture
-low-saturation earth-tone palette
-soft natural lighting
-calm and restrained expression
+warm amber-brown earth-tone palette
+dramatic candlelit chiaroscuro
+deep shadows with focused warm light
+restrained emotional realism
+soft aged canvas texture
 simple and dignified presentation
 
 [COMPOSITION]
@@ -1135,7 +1137,7 @@ watermark / text / logo</pre>
                 scene,
                 compositionMode: "banner",
                 sceneVariant: 0,
-                stylePreset: "biblical_semi_real_character",
+                stylePreset: "biblical_candlelit_oil_painting",
                 transparentBackground: false,
                 overlayOpacity: 85,
                 characterRefSelections: getCharacterRefPayload(),
@@ -1321,7 +1323,7 @@ watermark / text / logo</pre>
               imageUrl: lastImageUrl,
               transparentBackground: false,
               overlayOpacity: 85,
-              stylePreset: "biblical_semi_real_character",
+              stylePreset: "biblical_candlelit_oil_painting",
             });
             const res = await fetch(iaReq("/api/chapter-illustration/state"), {
               method: "POST",
@@ -1465,6 +1467,23 @@ watermark / text / logo</pre>
         });
         chapterSel.addEventListener("change", onChapterContextChanged);
 
+        function applyInitialSelectionFromQuery() {
+          try {
+            const qs = new URLSearchParams(window.location.search || "");
+            const version = String(qs.get("version") || "").trim();
+            const lang = String(qs.get("lang") || "").trim();
+            const bookId = String(qs.get("bookId") || "").trim();
+            const chapter = String(qs.get("chapter") || "").trim();
+            if (version) versionSel.value = version;
+            if (lang) langSel.value = lang;
+            if (bookId) {
+              bookSel.value = bookId;
+              fillChapterSelectForBook(bookId);
+            }
+            if (chapter) chapterSel.value = chapter;
+          } catch (_) {}
+        }
+
         async function checkIllustrationGptRouteProbe() {
           const warnEl = document.getElementById("iaGptRouteWarn");
           if (!warnEl) return;
@@ -1575,6 +1594,7 @@ watermark / text / logo</pre>
           });
 
           if (bookSel.options.length) fillChapterSelectForBook(bookSel.value);
+          applyInitialSelectionFromQuery();
 
           authEl.hidden = true;
           appEl.hidden = false;

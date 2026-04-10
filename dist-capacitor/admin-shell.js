@@ -45,7 +45,22 @@
           href: "/illustration-admin.html",
           label: "插画管理",
         },
+        {
+          href: "/chapter-illustration-library.html",
+          label: "章插图总表",
+          note: "按章节查看、跳转生成、删除页面插图/文件",
+        },
+        {
+          href: "/generated-png-thumbs.html",
+          label: "PNG 与缩略图",
+          note: "public/generated 与 thumbs 批量处理",
+        },
         { href: "/bible-character-designer.html", label: "圣经人物设计器" },
+        {
+          href: "/bible-character-designer.html#repair-images",
+          label: "人物图片预检修复",
+          note: "失效引用统计、预检报告、一键修复",
+        },
         {
           href: "/chapter-key-people.html",
           label: "章末人物表（全局）",
@@ -301,6 +316,7 @@
     }
   })();
 
+  let currentMarked = false;
   for (let g = 0; g < NAV_GROUPS.length; g++) {
     const group = NAV_GROUPS[g];
     const sub = document.createElement("div");
@@ -314,9 +330,10 @@
       a.href = it.href;
       a.textContent = it.label;
       if (it.note) a.title = String(it.note);
-      if (pathMatchesCurrent(it.href)) {
+      if (!currentMarked && pathMatchesCurrent(it.href)) {
         a.classList.add("is-current");
         a.setAttribute("aria-current", "page");
+        currentMarked = true;
       }
       aside.appendChild(a);
     }

@@ -22,7 +22,9 @@
     "rename:char-pngs": "node scripts/rename-legacy-char-pngs.mjs",
     "cleanup:nontransparent-png": "node scripts/cleanup-nontransparent-generated.mjs",
     "cleanup:legacy-char": "node scripts/cleanup-legacy-char-generated.mjs",
-    "migrate:illustration-style-preset": "node scripts/migrate-illustration-style-preset.mjs --write"
+    "migrate:illustration-style-preset": "node scripts/migrate-illustration-style-preset.mjs --write",
+    "postinstall": "node scripts/ensure-sharp-native.mjs",
+    "fix:sharp": "npm install --include=optional sharp"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

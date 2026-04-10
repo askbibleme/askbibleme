@@ -349,8 +349,8 @@
       scene: String(sceneEl.value || "").trim(),
       sceneVariant,
       stylePreset: stylePresetEl
-        ? String(stylePresetEl.value || "biblical_semi_real_character")
-        : "biblical_semi_real_character",
+        ? String(stylePresetEl.value || "biblical_candlelit_oil_painting")
+        : "biblical_candlelit_oil_painting",
       transparentBackground: Boolean(transparentEl && transparentEl.checked),
       overlayOpacity: Number(opacityEl.value) || 0,
     };

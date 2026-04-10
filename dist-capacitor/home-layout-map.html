@@ -279,15 +279,15 @@
 │       ├── section.book-page.left-page
 │       │   … 工具条 / 翻章 / 收藏带 …
 │       │   ├── .page-title-block             ← 章号 + 书名大标题
-│       │   ├── #chapterIllustrationSlot      ← 章节插图（有图时显示，无则 hidden）
-│       │   ├── #chapterVideosSlot            ← 本章视频（紧挨插图下方；无视频则空）
+│       │   ├── #chapterIllustrationSlot      ← 章节插图（文前；有图时显示，无则 hidden）
+│       │   ├── #chapterVideosSlot            ← 本章视频（插图下方；无视频则空）
 │       │   └── … 重复词、#leftBlocks …
 │       └── section.book-page.right-page
 │           ├── #chapterVideosSlotRight         ← 宽屏时副列视频槽
 │           ├── #rightBlocks                  ← 副列查经卡片
+│           ├── #chapterEndPersonnelSection   ← 本章人员立绘横排（文末；卷首页 hidden）
 │           ├── .chapter-feedback-wrap …      ← 参与贡献
 │           ├── #chapterApprovedTitle / #chapterApprovedQuestions
-│           ├── #chapterEndPersonnelSection    ← 本章人员表（无人物时空格；卷首页 hidden）
 │           ├── #chapterEndNextGuide            ← 「点击阅读下一章」引导（按需显示）
 │           └── .chapter-nav.bottom-nav        ← 底栏翻章
 └── footer.site-footer.askbible-chrome-footer-slot  ← 底栏（接口注入，默认可 hidden）</pre>
@@ -410,6 +410,20 @@
                 <td>与左列同属一段 segments，按序拆成两列</td>
               </tr>
               <tr>
+                <td>本章人员（立绘+姓名）</td>
+                <td>
+                  <code>#chapterEndPersonnelSection</code>、<code>.chapter-end-notes-table</code>、<code>#chapterEndPersonnelTableCaption</code>、<code>#chapterEndPersonnelRoster</code>
+                </td>
+                <td>
+                  位于右栏查经卡片之后、参与贡献之前。白底表格外壳，标题由 <code>getLocalizedCopy().chapterEndPersonnelTableCaption</code> 更新；单元格内
+                  <code>#chapterEndPersonnelRoster</code> 为人物栅格（透明立绘 + 下方姓名）。
+                  <code>main.js</code> 中 <code>syncChapterCharacterRoster()</code> 根据
+                  <code>/api/study-content</code>（及兜底 <code>/api/study-character-figures</code>）的
+                  <code>chapterCharacterFigures</code> 渲染；名单由服务端 <code>keyPeople</code> 与人物库肖像匹配。无人物时表仍在、单元格为空；仅卷首页
+                  <code>hidden</code>（且 <code>.book-layout--landing</code> 下 CSS 隐藏）。
+                </td>
+              </tr>
+              <tr>
                 <td>参与贡献</td>
                 <td><code>.chapter-feedback-wrap</code>、<code>#chapterQuestionInput</code>、<code>#submitChapterQuestionBtn</code></td>
                 <td>提交本章问题</td>
@@ -418,20 +432,6 @@
                 <td>社区已通过问题</td>
                 <td><code>#chapterApprovedTitle</code>、<code>#chapterApprovedQuestions</code></td>
                 <td>列表由接口数据渲染</td>
-              </tr>
-              <tr>
-                <td>本章人员（立绘+姓名）</td>
-                <td>
-                  <code>#chapterEndPersonnelSection</code>、<code>.chapter-end-notes-table</code>、<code>#chapterEndPersonnelTableCaption</code>、<code>#chapterEndPersonnelRoster</code>
-                </td>
-                <td>
-                  白底表格外壳，标题由 <code>getLocalizedCopy().chapterEndPersonnelTableCaption</code> 更新；单元格内
-                  <code>#chapterEndPersonnelRoster</code> 为人物栅格（透明立绘 + 下方姓名）。
-                  <code>main.js</code> 中 <code>syncChapterCharacterRoster()</code> 根据
-                  <code>/api/study-content</code>（及兜底 <code>/api/study-character-figures</code>）的
-                  <code>chapterCharacterFigures</code> 渲染；名单由服务端 <code>keyPeople</code> 与人物库肖像匹配。无人物时表仍在、单元格为空；仅卷首页
-                  <code>hidden</code>（且 <code>.book-layout--landing</code> 下 CSS 隐藏）。
-                </td>
               </tr>
               <tr>
                 <td>下一章阅读引导</td>
@@ -471,11 +471,11 @@
               </tr>
               <tr>
                 <td><code>#bookChapterPanel</code></td>
-                <td>书卷 + 章节网格（旧约 / 新约 / 章节）</td>
+                <td>书卷面板：&gt;480px 三列（旧约｜新约｜章节）；≤480px 两列合并+书卷简称</td>
               </tr>
               <tr>
                 <td><code>#primaryVersionPanel</code></td>
-                <td>问题类型、主经文版本、对照版本</td>
+                <td>主经文版本、对照版本、问题类型</td>
               </tr>
               <tr>
                 <td><code>#favoritesPanel</code></td>

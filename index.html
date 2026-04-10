@@ -76,7 +76,7 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=186" />
+    <link rel="stylesheet" href="/styles.css?v=221" />
     <script src="/theme-apply.js?v=4"></script>
     <script src="/site-chrome.js?v=20" defer></script>
     <script src="/seo-apply.js?v=5" defer></script>
@@ -120,6 +120,17 @@
       <main class="book-layout">
         <div class="book-spread">
           <section class="book-page left-page">
+            <button
+              type="button"
+              class="book-page-index-tab"
+              id="bookPageIndexTab"
+              aria-label="章节与经节"
+              aria-haspopup="dialog"
+              aria-controls="chapterVersePickPanel"
+              aria-expanded="false"
+            >
+              <span class="book-page-index-tab__glyph" id="bookIndexTabAbbr" aria-hidden="true"></span>
+            </button>
             <div class="page-toolbar">
               <div class="reading-toolbar">
                 <div class="reading-toolbar-row">
@@ -243,31 +254,70 @@
               </div>
             </div>
 
-            <div class="book-side-extend-tags" aria-label="收藏">
-              <a
-                id="sideUserTag"
-                class="book-side-extend-tag book-side-extend-tag--ribbon-guest"
-                href="#"
-                role="button"
-                aria-haspopup="dialog"
-                aria-controls="favoritesPanel"
-                aria-expanded="false"
-                aria-label="打开收藏列表"
-              ></a>
-              <div
-                id="sideRibbonOnlineLine"
-                class="book-side-ribbon-online-line"
-                aria-live="polite"
-                aria-label="累计在线，未登录"
-              >
-                0
+            <div class="page-ribbon-title-row">
+              <div class="book-side-extend-tags" aria-label="收藏">
+                <a
+                  id="sideUserTag"
+                  class="book-side-extend-tag book-side-extend-tag--ribbon-guest"
+                  href="#"
+                  role="button"
+                  aria-haspopup="dialog"
+                  aria-controls="favoritesPanel"
+                  aria-expanded="false"
+                  aria-label="打开收藏列表"
+                ></a>
+                <div
+                  id="sideRibbonOnlineLine"
+                  class="book-side-ribbon-online-line"
+                  aria-live="polite"
+                  aria-label="累计在线，未登录"
+                >
+                  0
+                </div>
+              </div>
+
+              <div class="page-title-block page-title-block-stacked">
+                <div id="pageChapterNumber" class="page-chapter-number">1</div>
+                <div id="pageBookTitle" class="page-book-title">创世记</div>
               </div>
             </div>
 
-            <div class="page-title-block page-title-block-stacked">
-              <div id="pageChapterNumber" class="page-chapter-number">1</div>
-              <div id="pageBookTitle" class="page-book-title">创世记</div>
+            <!-- 章节插图：置于左栏文前（与右栏原「文末插图」对调；原人像群见右栏文末） -->
+            <div
+              id="chapterIllustrationSlot"
+              class="chapter-illustration-slot"
+              aria-live="polite"
+              aria-label="本章插画"
+              hidden
+            ></div>
+
+            <!-- 本章视频：在章节插图（若有）下方；卷首页时在「介绍」卡片上方 -->
+            <div
+              id="chapterVideosSlot"
+              class="chapter-videos-slot"
+              aria-live="polite"
+              aria-label="本章视频"
+            ></div>
+
+            <div class="repeated-words-wrap">
+              <div id="repeatedWordsLine" class="repeated-words-line">—</div>
             </div>
+
+            <div id="leftBlocks" class="blocks-stack"></div>
+          </section>
+
+          <section class="book-page right-page">
+            <div class="page-head-spacer"></div>
+
+            <!-- 宽屏时与左栏 #chapterVideosSlot 分列展示多路视频；窄屏仅左栏渲染 -->
+            <div
+              id="chapterVideosSlotRight"
+              class="chapter-videos-slot chapter-videos-slot--right-col"
+              aria-live="polite"
+              aria-label="本章视频"
+            ></div>
+
+            <div id="rightBlocks" class="blocks-stack"></div>
 
             <div
               id="chapterEndPersonnelSection"
@@ -306,42 +356,6 @@
                 </tbody>
               </table>
             </div>
-
-            <!-- 本章视频：在大标题与章节插图（若有）下方；卷首页时在「介绍」卡片上方 -->
-            <div
-              id="chapterVideosSlot"
-              class="chapter-videos-slot"
-              aria-live="polite"
-              aria-label="本章视频"
-            ></div>
-
-            <div class="repeated-words-wrap">
-              <div id="repeatedWordsLine" class="repeated-words-line">—</div>
-            </div>
-
-            <div id="leftBlocks" class="blocks-stack"></div>
-          </section>
-
-          <section class="book-page right-page">
-            <div class="page-head-spacer"></div>
-
-            <!-- 宽屏时与左栏 #chapterVideosSlot 分列展示多路视频；窄屏仅左栏渲染 -->
-            <div
-              id="chapterVideosSlotRight"
-              class="chapter-videos-slot chapter-videos-slot--right-col"
-              aria-live="polite"
-              aria-label="本章视频"
-            ></div>
-
-            <div id="rightBlocks" class="blocks-stack"></div>
-
-            <div
-              id="chapterIllustrationSlot"
-              class="chapter-illustration-slot"
-              aria-live="polite"
-              aria-label="本章插画"
-              hidden
-            ></div>
 
             <div class="chapter-feedback-wrap">
               <div class="chapter-feedback-title">参与贡献</div>
@@ -608,52 +622,12 @@
             </button>
           </div>
 
-          <div
-            class="book-chapter-compact-tabs"
-            role="tablist"
-            aria-label="书卷与章节切换"
-          >
-            <button
-              type="button"
-              class="book-chapter-compact-tab is-active"
-              role="tab"
-              id="bookChapterTabOt"
-              aria-selected="true"
-              aria-controls="bookChapterPaneOt"
-              data-bc-tab="ot"
-            >
-              旧约
-            </button>
-            <button
-              type="button"
-              class="book-chapter-compact-tab"
-              role="tab"
-              id="bookChapterTabNt"
-              aria-selected="false"
-              aria-controls="bookChapterPaneNt"
-              data-bc-tab="nt"
-            >
-              新约
-            </button>
-            <button
-              type="button"
-              class="book-chapter-compact-tab"
-              role="tab"
-              id="bookChapterTabCh"
-              aria-selected="false"
-              aria-controls="bookChapterPaneCh"
-              data-bc-tab="ch"
-            >
-              章节
-            </button>
-          </div>
-
           <div class="book-chapter-triple" role="group" aria-label="书卷与章节">
             <section
               class="book-chapter-col book-chapter-col--ot"
               id="bookChapterPaneOt"
               role="tabpanel"
-              aria-labelledby="bookChapterTabOt"
+              aria-labelledby="bookChapterOtHeading"
             >
               <div
                 id="bookChapterOtHeading"
@@ -668,7 +642,7 @@
               class="book-chapter-col book-chapter-col--nt"
               id="bookChapterPaneNt"
               role="tabpanel"
-              aria-labelledby="bookChapterTabNt"
+              aria-labelledby="bookChapterNtHeading"
             >
               <div
                 id="bookChapterNtHeading"
@@ -680,10 +654,18 @@
               <div id="bookGridNt" class="book-grid book-grid--nt"></div>
             </section>
             <section
+              class="book-chapter-col book-chapter-col--all-books"
+              id="bookChapterPaneAllBooks"
+              role="region"
+              aria-labelledby="bookChapterPanelTitle"
+            >
+              <div id="bookGridAllMobile" class="book-grid book-grid--all-mobile"></div>
+            </section>
+            <section
               class="book-chapter-col book-chapter-col--chapters"
               id="bookChapterPaneCh"
-              role="tabpanel"
-              aria-labelledby="bookChapterTabCh"
+              role="region"
+              aria-labelledby="bookChapterChHeading"
             >
               <div
                 id="bookChapterChHeading"
@@ -731,14 +713,6 @@
             </button>
           </div>
           <div class="chapter-grid-wrap">
-            <div id="contentVersionSectionTitle" class="chapter-grid-title">问题类型</div>
-            <select
-              id="toolbarContentVersionSelect"
-              class="custom-textarea single-input toolbar-primary-version-select"
-              aria-label="问题类型"
-            ></select>
-          </div>
-          <div class="chapter-grid-wrap">
             <div id="primaryVersionSectionTitle" class="chapter-grid-title">主版本（单选）</div>
             <select
               id="toolbarPrimaryVersionSelect"
@@ -750,6 +724,68 @@
             <div id="compareVersionSectionTitle" class="chapter-grid-title">对照版本（可多选）</div>
             <div id="compareVersionList" class="version-grid version-grid-multi">
               <!-- JS 渲染 -->
+            </div>
+          </div>
+          <div class="chapter-grid-wrap">
+            <div id="contentVersionSectionTitle" class="chapter-grid-title">问题类型</div>
+            <select
+              id="toolbarContentVersionSelect"
+              class="custom-textarea single-input toolbar-primary-version-select"
+              aria-label="问题类型"
+            ></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 经节快选：壳与选版本一致（全屏遮罩 + primary-version-card） -->
+    <div
+      id="chapterVersePickPanel"
+      class="verse-search-overlay primary-version-overlay"
+      hidden
+      role="presentation"
+    >
+      <button
+        type="button"
+        class="verse-search-backdrop"
+        tabindex="-1"
+        aria-label="关闭经节选择"
+        data-close-panel="chapterVersePickPanel"
+      ></button>
+      <div
+        class="verse-search-card primary-version-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chapterVersePickPanelTitle"
+      >
+        <div class="toolbar-panel-inner toolbar-panel-simple">
+          <div class="toolbar-panel-head">
+            <div class="toolbar-panel-title" id="chapterVersePickPanelTitle">章节与经节</div>
+            <button
+              type="button"
+              class="toolbar-panel-close"
+              data-close-panel="chapterVersePickPanel"
+            >
+              关闭
+            </button>
+          </div>
+          <div class="chapter-verse-pick-stack" role="group" aria-label="章节与经节">
+            <div class="chapter-grid-wrap">
+              <div id="idxPickChaptersTitle" class="chapter-grid-title">章节</div>
+              <div
+                id="idxPickChapterGrid"
+                class="chapter-grid book-chapter-chapter-grid"
+                aria-label="章节"
+              ></div>
+            </div>
+            <div class="chapter-grid-wrap">
+              <div id="idxPickVerseSectionTitle" class="chapter-grid-title">经节</div>
+              <div
+                id="idxPickVerseGrid"
+                class="version-grid chapter-verse-pick-grid"
+                role="listbox"
+                aria-label="经节"
+              ></div>
             </div>
           </div>
         </div>
@@ -1238,7 +1274,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="/main.js?v=12"></script>
+    <script type="module" src="/main.js?v=28"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>
       (function () {

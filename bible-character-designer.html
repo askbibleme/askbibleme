@@ -933,7 +933,7 @@
         align-items: flex-end;
         justify-content: center;
         box-sizing: border-box;
-        padding: 0 2px;
+        padding: 0;
       }
       .bcd-comparison-strip-img {
         display: block;
@@ -4148,10 +4148,14 @@
             : sourceBookId ? [sourceBookId] : [];
           const lifespanZh = safe(en.lifespanZh || "");
           const eraLabelZh = safe(en.eraLabelZh || "");
+          const eraLabelEn = safe(en.eraLabelEn || "");
           const characterRoleZh = safe(
             resolveBcdCharacterRoleZh(key, en.characterRoleZh || "次人物")
           );
           const identityTagsZh = safe(en.identityTagsZh || "");
+          const identityTagsEn = safe(en.identityTagsEn || "");
+          const outfitIdentityEn = safe(en.outfitIdentityEn || "");
+          const outfitPaletteZh = safe(en.outfitPaletteZh || "");
           const comparisonSheetUrl = safe(en.comparisonSheetUrl || "");
           const heroImageUrl = safe(en.heroImageUrl || "");
           const heroRosterHeight = bcdNormalizeHeroRosterHeight(en.heroRosterHeight);
@@ -4349,6 +4353,13 @@
             '<p class="bcd-hint">简短时代或叙事时期标签，便于后续筛选与识别。</p>' +
             "</div>" +
             '<div class="bcd-field-block">' +
+            "<label>时代标签（英文，短句）</label>" +
+            '<input type="text" class="bcd-era-label-en" maxlength="80" value="' +
+            eraLabelEn +
+            '" placeholder="e.g. Patriarchal age / United monarchy" />' +
+            '<p class="bcd-hint">与中文时代对应，供英文/西班牙文等界面翻译；勿用括号，尽量短。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
             "<label>人物层级</label>" +
             '<select class="bcd-character-role-zh" aria-label="人物层级">' +
             '<option value="主人物"' +
@@ -4361,11 +4372,32 @@
             '<p class="bcd-hint">按本卷叙事重要度区分关键人物与辅助人物，供人物轴和后台筛选使用。</p>' +
             "</div>" +
             '<div class="bcd-field-block">' +
-            "<label>人物标签（中文）</label>" +
+            "<label>人物标签 · 中文</label>" +
             '<input type="text" class="bcd-identity-tags-zh" maxlength="240" value="' +
             identityTagsZh +
-            '" placeholder="如：（信心之父）（蒙召离乡）" />' +
-            '<p class="bcd-hint">适合放短标签，例如（信心之父）（第一个王）（合神心意的王）。</p>' +
+            '" placeholder="如：信心之父 · 蒙召离乡" />' +
+            '<p class="bcd-hint">前台展示用短词，建议用中间点「·」分隔；勿用全角括号（）。可与下行英文一一对应。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>人物标签 · 英文短词</label>" +
+            '<input type="text" class="bcd-identity-tags-en" maxlength="200" value="' +
+            identityTagsEn +
+            '" placeholder="e.g. Father of faith · Called to leave home" />' +
+            '<p class="bcd-hint">与上行同顺序、同数量（用 · 或逗号分隔），供翻译 pipeline；slug 由服务器从英文或中文推导。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>服装识别 · 英文 · 主辅色与层次</label>" +
+            '<textarea class="bcd-outfit-identity-en" rows="3" maxlength="600" placeholder="GPT 会写：主色约50–70%、辅色20–35%、点缀5–15%；外袍/腰带/头饰/标志性配件；与 roster 其他人区分">' +
+            outfitIdentityEn +
+            "</textarea>" +
+            '<p class="bcd-hint">智能生成会填入「服装 DNA」；出图时并入提示词。同一人物多次生成应保持主色系与轮廓锚点，仅允许深浅与细节小幅变化。</p>' +
+            "</div>" +
+            '<div class="bcd-field-block">' +
+            "<label>服装色彩摘要 · 中文</label>" +
+            '<input type="text" class="bcd-outfit-palette-zh" maxlength="80" value="' +
+            outfitPaletteZh +
+            '" placeholder="如：沙土色长袍、深蓝披肩、木杖" />' +
+            '<p class="bcd-hint">智能生成须填写，与上行英文服装识别对应，供编辑快速扫读。</p>' +
             "</div>" +
             '<div class="bcd-period-toolbar">' +
             "<label>时期数量（同一人）</label>" +
@@ -4556,6 +4588,10 @@
             if (eraEl && data.eraLabelZh != null) {
               eraEl.value = String(data.eraLabelZh || "");
             }
+            var eraEnEl = card.querySelector(".bcd-era-label-en");
+            if (eraEnEl && data.eraLabelEn != null) {
+              eraEnEl.value = String(data.eraLabelEn || "");
+            }
             if (roleEl && data.characterRoleZh != null) {
               roleEl.value = resolveBcdCharacterRoleZh(
                 chineseName,
@@ -4564,6 +4600,18 @@
             }
             if (tagsEl && data.identityTagsZh != null) {
               tagsEl.value = String(data.identityTagsZh || "");
+            }
+            var tagsEnEl = card.querySelector(".bcd-identity-tags-en");
+            if (tagsEnEl && data.identityTagsEn != null) {
+              tagsEnEl.value = String(data.identityTagsEn || "");
+            }
+            var outfitEnEl = card.querySelector(".bcd-outfit-identity-en");
+            var outfitZhEl = card.querySelector(".bcd-outfit-palette-zh");
+            if (outfitEnEl && data.outfitIdentityEn != null) {
+              outfitEnEl.value = String(data.outfitIdentityEn || "");
+            }
+            if (outfitZhEl && data.outfitPaletteZh != null) {
+              outfitZhEl.value = String(data.outfitPaletteZh || "");
             }
             const slots = [
               card.querySelector('.bcd-period-slot[data-slot="0"]'),
@@ -4682,6 +4730,10 @@
             if (era0 && data.eraLabelZh != null) {
               era0.value = String(data.eraLabelZh || "");
             }
+            var eraEn0 = card.querySelector(".bcd-era-label-en");
+            if (eraEn0 && data.eraLabelEn != null) {
+              eraEn0.value = String(data.eraLabelEn || "");
+            }
             if (role0 && data.characterRoleZh != null) {
               role0.value = resolveBcdCharacterRoleZh(
                 chineseName,
@@ -4691,8 +4743,24 @@
             if (tags0 && data.identityTagsZh != null) {
               tags0.value = String(data.identityTagsZh || "");
             }
+            var tagsEn0 = card.querySelector(".bcd-identity-tags-en");
+            if (tagsEn0 && data.identityTagsEn != null) {
+              tagsEn0.value = String(data.identityTagsEn || "");
+            }
+            var outfitEn0 = card.querySelector(".bcd-outfit-identity-en");
+            var outfitZh0 = card.querySelector(".bcd-outfit-palette-zh");
+            if (outfitEn0 && data.outfitIdentityEn != null) {
+              outfitEn0.value = String(data.outfitIdentityEn || "");
+            }
+            if (outfitZh0 && data.outfitPaletteZh != null) {
+              outfitZh0.value = String(data.outfitPaletteZh || "");
+            }
             if (data.shortSceneTagEn != null) {
               slot0.querySelector(".bcd-short").value = String(data.shortSceneTagEn || "");
+            }
+            if (data.periodLabelZh != null) {
+              var plSlot0 = slot0.querySelector(".bcd-period-label");
+              if (plSlot0) plSlot0.value = String(data.periodLabelZh || "");
             }
             if (data.appearanceEn != null) {
               slot0.querySelector(".bcd-appearance").value = String(data.appearanceEn || "");
@@ -5132,6 +5200,11 @@
                 var ez = String(eraOnly.value || "").trim();
                 if (ez) characters[key].eraLabelZh = ez;
               }
+              var eraEnOnly = card.querySelector(".bcd-era-label-en");
+              if (eraEnOnly) {
+                var een = String(eraEnOnly.value || "").trim();
+                if (een) characters[key].eraLabelEn = een;
+              }
               var roleOnly = card.querySelector(".bcd-character-role-zh");
               if (roleOnly) {
                 var rz = String(roleOnly.value || "").trim();
@@ -5140,6 +5213,21 @@
               if (tagsOnly) {
                 var tz = String(tagsOnly.value || "").trim();
                 if (tz) characters[key].identityTagsZh = tz;
+              }
+              var tagsEnOnly = card.querySelector(".bcd-identity-tags-en");
+              if (tagsEnOnly) {
+                var tze = String(tagsEnOnly.value || "").trim();
+                if (tze) characters[key].identityTagsEn = tze;
+              }
+              var outfitEnOnly = card.querySelector(".bcd-outfit-identity-en");
+              var outfitZhOnly = card.querySelector(".bcd-outfit-palette-zh");
+              if (outfitEnOnly) {
+                var oie = String(outfitEnOnly.value || "").trim();
+                if (oie) characters[key].outfitIdentityEn = oie.slice(0, 600);
+              }
+              if (outfitZhOnly) {
+                var opz = String(outfitZhOnly.value || "").trim();
+                if (opz) characters[key].outfitPaletteZh = opz.slice(0, 80);
               }
               var heroEarly = String(card.getAttribute("data-hero-image-url") || "").trim();
               if (heroEarly) characters[key].heroImageUrl = heroEarly;
@@ -5178,6 +5266,11 @@
                   card.querySelector(".bcd-era-label-zh").value) ||
                   ""
               ).trim(),
+              eraLabelEn: String(
+                (card.querySelector(".bcd-era-label-en") &&
+                  card.querySelector(".bcd-era-label-en").value) ||
+                  ""
+              ).trim(),
               characterRoleZh: String(
                 (card.querySelector(".bcd-character-role-zh") &&
                   card.querySelector(".bcd-character-role-zh").value) ||
@@ -5186,6 +5279,21 @@
               identityTagsZh: String(
                 (card.querySelector(".bcd-identity-tags-zh") &&
                   card.querySelector(".bcd-identity-tags-zh").value) ||
+                  ""
+              ).trim(),
+              identityTagsEn: String(
+                (card.querySelector(".bcd-identity-tags-en") &&
+                  card.querySelector(".bcd-identity-tags-en").value) ||
+                  ""
+              ).trim(),
+              outfitIdentityEn: String(
+                (card.querySelector(".bcd-outfit-identity-en") &&
+                  card.querySelector(".bcd-outfit-identity-en").value) ||
+                  ""
+              ).trim(),
+              outfitPaletteZh: String(
+                (card.querySelector(".bcd-outfit-palette-zh") &&
+                  card.querySelector(".bcd-outfit-palette-zh").value) ||
                   ""
               ).trim(),
               periodLabelZh: String(slot0.querySelector(".bcd-period-label").value || "").trim(),

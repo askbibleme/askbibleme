@@ -1,6 +1,146 @@
 {
   "items": [
     {
+      "id": "audit_1775798066486_wpzy3y",
+      "at": "2026-04-10T05:14:26.486Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 6,
+        "heroCount": 4
+      }
+    },
+    {
+      "id": "audit_1775797933224_jj3cdw",
+      "at": "2026-04-10T05:12:13.224Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 5,
+        "heroCount": 4
+      }
+    },
+    {
+      "id": "audit_1775797302334_2cmxjy",
+      "at": "2026-04-10T05:01:42.334Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 5,
+        "heroCount": 4
+      }
+    },
+    {
+      "id": "audit_1775797245542_zlzb6w",
+      "at": "2026-04-10T05:00:45.542Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 5,
+        "heroCount": 3
+      }
+    },
+    {
+      "id": "audit_1775796554442_2x8lah",
+      "at": "2026-04-10T04:49:14.442Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 5,
+        "heroCount": 3
+      }
+    },
+    {
+      "id": "audit_1775796498100_ul5mvn",
+      "at": "2026-04-10T04:48:18.100Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 5,
+        "heroCount": 3
+      }
+    },
+    {
+      "id": "audit_1775796434511_5u01ps",
+      "at": "2026-04-10T04:47:14.511Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 5,
+        "heroCount": 2
+      }
+    },
+    {
+      "id": "audit_1775796316642_6iz714",
+      "at": "2026-04-10T04:45:16.642Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 4,
+        "heroCount": 2
+      }
+    },
+    {
+      "id": "audit_1775796191773_mg5rtp",
+      "at": "2026-04-10T04:43:11.773Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 4,
+        "heroCount": 2
+      }
+    },
+    {
+      "id": "audit_1775796145861_gnpyul",
+      "at": "2026-04-10T04:42:25.861Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 4,
+        "heroCount": 1
+      }
+    },
+    {
       "id": "audit_1775780010175_ziq0e5",
       "at": "2026-04-10T00:13:30.175Z",
       "action": "bible_character_profiles_save",

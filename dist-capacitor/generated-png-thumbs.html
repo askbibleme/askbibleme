@@ -66,6 +66,20 @@
         background: var(--accent);
         color: #fff;
       }
+      .gthumb-toolbar button.danger,
+      .gthumb-row-delete {
+        border: 1px solid rgba(180, 35, 24, 0.28);
+        background: rgba(180, 35, 24, 0.08);
+        color: #9f1f1f;
+      }
+      .gthumb-row-delete {
+        min-height: 34px;
+        padding: 0 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
       .gthumb-status {
         flex: 1 1 180px;
         font-size: 14px;
@@ -149,15 +163,81 @@
         color: var(--muted-soft);
         line-height: 1.55;
       }
+      .gthumb-profile-box {
+        margin: 0 0 14px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(139, 111, 71, 0.05);
+      }
+      .gthumb-profile-title {
+        margin: 0 0 8px;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .gthumb-profile-text {
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+      .gthumb-profile-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .gthumb-profile-list {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border: 1px solid rgba(139, 111, 71, 0.18);
+        border-radius: 12px;
+        background: rgba(255, 253, 248, 0.72);
+        font-size: 12px;
+        line-height: 1.65;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+      .gthumb-profile-list-box {
+        margin-top: 12px;
+      }
+      .gthumb-profile-list-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        border: 1px solid rgba(139, 111, 71, 0.18);
+        border-radius: 12px;
+        background: rgba(255, 253, 248, 0.9);
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ink);
+        cursor: pointer;
+        list-style: none;
+      }
+      .gthumb-profile-list-toggle::-webkit-details-marker {
+        display: none;
+      }
+      .gthumb-profile-list-toggle::after {
+        content: "展开";
+        flex: 0 0 auto;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .gthumb-profile-list-box[open] .gthumb-profile-list-toggle::after {
+        content: "收起";
+      }
     </style>
   </head>
   <body class="admin-shell-page" data-admin-current="/generated-png-thumbs.html">
     <div class="gthumb-wrap">
       <h1>出图 PNG 列表与缩略</h1>
       <p class="gthumb-lead">
-        列出 <code>public/generated/</code> 根目录下的
-        <code>.png</code>（插画出图、人物立绘等）。预览为实时缩图。勾选后可<strong>批量写入</strong>
-        <code>public/generated/thumbs/</code> 同名小图（默认最长边 320px）；写好后读经页「本章人员」会<strong>优先用静态小图</strong>，减轻
+        递归列出 <code>public/generated/</code> 下的
+        <code>.png</code>（插画出图、人物立绘、上传后转存的 PNG 等；自动排除 <code>thumbs/</code>）。预览为实时缩图。勾选后可<strong>批量写入</strong>
+        <code>public/generated/thumbs/</code> 同名小图（默认最长边 960px）；写好后读经页「本章人员」会<strong>优先用静态小图</strong>，减轻
         <code>/api/roster-portrait</code> 压力。单次最多 80 张，可分页多批操作。
       </p>
       <div id="gthumbAuth" class="gthumb-auth">
@@ -165,17 +245,31 @@
         <a href="/admin-user-login.html">用户登录</a> ·
         <a href="/admin-hub.html">管理首页</a>
       </div>
+      <div class="gthumb-profile-box">
+        <div class="gthumb-profile-title">人物档案与图片引用</div>
+        <div id="gthumbProfileSummary" class="gthumb-profile-text">尚未读取人物档案统计。</div>
+        <div class="gthumb-profile-actions">
+          <button type="button" id="gthumbProfilePreview">人物引用预检</button>
+          <button type="button" class="primary" id="gthumbProfileRepair">一键修复人物引用</button>
+        </div>
+        <details id="gthumbProfileListBox" class="gthumb-profile-list-box">
+          <summary id="gthumbProfileListToggle" class="gthumb-profile-list-toggle">缺图人物清单</summary>
+          <div id="gthumbProfileList" class="gthumb-profile-list">尚未读取缺图人物清单。</div>
+        </details>
+      </div>
       <div class="gthumb-toolbar">
         <input type="text" id="gthumbQ" placeholder="筛选文件名…" style="width: min(100%, 200px)" />
         <button type="button" id="gthumbSearch">筛选</button>
         <label style="font-size:13px;color:var(--muted)"
           >最长边(px)
-          <input type="number" id="gthumbDim" value="320" min="64" max="720" style="width: 72px"
+          <input type="number" id="gthumbDim" value="960" min="64" max="1280" style="width: 72px"
         /></label>
         <button type="button" id="gthumbReload">刷新列表</button>
         <button type="button" id="gthumbSelectPage">本页全选</button>
         <button type="button" id="gthumbClear">取消全选</button>
         <button type="button" class="primary" id="gthumbBatch">批量生成所选缩略图</button>
+        <button type="button" class="primary" id="gthumbResetAll">清空旧图并重建全部 960</button>
+        <button type="button" class="danger" id="gthumbDeleteSelected">删除所选</button>
         <span class="gthumb-status" id="gthumbStatus" aria-live="polite"></span>
       </div>
       <div class="gthumb-table-wrap">
@@ -187,6 +281,7 @@
               <th>文件名</th>
               <th style="width: 88px">原图大小</th>
               <th style="width: 100px">小图</th>
+              <th style="width: 92px">操作</th>
             </tr>
           </thead>
           <tbody id="gthumbBody"></tbody>
@@ -210,10 +305,17 @@
         const st = document.getElementById("gthumbStatus");
         const bodyEl = document.getElementById("gthumbBody");
         const pageLabel = document.getElementById("gthumbPageLabel");
+        const profileSummaryEl = document.getElementById("gthumbProfileSummary");
+        const profileListEl = document.getElementById("gthumbProfileList");
+        const profileListBoxEl = document.getElementById("gthumbProfileListBox");
+        const profileListToggleEl = document.getElementById("gthumbProfileListToggle");
+        const profilePreviewBtn = document.getElementById("gthumbProfilePreview");
+        const profileRepairBtn = document.getElementById("gthumbProfileRepair");
         let page = 1;
         const pageSize = 24;
         let lastQ = "";
         let ckpProbedOrigin = "";
+        let lastProfileAudit = null;
 
         function setAuthVisible(on) {
           if (authBox) authBox.classList.toggle("is-visible", Boolean(on));
@@ -330,6 +432,20 @@
           const q = new URLSearchParams({ n: name, w: "96" });
           return apiUrl("/api/rp?" + q.toString());
         }
+        function setProfileSummary(text) {
+          if (profileSummaryEl) profileSummaryEl.textContent = text || "";
+        }
+        function setProfileList(text) {
+          if (profileListEl) profileListEl.textContent = text || "";
+        }
+        function setProfileListTitle(text, open) {
+          if (profileListToggleEl) {
+            profileListToggleEl.textContent = text || "缺图人物清单";
+          }
+          if (profileListBoxEl && typeof open === "boolean") {
+            profileListBoxEl.open = open;
+          }
+        }
         function fmtBytes(n) {
           if (n < 1024) return n + " B";
           if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
@@ -408,15 +524,199 @@
                   "<td>" +
                   badge +
                   "</td>" +
+                  '<td><button type="button" class="gthumb-row-delete" data-name="' +
+                  name +
+                  '">删除</button></td>' +
+                  "</td>" +
                   "</tr>"
                 );
               })
               .join("");
             document.getElementById("gthumbMaster").checked = false;
-            setStatus("已加载 " + items.length + " 条。", "ok");
+            setStatus(
+              "当前页 " +
+                items.length +
+                " 条 / 共 " +
+                total +
+                " 条" +
+                (lastQ ? " · 筛选：" + lastQ : "") +
+                "。",
+              "ok"
+            );
           } catch (e) {
             setAuthVisible(true);
             setStatus(String(e.message || e), "err");
+          }
+        }
+        function formatProfileAudit(data) {
+          const d = data || {};
+          const lines = [];
+          lines.push(
+            "人物档案 " +
+              (Number(d.profileCount) || 0) +
+              " 人；档案里已填主图 " +
+              (Number(d.heroRefCount) || 0) +
+              " 人；主图引用当前可落到真实 PNG " +
+              (Number(d.heroResolvedCount) || 0) +
+              " 人。"
+          );
+          lines.push(
+            "至少有一张真实图片可用的人物 " +
+              (Number(d.anyImageResolvedCount) || 0) +
+              " 人；当前失效引用 " +
+              (Number(d.invalidRefCount) || 0) +
+              " 处；预计可自动修复 " +
+              (Number(d.touchedCharacters) || 0) +
+              " 人 / " +
+              (Array.isArray(d.repaired) ? d.repaired.length : 0) +
+              " 处。"
+          );
+          if (Array.isArray(d.repaired) && d.repaired.length) {
+            lines.push("");
+            lines.push("预检示例：");
+            d.repaired.slice(0, 8).forEach(function (line) {
+              lines.push("• " + line);
+            });
+            if (d.repaired.length > 8) {
+              lines.push("… 其余 " + (d.repaired.length - 8) + " 处未展开");
+            }
+          } else if (Number(d.invalidRefCount) > 0) {
+            lines.push("");
+            lines.push("这些人物很可能磁盘上已有图，但档案引用没有对上；可以直接点下方一键修复。");
+          }
+          return lines.join("\n");
+        }
+        function formatInvalidRefList(data) {
+          const refs = Array.isArray(data && data.invalidRefs) ? data.invalidRefs : [];
+          if (!refs.length) {
+            setProfileListTitle("缺图人物清单（0 人）", false);
+            return "当前没有检测到失效人物图片引用。";
+          }
+          const grouped = Object.create(null);
+          refs.forEach(function (row) {
+            const zh = String((row && row.zhName) || "未命名").trim() || "未命名";
+            if (!grouped[zh]) grouped[zh] = [];
+            grouped[zh].push(
+              String((row && row.field) || "unknown") +
+                " -> " +
+                String((row && row.value) || "")
+            );
+          });
+          const names = Object.keys(grouped);
+          const lines = [];
+          lines.push("缺图人物清单：" + names.length + " 人");
+          names.slice(0, 30).forEach(function (name) {
+            lines.push("");
+            lines.push(name);
+            grouped[name].slice(0, 6).forEach(function (detail) {
+              lines.push("• " + detail);
+            });
+            if (grouped[name].length > 6) {
+              lines.push("… 其余 " + (grouped[name].length - 6) + " 处未展开");
+            }
+          });
+          if (names.length > 30) {
+            lines.push("");
+            lines.push("… 其余 " + (names.length - 30) + " 人未展开");
+          }
+          setProfileListTitle("缺图人物清单（" + names.length + " 人）", false);
+          return lines.join("\n");
+        }
+        async function loadProfileAudit() {
+          setProfileSummary("正在读取人物档案统计…");
+          setProfileList("正在读取缺图人物清单…");
+          setProfileListTitle("缺图人物清单", false);
+          const reqUrl = apiUrl("/api/admin/bible-character-profiles/repair-images-preview");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({ _url: reqUrl, headers: { ...authHeaders() } })
+            );
+            const parsed = await parseJsonBody(res);
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setProfileSummary("接口 404：线上还没有人物引用预检接口，请先部署最新 server.js 并重启。");
+                setProfileList("接口 404：还拿不到缺图人物清单。");
+                setProfileListTitle("缺图人物清单（不可用）", false);
+              } else if (res.status === 401 || res.status === 403) {
+                setAuthVisible(true);
+                setProfileSummary("未登录或无管理员权限，无法读取人物档案统计。");
+                setProfileList("未登录或无管理员权限，无法读取缺图人物清单。");
+                setProfileListTitle("缺图人物清单（无权限）", false);
+              } else {
+                setProfileSummary("读取人物档案统计失败：HTTP " + res.status);
+                setProfileList("读取缺图人物清单失败：HTTP " + res.status);
+                setProfileListTitle("缺图人物清单（读取失败）", false);
+              }
+              return null;
+            }
+            const j = parsed.data || {};
+            if (!res.ok) {
+              setProfileSummary(j.error || "读取人物档案统计失败");
+              setProfileList(j.error || "读取缺图人物清单失败");
+              setProfileListTitle("缺图人物清单（读取失败）", false);
+              return null;
+            }
+            lastProfileAudit = j;
+            setProfileSummary(formatProfileAudit(j));
+            setProfileList(formatInvalidRefList(j));
+            return j;
+          } catch (e) {
+            setProfileSummary(String(e.message || e));
+            setProfileList(String(e.message || e));
+            setProfileListTitle("缺图人物清单（读取失败）", false);
+            return null;
+          }
+        }
+        async function repairProfileRefs() {
+          if (
+            !window.confirm(
+              "将自动扫描现有 generated 人物图，并把缺失/失效的档案图片引用回填到正确文件。继续？"
+            )
+          ) {
+            return;
+          }
+          setProfileSummary("正在修复人物图片引用…");
+          const reqUrl = apiUrl("/api/admin/bible-character-profiles/repair-images");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: { ...authHeaders() },
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setProfileSummary("接口 404：线上还没有人物引用修复接口，请先部署最新 server.js 并重启。");
+              } else {
+                setProfileSummary("返回非 JSON（HTTP " + res.status + "）");
+              }
+              return;
+            }
+            const j = parsed.data || {};
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) setAuthVisible(true);
+              setProfileSummary(j.error || "修复失败");
+              return;
+            }
+            await loadProfileAudit();
+            const auditText = lastProfileAudit ? "\n\n" + formatProfileAudit(lastProfileAudit) : "";
+            setProfileSummary(
+              "修复完成：回填 " +
+                (Array.isArray(j.repaired) ? j.repaired.length : 0) +
+                " 处引用，涉及 " +
+                (Number(j.touchedCharacters) || 0) +
+                " 个人物；并重建缩略图 " +
+                (Number(j.rosterThumbsBuilt) || 0) +
+                " 张。" +
+                auditText
+            );
+            await loadList();
+          } catch (e) {
+            setProfileSummary(String(e.message || e));
           }
         }
         function selectedNames() {
@@ -428,6 +728,103 @@
           });
           return out;
         }
+        function removeRowsByNames(names) {
+          const wanted = new Set(
+            (Array.isArray(names) ? names : []).map(function (x) {
+              return String(x || "").trim();
+            }).filter(Boolean)
+          );
+          if (!wanted.size) return;
+          const rows = bodyEl.querySelectorAll("tr");
+          rows.forEach(function (row) {
+            const box = row.querySelector(".gthumb-row-check");
+            const name = box ? String(box.getAttribute("data-name") || "").trim() : "";
+            if (name && wanted.has(name)) row.remove();
+          });
+        }
+        async function deleteNames(names) {
+          const list = Array.isArray(names) ? names.filter(Boolean) : [];
+          if (!list.length) {
+            setStatus("请先选择要删除的 PNG。", "err");
+            return;
+          }
+          const msg =
+            list.length === 1
+              ? "将删除 1 个 PNG，并同步删除 thumbs/ 里的同名小图。继续？"
+              : "将删除 " +
+                list.length +
+                " 个 PNG，并同步删除 thumbs/ 里的同名小图。继续？";
+          if (!window.confirm(msg)) return;
+          setStatus("删除中…", "");
+          const reqUrl = apiUrl("/api/admin/gpngs-delete");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...authHeaders(),
+                },
+                body: JSON.stringify({ names: list }),
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            const j = parsed.ok ? parsed.data : {};
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setAuthVisible(false);
+                setStatus("接口 404：请先部署最新 server.js 并重启 Node。", "err");
+              } else {
+                setStatus("返回非 JSON（HTTP " + res.status + "）", "err");
+              }
+              return;
+            }
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) setAuthVisible(true);
+              setStatus(j.error || "失败 HTTP " + res.status, "err");
+              return;
+            }
+            const deleted = Array.isArray(j.deleted) ? j.deleted.length : 0;
+            const missing = Array.isArray(j.missing) ? j.missing.length : 0;
+            const failed = Array.isArray(j.failed) ? j.failed.length : 0;
+            const deletedNames = Array.isArray(j.deleted)
+              ? j.deleted
+                  .map(function (it) {
+                    return String((it && it.name) || "").trim();
+                  })
+                  .filter(Boolean)
+              : [];
+            let done =
+              "删除完成：成功 " +
+              deleted +
+              "，缺失 " +
+              missing +
+              "，失败 " +
+              failed +
+              "。";
+            if (deletedNames.length) {
+              done += " 已删除：" + deletedNames.slice(0, 3).join("、");
+              if (deletedNames.length > 3) {
+                done += " 等 " + deletedNames.length + " 个";
+              }
+              done += "。";
+            }
+            if (failed && j.failed && j.failed[0]) {
+              done +=
+                " 例：" +
+                String(j.failed[0].name || "") +
+                " — " +
+                String(j.failed[0].error || "");
+            }
+            setStatus(done, failed ? "err" : "ok");
+            removeRowsByNames(deletedNames);
+            await loadList();
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        }
         async function batchRebuild() {
           const names = selectedNames();
           if (!names.length) {
@@ -435,7 +832,7 @@
             return;
           }
           const dimEl = document.getElementById("gthumbDim");
-          const maxEdge = Number(dimEl && dimEl.value) || 320;
+          const maxEdge = Number(dimEl && dimEl.value) || 960;
           if (
             !window.confirm(
               "将为 " +
@@ -494,7 +891,72 @@
             setStatus(String(e.message || e), "err");
           }
         }
+        async function resetAllThumbs() {
+          const dimEl = document.getElementById("gthumbDim");
+          const maxEdge = Number(dimEl && dimEl.value) || 960;
+          if (
+            !window.confirm(
+              "将删除 public/generated/thumbs/ 里的旧缩略图，并按最长边 " +
+                maxEdge +
+                "px 为所有 generated PNG 全量重建。继续？"
+            )
+          ) {
+            return;
+          }
+          setStatus("清空旧图并重建全部中…", "");
+          const reqUrl = apiUrl("/api/admin/gpngs-reset");
+          try {
+            const res = await fetch(
+              reqUrl,
+              fetchOpts({
+                _url: reqUrl,
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...authHeaders(),
+                },
+                body: JSON.stringify({ maxEdge: maxEdge }),
+              })
+            );
+            const parsed = await parseJsonBody(res);
+            const j = parsed.ok ? parsed.data : {};
+            if (!parsed.ok) {
+              if (res.status === 404) {
+                setAuthVisible(false);
+                setStatus("接口 404：请先部署最新 server.js 并重启 Node。", "err");
+              } else {
+                setStatus("返回非 JSON（HTTP " + res.status + "）", "err");
+              }
+              return;
+            }
+            if (!res.ok) {
+              if (res.status === 401 || res.status === 403) setAuthVisible(true);
+              setStatus(j.error || "失败 HTTP " + res.status, "err");
+              return;
+            }
+            const removed = Array.isArray(j.removedThumbs)
+              ? j.removedThumbs.length
+              : 0;
+            const built = Array.isArray(j.built) ? j.built.length : 0;
+            const failed = Array.isArray(j.failed) ? j.failed.length : 0;
+            setStatus(
+              "重建完成：已删除旧图 " +
+                removed +
+                " 张，重建 " +
+                built +
+                " 张，失败 " +
+                failed +
+                " 张。",
+              failed ? "err" : "ok"
+            );
+            await loadList();
+          } catch (e) {
+            setStatus(String(e.message || e), "err");
+          }
+        }
         document.getElementById("gthumbReload").addEventListener("click", function () {
+          lastQ = String(document.getElementById("gthumbQ").value || "").trim();
+          page = 1;
           void loadList();
         });
         document.getElementById("gthumbSearch").addEventListener("click", function () {
@@ -533,7 +995,32 @@
         document.getElementById("gthumbBatch").addEventListener("click", function () {
           void batchRebuild();
         });
+        document.getElementById("gthumbResetAll").addEventListener("click", function () {
+          void resetAllThumbs();
+        });
+        document
+          .getElementById("gthumbDeleteSelected")
+          .addEventListener("click", function () {
+            void deleteNames(selectedNames());
+          });
+        profilePreviewBtn.addEventListener("click", function () {
+          void loadProfileAudit();
+        });
+        profileRepairBtn.addEventListener("click", function () {
+          void repairProfileRefs();
+        });
+        bodyEl.addEventListener("click", function (ev) {
+          const btn =
+            ev.target && ev.target.closest
+              ? ev.target.closest(".gthumb-row-delete")
+              : null;
+          if (!btn) return;
+          const name = String(btn.getAttribute("data-name") || "").trim();
+          if (!name) return;
+          void deleteNames([name]);
+        });
         void loadList();
+        void loadProfileAudit();
       })();
     </script>
   </body>

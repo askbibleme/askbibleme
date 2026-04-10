@@ -42,6 +42,11 @@ import {
   SECONDARY_PROFILE_MIN_FIELDS,
 } from "./src/bible-character-registry-schema.js";
 import {
+  buildReaderRosterIdentityDisplay,
+  coalesceIdentityTagsFromAiPayload,
+  mergeStoredCharacterDisplayLabels,
+} from "./src/bible-character-display-tags.js";
+import {
   runScenePipelineFromPublishedData,
   generateIllustrationPrompt,
   analyzeChapterForIllustration,
@@ -57,6 +62,7 @@ import {
   layoutScaleHintForStature,
   resolveChapterRosterPortrait,
   sanitizeCharacterFigurePortraitSlotByZh,
+  periodLabelZhForSlot,
 } from "./src/chapter-illustration/index.js";
 import {
   characterProfilesUsesSqlite,
@@ -647,7 +653,7 @@ const READ_CACHE_TTL_MS = 60 * 1000;
 const readApiCache = new Map();
 
 /** 查经 JSON 读缓存键前缀；全局章人物表等变更时请 bump，避免旧缓存章末人物错位 */
-const STUDY_CONTENT_CACHE_TAG = "study:v8";
+const STUDY_CONTENT_CACHE_TAG = "study:v9";
 const writeRateLimitMap = new Map();
 const writeDedupeMap = new Map();
 
@@ -1865,6 +1871,10 @@ function coerceLifeStagesRoot(v) {
       lifespanZh: "",
       eraLabelZh: "",
       identityTagsZh: "",
+      identityTags: [],
+      characterRoleZh: "",
+      outfitIdentityEn: "",
+      outfitPaletteZh: "",
       stages: arr,
     };
   }
@@ -1902,6 +1912,10 @@ function coerceLifeStagesRoot(v) {
         lifespanZh: safeText(v.lifespanZh || "").slice(0, 80),
         eraLabelZh: safeText(v.eraLabelZh || "").slice(0, 80),
         identityTagsZh: safeText(v.identityTagsZh || "").slice(0, 240),
+        identityTags: Array.isArray(v.identityTags) ? v.identityTags : [],
+        characterRoleZh: safeText(v.characterRoleZh || "").slice(0, 16),
+        outfitIdentityEn: safeText(v.outfitIdentityEn || "").slice(0, 600),
+        outfitPaletteZh: safeText(v.outfitPaletteZh || "").slice(0, 80),
         stages: [
           {
             labelZh: safeText(v.labelZh || "").slice(0, 32),
@@ -1920,6 +1934,32 @@ function coerceLifeStagesRoot(v) {
 function parseLifeStagesPayloadFromAiText(text) {
   return coerceLifeStagesRoot(tryParseJsonLoose(text));
 }
+
+/** 与人物设计器表单一致：智能生成须尽量一次性填满可编辑字段（勿留空键） */
+const BCD_MANDATORY_ADMIN_FORM_BASE_EN = [
+  "MANDATORY admin form fill: Output MUST include every root-level key the prompt lists below with a non-empty string value — including outfitPaletteZh (Chinese color/garment summary). Never omit a key or use \"\" for outfitIdentityEn or outfitPaletteZh.",
+  "scripturePersonalityZh + scripturePersonalityEn: REQUIRED — biblical character, virtues, narrative reputation, inner temperament for illustrators; NOT clothing or face shape.",
+  "lifespanZh: REQUIRED — concise Chinese. If Scripture records lifespan at death, prefer 活了X岁. If only broad consensus (e.g. common estimate for a king), use 约X岁 or 常见推测… . If truly unknown, use 不详. Never omit the key.",
+  "eraLabelZh: REQUIRED — short Chinese era tag such as 族长时代 / 士师时代 / 联合王国 / 出埃及年代 / 被掳与归回 / 第二圣殿 / 福音书时期 / 使徒时代.",
+  "eraLabelEn: REQUIRED — very short English era line parallel to eraLabelZh (e.g. Patriarchal age / Judges period) for translators; no parentheses; not a long sentence.",
+  "identityTags: REQUIRED — JSON array of 2 to 5 objects for on-screen chips. Each object MUST have slug (stable lowercase_snake_case id for i18n), zh (short Chinese, ≤12 chars): NEVER use （） or () anywhere in zh; en (short English, ≤40 chars, REQUIRED non-empty): NEVER use （） or () in en either. Example: [{\"slug\":\"father_of_faith\",\"zh\":\"信心之父\",\"en\":\"Father of faith\"}]. Do NOT use long prose.",
+  "outfitIdentityEn: REQUIRED non-empty string — one compact English paragraph: LOCKED costume color DNA (primary ~50–70%, secondary ~20–35%, accent ~5–15%), outer layer, belt/sash, headwear, signature accessory. Never return an empty string.",
+  "outfitPaletteZh: REQUIRED non-empty string — short Chinese (≤80 chars) summarizing the same garment colors and layers as outfitIdentityEn for editors (e.g. 沙土色长袍、深蓝披肩、木杖). Never return \"\".",
+  "characterRoleZh: REQUIRED — exactly 主人物 or 次人物. Use 主人物 for covenant anchors, major narrative leads, titled prophets/kings/apostles when Scripture presents them as central; 次人物 for supporting cast, brief mentions, court officials without a book-level arc.",
+].join(" ");
+
+const BCD_MANDATORY_ADMIN_FORM_SINGLE_EN = `${BCD_MANDATORY_ADMIN_FORM_BASE_EN} periodLabelZh: REQUIRED at root — short Chinese for the default life-stage column, e.g. 壮年参考 / 成年 / 唯一出场 / 标准参考 (aligned with appearanceEn).`;
+
+const BCD_MANDATORY_ADMIN_FORM_MULTISTAGE_EN = `${BCD_MANDATORY_ADMIN_FORM_BASE_EN} Multi-stage: do NOT include periodLabelZh at root; each stages[i].labelZh is the period column label for that slot.`;
+
+/** 人物服装识别：稳定主辅色 + 层次/配件，跨次生成可小幅变化但不换脸式换衣 */
+const BCD_OUTFIT_IDENTITY_RULES_EN = [
+  "Outfit identity (roster distinguishability): Readers must tell this figure from others not only by face but by clothing. Forbidden: everyone in the same undyed-beige tunic + identical brown mantle.",
+  "Each figure needs a STABLE costume DNA. Primary garment color family ≈50–70% of visible cloth; secondary family ≈20–35%; small accent (trim, border, woven stripe, jewelry) ≈5–15%. Use period-plausible ancient Near Eastern / eastern Mediterranean dyes (indigo, madder/rust, Tyrian purple for elite, undyed cream/gray, olive, terracotta) — never neon or modern fashion colors.",
+  "Lock at least THREE recognizable anchors among: dominant hue, secondary hue, outer-layer type (shawl/mantle/cloak/wrap), belt or sash style, head covering, one signature accessory (e.g. staff, distinctive weave). Same person on later generations: keep primary + secondary families and silhouette; allow only controlled micro-variation (deeper shade, weave texture, fold of mantle, belt material) — not a random new palette.",
+  "Cross-cast: pick a combo clearly different from generic stock patriarchs and from other major biblical figures unless this character is that person; avoid accidental palette twins.",
+  "appearanceEn must EXECUTE the DNA: repeat the same dominant/secondary/accent families and garment anchors; add fabric weight and drape detail there.",
+].join(" ");
 
 /** 编辑预先填写的人物气质/性格：须保留在输出最前，AI 在其后补充，而非覆盖。 */
 function mergeBcdScripturePersonality(editorPref, aiOut, maxLen) {
@@ -2245,6 +2285,29 @@ function normalizeCharacterRoleZh(raw) {
   return "";
 }
 
+/** GPT 可能返回中文或英文档位，统一为 主人物|次人物，失败则回退规则推断 */
+function coalesceCharacterRoleZhFromAi(raw, chineseName, hintBookId) {
+  let s = safeText(raw || "").trim();
+  const lower = s.toLowerCase();
+  if (lower === "primary" || lower === "major" || lower === "main" || lower === "lead") {
+    s = "主人物";
+  } else if (
+    lower === "secondary" ||
+    lower === "supporting" ||
+    lower === "minor" ||
+    lower === "配角"
+  ) {
+    s = "次人物";
+  }
+  const n = normalizeCharacterRoleZh(s);
+  if (n) return n;
+  const bid = resolveCharacterSourceBookId(
+    chineseName,
+    safeText(hintBookId || "").trim().toUpperCase()
+  );
+  return resolveCharacterRoleZh(chineseName, "", bid);
+}
+
 function resolveCharacterRoleZh(chineseName, currentRole, sourceBookId) {
   const normalized = normalizeCharacterRoleZh(currentRole);
   if (normalized) return normalized;
@@ -2272,6 +2335,83 @@ function resolveCharacterLifespanZh(chineseName, englishName) {
     return BIBLE_EXPLICIT_LIFESPAN_ZH[enKey];
   }
   return "不详";
+}
+
+/** 人物档案未填 eraLabelZh 时，按所属书卷给读经人物带第三行「时代」兜底（与正典分段一致） */
+function defaultEraLabelZhForBookId(bookId) {
+  const id = String(bookId || "").trim().toUpperCase();
+  if (!id) return "";
+  if (id === "GEN") return "族长时代";
+  if (id === "EXO" || id === "LEV" || id === "NUM" || id === "DEU") {
+    return "出埃及与律法时代";
+  }
+  if (
+    id === "JOS" ||
+    id === "JDG" ||
+    id === "RUT" ||
+    id === "1SA" ||
+    id === "2SA" ||
+    id === "1KI" ||
+    id === "2KI" ||
+    id === "1CH" ||
+    id === "2CH" ||
+    id === "EZR" ||
+    id === "NEH" ||
+    id === "EST"
+  ) {
+    return "王国与史传时期";
+  }
+  if (id === "JOB" || id === "PSA" || id === "PRO" || id === "ECC" || id === "SNG") {
+    return "智慧文学时期";
+  }
+  if (id === "ISA" || id === "JER" || id === "LAM" || id === "EZK" || id === "DAN") {
+    return "大先知时期";
+  }
+  if (
+    id === "HOS" ||
+    id === "JOL" ||
+    id === "AMO" ||
+    id === "OBA" ||
+    id === "JON" ||
+    id === "MIC" ||
+    id === "NAM" ||
+    id === "HAB" ||
+    id === "ZEP" ||
+    id === "HAG" ||
+    id === "ZEC" ||
+    id === "MAL"
+  ) {
+    return "小先知时期";
+  }
+  if (id === "MAT" || id === "MRK" || id === "LUK" || id === "JHN") return "福音书时期";
+  if (id === "ACT") return "使徒时代";
+  if (
+    id === "ROM" ||
+    id === "1CO" ||
+    id === "2CO" ||
+    id === "GAL" ||
+    id === "EPH" ||
+    id === "PHP" ||
+    id === "COL" ||
+    id === "1TH" ||
+    id === "2TH" ||
+    id === "1TI" ||
+    id === "2TI" ||
+    id === "TIT" ||
+    id === "PHM" ||
+    id === "HEB" ||
+    id === "JAS" ||
+    id === "1PE" ||
+    id === "2PE" ||
+    id === "1JN" ||
+    id === "2JN" ||
+    id === "3JN" ||
+    id === "JUD"
+  ) {
+    return "使徒时代";
+  }
+  if (id === "REV") return "启示录时期";
+  return "";
 }
 
 function applyCharacterProfileLifespanDefaults(profilesRoot) {
@@ -2444,13 +2584,19 @@ async function handleCharacterProfileGenerate(req, res) {
     }
     const system = [
       "You are a Bible reference assistant for illustration workflows.",
-      "Given a biblical figure's Chinese name, output a single JSON object with exactly these string keys:",
+      BCD_MANDATORY_ADMIN_FORM_SINGLE_EN,
+      "Given a biblical figure's Chinese name, output a single JSON object with these string keys (all required; every string field must be non-empty where the schema says so, including outfitPaletteZh):",
       "englishName: common English name as used in Bible translations.",
       "scripturePersonalityZh: concise Chinese — how Scripture portrays this person's character, virtues, and role (e.g. 被称为信心之父、信而顺服). Not physical appearance.",
       "scripturePersonalityEn: one or two English sentences — inner character, faith posture, demeanor for illustrators (e.g. 'father of faith', steadfast obedience); not clothing or face shape.",
       "lifespanZh: concise Chinese lifespan note. Priority: (1) if Scripture explicitly records lifespan, use that; (2) otherwise only use a very common Bible-study / theologian estimate if broadly recognized; (3) otherwise return 不详.",
       "eraLabelZh: concise Chinese era/dynasty/story-period label, e.g. 列王时代 / 士师时代 / 族长时代 / 出埃及年代. Keep it short.",
-      "identityTagsZh: concise Chinese tags for this person's biblical identity, separated by Chinese full-width parentheses groups or semicolons, e.g. （信心之父）（蒙召离乡） or （第一个王）（便雅悯支派）. Prefer short, memorable Bible-study labels rather than long prose.",
+      "eraLabelEn: short English era line parallel to eraLabelZh (e.g. United monarchy / Patriarchal age). No parentheses; not a long sentence — for EN/ES UI.",
+      "identityTags: JSON array of 2–5 objects { slug, zh, en } — slug is stable snake_case for i18n; zh is short (≤12 chars) WITHOUT （） or (); en short English WITHOUT （） or () either. No long prose.",
+      "characterRoleZh: exactly 主人物 or 次人物 — see MANDATORY admin form rules above.",
+      "periodLabelZh: short Chinese label for the first life-stage column (e.g. 壮年参考 / 成年 / 唯一出场), aligned with this single appearanceEn.",
+      "outfitIdentityEn: required string — one compact English paragraph: this figure's LOCKED costume color DNA (primary ~50–70%, secondary ~20–35%, accent ~5–15%), outer-layer type, belt/sash, headwear if any, one signature accessory/trim; period-plausible dyes only; must be roster-unique vs generic templates.",
+      "outfitPaletteZh: REQUIRED short Chinese (≤80 chars) summarizing the same palette and garment cues as outfitIdentityEn for human editors — never empty.",
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
       "shortSceneTagEn: one short English phrase (about one sentence) for scene context beside Chinese scene text (e.g. at the well, before Pharaoh). Put story location or moment HERE — NOT inside appearanceEn.",
       "appearanceEn: detailed English visual description for image generation. Include stable facial identity cues (face shape, eye spacing, nose, distinctive traits) so the same figure can be recognized if more life stages are added later. For roster, article, or museum-style use, describe expression and gaze so the figure can engage the reader: calm dignified eye contact toward the viewer when posture allows (soft direct or gentle three-quarter), warm and intentional — not an aggressive stare; this is AI-assisted interpretive illustration, not documentary photography. Ancient Near Eastern or period-appropriate styling; no modern items.",
@@ -2459,10 +2605,14 @@ async function handleCharacterProfileGenerate(req, res) {
       "Cross-cast distinctiveness (mandatory): This person will be shown in a roster beside many other named biblical figures. The face and build must be clearly UNIQUE — not interchangeable with a generic handsome-bearded patriarch or stock template. Deliberately vary face shape, nose bridge and tip, eye shape and spacing, brows, jaw width, cheek volume, ears, hairline, beard density and pattern, stature, and age-appropriate details within believable ancient Levant / broader MENA diversity. A viewer comparing lineup images must not confuse this character with a different named person.",
       "Costume chronology and office (mandatory for appearanceEn): (1) PRIMEVAL — BEFORE Cain in the Genesis story order (creation through Genesis 3: Adam and Eve as the first humans, Eden and immediate expulsion): garments MUST be simple tanned animal hides, fur, or minimal primitive skin wraps only — NOT woven priestly vestments, NOT royal court layered textiles, NOT crown or palace insignia, NOT fine dyed linens of later eras. (2) FROM CAIN ONWARD through all later Scripture: do NOT default the roster to primitive skins. Match clothing to Scripture-informed identity, wealth, social rank, and historical layer — HIGH PRIEST / priests at worship: plausible biblical-era priestly dress (linen layers, ephod-related elements, prescribed colors where fitting); KINGS / QUEENS / high court officials: dignified layered robes, quality weave, tasteful ornament or signs of rule when the narrative warrants; wealthy patriarchs, chiefs, merchants: well-made tunics, mantles, period-plausible dyes; poor, captives, mourners, or deliberate humility: simpler or rougher garb when the text signals. Differentiate tabernacle vs temple vs exile vs return vs Second Temple vs Gospel-era Palestine in plausible cut and textile when the figure’s story sits in that layer.",
       "Clothing must match biblical social standing (apply ONLY outside the primeval Adam/Eve animal-skin rule above): figures Scripture shows as wealthy or high-status — patriarchs with large herds and households (e.g. Abraham, Isaac), chiefs, kings, courtiers, priests — wear well-made ancient Near Eastern dress appropriate to their office and era — layered robes, quality textiles, tasteful dye or trim, dignified draping; do NOT default to drab sackcloth or generic impoverished peasant garb unless the narrative clearly demands poverty, mourning, or deliberate humility. Infer from story cues (flocks, wells, servants, gifts, throne, altar service).",
-      "Garment variety within era (mandatory for appearanceEn): Stay strictly ancient Near Eastern / eastern Mediterranean biblical-era dress — wool, linen, tunics, mantles, cloaks, sashes, veils where fitting; NO medieval European, NO Renaissance, NO modern or fantasy costume. Avoid generic roster sameness: do NOT default every male to the same undyed tunic + identical brown outer wrap. Name specific, plausible variety in cut, layering, drape, weave, trim, and head covering for THIS person. Period dyes only (indigo/blue, madder/rust red, purple for elite, undyed cream/gray, olive, terracotta, subtle stripes) — distinct palette vs a monochrome beige cast, but never neon or anachronistic fashion colors.",
+      "Garment variety within era (mandatory in appearanceEn): Stay strictly ancient Near Eastern / eastern Mediterranean biblical-era dress — wool, linen, tunics, mantles, cloaks, sashes, veils where fitting; NO medieval European, NO Renaissance, NO modern or fantasy costume. Avoid generic roster sameness: do NOT default every male to the same undyed tunic + identical brown outer wrap. Name specific, plausible variety in cut, layering, drape, weave, trim, and head covering for THIS person. Period dyes only (indigo/blue, madder/rust red, purple for elite, undyed cream/gray, olive, terracotta, subtle stripes) — distinct palette vs a monochrome beige cast, but never neon or anachronistic fashion colors.",
+      BCD_OUTFIT_IDENTITY_RULES_EN,
       "Respond with ONLY valid JSON, no markdown fences, no commentary.",
     ].join(" ");
     const userParts = [`Chinese name: ${chineseName}`];
+    userParts.push(
+      "Return one JSON object including every key the system listed (englishName, scripturePersonalityZh, scripturePersonalityEn, lifespanZh, eraLabelZh, eraLabelEn, identityTags, characterRoleZh, periodLabelZh, outfitIdentityEn, outfitPaletteZh, shortSceneTagEn, appearanceEn). identityTags MUST be a JSON array (not a string). Each tag object needs non-empty zh and en with no （） or () in either; outfitIdentityEn and outfitPaletteZh MUST each be non-empty strings. No empty omissions."
+    );
     if (notes) userParts.push(`Additional notes from editor: ${notes}`);
     if (prefZh || prefEn) {
       userParts.push("EDITOR_PRIORITY (must lead the JSON personality fields, verbatim, then ； then your additions):");
@@ -2499,30 +2649,53 @@ async function handleCharacterProfileGenerate(req, res) {
       safeText(parsed.scripturePersonalityEn || ""),
       600
     );
-    const lifespanZh = resolveCharacterLifespanZh(chineseName, englishName).slice(0, 80);
+    const lifespanAi = safeText(parsed.lifespanZh || "").trim().slice(0, 80);
+    const lifespanZh = (
+      lifespanAi ||
+      resolveCharacterLifespanZh(chineseName, englishName).slice(0, 80)
+    ).slice(0, 80);
     const eraLabelZh = safeText(parsed.eraLabelZh || "").slice(0, 80);
-    const identityTagsZh = safeText(parsed.identityTagsZh || "").slice(0, 240);
+    const eraLabelEn = safeText(parsed.eraLabelEn || "").slice(0, 80);
+    const identityTags = coalesceIdentityTagsFromAiPayload(parsed);
+    const idPack = mergeStoredCharacterDisplayLabels({ identityTags });
+    const identityTagsZh = idPack.identityTagsZh;
     const shortSceneTagEn = safeText(parsed.shortSceneTagEn || "");
     const appearanceEn = safeText(parsed.appearanceEn || "");
+    const outfitIdentityEn = safeText(parsed.outfitIdentityEn || "").slice(0, 600);
+    const outfitPaletteZh = safeText(parsed.outfitPaletteZh || "").slice(0, 80);
+    const periodLabelZh = safeText(parsed.periodLabelZh || "").slice(0, 32);
+    const sourceBookId = resolveCharacterSourceBookId(chineseName, "");
+    const characterRoleZh = coalesceCharacterRoleZhFromAi(
+      parsed.characterRoleZh,
+      chineseName,
+      sourceBookId
+    );
+    if (!String(outfitIdentityEn || "").trim() || !String(outfitPaletteZh || "").trim()) {
+      return res.status(500).json({
+        error: "模型未返回完整的服装识别或服装色彩摘要，请重试。",
+      });
+    }
     if (!englishName && !appearanceEn) {
       return res.status(500).json({ error: "模型返回内容为空，请重试。" });
     }
     res.json({
       ok: true,
       englishName: englishName.slice(0, 80),
-      sourceBookId: resolveCharacterSourceBookId(chineseName, ""),
-      characterRoleZh: resolveCharacterRoleZh(
-        chineseName,
-        "",
-        resolveCharacterSourceBookId(chineseName, "")
-      ),
+      sourceBookId,
+      characterRoleZh,
       scripturePersonalityZh,
       scripturePersonalityEn,
       lifespanZh,
       eraLabelZh,
+      eraLabelEn,
+      identityTags: idPack.identityTags,
       identityTagsZh,
+      identityTagsEn: idPack.identityTagsEn,
+      periodLabelZh,
       shortSceneTagEn: shortSceneTagEn.slice(0, 160),
       appearanceEn: appearanceEn.slice(0, 1200),
+      outfitIdentityEn,
+      outfitPaletteZh,
     });
   } catch (err) {
     console.error(err);
@@ -2582,13 +2755,18 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
     }
     const system = [
       "You are a Bible scholar assistant for illustration consistency workflows.",
+      BCD_MANDATORY_ADMIN_FORM_MULTISTAGE_EN,
       "Given a biblical figure's Chinese name, output ONE JSON object with:",
       "englishName: string — common English name in major Bible translations.",
       "scripturePersonalityZh: concise Chinese — character, virtues, and biblical reputation as Scripture presents them (e.g. 信心之父、信而顺服、柔和谦卑). Not physical appearance.",
       "scripturePersonalityEn: 1–3 English sentences — temperament, inner life, and narrative role for illustrators (e.g. 'known as the father of faith', 'courageous before giants'); do NOT repeat hair, face, or clothing (those go in appearanceEn per stage).",
       "lifespanZh: concise Chinese lifespan note. Priority: (1) if Scripture explicitly records lifespan, use that; (2) otherwise only use a very common Bible-study / theologian estimate if broadly recognized; (3) otherwise return 不详.",
       "eraLabelZh: concise Chinese era/story-period label, e.g. 族长时代 / 士师时代 / 联合王国 / 被掳归回后.",
-      "identityTagsZh: concise memorable Chinese identity tags, preferably wrapped like （信心之父）（以色列王） or separated with semicolons if needed. Keep tags short and recognizable.",
+      "eraLabelEn: short English era line parallel to eraLabelZh. No parentheses; for EN/ES UI.",
+      "identityTags: JSON array of 2–5 objects { slug, zh, en } — zh and en short, no （） or (); slug stable snake_case.",
+      "characterRoleZh: exactly 主人物 or 次人物 — see MANDATORY admin form rules above.",
+      "outfitIdentityEn: required string — one compact English paragraph: LOCKED costume color DNA (primary ~50–70%, secondary ~20–35%, accent ~5–15%), outer layer, belt/sash, headwear, signature accessory; same DNA across all stages — later stages may show richer layers or deeper dyes but must NOT jump to an unrelated palette.",
+      "outfitPaletteZh: REQUIRED short Chinese (≤80 chars) for editors — same palette summary as outfitIdentityEn; never empty.",
       "If the user message includes EDITOR_PRIORITY lines for scripturePersonalityZh and/or scripturePersonalityEn, those strings are authoritative: each corresponding JSON field MUST begin with that exact text verbatim, then a Chinese semicolon ；, then your own complementary biblical traits. Never remove or contradict the editor text. If no EDITOR_PRIORITY for a field, generate that field normally.",
       "stages: array — DEFAULT is ONE adult canonical reference (see rules below).",
       "- DEFAULT (when Editor notes do NOT explicitly request multiple life stages): Output exactly 1 stage. That stage MUST be a physically mature adult in prime years — the canonical face-and-body template for roster and downstream scene generation — NOT an infant or child, NOT extreme end-of-life frailty as the only output. labelZh may cue 成年 / 壮年 / 标准参考. shortSceneTagEn: one representative story beat. appearanceEn: lock clear, stable facial identity traits (bone structure, eyes, nose, jaw, skin-tone family) plus prime-adult hair, build, and costume that match Scripture office/wealth.",
@@ -2608,10 +2786,14 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       "Costume chronology and office (mandatory for each appearanceEn): Same rules as single-profile generation — PRIMEVAL BEFORE Cain (Adam, Eve in Genesis 1–3 / immediate expulsion): animal hides or primitive skin wraps only, no priestly or royal woven finery. FROM CAIN ONWARD: dress MUST reflect office (priest, king, prophet, soldier, slave, farmer, etc.), wealth, rank, and narrative era — priests at service in plausible biblical-era cultic dress; royalty and high court in layered quality robes and fitting insignia when warranted; wealthy households in good tunics and mantles; poverty, exile, mourning in humbler cloth when the text says so. Each stage’s clothing must evolve plausibly with that stage’s story moment.",
       "Clothing per stage must match biblical social standing (outside primeval animal-skin-only cases): wealthy patriarchs, tribal leaders, kings, officials, and priests should look appropriately prosperous and role-specific — layered robes, quality woven garments, priestly or royal detail where Scripture places them; avoid a generic drab peasant default when the person is rich, honored, or holds sacred or royal office. Use humbler dress only when the text clearly indicates poverty, exile, mourning, or similar.",
       "Garment variety within era (mandatory for each appearanceEn): Strictly biblical-era Near Eastern / eastern Mediterranean garments only; forbidden medieval, Renaissance, modern, or fantasy dress. Across the project many figures exist — do NOT reuse one stock costume description for every patriarch. For this figure, specify concrete variety (layering, mantle vs wrap, sleeve, sash, trim, head covering) and period-plausible colors (undyed wool, indigo, madder red, purple accents if elite, olive, terracotta, etc.) so they are not interchangeable with a generic beige-brown template, without breaking historical plausibility.",
+      BCD_OUTFIT_IDENTITY_RULES_EN,
       "Respond with ONLY valid JSON. No markdown fences, no commentary.",
-      "Required root shape (mandatory): a single JSON object with keys englishName, scripturePersonalityZh, scripturePersonalityEn, lifespanZh, eraLabelZh, identityTagsZh, and stages. The stages value MUST be a JSON array: default length 1 (single adult); length 2–3 ONLY when Editor notes explicitly request multi-stage. Each object MUST have labelZh, shortSceneTagEn, appearanceEn. Never omit the key \"stages\"; do not rename it (e.g. not lifeStages only); do not return the stages list as the root array without wrapping it in that object.",
+      "Required root shape (mandatory): a single JSON object with keys englishName, scripturePersonalityZh, scripturePersonalityEn, lifespanZh, eraLabelZh, eraLabelEn, identityTags, characterRoleZh, outfitIdentityEn, outfitPaletteZh (REQUIRED non-empty Chinese), and stages. identityTags MUST be a JSON array. No periodLabelZh at root. The stages value MUST be a JSON array: default length 1 (single adult); length 2–3 ONLY when Editor notes explicitly request multi-stage. Each object MUST have labelZh, shortSceneTagEn, appearanceEn. Never omit the key \"stages\"; do not rename it (e.g. not lifeStages only); do not return the stages list as the root array without wrapping it in that object.",
     ].join(" ");
     const userParts = [`Chinese name: ${chineseName}`];
+    userParts.push(
+      "Root JSON must include every key: englishName, scripturePersonalityZh, scripturePersonalityEn, lifespanZh, eraLabelZh, eraLabelEn, identityTags, characterRoleZh, outfitIdentityEn, outfitPaletteZh, stages — no omissions. outfitIdentityEn and outfitPaletteZh MUST be non-empty. Each identityTags item: non-empty zh and en with no （） or (); en parallel to zh."
+    );
     userParts.push(
       bcdEditorNotesRequestMultiStage(notes)
         ? "Remember: all stages are the same person; facial identity must be unified; costumes must differ stage to stage, with later wealthy phases visibly richer dress than earlier ones."
@@ -2629,7 +2811,7 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       const userContent =
         attempt === 0
           ? userParts.join("\n")
-          : `${userParts.join("\n")}\n\nVALIDATION FAILED: Your last reply was not usable. Reply with ONLY one JSON object (no markdown, no prose). It MUST include top-level keys englishName, scripturePersonalityZh, scripturePersonalityEn, lifespanZh, eraLabelZh, identityTagsZh, and stages. The value of stages MUST be a JSON array of 1 to 3 objects; each object MUST have labelZh, shortSceneTagEn, appearanceEn.`;
+          : `${userParts.join("\n")}\n\nVALIDATION FAILED: Your last reply was not usable. Reply with ONLY one JSON object (no markdown, no prose). It MUST include top-level keys englishName, scripturePersonalityZh, scripturePersonalityEn, lifespanZh, eraLabelZh, eraLabelEn, identityTags (array), characterRoleZh, outfitIdentityEn (non-empty English costume DNA), outfitPaletteZh (non-empty Chinese color summary), and stages. The value of stages MUST be a JSON array of 1 to 3 objects; each object MUST have labelZh, shortSceneTagEn, appearanceEn.`;
       try {
         text = await openAiChatHelper({
           system,
@@ -2640,7 +2822,15 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
         return res.status(500).json({ error: msg });
       }
       parsed = parseLifeStagesPayloadFromAiText(text);
-      if (parsed && Array.isArray(parsed.stages) && parsed.stages.length > 0) break;
+      const stagesOk =
+        parsed &&
+        Array.isArray(parsed.stages) &&
+        parsed.stages.length > 0;
+      const outfitsOk =
+        stagesOk &&
+        String(safeText(parsed.outfitIdentityEn || "")).trim() &&
+        String(safeText(parsed.outfitPaletteZh || "")).trim();
+      if (stagesOk && outfitsOk) break;
       console.warn(
         "[genlifestages] parse/coerce miss attempt",
         attempt + 1,
@@ -2681,9 +2871,29 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
       safeText(parsed.scripturePersonalityEn || ""),
       600
     );
-    const lifespanZh = resolveCharacterLifespanZh(chineseName, englishName).slice(0, 80);
+    const lifespanAiMs = safeText(parsed.lifespanZh || "").trim().slice(0, 80);
+    const lifespanZh = (
+      lifespanAiMs ||
+      resolveCharacterLifespanZh(chineseName, englishName).slice(0, 80)
+    ).slice(0, 80);
     const eraLabelZh = safeText(parsed.eraLabelZh || "").slice(0, 80);
-    const identityTagsZh = safeText(parsed.identityTagsZh || "").slice(0, 240);
+    const eraLabelEn = safeText(parsed.eraLabelEn || "").slice(0, 80);
+    const identityTagsMs = coalesceIdentityTagsFromAiPayload(parsed);
+    const idPackMs = mergeStoredCharacterDisplayLabels({ identityTags: identityTagsMs });
+    const identityTagsZh = idPackMs.identityTagsZh;
+    const outfitIdentityEn = safeText(parsed.outfitIdentityEn || "").slice(0, 600);
+    const outfitPaletteZh = safeText(parsed.outfitPaletteZh || "").slice(0, 80);
+    const sourceBookIdMs = resolveCharacterSourceBookId(chineseName, "");
+    const characterRoleZh = coalesceCharacterRoleZhFromAi(
+      parsed.characterRoleZh,
+      chineseName,
+      sourceBookIdMs
+    );
+    if (!String(outfitIdentityEn || "").trim() || !String(outfitPaletteZh || "").trim()) {
+      return res.status(500).json({
+        error: "模型未返回完整的服装识别或服装色彩摘要，请重试。",
+      });
+    }
     if (!englishName && !stages.some((x) => String(x.appearanceEn || "").trim())) {
       return res.status(500).json({ error: "模型返回内容为空，请重试。" });
     }
@@ -2691,17 +2901,18 @@ async function handleCharacterProfileGenerateLifeStages(req, res) {
     res.json({
       ok: true,
       englishName,
-      sourceBookId: resolveCharacterSourceBookId(chineseName, ""),
-      characterRoleZh: resolveCharacterRoleZh(
-        chineseName,
-        "",
-        resolveCharacterSourceBookId(chineseName, "")
-      ),
+      sourceBookId: sourceBookIdMs,
+      characterRoleZh,
       scripturePersonalityZh,
       scripturePersonalityEn,
       lifespanZh,
       eraLabelZh,
+      eraLabelEn,
+      identityTags: idPackMs.identityTags,
       identityTagsZh,
+      identityTagsEn: idPackMs.identityTagsEn,
+      outfitIdentityEn,
+      outfitPaletteZh,
       stages,
       promptLog: {
         gptSystemEn: system,
@@ -4029,17 +4240,21 @@ function getEnabledContentVersions() {
    ========================================================= */
 function flattenBooks() {
   return testamentOptions.flatMap((testament) =>
-    testament.books.map((book) => ({
-      testamentName: testament.name,
-      bookId: book.usfx,
-      bookCn: book.cn,
-      bookCnAbbr: book.cnAbbr || book.cn,
-      bookEnAbbr: book.enAbbr || book.usfx,
-      bookEsAbbr: book.esAbbr || book.usfx,
-      bookEn: book.en || book.cn,
-      chapters: book.chapters,
-      overviewOnly: book.overviewOnly === true,
-    }))
+    testament.books.map((book) => {
+      const bookId = String(book.usfx || "").trim();
+      return {
+        testamentName: testament.name,
+        bookId,
+        bookCn: book.cn,
+        bookCnAbbr: book.cnAbbr || book.cn,
+        bookEnAbbr: book.enAbbr || book.usfx,
+        bookEsAbbr: book.esAbbr || book.usfx,
+        bookEn: book.en || book.cn,
+        chapters: book.chapters,
+        overviewOnly:
+          book.overviewOnly === true || bookId.startsWith("_"),
+      };
+    })
   );
 }
 
@@ -7206,6 +7421,57 @@ function readerRosterScaleForEntry(entry, portraitSlot) {
   return { statureClass, layoutScale };
 }
 
+/** 读经人物带四行文案：显示名、岁数、时代、身份标签（与 period 槽位一致） */
+function readerRosterFigureMeta(entry, zhName, portraitSlot) {
+  const zh = safeText(zhName).trim();
+  if (!entry || typeof entry !== "object") {
+    return {
+      displayNameZh: zh.slice(0, 80),
+      lifespanZh: "",
+      eraLabelZh: "",
+      eraLabelEn: "",
+      identityTagsZh: "",
+      identityTags: [],
+      identityTagsLineEn: "",
+    };
+  }
+  const displayNameZh =
+    safeText(entry.displayNameZh || "").trim() || zh;
+  let lifespanZh = safeText(entry.lifespanZh || "").trim();
+  if (!lifespanZh) {
+    const enGuess =
+      safeText(entry.englishName || "").trim() ||
+      BIBLE_CHARACTER_ENGLISH_NAME_BY_ZH[displayNameZh] ||
+      "";
+    lifespanZh = safeText(
+      resolveCharacterLifespanZh(displayNameZh, enGuess) || ""
+    ).trim();
+  }
+  const slot = typeof portraitSlot === "number" ? portraitSlot : 0;
+  const periodLb = periodLabelZhForSlot(entry, slot);
+  let eraLabelZh =
+    safeText(entry.eraLabelZh || "").trim() ||
+    safeText(periodLb || "").trim() ||
+    safeText(entry.periodLabelZh || "").trim();
+  if (!eraLabelZh) {
+    eraLabelZh = safeText(
+      defaultEraLabelZhForBookId(entry.sourceBookId || "") || ""
+    ).trim();
+  }
+  const eraLabelEn = safeText(entry.eraLabelEn || "").trim();
+  const idDisp = buildReaderRosterIdentityDisplay(entry);
+  const identityTagsZh = safeText(idDisp.identityTagsZh || "").trim();
+  return {
+    displayNameZh: displayNameZh.slice(0, 80),
+    lifespanZh: lifespanZh.slice(0, 40),
+    eraLabelZh: eraLabelZh.slice(0, 120),
+    eraLabelEn: eraLabelEn.slice(0, 120),
+    identityTagsZh: identityTagsZh.slice(0, 240),
+    identityTags: Array.isArray(idDisp.identityTags) ? idDisp.identityTags : [],
+    identityTagsLineEn: safeText(idDisp.identityTagsLineEn || "").slice(0, 240),
+  };
+}
+
 function buildChapterCharacterFiguresForReader(chapterData, meta) {
   try {
     if (!chapterData || typeof chapterData !== "object") return [];
@@ -7268,6 +7534,7 @@ function buildChapterCharacterFiguresForReader(chapterData, meta) {
       }
       const rt = appendGeneratedAssetVersion(rosterThumbRelativeUrlIfExists(imageUrl));
       if (rt) row.rosterThumbUrl = rt;
+      Object.assign(row, readerRosterFigureMeta(entry, zh, resolved.portraitSlot));
       figures.push(row);
     }
     figures.sort((x, y) =>
@@ -7361,6 +7628,7 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
       }
       const rt = appendGeneratedAssetVersion(rosterThumbRelativeUrlIfExists(imageUrl));
       if (rt) row.rosterThumbUrl = rt;
+      Object.assign(row, readerRosterFigureMeta(entry, zh, resolved.portraitSlot));
       figures.push(row);
     }
 
@@ -7392,6 +7660,13 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
         imageUrl,
         isCurrentChapter: true,
       };
+      row.sourceBookId = resolveCharacterSourceBookId(zh, entry.sourceBookId || "");
+      row.characterRoleZh = resolveCharacterRoleZh(
+        zh,
+        entry.characterRoleZh || "",
+        row.sourceBookId
+      );
+      row.isPrimaryCharacter = row.characterRoleZh === "主人物";
       const readerScale = readerRosterScaleForEntry(entry, resolved.portraitSlot);
       row.statureClass = readerScale.statureClass;
       row.layoutScale = readerScale.layoutScale;
@@ -7406,6 +7681,7 @@ function buildBookCharacterTimelineForReader(chapterData, meta) {
       }
       const rt = appendGeneratedAssetVersion(rosterThumbRelativeUrlIfExists(imageUrl));
       if (rt) row.rosterThumbUrl = rt;
+      Object.assign(row, readerRosterFigureMeta(entry, zh, resolved.portraitSlot));
       figures.push(row);
     }
 
@@ -9459,8 +9735,49 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
       );
       const eraLabelZh = safeText(entry.eraLabelZh || "").slice(0, 80);
       if (eraLabelZh) row.eraLabelZh = eraLabelZh;
-      const identityTagsZh = safeText(entry.identityTagsZh || "").slice(0, 240);
-      if (identityTagsZh) row.identityTagsZh = identityTagsZh;
+      if (Object.prototype.hasOwnProperty.call(entry, "eraLabelEn")) {
+        const eraLEn = safeText(entry.eraLabelEn || "").slice(0, 80);
+        if (eraLEn) row.eraLabelEn = eraLEn;
+      } else if (safeText(prev.eraLabelEn || "").trim()) {
+        row.eraLabelEn = safeText(prev.eraLabelEn || "").slice(0, 80);
+      }
+      const incomingLabel = {};
+      if (Object.prototype.hasOwnProperty.call(entry, "identityTags")) {
+        incomingLabel.identityTags = entry.identityTags;
+      }
+      if (Object.prototype.hasOwnProperty.call(entry, "identityTagsZh")) {
+        incomingLabel.identityTagsZh = entry.identityTagsZh;
+      }
+      if (Object.prototype.hasOwnProperty.call(entry, "identityTagsEn")) {
+        incomingLabel.identityTagsEn = entry.identityTagsEn;
+      }
+      if (
+        incomingLabel.identityTags === undefined &&
+        incomingLabel.identityTagsZh === undefined &&
+        incomingLabel.identityTagsEn === undefined
+      ) {
+        if (Array.isArray(prev.identityTags)) {
+          incomingLabel.identityTags = prev.identityTags;
+        }
+        if (prev.identityTagsZh != null) {
+          incomingLabel.identityTagsZh = prev.identityTagsZh;
+        }
+        if (prev.identityTagsEn != null) {
+          incomingLabel.identityTagsEn = prev.identityTagsEn;
+        }
+      }
+      const labelPack = mergeStoredCharacterDisplayLabels(incomingLabel);
+      if (labelPack.identityTags.length) {
+        row.identityTags = labelPack.identityTags;
+        row.identityTagsZh = labelPack.identityTagsZh;
+        if (labelPack.identityTagsEn) {
+          row.identityTagsEn = labelPack.identityTagsEn;
+        }
+      }
+      const outfitIdentityEn = safeText(entry.outfitIdentityEn || "").slice(0, 600);
+      if (outfitIdentityEn) row.outfitIdentityEn = outfitIdentityEn;
+      const outfitPaletteZh = safeText(entry.outfitPaletteZh || "").slice(0, 80);
+      if (outfitPaletteZh) row.outfitPaletteZh = outfitPaletteZh;
       const plz = safeText(entry.periodLabelZh || "").slice(0, 32);
       if (plz) row.periodLabelZh = plz;
       const img0 = safeText(entry.imageUrl || "").slice(0, 400);
@@ -9525,6 +9842,12 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
       }
       if (!row.identityCoreEn && prev.identityCoreEn) {
         row.identityCoreEn = safeText(prev.identityCoreEn).slice(0, 1200);
+      }
+      if (!row.outfitIdentityEn && prev.outfitIdentityEn) {
+        row.outfitIdentityEn = safeText(prev.outfitIdentityEn).slice(0, 600);
+      }
+      if (!row.outfitPaletteZh && prev.outfitPaletteZh) {
+        row.outfitPaletteZh = safeText(prev.outfitPaletteZh).slice(0, 80);
       }
       if (
         !sentComparisonSheet &&
@@ -11935,6 +12258,76 @@ async function trimTransparentIllustrationPngBuffer(buf) {
   }
 }
 
+/**
+ * 人物透明 PNG（bookId=char）：在 sharp.trim 之后进一步裁掉左右「弱 alpha」列。
+ * 出图提示词常在两侧留渐变雾，trim 仍把雾算作内容；此处按列上最大 alpha 判断是否保留该列。
+ * DISABLE_TRANSPARENT_PNG_HORIZONTAL_TRIM=1 关闭。
+ * TRANSPARENT_PNG_HORIZONTAL_ALPHA_GATE：列内至少一像素 alpha 须超过此值（1–255，默认 40）才视为内容。
+ * TRANSPARENT_PNG_HORIZONTAL_TRIM_PAD_PX：左右各保留像素（默认 8）。
+ */
+async function tightenTransparentPngHorizontalEdges(buf) {
+  try {
+    if (process.env.DISABLE_TRANSPARENT_PNG_HORIZONTAL_TRIM === "1") return buf;
+    const sharp = await getSharp();
+    const meta = await sharp(buf).metadata();
+    const w0 = meta.width || 0;
+    const h0 = meta.height || 0;
+    if (w0 < 24 || h0 < 48) return buf;
+    if (!meta.hasAlpha) return buf;
+
+    const gateRaw = Number(process.env.TRANSPARENT_PNG_HORIZONTAL_ALPHA_GATE);
+    const alphaGate = Number.isFinite(gateRaw)
+      ? Math.min(255, Math.max(1, Math.floor(gateRaw)))
+      : 40;
+
+    const padRaw = Number(process.env.TRANSPARENT_PNG_HORIZONTAL_TRIM_PAD_PX);
+    const pad = Number.isFinite(padRaw)
+      ? Math.min(80, Math.max(0, Math.floor(padRaw)))
+      : 8;
+
+    const { data, info } = await sharp(buf)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const w = info.width;
+    const h = info.height;
+    if (info.channels !== 4 || w !== w0 || h !== h0) return buf;
+
+    const colMax = new Uint8Array(w);
+    for (let y = 0; y < h; y++) {
+      const row = y * w * 4;
+      for (let x = 0; x < w; x++) {
+        const a = data[row + x * 4 + 3];
+        if (a > colMax[x]) colMax[x] = a;
+      }
+    }
+
+    let left = 0;
+    while (left < w && colMax[left] < alphaGate) left++;
+    let right = w - 1;
+    while (right > left && colMax[right] < alphaGate) right--;
+
+    const contentW = right - left + 1;
+    if (contentW < 32) return buf;
+
+    const expLeft = Math.max(0, left - pad);
+    const expRight = Math.min(w - 1, right + pad);
+    const newW = expRight - expLeft + 1;
+    if (newW >= w) return buf;
+
+    if (newW < Math.max(48, Math.floor(w0 * 0.1))) return buf;
+
+    const out = await sharp(buf)
+      .extract({ left: expLeft, top: 0, width: newW, height: h })
+      .png()
+      .toBuffer();
+    return out;
+  } catch (e) {
+    console.warn("[tightenTransparentPngHorizontalEdges]", e.message || e);
+    return buf;
+  }
+}
+
 function characterStageRecordForSlot(entry, slotIndex) {
   const si = Math.max(0, Math.min(2, Math.floor(Number(slotIndex) || 0)));
   if (!entry || typeof entry !== "object") return null;
@@ -11950,6 +12343,7 @@ function resolveCharacterProfileIdentityReference(body) {
     body.referenceImageUrl || body.identityReferenceImageUrl || ""
   ).slice(0, 400);
   const explicitCoreEn = safeText(body.identityCoreEn || "").slice(0, 1200);
+  const explicitOutfitIdentityEn = safeText(body.outfitIdentityEn || "").slice(0, 600);
   const explicitDeltaEn = safeText(body.stageAppearanceDeltaEn || "").slice(0, 1200);
   const explicitTargetStageId = safeText(body.targetStageId || "").slice(0, 64);
   const explicitDerivedFromStageId = safeText(body.derivedFromStageId || "").slice(0, 64);
@@ -11961,6 +12355,7 @@ function resolveCharacterProfileIdentityReference(body) {
       referenceImageUrl: explicitUrl,
       referenceImagePath: resolveSafeGeneratedPngPath(explicitUrl),
       identityCoreEn: explicitCoreEn,
+      outfitIdentityEn: explicitOutfitIdentityEn,
       stageAppearanceDeltaEn: explicitDeltaEn,
       targetStageId: explicitTargetStageId,
       derivedFromStageId: explicitDerivedFromStageId,
@@ -11980,6 +12375,7 @@ function resolveCharacterProfileIdentityReference(body) {
       referenceImageUrl: explicitUrl,
       referenceImagePath: resolveSafeGeneratedPngPath(explicitUrl),
       identityCoreEn: explicitCoreEn,
+      outfitIdentityEn: explicitOutfitIdentityEn,
       stageAppearanceDeltaEn: explicitDeltaEn,
       targetStageId: explicitTargetStageId,
       derivedFromStageId: explicitDerivedFromStageId,
@@ -12007,6 +12403,8 @@ function resolveCharacterProfileIdentityReference(body) {
     explicitCoreEn ||
     safeText(entry.identityCoreEn || "").slice(0, 1200) ||
     safeText(entry.appearanceEn || "").slice(0, 1200);
+  const outfitIdentityEn =
+    explicitOutfitIdentityEn || safeText(entry.outfitIdentityEn || "").slice(0, 600);
   const stageAppearanceDeltaEn =
     explicitDeltaEn ||
     safeText(targetStage?.appearanceDeltaEn || "").slice(0, 1200) ||
@@ -12025,6 +12423,7 @@ function resolveCharacterProfileIdentityReference(body) {
     referenceImageUrl,
     referenceImagePath: resolveSafeGeneratedPngPath(referenceImageUrl),
     identityCoreEn,
+    outfitIdentityEn,
     stageAppearanceDeltaEn,
     targetStageId,
     derivedFromStageId,
@@ -12049,6 +12448,11 @@ function buildReferenceAwareIllustrationPrompt(basePrompt, identityRef) {
   if (identityRef.identityCoreEn) {
     refLines.push(
       `Stable identity traits that must NOT change: ${safeText(identityRef.identityCoreEn).trim()}`
+    );
+  }
+  if (identityRef.outfitIdentityEn) {
+    refLines.push(
+      `Locked costume / color identity (keep primary and secondary palette families, silhouette, belt, headwear, signature accessory; minor shade or fold variation OK, no unrelated palette swap): ${safeText(identityRef.outfitIdentityEn).trim()}`
     );
   }
   if (identityRef.stageAppearanceDeltaEn) {
@@ -12076,7 +12480,8 @@ const OPENAI_IMAGE_SAFETY_PREFIX =
  * Key 与全站一致：环境变量 OPENAI_API_KEY 优先，否则管理后台「系统密钥」。
  * 成功：{ success: true, imageUrl, transparentPng }（transparentPng 为 boolean，表示是否请求透明背景）。
  * 尺寸与 quality：transparent 与 opaque 仅 background 不同，不传 imageSize 时默认竖版 1024×1536（总像素高于 1024²）。
- * 透明图：默认在写入前按 Alpha 裁边（紧贴人物左右与上下）；skipTransparentTrim 或 DISABLE_TRANSPARENT_PNG_TRIM=1 可跳过。
+ * 透明图：默认先 Alpha trim 四周，再对 bookId=char 的人物图做「左右弱雾列」裁窄（见 tightenTransparentPngHorizontalEdges）。
+ * skipTransparentTrim 或 DISABLE_TRANSPARENT_PNG_TRIM=1 跳过上述两步；仅跳过第二步：DISABLE_TRANSPARENT_PNG_HORIZONTAL_TRIM=1。
  */
 app.post("/api/generate-illustration", async (req, res) => {
   try {
@@ -12245,12 +12650,15 @@ app.post("/api/generate-illustration", async (req, res) => {
       body.skipTransparentTrim === "true" ||
       body.skipTransparentTrim === 1 ||
       process.env.DISABLE_TRANSPARENT_PNG_TRIM === "1";
+    const bookIdRaw = safeText(body.bookId || "");
     if (transparent && !skipTransparentTrim) {
       buf = await trimTransparentIllustrationPngBuffer(buf);
+      if (bookIdRaw === "char") {
+        buf = await tightenTransparentPngHorizontalEdges(buf);
+      }
     }
 
     ensureDir(CHAPTER_ILLUSTRATION_GENERATED_DIR);
-    const bookIdRaw = safeText(body.bookId || "");
     const chRaw = safeText(body.chapter ?? "");
     const nameEnTok = safeText(body.englishName || "")
       .replace(/[^a-zA-Z0-9_-]/g, "")
