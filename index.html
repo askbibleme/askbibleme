@@ -76,7 +76,7 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=223" />
+    <link rel="stylesheet" href="/styles.css?v=228" />
     <script src="/theme-apply.js?v=4"></script>
     <script src="/site-chrome.js?v=20" defer></script>
     <script src="/seo-apply.js?v=5" defer></script>
@@ -355,6 +355,8 @@
             </div>
 
             <div class="chapter-feedback-wrap">
+              <div id="chapterApprovedTitle" class="chapter-feedback-approved-title">社区贡献</div>
+              <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
               <div class="chapter-feedback-title">参与贡献</div>
               <textarea
                 id="chapterQuestionInput"
@@ -367,8 +369,6 @@
                 </button>
                 <div id="chapterQuestionStatus" class="chapter-feedback-status"></div>
               </div>
-              <div id="chapterApprovedTitle" class="chapter-feedback-approved-title">社区贡献</div>
-              <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
             </div>
 
             <div id="chapterEndNextGuide" class="chapter-end-next-guide" hidden>
@@ -735,7 +735,7 @@
       </div>
     </div>
 
-    <!-- 经节快选：壳与选版本一致（全屏遮罩 + primary-version-card） -->
+    <!-- 章节快选：壳与选版本一致（全屏遮罩 + primary-version-card） -->
     <div
       id="chapterVersePickPanel"
       class="verse-search-overlay primary-version-overlay"
@@ -746,7 +746,7 @@
         type="button"
         class="verse-search-backdrop"
         tabindex="-1"
-        aria-label="关闭经节选择"
+        aria-label="关闭章节选择"
         data-close-panel="chapterVersePickPanel"
       ></button>
       <div
@@ -757,7 +757,7 @@
       >
         <div class="toolbar-panel-inner toolbar-panel-simple">
           <div class="toolbar-panel-head">
-            <div class="toolbar-panel-title" id="chapterVersePickPanelTitle">章节与经节</div>
+            <div class="toolbar-panel-title" id="chapterVersePickPanelTitle">章节</div>
             <button
               type="button"
               class="toolbar-panel-close"
@@ -766,22 +766,13 @@
               关闭
             </button>
           </div>
-          <div class="chapter-verse-pick-stack" role="group" aria-label="章节与经节">
+          <div class="chapter-verse-pick-stack" role="group" aria-label="章节">
             <div class="chapter-grid-wrap">
               <div id="idxPickChaptersTitle" class="chapter-grid-title">章节</div>
               <div
                 id="idxPickChapterGrid"
                 class="chapter-grid book-chapter-chapter-grid"
                 aria-label="章节"
-              ></div>
-            </div>
-            <div class="chapter-grid-wrap">
-              <div id="idxPickVerseSectionTitle" class="chapter-grid-title">经节</div>
-              <div
-                id="idxPickVerseGrid"
-                class="version-grid chapter-verse-pick-grid"
-                role="listbox"
-                aria-label="经节"
               ></div>
             </div>
           </div>
@@ -1271,7 +1262,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="/main.js?v=31"></script>
+    <script type="module" src="/main.js?v=32"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>
       (function () {

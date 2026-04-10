@@ -2238,9 +2238,8 @@ function applyReaderI18n() {
   setText("#bookChapterPanel .toolbar-panel-title", copy.bookChapter);
   setText("#qaViewPanel .toolbar-panel-title", copy.displayContent);
   setText("#primaryVersionPanel .toolbar-panel-title", copy.bibleVersion);
-  setText("#chapterVersePickPanelTitle", copy.chapterVersePickNavTitle);
+  setText("#chapterVersePickPanelTitle", copy.chapters);
   setText("#idxPickChaptersTitle", copy.chapters);
-  setText("#idxPickVerseSectionTitle", copy.chapterVersePickTitle);
   setText("#verseSearchTitle", copy.searchScripture);
   document
     .querySelectorAll(
@@ -4571,7 +4570,9 @@ function initToolbarPanels() {
       chapterVersePickTargetBookId = String(
         btn.getAttribute("data-book-page-index-id") || ""
       ).trim();
-      chapterVersePickTargetChapter = 0;
+      const pickedBook = getBookMetaById(chapterVersePickTargetBookId);
+      chapterVersePickTargetChapter =
+        pickedBook && Number(pickedBook.chapters || 0) > 0 ? 1 : 0;
       toggleToolbarPanel("chapterVersePickPanel");
     });
   }
@@ -5094,24 +5095,26 @@ const BOOK_CHAPTER_DIRECTORY_GRID_OPTS = {
   pickVerseMode: false,
 };
 
-/** 左缘索引条：当前书卷下仅章 + 经节（换书仍用顶栏「书卷」） */
+/** 左缘索引条：当前书卷下仅章（换书仍用顶栏「书卷」） */
 const INDEX_BOOK_VERSE_PICK_GRID_OPTS = {
   otGridId: null,
   ntGridId: null,
   chapterGridId: "idxPickChapterGrid",
   closePanelId: "chapterVersePickPanel",
   allMobileGridId: null,
-  verseGridId: "idxPickVerseGrid",
-  pickVerseMode: true,
+  verseGridId: null,
+  pickVerseMode: false,
   bookIdOverride: "",
   chapterOverride: 0,
+  includeIntroOption: false,
 };
 
 function renderChapterVersePickPanel() {
   renderBookChapterGrids({
     ...INDEX_BOOK_VERSE_PICK_GRID_OPTS,
     bookIdOverride: chapterVersePickTargetBookId || state.frontState.bookId,
-    chapterOverride: chapterVersePickTargetChapter,
+    chapterOverride:
+      chapterVersePickTargetChapter > 0 ? chapterVersePickTargetChapter : 1,
   });
 }
 
@@ -5769,6 +5772,7 @@ function renderBookChapterGrids(opts) {
     pickVerseMode = false,
     bookIdOverride = "",
     chapterOverride = null,
+    includeIntroOption = true,
   } = opts;
 
   const otGrid = otGridId ? document.getElementById(otGridId) : null;
@@ -5933,14 +5937,20 @@ function renderBookChapterGrids(opts) {
   const copy = getLocalizedCopy();
   const introShort = copy.bookIntroShort || "介绍";
   const introActive = selectedChapter === 0 ? "active" : "";
-  const introBtn = `<button type="button" class="chapter-item chapter-item--intro ${introActive}" data-chapter-grid-no="0">${escapeHtml(
-    introShort
-  )}</button>`;
+  const introBtn = includeIntroOption
+    ? `<button type="button" class="chapter-item chapter-item--intro ${introActive}" data-chapter-grid-no="0">${escapeHtml(
+        introShort
+      )}</button>`
+    : "";
+  const chapterSelectionDefault =
+    includeIntroOption || chapterCount <= 0
+      ? selectedChapter
+      : Math.max(1, selectedChapter);
 
   const chapterBtns = Array.from({ length: chapterCount }, (_, i) => {
     const chapterNo = i + 1;
     const active =
-      chapterNo === selectedChapter ? "active" : "";
+      chapterNo === chapterSelectionDefault ? "active" : "";
     return `<button type="button" class="chapter-item ${active}" data-chapter-grid-no="${chapterNo}">${chapterNo}</button>`;
   }).join("");
 
@@ -6346,7 +6356,7 @@ function updatePageTitle() {
     );
     indexTabBtn.setAttribute(
       "aria-label",
-      `${copy.chapterVersePickNavTitle || copy.chapterVersePickTitle || copy.triggerBook || "章节与经节"} · ${abbrFull || getBookLabelForPrimaryScripture()}`
+      `${copy.chapters || copy.triggerBook || "章节"} · ${abbrFull || getBookLabelForPrimaryScripture()}`
     );
   }
 }

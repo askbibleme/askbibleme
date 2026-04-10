@@ -3050,12 +3050,13 @@ function assessQuestionSubmissionRisk({
   const normalized = normalizeQuestionModerationText(text);
   const reasons = [];
   let reject = false;
-  let pending = false;
 
   const adPatterns = [
     /(?:https?:\/\/|www\.|\.com\b|\.cn\b|\.net\b|\.cc\b|\.top\b|t\.me\/|wa\.me\/)/i,
     /(?:微信|vx|v信|加微|加v|qq|q群|电报|telegram|whatsapp|联系我|私聊|公众号|扫码)/i,
     /(?:代写|兼职|赚钱|推广|引流|返利|优惠|加群|课程咨询|办理|出售|购买|代理)/i,
+    /\b\d{3,4}-\d{7,8}\b/,
+    /\b1[3-9]\d{9}\b/,
   ];
   if (adPatterns.some((re) => re.test(text))) {
     reject = true;
@@ -3063,12 +3064,12 @@ function assessQuestionSubmissionRisk({
   }
 
   if (/(.)\1{7,}/.test(text) || /^[\W_]+$/.test(text)) {
-    pending = true;
+    reject = true;
     reasons.push("疑似灌水字符");
   }
 
   if (text.length > 220) {
-    pending = true;
+    reject = true;
     reasons.push("内容过长");
   }
 
@@ -3076,7 +3077,7 @@ function assessQuestionSubmissionRisk({
     ? normalized.split(/[\s,.;:!?，。！？；：、/\\|()[\]{}"'`~+-]+/).filter(Boolean).length
     : 0;
   if (tokenCount > 0 && tokenCount <= 2 && text.length >= 24) {
-    pending = true;
+    reject = true;
     reasons.push("疑似重复刷词");
   }
 
@@ -3094,7 +3095,7 @@ function assessQuestionSubmissionRisk({
     return sameUser || sameIp;
   });
   if (recentByActor.length >= 5) {
-    pending = true;
+    reject = true;
     reasons.push("短时间连续提问过多");
   }
 
@@ -3103,7 +3104,7 @@ function assessQuestionSubmissionRisk({
     return prev && prev === normalized;
   });
   if (sameQuestionRecent.length >= 1) {
-    pending = true;
+    reject = true;
     reasons.push("短时间重复提问");
   }
 
@@ -3113,7 +3114,7 @@ function assessQuestionSubmissionRisk({
       toSafeNumber(item?.chapter, 0) === toSafeNumber(chapter, 0)
   );
   if (sameChapterBurst.length >= 3) {
-    pending = true;
+    reject = true;
     reasons.push("同章短时密集提问");
   }
 
@@ -3125,18 +3126,96 @@ function assessQuestionSubmissionRisk({
       autoReviewed: true,
     };
   }
-  if (pending) {
-    return {
-      status: "pending",
-      reasons,
-      userMessage: "已收到你的问题；系统检测到异常特征，已转入人工复核。",
-      autoReviewed: false,
-    };
-  }
   return {
     status: "approved",
-    reasons: ["自动通过"],
+    reasons: reasons.length ? reasons : ["自动通过"],
     userMessage: "已提交，感谢你的好问题",
+    autoReviewed: true,
+  };
+}
+
+function assessQuestionReplyRisk({ replyText, authed, req, db, questionId }) {
+  const text = String(replyText || "").trim();
+  const normalized = normalizeQuestionModerationText(text);
+  const reasons = [];
+  let reject = false;
+
+  const adPatterns = [
+    /(?:https?:\/\/|www\.|\.com\b|\.cn\b|\.net\b|\.cc\b|\.top\b|t\.me\/|wa\.me\/)/i,
+    /(?:微信|vx|v信|加微|加v|qq|q群|电报|telegram|whatsapp|联系我|私聊|公众号|扫码)/i,
+    /(?:代写|兼职|赚钱|推广|引流|返利|优惠|加群|课程咨询|办理|出售|购买|代理)/i,
+    /\b\d{3,4}-\d{7,8}\b/,
+    /\b1[3-9]\d{9}\b/,
+  ];
+  if (adPatterns.some((re) => re.test(text))) {
+    reasons.push("疑似广告或引流");
+    reject = true;
+  }
+  if (/(.)\1{7,}/.test(text) || /^[\W_]+$/.test(text)) {
+    reasons.push("疑似灌水字符");
+    reject = true;
+  }
+  if (text.length > 280) {
+    reasons.push("内容过长");
+    reject = true;
+  }
+  const tokenCount = normalized
+    ? normalized.split(/[\s,.;:!?，。！？；：、/\\|()[\]{}"'`~+-]+/).filter(Boolean).length
+    : 0;
+  if (tokenCount > 0 && tokenCount <= 2 && text.length >= 32) {
+    reasons.push("疑似重复刷词");
+    reject = true;
+  }
+
+  const items = Array.isArray(db?.items) ? db.items : [];
+  const userKey = safeText(authed?.id || authed?.email || "");
+  const ipHash = sha256Hex(getClientIp(req));
+  const nowMs = Date.now();
+  const recentByActor = items.filter((item) => {
+    const createdAtMs = Date.parse(String(item?.createdAt || ""));
+    if (!Number.isFinite(createdAtMs) || nowMs - createdAtMs > 10 * 60 * 1000) {
+      return false;
+    }
+    const sameUser = userKey && safeText(item?.userId || item?.userEmail || "") === userKey;
+    const sameIp = safeText(item?.ipHash || "") === ipHash;
+    return sameUser || sameIp;
+  });
+  if (recentByActor.length >= 8) {
+    reasons.push("短时间回复过多");
+    reject = true;
+  }
+
+  const sameReplyRecent = recentByActor.filter((item) => {
+    const prev = normalizeQuestionModerationText(item?.replyText || "");
+    return prev && prev === normalized;
+  });
+  if (sameReplyRecent.length >= 1) {
+    reasons.push("短时间重复回复");
+    reject = true;
+  }
+
+  const target = items.find((x) => safeText(x?.id || "") === safeText(questionId || ""));
+  if (!target) {
+    reasons.push("目标问题不存在");
+    reject = true;
+  } else if (safeText(target.status || "") !== "approved") {
+    reasons.push("仅可回复已发布问题");
+    reject = true;
+  }
+
+  if (reject) {
+    return {
+      status: "rejected",
+      reasons,
+      userMessage: "内容疑似广告、引流或重复刷屏，未予发布。",
+      autoReviewed: true,
+    };
+  }
+
+  return {
+    status: "approved",
+    reasons: reasons.length ? reasons : ["自动通过"],
+    userMessage: "已发布，感谢你的回复",
     autoReviewed: true,
   };
 }
@@ -13730,6 +13809,17 @@ app.post("/api/questions/reply", (req, res) => {
       return res.status(400).json({ error: "仅可回复已采纳问题" });
     }
 
+    const moderation = assessQuestionReplyRisk({
+      replyText,
+      authed,
+      req,
+      db,
+      questionId,
+    });
+    if (moderation.status === "rejected") {
+      return res.status(400).json({ error: moderation.userMessage });
+    }
+
     const reply = {
       id: `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       questionId,
@@ -13742,7 +13832,13 @@ app.post("/api/questions/reply", (req, res) => {
     if (!Array.isArray(target.replies)) target.replies = [];
     target.replies.push(reply);
     saveQuestionSubmissions(db);
-    res.json({ ok: true, reply });
+    res.json({
+      ok: true,
+      reply,
+      status: moderation.status,
+      moderationReasons: moderation.reasons || [],
+      message: moderation.userMessage,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "回复失败" });
