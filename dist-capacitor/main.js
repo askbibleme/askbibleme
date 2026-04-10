@@ -1490,7 +1490,7 @@ const NEW_TESTAMENT_SECTIONS = [
   },
 ];
 
-/** 窄屏合并书卷列：与 OLD/NEW_TESTAMENT_SECTIONS 顺序一一对应，供书脊 Tab 分组底色 */
+/** 书脊列分组：与 OLD/NEW_TESTAMENT_SECTIONS 顺序一一对应，供 Tab 底色 */
 const OT_SPINE_GROUP_SLUGS = [
   "intro",
   "overview_ot",
@@ -1548,7 +1548,7 @@ const BOOK_CANONICAL_ORDER_MAP = (() => {
 /** 书卷目录：仅最窄屏（≤此宽度）书卷用简称（中/英/西；希伯来仍全名） */
 const BOOK_DIR_ABBREV_MAX_WIDTH_PX = 480;
 
-/** 仅最窄屏双栏（合并旧约+新约｜章节）；>480 与最大屏同为三栏 OT|NT|章 */
+/** 最窄屏双栏（书脊｜章节，隐藏 OT/NT）；>480 为四栏 书脊|旧约|新约|章节 */
 const BOOK_CHAPTER_COMPACT_MAX_WIDTH_PX = 480;
 
 function isBookDirectoryAbbrevViewport() {
@@ -1631,7 +1631,7 @@ function formatBookGridButtonLabel(book, bookLabelFn) {
   return bookLabelFn(book);
 }
 
-/** 合并书卷列：按正典顺序 + 概论等（与 sections 一致），用于窄屏书脊导航 */
+/** 书脊条目顺序：正典 + 概论等（与 sections 一致） */
 function collectBookSpineNavEntries() {
   const byId = new Map(flattenBooks().map((b) => [b.bookId, b]));
   const out = [];
@@ -5724,7 +5724,7 @@ function renderBookChapterGrids(opts) {
       ? BOOK_NAME_EN_BY_ID[book.bookId] || book.bookEn || book.bookCn || book.bookId
       : book.bookCn || book.bookEn || book.bookId;
 
-  /* 书卷按钮：>480 三栏为全名；≤480 双栏内仅正典用最窄屏简称。 */
+  /* OT/NT 网格：>480 为全名；≤480 双栏内正典用简称。书脊列始终用简称（单字/缩写）。 */
   const useAbbrevBookLabels = isBookDirectoryAbbrevViewport();
 
   const bookLabel = (book) => {
@@ -5748,6 +5748,25 @@ function renderBookChapterGrids(opts) {
     ).trim();
     const first = Array.from(cnBasis)[0] || "";
     return first;
+  };
+
+  const spineBookLabel = (book) => {
+    if (scriptureLang === "he") {
+      return bookGridFullName(book);
+    }
+    if (isSupplementalBookDirectoryBook(book)) {
+      return bookGridFullName(book);
+    }
+    if (scriptureLang === "en") {
+      return String(book.bookEnAbbr || book.bookId || "").trim();
+    }
+    if (scriptureLang === "es") {
+      return String(book.bookEsAbbr || book.bookId || "").trim();
+    }
+    const cnBasis = String(
+      book.bookCnAbbr || book.bookCn || book.bookId || ""
+    ).trim();
+    return Array.from(cnBasis)[0] || "";
   };
 
   function testamentNameForBookId(bookId) {
@@ -5825,7 +5844,7 @@ function renderBookChapterGrids(opts) {
     const spineEntries = collectBookSpineNavEntries();
     allMobile.innerHTML = buildBookSpineNavHtml(
       spineEntries,
-      bookLabel,
+      spineBookLabel,
       bookGridFullName,
       state.frontState.bookId,
       copyBc.triggerBook || "书卷"

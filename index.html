@@ -76,7 +76,7 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=221" />
+    <link rel="stylesheet" href="/styles.css?v=223" />
     <script src="/theme-apply.js?v=4"></script>
     <script src="/site-chrome.js?v=20" defer></script>
     <script src="/seo-apply.js?v=5" defer></script>
@@ -120,17 +120,14 @@
       <main class="book-layout">
         <div class="book-spread">
           <section class="book-page left-page">
-            <button
-              type="button"
+            <nav
               class="book-page-index-tab"
               id="bookPageIndexTab"
-              aria-label="章节与经节"
+              aria-label="书卷索引"
               aria-haspopup="dialog"
               aria-controls="chapterVersePickPanel"
               aria-expanded="false"
-            >
-              <span class="book-page-index-tab__glyph" id="bookIndexTabAbbr" aria-hidden="true"></span>
-            </button>
+            ></nav>
             <div class="page-toolbar">
               <div class="reading-toolbar">
                 <div class="reading-toolbar-row">
@@ -1274,7 +1271,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="/main.js?v=28"></script>
+    <script type="module" src="/main.js?v=31"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>
       (function () {

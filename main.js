@@ -152,6 +152,10 @@ let studyContentLoadGeneration = 0;
 /** 收藏夹弹层：pages | verses | questions */
 let favoritesPanelActiveTab = "pages";
 
+/** 左侧索引打开「章节与经节」时的目标书卷 */
+let chapterVersePickTargetBookId = "";
+let chapterVersePickTargetChapter = 0;
+
 /** 页面收藏：补全第一小段标题时避免同一 key 并发重复请求 */
 const chapterFavoriteSegmentEnrichLocks = new Set();
 
@@ -1490,7 +1494,7 @@ const NEW_TESTAMENT_SECTIONS = [
   },
 ];
 
-/** 窄屏合并书卷列：与 OLD/NEW_TESTAMENT_SECTIONS 顺序一一对应，供书脊 Tab 分组底色 */
+/** 书脊列分组：与 OLD/NEW_TESTAMENT_SECTIONS 顺序一一对应，供 Tab 底色 */
 const OT_SPINE_GROUP_SLUGS = [
   "intro",
   "overview_ot",
@@ -1548,7 +1552,7 @@ const BOOK_CANONICAL_ORDER_MAP = (() => {
 /** 书卷目录：仅最窄屏（≤此宽度）书卷用简称（中/英/西；希伯来仍全名） */
 const BOOK_DIR_ABBREV_MAX_WIDTH_PX = 480;
 
-/** 仅最窄屏双栏（合并旧约+新约｜章节）；>480 与最大屏同为三栏 OT|NT|章 */
+/** 最窄屏双栏（书脊｜章节，隐藏 OT/NT）；>480 为四栏 书脊|旧约|新约|章节 */
 const BOOK_CHAPTER_COMPACT_MAX_WIDTH_PX = 480;
 
 function isBookDirectoryAbbrevViewport() {
@@ -1631,7 +1635,7 @@ function formatBookGridButtonLabel(book, bookLabelFn) {
   return bookLabelFn(book);
 }
 
-/** 合并书卷列：按正典顺序 + 概论等（与 sections 一致），用于窄屏书脊导航 */
+/** 书脊条目顺序：正典 + 概论等（与 sections 一致） */
 function collectBookSpineNavEntries() {
   const byId = new Map(flattenBooks().map((b) => [b.bookId, b]));
   const out = [];
@@ -1658,6 +1662,25 @@ function collectBookSpineNavEntries() {
     }
   }
   return out;
+}
+
+function getBookAbbreviationForIndexTab(book) {
+  if (!book) return "";
+  const pl = getPrimaryScriptureLang();
+  if (pl === "zh") {
+    return String(book.bookCnAbbr || book.bookCn || book.bookId || "").trim();
+  }
+  if (pl === "es") {
+    return String(
+      book.bookEsAbbr || book.bookEnAbbr || book.bookCnAbbr || book.bookId || ""
+    ).trim();
+  }
+  if (pl === "he") {
+    return String(book.bookEnAbbr || book.bookId || "").trim();
+  }
+  return String(
+    book.bookEnAbbr || book.bookCnAbbr || book.bookId || ""
+  ).trim();
 }
 
 function buildBookSpineNavHtml(entries, bookLabelFn, bookFullNameFn, currentBookId, navAriaLabel) {
@@ -1816,23 +1839,27 @@ function getBookLabelForPrimaryScripture() {
 
 /** 左缘切口标签：与 src/books.js / bootstrap bookCnAbbr 等一致 */
 function getCurrentBookAbbreviationForIndexTab() {
-  const book = getCurrentBookMeta();
-  if (!book) return "";
-  const pl = getPrimaryScriptureLang();
-  if (pl === "zh") {
-    return String(book.bookCnAbbr || book.bookCn || book.bookId || "").trim();
-  }
-  if (pl === "es") {
-    return String(
-      book.bookEsAbbr || book.bookEnAbbr || book.bookCnAbbr || book.bookId || ""
-    ).trim();
-  }
-  if (pl === "he") {
-    return String(book.bookEnAbbr || book.bookId || "").trim();
-  }
-  return String(
-    book.bookEnAbbr || book.bookCnAbbr || book.bookId || ""
-  ).trim();
+  return getBookAbbreviationForIndexTab(getCurrentBookMeta());
+}
+
+function collectBookPageIndexEntries() {
+  return collectBookSpineNavEntries().filter(
+    ({ book }) => !BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER.has(book.bookId)
+  );
+}
+
+function buildBookPageIndexTabsHtml(entries, currentBookId) {
+  return entries
+    .map(({ book, group }) => {
+      const active = book.bookId === currentBookId ? " active" : "";
+      const label = escapeHtml(getBookAbbreviationForIndexTab(book) || book.bookId);
+      const full = escapeHtml(getLocalizedBookLabelById(book.bookId));
+      const g = String(group || "other").replace(/[^a-z0-9_]/g, "") || "other";
+      return `<button type="button" class="book-page-index-tab__item book-page-index-tab__item--${g}${active}" data-book-page-index-id="${escapeHtml(
+        book.bookId
+      )}" title="${full}" aria-label="${full}">${label}</button>`;
+    })
+    .join("");
 }
 
 function getPrimaryScriptureLang() {
@@ -4537,8 +4564,14 @@ function initToolbarPanels() {
   if (bookPageIndexTab && bookPageIndexTab.dataset.bound !== "1") {
     bookPageIndexTab.dataset.bound = "1";
     bookPageIndexTab.addEventListener("click", (event) => {
+      const btn = event.target.closest?.("[data-book-page-index-id]");
+      if (!btn) return;
       event.preventDefault();
       event.stopPropagation();
+      chapterVersePickTargetBookId = String(
+        btn.getAttribute("data-book-page-index-id") || ""
+      ).trim();
+      chapterVersePickTargetChapter = 0;
       toggleToolbarPanel("chapterVersePickPanel");
     });
   }
@@ -4977,21 +5010,46 @@ function scrollToVerseInCurrentPage(verse) {
   tryFlash();
 }
 
-function fillVersePickGrid(verseGridId) {
+async function fillVersePickGrid(verseGridId, bookIdOverride = "", chapterOverride = null) {
   const grid = document.getElementById(verseGridId);
   if (!grid) return;
   const copy = getLocalizedCopy();
-  const chapter = Number(state.frontState.chapter || 0);
+  const chapter =
+    chapterOverride === null
+      ? Number(state.frontState.chapter || 0)
+      : Number(chapterOverride || 0);
+  const bookId = String(bookIdOverride || state.frontState.bookId || "").trim();
   const versionId = state.frontState.primaryScriptureVersionId;
-  if (chapter < 1 || !versionId) {
+  if (chapter < 1 || !versionId || !bookId) {
     grid.innerHTML = `<p class="verse-search-status chapter-verse-pick-empty">${escapeHtml(
       copy.chapterVersePickSelectChapterHint || ""
     )}</p>`;
     return;
   }
+  let rows = Array.isArray(state.scriptureRows) ? state.scriptureRows : [];
+  if (!rows.length || !rows.every((row) => String(row?.bookId || "").trim() === bookId)) {
+    try {
+      const params = new URLSearchParams({
+        bookId,
+        chapter: String(chapter),
+        versions: versionId,
+      });
+      const res = await fetch(`/api/scripture?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        rows = [];
+      } else {
+        rows = Array.isArray(data.rows) ? data.rows : [];
+      }
+    } catch (_) {
+      rows = [];
+    }
+  }
   const nums = [];
   const seen = new Set();
-  for (const row of state.scriptureRows || []) {
+  for (const row of rows) {
     const v = Number(row?.verse || 0);
     const text = String(row?.texts?.[versionId] || "").trim();
     if (v >= 1 && text && !seen.has(v)) {
@@ -5045,10 +5103,16 @@ const INDEX_BOOK_VERSE_PICK_GRID_OPTS = {
   allMobileGridId: null,
   verseGridId: "idxPickVerseGrid",
   pickVerseMode: true,
+  bookIdOverride: "",
+  chapterOverride: 0,
 };
 
 function renderChapterVersePickPanel() {
-  renderBookChapterGrids(INDEX_BOOK_VERSE_PICK_GRID_OPTS);
+  renderBookChapterGrids({
+    ...INDEX_BOOK_VERSE_PICK_GRID_OPTS,
+    bookIdOverride: chapterVersePickTargetBookId || state.frontState.bookId,
+    chapterOverride: chapterVersePickTargetChapter,
+  });
 }
 
 function closeVerseSearchOverlay() {
@@ -5703,6 +5767,8 @@ function renderBookChapterGrids(opts) {
     allMobileGridId = "bookGridAllMobile",
     verseGridId = null,
     pickVerseMode = false,
+    bookIdOverride = "",
+    chapterOverride = null,
   } = opts;
 
   const otGrid = otGridId ? document.getElementById(otGridId) : null;
@@ -5724,7 +5790,7 @@ function renderBookChapterGrids(opts) {
       ? BOOK_NAME_EN_BY_ID[book.bookId] || book.bookEn || book.bookCn || book.bookId
       : book.bookCn || book.bookEn || book.bookId;
 
-  /* 书卷按钮：>480 三栏为全名；≤480 双栏内仅正典用最窄屏简称。 */
+  /* OT/NT 网格：>480 为全名；≤480 双栏内正典用简称。书脊列始终用简称（单字/缩写）。 */
   const useAbbrevBookLabels = isBookDirectoryAbbrevViewport();
 
   const bookLabel = (book) => {
@@ -5750,6 +5816,25 @@ function renderBookChapterGrids(opts) {
     return first;
   };
 
+  const spineBookLabel = (book) => {
+    if (scriptureLang === "he") {
+      return bookGridFullName(book);
+    }
+    if (isSupplementalBookDirectoryBook(book)) {
+      return bookGridFullName(book);
+    }
+    if (scriptureLang === "en") {
+      return String(book.bookEnAbbr || book.bookId || "").trim();
+    }
+    if (scriptureLang === "es") {
+      return String(book.bookEsAbbr || book.bookId || "").trim();
+    }
+    const cnBasis = String(
+      book.bookCnAbbr || book.bookCn || book.bookId || ""
+    ).trim();
+    return Array.from(cnBasis)[0] || "";
+  };
+
   function testamentNameForBookId(bookId) {
     const b = flattenBooks().find((x) => x.bookId === bookId);
     return (b && b.testamentName) || "旧约";
@@ -5761,13 +5846,14 @@ function renderBookChapterGrids(opts) {
         const nextBookId = btn.getAttribute("data-book-grid-id");
         if (!nextBookId) return;
 
+        const picked = flattenBooks().find((b) => b.bookId === nextBookId);
         state.frontState.testament = resolveTestamentName(nextBookId);
         state.frontState.bookId = nextBookId;
-        state.frontState.chapter = 0;
+        state.frontState.chapter =
+          picked && Number(picked.chapters || 0) > 0 ? 1 : 0;
         saveFrontState();
         renderAllSelectors();
 
-        const picked = flattenBooks().find((b) => b.bookId === nextBookId);
         if (isOverviewOnlyBookMeta(picked)) {
           closeToolbarPanel(gridOpts.closePanelId);
         }
@@ -5833,13 +5919,20 @@ function renderBookChapterGrids(opts) {
     bindBookGridClickHandlers(allMobile, testamentNameForBookId, opts);
   }
 
-  const currentBook = getCurrentBookMeta();
+  const selectedBookId = String(bookIdOverride || state.frontState.bookId || "").trim();
+  const selectedChapter =
+    chapterOverride === null
+      ? Number(state.frontState.chapter || 0)
+      : Number(chapterOverride || 0);
+  const currentBook =
+    getBookMetaById(selectedBookId) ||
+    getCurrentBookMeta();
   const ccGrid = Number(currentBook?.chapters);
   const chapterCount =
     Number.isFinite(ccGrid) && ccGrid >= 0 ? ccGrid : 1;
   const copy = getLocalizedCopy();
   const introShort = copy.bookIntroShort || "介绍";
-  const introActive = Number(state.frontState.chapter) === 0 ? "active" : "";
+  const introActive = selectedChapter === 0 ? "active" : "";
   const introBtn = `<button type="button" class="chapter-item chapter-item--intro ${introActive}" data-chapter-grid-no="0">${escapeHtml(
     introShort
   )}</button>`;
@@ -5847,7 +5940,7 @@ function renderBookChapterGrids(opts) {
   const chapterBtns = Array.from({ length: chapterCount }, (_, i) => {
     const chapterNo = i + 1;
     const active =
-      chapterNo === Number(state.frontState.chapter) ? "active" : "";
+      chapterNo === selectedChapter ? "active" : "";
     return `<button type="button" class="chapter-item ${active}" data-chapter-grid-no="${chapterNo}">${chapterNo}</button>`;
   }).join("");
 
@@ -5857,8 +5950,14 @@ function renderBookChapterGrids(opts) {
     btn.addEventListener("click", async () => {
       const raw = btn.getAttribute("data-chapter-grid-no");
       const nextChapter = raw === "0" ? 0 : Number(raw || 1);
+      const targetBook = getBookMetaById(selectedBookId);
 
       if (pickVerseMode && verseGridId) {
+        if (targetBook) {
+          state.frontState.testament = targetBook.testamentName;
+          state.frontState.bookId = targetBook.bookId;
+        }
+        chapterVersePickTargetChapter = nextChapter;
         state.frontState.chapter = nextChapter;
         saveFrontState();
         renderAllSelectors();
@@ -5868,10 +5967,11 @@ function renderBookChapterGrids(opts) {
           return;
         }
         await refreshCurrentPage();
-        renderBookChapterGrids(opts);
+        renderChapterVersePickPanel();
         return;
       }
 
+      chapterVersePickTargetChapter = nextChapter;
       state.frontState.chapter = nextChapter;
       saveFrontState();
       renderAllSelectors();
@@ -5881,7 +5981,7 @@ function renderBookChapterGrids(opts) {
   });
 
   if (pickVerseMode && verseGridId) {
-    fillVersePickGrid(verseGridId);
+    void fillVersePickGrid(verseGridId, selectedBookId, selectedChapter);
   }
 
   syncBookChapterCompactLayoutAfterRender();
@@ -6236,15 +6336,14 @@ function updatePageTitle() {
   if (prevTopBtn) prevTopBtn.setAttribute("aria-label", copy.prevChapter);
   if (nextTopBtn) nextTopBtn.setAttribute("aria-label", copy.nextChapter);
 
-  const indexAbbrEl = document.getElementById("bookIndexTabAbbr");
+  const indexEntries = collectBookPageIndexEntries();
   const indexTabBtn = document.getElementById("bookPageIndexTab");
   const abbrFull = getCurrentBookAbbreviationForIndexTab();
-  const abbrOne =
-    abbrFull && [...String(abbrFull)].length
-      ? [...String(abbrFull)][0]
-      : "";
-  if (indexAbbrEl) indexAbbrEl.textContent = abbrOne || "—";
   if (indexTabBtn) {
+    indexTabBtn.innerHTML = buildBookPageIndexTabsHtml(
+      indexEntries,
+      state.frontState.bookId
+    );
     indexTabBtn.setAttribute(
       "aria-label",
       `${copy.chapterVersePickNavTitle || copy.chapterVersePickTitle || copy.triggerBook || "章节与经节"} · ${abbrFull || getBookLabelForPrimaryScripture()}`

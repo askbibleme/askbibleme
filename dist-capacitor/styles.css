@@ -5607,11 +5607,11 @@ body.chapter-verse-pick-open {
   flex: 1 1 auto;
 }
 
-/* 选书卷：旧约 | 新约 | 章节 三栏，总宽分四份 2:1:1 */
+/* 选书卷：书脊 | 旧约 | 新约 | 章节 四栏（窄屏见下：仅书脊+章节） */
 #bookChapterPanel .book-chapter-triple {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 3px 5px;
+  grid-template-columns: minmax(68px, 100px) minmax(0, 1.85fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 3px 6px;
   align-items: stretch;
   min-height: 0;
   width: 100%;
@@ -5636,9 +5636,29 @@ body.chapter-verse-pick-open {
   -webkit-overflow-scrolling: touch;
 }
 
-/* 宽屏三栏不显示「合并书卷」列（仅 ≤480px 最窄双栏用） */
+/* 书脊列：宽屏第 1 列；≤480px 仍为左列（与章节双栏） */
 #bookChapterPanel .book-chapter-col--all-books {
-  display: none !important;
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#bookChapterPanel .book-chapter-col--ot {
+  grid-column: 2;
+  min-width: 0;
+}
+
+#bookChapterPanel .book-chapter-col--nt {
+  grid-column: 3;
+  min-width: 0;
+}
+
+#bookChapterPanel .book-chapter-col--chapters {
+  grid-column: 4;
+  min-width: 0;
 }
 
 /* 书卷列表：每段为「分类行」—— 宽屏分类占满宽，其下网格排书；最窄合并列见下 480px */
@@ -5725,6 +5745,8 @@ body.chapter-verse-pick-open {
   min-height: 0;
   min-width: 0;
   width: 100%;
+  position: relative;
+  z-index: 2;
 }
 
 #bookChapterPanel .book-spine-rail {
@@ -5772,6 +5794,8 @@ body.chapter-verse-pick-open {
   min-height: 22px;
   border-radius: 0 999px 999px 0;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  position: relative;
+  z-index: 1;
   transition:
     color 0.12s ease,
     filter 0.12s ease,
@@ -5838,6 +5862,24 @@ body.chapter-verse-pick-open {
 }
 #bookChapterPanel .book-spine-tab--other {
   background: #383634;
+}
+
+/* 宽屏书脊略放大，与左列宽度匹配 */
+@media (min-width: 481px) {
+  #bookChapterPanel .book-spine-rail {
+    width: 6px;
+  }
+
+  #bookChapterPanel .book-spine-list {
+    padding: 4px 4px 6px 2px;
+    gap: 3px;
+  }
+
+  #bookChapterPanel .book-spine-tab {
+    font-size: calc(13px * var(--font-scale));
+    min-height: 24px;
+    padding: 4px 9px 4px 5px;
+  }
 }
 
 #bookChapterPanel .book-testament-block {
@@ -6007,20 +6049,24 @@ body.chapter-verse-pick-open {
 
   #bookChapterPanel .book-chapter-col--all-books {
     display: flex !important;
-    grid-column: 1;
+    grid-column: 1 !important;
     min-height: 0;
     min-width: 0;
     flex-direction: column;
     gap: 0 !important;
+    position: relative;
+    z-index: 5;
   }
 
   #bookChapterPanel .book-chapter-col--chapters {
     display: flex !important;
-    grid-column: 2;
+    grid-column: 2 !important;
     min-height: 0;
     min-width: 0;
     flex-direction: column;
     gap: 0 !important;
+    position: relative;
+    z-index: 1;
   }
 
   /* 右栏保留「章节」标题；左栏用内部分组标题 */
