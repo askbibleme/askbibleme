@@ -9785,6 +9785,13 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
         .trim()
         .toUpperCase()
         .slice(0, 24);
+      row.sortOrder = Math.max(
+        1,
+        toSafeNumber(
+          Object.prototype.hasOwnProperty.call(entry, "sortOrder") ? entry.sortOrder : prev.sortOrder,
+          999
+        )
+      );
       const sentBookIds = Array.isArray(entry.bookIds) ? entry.bookIds : [];
       const prevBookIds = Array.isArray(prev.bookIds) ? prev.bookIds : [];
       const impliedBookIds = Array.isArray(relatedBookIdsByProfile[key])

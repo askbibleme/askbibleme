@@ -10,6 +10,7 @@
  * 产品意图：人物为 AI 生成诠释性插画（非史实照片）。在构图允许时，主人物宜有镇定、庄重的眼神交流感，
  * 便于放在文章或展陈中与读者「对话」；具体由全站出图前缀与下方英文锁定行共同约束。
  */
+import { resolveCharacterIdentity } from "../bible-character-identities.js";
 
 /** 无档案时的默认英文称呼（仍比 "robed figures" 具体） */
 export const DEFAULT_ENGLISH_NAME_BY_ZH = {
@@ -58,6 +59,9 @@ export const DEFAULT_ENGLISH_NAME_BY_ZH = {
   悉帕: "Zilpah",
   便雅悯: "Benjamin",
   犹大: "Judah",
+  "犹大（雅各之子）": "Judah",
+  "犹大（加略人）": "Judas Iscariot",
+  "犹大（不是加略人）": "Judas (not Iscariot)",
   流便: "Reuben",
   麦基洗德: "Melchizedek",
   法老: "Pharaoh",
@@ -101,8 +105,13 @@ export function getCharacterEntry(profilesRoot, zhName) {
   if (!key) return null;
   const { characters } = normalizeProfileRoot(profilesRoot);
   const entry = characters[key];
-  if (!entry || typeof entry !== "object") return null;
-  return entry;
+  if (entry && typeof entry === "object") return entry;
+  const alias = resolveCharacterIdentity("", key).displayNameZh || "";
+  if (alias && alias !== key) {
+    const aliased = characters[String(alias).trim()];
+    if (aliased && typeof aliased === "object") return aliased;
+  }
+  return null;
 }
 
 /**
@@ -315,11 +324,11 @@ export function buildCharacterLockLinesForRefSelections(
     const lockBody = lockParts.join(" ");
     if (lockBody.trim()) {
       lines.push(
-        `${en}: Match the project's existing reference art for this character at this life stage — same facial identity (eyes, nose, jaw, brows, hairline) as the library portrait; ${lockBody}`
+        `${en}: Match the project's existing reference art for this character at this life stage — same facial identity (eyes, nose, jaw, brows, hairline) as the library portrait; ${lockBody}; no visible text, letters, numbers, labels, watermark, logo, or signature anywhere on the portrait`
       );
     } else if (en && en !== zh) {
       lines.push(
-        `${en}: same recognizable face as other chapters in this Bible project; ${ageLine}; ancient Near Eastern dress suited to the narrative`
+        `${en}: same recognizable face as other chapters in this Bible project; ${ageLine}; ancient Near Eastern dress suited to the narrative; no visible text, letters, numbers, labels, watermark, logo, or signature anywhere on the portrait`
       );
     }
   }
@@ -330,7 +339,7 @@ export function buildCharacterLockLinesForRefSelections(
   }
   if (lines.length >= 1) {
     lines.unshift(
-      "Reference portraits: The descriptions below come from the project character library (generated reference art). Honor them for facial consistency; when the scene implies a different age than the library sheet, still keep the SAME identity — adjust wrinkles, hair color, and skin texture, not bone structure."
+      "Reference portraits: The descriptions below come from the project character library (generated reference art). Honor them for facial consistency; when the scene implies a different age than the library sheet, still keep the SAME identity — adjust wrinkles, hair color, and skin texture, not bone structure. Keep the portrait itself free of any embedded text or labels."
     );
   }
   return lines;
@@ -357,10 +366,10 @@ export function buildCharacterLockLines(keyPeople, profilesRoot, maxPeople = 4) 
     if (persEn) lockParts.push(`Scripture-based temperament/demeanor: ${persEn}`);
     const lockBody = lockParts.join(" ");
     if (lockBody) {
-      lines.push(`${en}: ${lockBody}`);
+      lines.push(`${en}: ${lockBody}; no visible text, letters, numbers, labels, watermark, logo, or signature anywhere on the portrait`);
     } else if (en && en !== z) {
       lines.push(
-        `${en}: same recognizable face and body type as in other chapters of this Bible project; ancient Near Eastern biblical-era clothing suited to narrative phase and social standing — primeval pre-Cain figures (Adam/Eve): animal skins only; later figures: match office and wealth (priest, king, prosperous household, or humble/poor as the text implies) with period-plausible garments — not the same default costume as every other character, and not medieval or modern dress; age-appropriate for the narrative`
+        `${en}: same recognizable face and body type as in other chapters of this Bible project; ancient Near Eastern biblical-era clothing suited to narrative phase and social standing — primeval pre-Cain figures (Adam/Eve): animal skins only; later figures: match office and wealth (priest, king, prosperous household, or humble/poor as the text implies) with period-plausible garments — not the same default costume as every other character, and not medieval or modern dress; age-appropriate for the narrative; no visible text, letters, numbers, labels, watermark, logo, or signature anywhere on the portrait`
       );
     }
   }
@@ -374,7 +383,7 @@ export function buildCharacterLockLines(keyPeople, profilesRoot, maxPeople = 4) 
       "Cross-roster distinctiveness (mandatory): Primary named figure(s) below belong to a project with many biblical characters. Each must look like a specific individual, NOT a generic interchangeable face that could stand in for Abraham, Moses, or another unrelated roster portrait. Honor locked appearance text when provided; otherwise infer clearly differentiated facial structure (bone shape, nose, eyes, brows, jaw, ears, hairline, beard pattern, wrinkles, stature, age) within believable ancient Near Eastern regional diversity."
     );
     lines.unshift(
-      "AI-generated interpretive illustration (not a historical photograph). Viewer engagement (intentional): for focal named figures whose faces read clearly, prefer calm dignified eye contact toward the viewer when the narrative moment allows — present alongside text or display; never vacant, wall-eyed, or aggressively glaring."
+      "AI-generated interpretive illustration (not a historical photograph). Viewer engagement (intentional): for focal named figures whose faces read clearly, prefer calm dignified eye contact toward the viewer when the narrative moment allows — present alongside text or display; never vacant, wall-eyed, or aggressively glaring. Keep the portrait itself free of any embedded text or labels."
     );
   }
   return lines;

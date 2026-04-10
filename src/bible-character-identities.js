@@ -1,6 +1,12 @@
 const SPECIAL_IDENTITY_RULES = Object.freeze([
   Object.freeze({
     bookId: "GEN",
+    displayNameZh: "犹大",
+    profileKey: "犹大（雅各之子）",
+    note: "族长时代：雅各的儿子犹大（创世记叙事线）",
+  }),
+  Object.freeze({
+    bookId: "GEN",
     displayNameZh: "法老",
     profileKey: "法老（约瑟时代）",
     note: "约瑟进入埃及时期的埃及王",
@@ -80,6 +86,38 @@ const SPECIAL_IDENTITY_RULES = Object.freeze([
     displayNameZh: "凯撒",
     profileKey: "凯撒（罗马皇帝）",
     note: "使徒行传中保罗上诉语境下的罗马皇帝称号",
+  }),
+  Object.freeze({
+    bookId: "MAT",
+    displayNameZh: "犹大",
+    profileKey: "犹大（加略人）",
+    note: "福音书叙事线：加略人犹大（出卖耶稣的门徒）",
+  }),
+  Object.freeze({
+    bookId: "MRK",
+    displayNameZh: "犹大",
+    profileKey: "犹大（加略人）",
+    note: "福音书叙事线：加略人犹大（出卖耶稣的门徒）",
+  }),
+  Object.freeze({
+    bookId: "LUK",
+    displayNameZh: "犹大",
+    profileKey: "犹大（加略人）",
+    note: "福音书叙事线：加略人犹大（出卖耶稣的门徒）",
+  }),
+  Object.freeze({
+    bookId: "JHN",
+    displayNameZh: "犹大",
+    chapterFrom: 14,
+    chapterTo: 14,
+    profileKey: "犹大（不是加略人）",
+    note: "约翰福音 14 章：犹大（不是加略人犹大）",
+  }),
+  Object.freeze({
+    bookId: "JHN",
+    displayNameZh: "犹大",
+    profileKey: "犹大（加略人）",
+    note: "约翰福音其余章节提到的犹大多指加略人犹大",
   }),
 ]);
 

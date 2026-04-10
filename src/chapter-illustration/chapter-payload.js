@@ -2,6 +2,7 @@
  * Normalize published chapter JSON into a stable chapter payload for the pipeline.
  */
 import { sanitizeCharacterFigurePortraitSlotByZh } from "./character-appearance.js";
+import { resolveCharacterIdentity } from "../bible-character-identities.js";
 
 /**
  * 已发布查经 JSON 可选字段：本章额外人物中文名（须与人物库 `characters` 键一致）。
@@ -86,9 +87,18 @@ export function buildChapterPayloadFromPublished(data, meta, options = {}) {
     ? []
     : sanitizeChapterKeyPeopleArray(data?.chapterKeyPeople);
   const inferredPeople = extractKeyPeople(combinedForKeys);
-  const keyPeople = mergeKeyPeopleListsMany(
+  const keyPeopleRaw = mergeKeyPeopleListsMany(
     [globalPeople, filePeople, inferredPeople],
     16
+  );
+  const keyPeople = sanitizeChapterKeyPeopleArray(
+    keyPeopleRaw
+      .map(
+        (rawName) =>
+          resolveCharacterIdentity(bookId, rawName, chapterNumber).profileKey
+      )
+      .map((x) => String(x || "").trim())
+      .filter(Boolean)
   );
 
   return {

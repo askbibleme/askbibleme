@@ -62,6 +62,12 @@ export const BIBLE_HIGH_RISK_CONFUSABLE_NAMES = Object.freeze([
     notes: "按叙事时期拆档；约瑟时代与出埃及为不同君主。",
   }),
   Object.freeze({
+    displayNameZh: "犹大",
+    group: "name_collision",
+    notes:
+      "至少含两条主要叙事线：族长时代「犹大（雅各之子）」与福音书「犹大（加略人）」；约翰 14:22 另有「犹大（不是加略人）」。建议按书卷/章节规则拆档，勿共用脸。",
+  }),
+  Object.freeze({
     displayNameZh: "亚比米勒",
     group: "name_collision",
     notes: "族长叙事中的非利士王号 vs 士师记基甸之子。",

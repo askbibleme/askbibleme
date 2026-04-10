@@ -5982,6 +5982,10 @@ function renderBookChapterGrids(opts) {
       }
 
       chapterVersePickTargetChapter = nextChapter;
+      if (targetBook) {
+        state.frontState.testament = targetBook.testamentName;
+        state.frontState.bookId = targetBook.bookId;
+      }
       state.frontState.chapter = nextChapter;
       saveFrontState();
       renderAllSelectors();
@@ -6627,15 +6631,15 @@ function syncChapterCharacterRoster() {
     const line4Raw = tagsPlain || hasStructTags || roleZh;
     const dash = "—";
     const lifeLine = lifeRaw
-      ? `<span class="chapter-character-roster-line chapter-character-roster-life">${escapeHtml(
+      ? `<span class="chapter-character-roster-line chapter-character-roster-life"><span class="chapter-character-roster-label">岁数</span><span class="chapter-character-roster-value">${escapeHtml(
           lifeRaw
-        )}</span>`
-      : `<span class="chapter-character-roster-line chapter-character-roster-life chapter-character-roster-line--empty">${dash}</span>`;
+        )}</span></span>`
+      : `<span class="chapter-character-roster-line chapter-character-roster-life chapter-character-roster-line--empty"><span class="chapter-character-roster-label">岁数</span><span class="chapter-character-roster-value">${dash}</span></span>`;
     const eraLine = eraRaw
-      ? `<span class="chapter-character-roster-line chapter-character-roster-era">${escapeHtml(
+      ? `<span class="chapter-character-roster-line chapter-character-roster-era"><span class="chapter-character-roster-label">时代</span><span class="chapter-character-roster-value">${escapeHtml(
           eraRaw
-        )}</span>`
-      : `<span class="chapter-character-roster-line chapter-character-roster-era chapter-character-roster-line--empty">${dash}</span>`;
+        )}</span></span>`
+      : `<span class="chapter-character-roster-line chapter-character-roster-era chapter-character-roster-line--empty"><span class="chapter-character-roster-label">时代</span><span class="chapter-character-roster-value">${dash}</span></span>`;
     let tagsClass =
       "chapter-character-roster-line chapter-character-roster-tags";
     if (line4Raw && !tagsPlain && !hasStructTags && roleZh) {
@@ -6645,9 +6649,11 @@ function syncChapterCharacterRoster() {
           : " chapter-character-roster-tags--role";
     }
     const tagsLine = line4Raw
-      ? `<span class="${tagsClass}">${tagsInner || escapeHtml(roleZh)}</span>`
-      : `<span class="chapter-character-roster-line chapter-character-roster-tags chapter-character-roster-line--empty">${dash}</span>`;
-    const caption = `<figcaption class="chapter-character-roster-caption"><div class="chapter-character-roster-field chapter-character-roster-field--name"><span class="chapter-character-roster-name">${name}</span></div><div class="chapter-character-roster-field chapter-character-roster-field--life">${lifeLine}</div><div class="chapter-character-roster-field chapter-character-roster-field--era">${eraLine}</div><div class="chapter-character-roster-field chapter-character-roster-field--tags">${tagsLine}</div></figcaption>`;
+      ? `<span class="${tagsClass}"><span class="chapter-character-roster-label">标签</span><span class="chapter-character-roster-value">${tagsInner || escapeHtml(
+          roleZh
+        )}</span></span>`
+      : `<span class="chapter-character-roster-line chapter-character-roster-tags chapter-character-roster-line--empty"><span class="chapter-character-roster-label">标签</span><span class="chapter-character-roster-value">${dash}</span></span>`;
+    const caption = `<figcaption class="chapter-character-roster-caption"><div class="chapter-character-roster-field chapter-character-roster-field--name"><span class="chapter-character-roster-label">姓名</span><span class="chapter-character-roster-name">${name}</span></div><div class="chapter-character-roster-field chapter-character-roster-field--life">${lifeLine}</div><div class="chapter-character-roster-field chapter-character-roster-field--era">${eraLine}</div><div class="chapter-character-roster-field chapter-character-roster-field--tags">${tagsLine}</div></figcaption>`;
     cards.push(
       `<figure class="chapter-character-roster-item${
         isCurrentChapter ? " is-current-chapter" : ""

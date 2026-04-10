@@ -28,14 +28,15 @@ no anime / cartoon / stylized fantasy,
 no flat editorial illustration look,
 no clean vector-like contouring,
 no brighter, cleaner, flatter, or more neutral style drift,
-no sci-fi effects,
-single clear narrative moment only,
-no symbolic abstraction,
-not crowded,
-no frame, no border, no circular vignette, no medallion composition, no poster panel, no sticker-like cutout,
-no picture-inside-a-frame look, no art-print-with-mat, no faux wood frame, gallery mount, or inner card inset around the scene,
-one continuous painted artwork on the picture plane — not a composited photo pasted inside a decorative window or frame device,
-no inner rectangle that reads as a matted print, card inset, or picture hung on a wall within the image
+  no sci-fi effects,
+  single clear narrative moment only,
+  no symbolic abstraction,
+  not crowded,
+  no text of any kind on the image — no captions, subtitles, labels, verses, signage, calligraphy, letters, numerals, glyphs, watermark, logo, or signature,
+  no frame, no border, no circular vignette, no medallion composition, no poster panel, no sticker-like cutout,
+  no picture-inside-a-frame look, no art-print-with-mat, no faux wood frame, gallery mount, or inner card inset around the scene,
+  one continuous painted artwork on the picture plane — not a composited photo pasted inside a decorative window or frame device,
+  no inner rectangle that reads as a matted print, card inset, or picture hung on a wall within the image
 `
   .trim()
   .replace(/\s+/g, " ");
@@ -93,6 +94,7 @@ export function generateIllustrationPrompt(config) {
           "Ancient Near Eastern biblical-era garments only (wool/linen tunics, mantles, cloaks, sashes, veils as fitting) — never medieval European, Renaissance, or modern dress. When multiple named people appear, differentiate drapery, layering, and garment silhouette between them so costumes are not copy-pasted clones; period-plausible variety, not identical default robes on every figure.",
           "When multiple standing adults appear, keep natural height variation (adult women typically shorter than adult men in the same scene unless the narrative specifies otherwise); do not equalize everyone to the same silhouette height.",
           "Costume: primeval Adam/Eve-era figures in simple animal-hide dress only; from later narrative layers use era- and office-appropriate garb (priestly, royal, wealthy patriarch, poor or mourning) per the beat — never one generic costume for every named person.",
+          "Character-image text ban: the figures, clothing, props, floor, and backdrop must contain no written words or numbers of any kind — no nameplate, no title text, no page text, no labels, no symbols, no watermark, no logo, no signature, and no carved/embroidered letters.",
           "Keep all named people inside the approved master style: classical biblical oil painting, warm low-key light, restrained emotion, soft canvas texture, and unified series consistency.",
         ]
       : [];
@@ -127,6 +129,7 @@ export function generateIllustrationPrompt(config) {
     CONSTRAINTS_GLOBAL_BASE + ",",
     outerBoundsConstraint(transparent) + ",",
     "no text, letters, symbols, watermark or logo",
+    "for character portraits, absolutely no visible writing or typography anywhere in the image: no names, captions, labels, numbers, title banners, signage, or decorative inscriptions on clothing, props, ground, or background",
     ...(transparent
       ? [
           "TRANSPARENT (merged into CONSTRAINTS): narrative paint (people + coherent environment) uses opacity; true alpha 0 only where nothing is painted — chapter paper shows through. A SLOW, WIDE environmental fade into transparency at the outer bounds is REQUIRED (roughly 15–40% of frame depth from each edge may carry gradual falloff — not a thin ring around people)",
