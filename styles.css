@@ -1910,10 +1910,10 @@ body:has(
   padding: 4px 3px;
   border: none;
   border-radius: 0 14px 14px 0;
-  background: #f5efe5;
-  color: #8f6518;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+  color: #6f6558;
   font-family: "Heiti SC", "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: calc(14px * var(--font-scale));
+  font-size: calc(16px * var(--font-scale));
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0;
@@ -1927,60 +1927,60 @@ body:has(
 }
 
 .book-page-index-tab__item:hover {
-  background: #efe6d7;
-  color: #8f6518;
+  background: linear-gradient(180deg, rgba(242, 236, 226, 0.96), rgba(234, 226, 212, 0.98));
+  color: #6b6154;
 }
 
 .book-page-index-tab__item:focus-visible {
   outline: 2px solid var(--brand-bible);
   outline-offset: 1px;
-  background: #efe6d7;
+  background: linear-gradient(180deg, rgba(242, 236, 226, 0.96), rgba(234, 226, 212, 0.98));
 }
 
 .book-page-index-tab__item.active {
-  background: #eadfcf;
-  color: #8f6518;
+  background: linear-gradient(180deg, rgba(230, 221, 208, 0.98), rgba(222, 211, 196, 0.98));
+  color: #5f564b;
   transform: translateX(2px);
 }
 
 .book-page-index-tab__item--pentateuch {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--history {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--poetry {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--major_prophets {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--minor_prophets {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--gospels {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--acts {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--paul {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--general {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-page-index-tab__item--revelation {
-  background: #f5efe5;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-side-extend-tags {
