@@ -30,8 +30,17 @@ import {
 import {
   buildRelatedBookIdsByProfile,
   buildPrimaryCharacterEntriesByBook,
+  listSpecialIdentityRules,
   resolveCharacterIdentity,
 } from "./src/bible-character-identities.js";
+import {
+  BIBLE_HIGH_RISK_CONFUSABLE_NAMES,
+  buildRegistryDefaultPatch,
+  CHARACTER_TIER,
+  IDENTITY_TYPE,
+  PROFILE_COMPLETION_STATUS,
+  SECONDARY_PROFILE_MIN_FIELDS,
+} from "./src/bible-character-registry-schema.js";
 import {
   runScenePipelineFromPublishedData,
   generateIllustrationPrompt,
@@ -2365,6 +2374,56 @@ function applyCharacterProfileRoleDefaults(profilesRoot) {
   return { root, changed };
 }
 
+/** 分级、identityType、internalKey、完成度、是否须要主图（与 src/bible-character-registry-schema.js 一致） */
+function applyCharacterProfileRegistryDefaults(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const chars =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  let changed = false;
+  for (const [profileKey, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    const patch = buildRegistryDefaultPatch(profileKey, row);
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === undefined) continue;
+      if (row[k] === v) continue;
+      row[k] = v;
+      changed = true;
+    }
+  }
+  return { root, changed };
+}
+
+/** 兼容更直观的治理字段名：primaryBookId / profileStatus */
+function applyCharacterProfileGovernanceAliases(profilesRoot) {
+  const root =
+    profilesRoot && typeof profilesRoot === "object" ? profilesRoot : { characters: {} };
+  const chars =
+    root.characters && typeof root.characters === "object" ? root.characters : {};
+  let changed = false;
+  for (const [profileKey, row] of Object.entries(chars)) {
+    if (!row || typeof row !== "object") continue;
+    const nextPrimaryBookId = safeText(
+      row.primaryBookId || row.sourceBookId || inferCharacterBookId(profileKey) || ""
+    )
+      .trim()
+      .toUpperCase();
+    if (nextPrimaryBookId && nextPrimaryBookId !== safeText(row.primaryBookId || "").trim().toUpperCase()) {
+      row.primaryBookId = nextPrimaryBookId;
+      changed = true;
+    }
+    const nextProfileStatus = safeText(
+      row.profileStatus || row.profileCompletionStatus || ""
+    ).trim();
+    const canonicalProfileStatus = safeText(row.profileCompletionStatus || nextProfileStatus).trim();
+    if (canonicalProfileStatus && canonicalProfileStatus !== safeText(row.profileStatus || "").trim()) {
+      row.profileStatus = canonicalProfileStatus;
+      changed = true;
+    }
+  }
+  return { root, changed };
+}
+
 async function handleCharacterProfileGenerate(req, res) {
   try {
     const authed = requireAdminUser(req, res);
@@ -3321,17 +3380,11 @@ function isAdminPathInsideRepo(absPath) {
 }
 
 function listDeploySyncAdminRelativePaths() {
-  const paths = [
-    !characterProfilesUsesSqlite() && CHARACTER_ILLUSTRATION_PROFILES_FILE,
-    CHAPTER_ILLUSTRATION_STATE_FILE,
-    CHARACTER_STAGE_RULES_FILE,
-    CHAPTER_KEY_PEOPLE_FILE,
-  ]
-    .filter(Boolean)
-    .filter((abs) => fs.existsSync(abs))
-    .filter((abs) => isAdminPathInsideRepo(abs))
-    .map((abs) => path.relative(__dirname, abs).replaceAll("\\", "/"));
-  return paths;
+  /**
+   * 创作侧运行数据（人物档案、人物分期、章节插画状态、章人物清单）按独立数据处理，
+   * 不参与本机/远端同步，避免线上与本机互相覆盖。
+   */
+  return [];
 }
 
 function normalizeRemoteSyncBaseUrl(input) {
@@ -3457,7 +3510,7 @@ function summarizeSyncRelPath(rel) {
   if (pathText.startsWith("content_published/")) return "已发布内容";
   if (pathText.startsWith("public/generated/thumbs/")) return "缩略图";
   if (pathText.startsWith("public/generated/")) return "插画与人物图";
-  if (pathText.startsWith("admin_data/")) return "人物与插画配置";
+  if (pathText.startsWith("admin_data/")) return "后台运行数据";
   return "其它";
 }
 
@@ -3536,7 +3589,7 @@ function buildSyncPackageZipFromRelPaths(relPaths, label = "sync") {
           label,
           generatedAt: nowIso(),
           fileCount: addedCount,
-          scope: "content-character-illustration-sync",
+          scope: "published-content-and-generated-assets-sync",
         },
         null,
         2
@@ -3558,7 +3611,7 @@ function applySyncZipBuffer(buffer, sourceLabel, req, authed) {
     allowedEntries.push({ rel, entry });
   }
   if (!allowedEntries.length) {
-    throw new Error("同步包中没有可导入的内容/人物/插画文件");
+    throw new Error("同步包中没有可导入的已发布内容或生成图片");
   }
   const backupId = `syncbk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const backupDir = path.join(DEPLOY_BACKUPS_DIR, backupId);
@@ -8566,12 +8619,16 @@ function loadCharacterIllustrationProfiles() {
   const bookBackfilled = applyCharacterProfileSourceBookDefaults(englishBackfilled.root);
   const identityBackfilled = applyCharacterProfileIdentityDefaults(bookBackfilled.root);
   const roleBackfilled = applyCharacterProfileRoleDefaults(identityBackfilled.root);
-  const lifespanBackfilled = applyCharacterProfileLifespanDefaults(roleBackfilled.root);
+  const registryBackfilled = applyCharacterProfileRegistryDefaults(roleBackfilled.root);
+  const governanceAliased = applyCharacterProfileGovernanceAliases(registryBackfilled.root);
+  const lifespanBackfilled = applyCharacterProfileLifespanDefaults(governanceAliased.root);
   if (
     englishBackfilled.changed ||
     bookBackfilled.changed ||
     identityBackfilled.changed ||
     roleBackfilled.changed ||
+    registryBackfilled.changed ||
+    governanceAliased.changed ||
     lifespanBackfilled.changed
   ) {
     persistCharacterIllustrationProfilesRoot(lifespanBackfilled.root);
@@ -9300,6 +9357,27 @@ function handleCharacterIllustrationProfilesGet(req, res) {
   }
 }
 
+function handleBibleCharacterRegistryReferenceGet(req, res) {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    res.json({
+      ok: true,
+      highRiskConfusable: [...BIBLE_HIGH_RISK_CONFUSABLE_NAMES],
+      enums: {
+        characterTier: Object.values(CHARACTER_TIER),
+        identityType: Object.values(IDENTITY_TYPE),
+        profileCompletionStatus: Object.values(PROFILE_COMPLETION_STATUS),
+      },
+      secondaryProfileMinFields: [...SECONDARY_PROFILE_MIN_FIELDS],
+      specialIdentityRules: listSpecialIdentityRules(),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "读取人物注册规则参考失败。" });
+  }
+}
+
 async function handleCharacterIllustrationProfilesPost(req, res) {
   try {
     const authed = requireAdminUser(req, res);
@@ -9346,6 +9424,12 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
         entry.displayNameZh || prev.displayNameZh || identity.displayNameZh || key
       ).slice(0, 32);
       if (resolvedSourceBookId) row.sourceBookId = resolvedSourceBookId;
+      row.primaryBookId = safeText(
+        entry.primaryBookId || prev.primaryBookId || resolvedSourceBookId || ""
+      )
+        .trim()
+        .toUpperCase()
+        .slice(0, 24);
       const sentBookIds = Array.isArray(entry.bookIds) ? entry.bookIds : [];
       const prevBookIds = Array.isArray(prev.bookIds) ? prev.bookIds : [];
       const impliedBookIds = Array.isArray(relatedBookIdsByProfile[key])
@@ -9356,6 +9440,9 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
         .filter(Boolean)
         .slice(0, 12);
       if (mergedBookIds.length) row.bookIds = mergedBookIds;
+      if (!row.primaryBookId && mergedBookIds.length) {
+        row.primaryBookId = mergedBookIds[0];
+      }
       row.characterRoleZh = resolveCharacterRoleZh(
         row.displayNameZh || key,
         entry.characterRoleZh || prev.characterRoleZh || "",
@@ -9468,6 +9555,17 @@ async function handleCharacterIllustrationProfilesPost(req, res) {
           }
         }
       }
+      const registryPatch = buildRegistryDefaultPatch(key, row);
+      for (const [patchKey, patchValue] of Object.entries(registryPatch)) {
+        if (patchValue === undefined) continue;
+        row[patchKey] = patchValue;
+      }
+      row.profileStatus = safeText(
+        entry.profileStatus ||
+          prev.profileStatus ||
+          row.profileCompletionStatus ||
+          ""
+      ).trim();
       out.characters[key] = row;
     }
     if (CHARACTER_DATA_DIR) ensureDir(CHARACTER_DATA_DIR);
@@ -9504,6 +9602,10 @@ app.post("/api/admin/character-illustration-profiles", handleCharacterIllustrati
 /** 扁平别名：个别反代对长连字符 path 返回 404（与 /api/admin/sitechrome 同理） */
 app.get("/api/admin/bible-character-profiles", handleCharacterIllustrationProfilesGet);
 app.post("/api/admin/bible-character-profiles", handleCharacterIllustrationProfilesPost);
+app.get(
+  "/api/admin/bible-character-registry-reference",
+  handleBibleCharacterRegistryReferenceGet
+);
 app.post(
   "/api/admin/character-illustration-profiles/generate",
   handleCharacterProfileGenerate
@@ -13729,7 +13831,7 @@ app.get("/api/admin/remote-sync/config", (req, res) => {
       configured: Boolean(remote.baseUrl && remote.adminToken),
       baseUrl: remote.baseUrl || "",
       tokenMasked: maskRemoteSyncToken(remote.adminToken),
-      note: "仅同步已发布内容、人物/插画配置、public/generated；不含账号与提问数据。",
+      note: "仅同步已发布内容与 public/generated；人物创作数据、账号与提问数据均独立，不参与同步。",
     });
   } catch (error) {
     console.error(error);
@@ -14399,6 +14501,40 @@ app.get("/api/admin/bible-primary-characters", (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || "读取主人物目录失败" });
+  }
+});
+
+app.get("/api/admin/bible-character-identity-rules", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    res.json({
+      rules: listSpecialIdentityRules(),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取人物身份规则失败" });
+  }
+});
+
+app.get("/api/admin/bible-character-storage-status", (req, res) => {
+  try {
+    const authed = requireAdminUser(req, res);
+    if (!authed) return;
+    res.json({
+      profileStore: characterProfilesUsesSqlite() ? "sqlite" : "json",
+      characterDataDir: CHARACTER_DATA_DIR || "",
+      generatedAssetsDir: CHAPTER_ILLUSTRATION_GENERATED_DIR || "",
+      profilesFile: characterProfilesUsesSqlite() ? "" : CHARACTER_ILLUSTRATION_PROFILES_FILE,
+      profilesDb: characterProfilesUsesSqlite() ? characterProfilesDbPath() : "",
+      chapterKeyPeopleFile: CHAPTER_KEY_PEOPLE_FILE || "",
+      chapterIllustrationStateFile: CHAPTER_ILLUSTRATION_STATE_FILE || "",
+      characterStageRulesFile: CHARACTER_STAGE_RULES_FILE || "",
+      syncIncluded: false,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "读取人物存储状态失败" });
   }
 });
 

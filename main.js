@@ -3816,9 +3816,7 @@ function initMemberHub() {
     }
     if (action === "admin") {
       close();
-      document.getElementById("openAdminBtn")?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true })
-      );
+      window.location.href = "/admin-hub.html";
     }
   });
 
@@ -7208,7 +7206,7 @@ function updateChapterNavUI() {
 }
 
 /* =========================
-   后台管理
+   管理后台
    ========================= */
 const ADMIN_MODAL_TOP_CSS_VAR = "--admin-modal-inset-top";
 
@@ -7223,11 +7221,32 @@ function clearAdminModalInsetTop() {
   document.documentElement.style.removeProperty(ADMIN_MODAL_TOP_CSS_VAR);
 }
 
-/** 从管理总览等跳转 `/#openAdmin` 时自动打开读经页大面板（规则、任务等） */
+let pendingAdminDeepTab = "";
+
+function activateAdminTab(tab) {
+  const target = String(tab || "").trim();
+  if (!target) return false;
+  const btn = document.querySelector(`.admin-tab-btn[data-admin-tab="${target}"]`);
+  const panel = document.getElementById(`adminTab-${target}`);
+  if (!btn || !panel) return false;
+  document.querySelectorAll(".admin-tab-btn").forEach((x) => {
+    x.classList.toggle("active", x === btn);
+  });
+  document.querySelectorAll(".admin-tab-panel").forEach((p) => {
+    p.classList.remove("active");
+  });
+  panel.classList.add("active");
+  return true;
+}
+
+/** 从管理总览等跳转 `/#openAdmin` 或 `/#openAdmin:tab` 时自动打开读经页大面板（规则、任务等） */
 function tryConsumeAdminDeepLink() {
   function consume() {
     try {
-      if (window.location.hash !== "#openAdmin") return false;
+      const hash = String(window.location.hash || "").trim();
+      const m = hash.match(/^#openAdmin(?::([a-z0-9_]+))?$/i);
+      if (!m) return false;
+      pendingAdminDeepTab = String(m[1] || "").trim();
       const u = new URL(window.location.href);
       u.hash = "";
       history.replaceState({}, "", u.pathname + (u.search || ""));
@@ -7243,7 +7262,7 @@ function tryConsumeAdminDeepLink() {
   }
   consume();
   window.addEventListener("hashchange", () => {
-    if (window.location.hash === "#openAdmin") consume();
+    if (/^#openAdmin(?::([a-z0-9_]+))?$/i.test(String(window.location.hash || ""))) consume();
   });
 }
 
@@ -7286,7 +7305,7 @@ function initAdminModal() {
   async function openAdminIfAuthorized() {
     await fetchCurrentUser();
     if (!userHasSiteAdminAccess(state.currentUser)) {
-      window.alert("请使用已登录的管理员账号进入后台管理。");
+      window.alert("请使用已登录的管理员账号进入管理后台。");
       return;
     }
     try {
@@ -7357,19 +7376,13 @@ function bindAdminTabs() {
   document.querySelectorAll(".admin-tab-btn").forEach((btn) => {
     btn.onclick = null;
     btn.addEventListener("click", () => {
-      const tab = btn.dataset.adminTab;
-
-      document.querySelectorAll(".admin-tab-btn").forEach((x) => {
-        x.classList.toggle("active", x === btn);
-      });
-
-      document.querySelectorAll(".admin-tab-panel").forEach((panel) => {
-        panel.classList.remove("active");
-      });
-
-      document.getElementById(`adminTab-${tab}`)?.classList.add("active");
+      activateAdminTab(btn.dataset.adminTab);
     });
   });
+  if (pendingAdminDeepTab) {
+    activateAdminTab(pendingAdminDeepTab);
+    pendingAdminDeepTab = "";
+  }
 }
 
 function ensureAdminUsersTabExists() {
@@ -10646,7 +10659,7 @@ async function initDeployManagerTab() {
     if (remoteSyncBaseUrlInput) remoteSyncBaseUrlInput.value = String(data.baseUrl || "");
     if (remoteSyncAdminTokenInput) remoteSyncAdminTokenInput.value = "";
     remoteSyncStatusBox.textContent = data.configured
-      ? `已配置远端：${data.baseUrl || ""}；Token：${data.tokenMasked || ""}。仅同步内容/人物/插画，不含账号与提问。`
+      ? `已配置远端：${data.baseUrl || ""}；Token：${data.tokenMasked || ""}。仅同步已发布内容与生成图片；人物创作数据、账号与提问均独立，不参与同步。`
       : "尚未配置远端站点地址与管理员 Token。";
   }
 

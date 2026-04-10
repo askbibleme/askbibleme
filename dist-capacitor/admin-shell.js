@@ -54,13 +54,53 @@
       ],
     },
     {
-      sub: "读经页内",
+      sub: "内容与系统",
       items: [
         { href: "/video-center.html", label: "章节视频上传" },
         {
-          href: "/#openAdmin",
-          label: "规则 · 任务 · 发布",
-          note: "在读经首页打开大面板",
+          href: "/admin-rule-editor.html",
+          label: "规则编辑",
+          note: "独立内容工作台：维护内容生成规则",
+        },
+        {
+          href: "/admin-test-generate.html",
+          label: "测试生成",
+          note: "独立内容工作台：查看生成结果并继续人工调整",
+        },
+        {
+          href: "/admin-scripture-versions.html",
+          label: "圣经版本",
+          note: "独立版本工作台：维护前台与后台可用的圣经版本",
+        },
+        {
+          href: "/admin-content-versions.html",
+          label: "内容版本",
+          note: "独立版本工作台：维护默认版、前台显示与生成用版本",
+        },
+        {
+          href: "/admin-published.html",
+          label: "已发布内容",
+          note: "独立发布工作台：查阅、编辑、删除、补发与统计",
+        },
+        {
+          href: "/admin-points-system.html",
+          label: "积分体系",
+          note: "独立成长工作台：维护成长体系与积分命名规则",
+        },
+        {
+          href: "/admin-deploy.html",
+          label: "部署与同步",
+          note: "独立系统工作台：打包、升级、同步、备份与审计",
+        },
+        {
+          href: "/admin-users.html",
+          label: "权限管理",
+          note: "独立权限工作台：管理员分级、列表与初始化管理",
+        },
+        {
+          href: "/admin-question-review.html",
+          label: "贡献审核",
+          note: "独立审核工作台：处理用户提交的问题与建议",
         },
       ],
     },

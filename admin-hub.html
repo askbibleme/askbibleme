@@ -96,6 +96,19 @@
       .admin-hub-section-title:first-of-type {
         margin-top: 0;
       }
+      .admin-hub-subsection {
+        margin-top: 14px;
+      }
+      .admin-hub-subsection:first-of-type {
+        margin-top: 0;
+      }
+      .admin-hub-subsection-title {
+        margin: 0 0 10px;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--ink);
+        letter-spacing: 0.01em;
+      }
       .admin-hub-note {
         margin-top: 24px;
         padding: 12px 14px;
@@ -116,9 +129,116 @@
       <header class="admin-hub-hero">
         <h1>管理后台</h1>
         <p>
-          以下为全站配置与运营工具入口，版式与读经站一致（纸质底、金棕强调）。左侧可随时切换模块；「读经页内」一项会打开首页并弹出<strong>规则编辑、测试生成、发布与任务</strong>等大面板。
+          以下为全站配置与运营工具入口，已统一收口为独立后台子页。左侧可随时切换模块，内容生产、人物与插画、站点展示与系统数据均从这里进入。
         </p>
       </header>
+
+      <div class="admin-hub-section-title">常用</div>
+      <section class="admin-hub-subsection">
+        <div class="admin-hub-subsection-title">内容生产</div>
+        <div class="admin-hub-grid">
+          <a class="admin-hub-card" href="/admin-rule-editor.html">
+            <h2>规则编辑</h2>
+            <p>直接打开读经首页里的规则编辑标签，继续维护内容生成规则。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+          <a class="admin-hub-card" href="/admin-test-generate.html">
+            <h2>测试生成</h2>
+            <p>直接进入测试生成标签，查看生成结果并继续人工调整。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+          <a class="admin-hub-card" href="/admin-published.html">
+            <h2>已发布内容</h2>
+            <p>直接进入已发布内容管理，查阅、编辑、删除和补发章节内容。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+          <a class="admin-hub-card" href="/admin-scripture-versions.html">
+            <h2>圣经版本</h2>
+            <p>直接进入圣经版本管理，维护前台可见与后台可用的版本配置。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+          <a class="admin-hub-card" href="/admin-content-versions.html">
+            <h2>内容版本</h2>
+            <p>直接进入内容版本管理，维护默认版、前台显示与后台生成用版本。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+          <a class="admin-hub-card" href="/admin-deploy.html">
+            <h2>部署与同步</h2>
+            <p>直接进入部署标签，查看打包、升级包、远端同步与数据相关操作。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+          <a class="admin-hub-card" href="/admin-points-system.html">
+            <h2>积分体系</h2>
+            <p>直接进入积分体系配置，调整成长体系与积分相关规则。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+          <a class="admin-hub-card" href="/admin-question-review.html">
+            <h2>贡献审核</h2>
+            <p>直接进入贡献审核标签，处理用户提交的问题与建议。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+          <a class="admin-hub-card" href="/admin-users.html">
+            <h2>权限管理</h2>
+            <p>直接进入权限管理标签，维护十夫长、百夫长、千夫长等管理员等级。</p>
+            <span class="admin-hub-go">打开</span>
+          </a>
+        </div>
+      </section>
+      <section class="admin-hub-subsection">
+        <div class="admin-hub-subsection-title">人物与插画</div>
+        <div class="admin-hub-grid">
+          <a class="admin-hub-card" href="/bible-character-designer.html">
+            <h2>圣经人物设计器</h2>
+            <p>
+              维护插画用角色档案：中文名、英文名、场景短标签与外观长描述（写入
+              <code>character_illustration_profiles.json</code>），供章节插画自动套用、跨章一致；人物创作数据为独立运行数据，不参与远端同步与普通升级覆盖；页内已集成“失效引用统计 / 预检报告 / 一键修复图片引用”。
+            </p>
+            <span class="admin-hub-go">进入</span>
+          </a>
+          <a class="admin-hub-card" href="/chapter-key-people.html">
+            <h2>章末人物表（全局）</h2>
+            <p>
+              按书卷与章维护本章关键人物中文名（写入
+              <code>admin_data/chapter_key_people.json</code>），全版本与全语言读经页共用。
+            </p>
+            <span class="admin-hub-go">进入</span>
+          </a>
+          <a class="admin-hub-card" href="/illustration-admin.html">
+            <h2>插画管理</h2>
+            <p>
+              按书卷/章备注需求、GPT 生成文案与关键词、生成预览并保存；一键插入已发布章节，读经页标题下展示插画。
+            </p>
+            <span class="admin-hub-go">进入</span>
+          </a>
+          <a class="admin-hub-card" href="/chapter-illustration-library.html">
+            <h2>章插图总表</h2>
+            <p>
+              集中查看哪些章节已经挂了插图；可一键跳到该章插画管理页继续生成，也可删除页面插图，或在单章独用时连底层生成文件一起删掉。
+            </p>
+            <span class="admin-hub-go">进入</span>
+          </a>
+          <a class="admin-hub-card" href="/video-center.html">
+            <h2>章节视频上传</h2>
+            <p>指定版本、语言、书卷与章，上传 MP4/WebM；自动写入已发布章节并在读经页大标题上方展示。</p>
+            <span class="admin-hub-go">进入</span>
+          </a>
+          <a class="admin-hub-card" href="/generated-png-thumbs.html">
+            <h2>出图 PNG 与缩略</h2>
+            <p>
+              浏览 <code>public/generated</code> 下已生成的 PNG（带预览），批量写入
+              <code>thumbs/</code> 小图；读经「本章人员」优先使用小图，减轻动态缩图接口负载。
+            </p>
+            <span class="admin-hub-go">进入</span>
+          </a>
+          <a class="admin-hub-card" href="/bible-character-designer.html#repair-images">
+            <h2>人物图片预检与修复</h2>
+            <p>
+              预检人物档案里的失效图片引用，列出会修哪些人物与字段，再确认执行一键修复；同时重建人物缩略图并清缓存。
+            </p>
+            <span class="admin-hub-go">进入</span>
+          </a>
+        </div>
+      </section>
 
       <div class="admin-hub-section-title">站点与展示</div>
       <div class="admin-hub-grid">
@@ -155,69 +275,6 @@
           <h2>访问统计</h2>
           <p>按日汇总访客、浏览与估算在线时长。</p>
           <span class="admin-hub-go">进入</span>
-        </a>
-      </div>
-
-      <div class="admin-hub-section-title">插画</div>
-      <div class="admin-hub-grid">
-        <a class="admin-hub-card" href="/illustration-admin.html">
-          <h2>插画管理</h2>
-          <p>
-            按书卷/章备注需求、GPT 生成文案与关键词、生成预览并保存；一键插入已发布章节，读经页标题下展示插画。
-          </p>
-          <span class="admin-hub-go">进入</span>
-        </a>
-        <a class="admin-hub-card" href="/chapter-illustration-library.html">
-          <h2>章插图总表</h2>
-          <p>
-            集中查看哪些章节已经挂了插图；可一键跳到该章插画管理页继续生成，也可删除页面插图，或在单章独用时连底层生成文件一起删掉。
-          </p>
-          <span class="admin-hub-go">进入</span>
-        </a>
-        <a class="admin-hub-card" href="/generated-png-thumbs.html">
-          <h2>出图 PNG 与缩略</h2>
-          <p>
-            浏览 <code>public/generated</code> 下已生成的 PNG（带预览），批量写入
-            <code>thumbs/</code> 小图；读经「本章人员」优先使用小图，减轻动态缩图接口负载。
-          </p>
-          <span class="admin-hub-go">进入</span>
-        </a>
-        <a class="admin-hub-card" href="/bible-character-designer.html#repair-images">
-          <h2>人物图片预检与修复</h2>
-          <p>
-            预检人物档案里的失效图片引用，列出会修哪些人物与字段，再确认执行一键修复；同时重建人物缩略图并清缓存。
-          </p>
-          <span class="admin-hub-go">进入</span>
-        </a>
-      </div>
-
-      <div class="admin-hub-section-title">读经页内</div>
-      <div class="admin-hub-grid">
-        <a class="admin-hub-card" href="/video-center.html">
-          <h2>章节视频上传</h2>
-          <p>指定版本、语言、书卷与章，上传 MP4/WebM；自动写入已发布章节并在读经页大标题上方展示。</p>
-          <span class="admin-hub-go">进入</span>
-        </a>
-        <a class="admin-hub-card" href="/bible-character-designer.html">
-          <h2>圣经人物设计器</h2>
-          <p>
-            维护插画用角色档案：中文名、英文名、场景短标签与外观长描述（写入
-            <code>character_illustration_profiles.json</code>），供章节插画自动套用、跨章一致；页内已集成“失效引用统计 / 预检报告 / 一键修复图片引用”。
-          </p>
-          <span class="admin-hub-go">进入</span>
-        </a>
-        <a class="admin-hub-card" href="/chapter-key-people.html">
-          <h2>章末人物表（全局）</h2>
-          <p>
-            按书卷与章维护本章关键人物中文名（写入
-            <code>admin_data/chapter_key_people.json</code>），全版本与全语言读经页共用。
-          </p>
-          <span class="admin-hub-go">进入</span>
-        </a>
-        <a class="admin-hub-card" href="/#openAdmin">
-          <h2>规则 · 任务 · 发布</h2>
-          <p>内容版本规则、测试生成、已发布管理、部署与积分等（读经首页大面板）。</p>
-          <span class="admin-hub-go">打开读经首页</span>
         </a>
       </div>
 

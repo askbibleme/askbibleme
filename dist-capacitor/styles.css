@@ -5780,7 +5780,7 @@ body.member-profile-open {
   max-width: 1280px;
 }
 
-/* 后台管理：全屏蒙层从顶栏下缘开始，不遮盖顶栏；高度由 --admin-modal-inset-top 同步（main.js 测量 .site-topbar） */
+/* 管理后台：全屏蒙层从顶栏下缘开始，不遮盖顶栏；高度由 --admin-modal-inset-top 同步（main.js 测量 .site-topbar） */
 #adminModal.modal-mask {
   top: var(--admin-modal-inset-top, calc(56px + env(safe-area-inset-top, 0px)));
   right: 0;

@@ -103,6 +103,22 @@
       .bcd-preset-name:hover {
         border-color: rgba(200, 155, 60, 0.45);
       }
+      .bcd-preset-type-dot {
+        flex: 0 0 auto;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(140, 130, 118, 0.45);
+      }
+      .bcd-preset-type-dot--shared {
+        background: #4f7eaa;
+      }
+      .bcd-preset-type-dot--title-split {
+        background: #b77436;
+      }
+      .bcd-preset-type-dot--single-book {
+        background: #6f9a52;
+      }
       .bcd-preset-ord {
         flex: 0 0 auto;
         min-width: 1.25em;
@@ -133,6 +149,26 @@
       }
       .bcd-preset-status--ok {
         color: #2d6a3e;
+      }
+      .bcd-preset-progress-dot {
+        flex: 0 0 auto;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(140, 130, 118, 0.45);
+      }
+      .bcd-preset-progress-dot--profiled {
+        background: #6e7ca6;
+      }
+      .bcd-preset-progress-dot--has-copy {
+        background: #4f8d92;
+      }
+      .bcd-preset-progress-dot--has-hero {
+        background: #5c9d66;
+      }
+      .bcd-preset-progress-dot--complete {
+        background: #2d6a3e;
+        box-shadow: 0 0 0 2px rgba(45, 106, 62, 0.14);
       }
       .bcd-doc {
         border-radius: 16px;
@@ -212,6 +248,66 @@
         color: #2d6a3e;
         font-weight: 600;
       }
+      .bcd-rules-panel {
+        margin-bottom: 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--paper);
+      }
+      .bcd-rules-panel summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .bcd-rules-panel summary::-webkit-details-marker {
+        display: none;
+      }
+      .bcd-rules-body {
+        padding: 0 12px 12px;
+      }
+      .bcd-rules-lead {
+        margin: 0 0 10px;
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--muted-soft);
+      }
+      .bcd-rules-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .bcd-rules-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--paper-soft);
+        padding: 8px 10px;
+      }
+      .bcd-rules-item-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        align-items: baseline;
+        margin-bottom: 4px;
+      }
+      .bcd-rules-item-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .bcd-rules-item-code {
+        font-size: 10px;
+        color: var(--muted);
+        font-family: ui-monospace, monospace;
+      }
+      .bcd-rules-item-note {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.45;
+        color: var(--muted-soft);
+      }
       .bcd-list {
         display: flex;
         flex-direction: column;
@@ -261,6 +357,65 @@
         gap: 8px 12px;
         align-items: flex-end;
         margin-bottom: 10px;
+      }
+      .bcd-governance-badges {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: -2px;
+      }
+      .bcd-governance-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(121, 149, 119, 0.12);
+        border: 1px solid rgba(121, 149, 119, 0.28);
+        color: #456241;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .bcd-governance-badge--shared {
+        background: rgba(63, 108, 141, 0.14);
+        border-color: rgba(63, 108, 141, 0.28);
+        color: #355a73;
+      }
+      .bcd-governance-badge--title-split {
+        background: rgba(168, 103, 44, 0.14);
+        border-color: rgba(168, 103, 44, 0.28);
+        color: #8d5320;
+      }
+      .bcd-governance-badge--single-book {
+        background: rgba(96, 131, 70, 0.14);
+        border-color: rgba(96, 131, 70, 0.28);
+        color: #4e6b3a;
+      }
+      .bcd-governance-badge--status-unprofiled {
+        background: rgba(140, 130, 118, 0.14);
+        border-color: rgba(140, 130, 118, 0.26);
+        color: #6d655d;
+      }
+      .bcd-governance-badge--status-profiled {
+        background: rgba(104, 114, 151, 0.14);
+        border-color: rgba(104, 114, 151, 0.26);
+        color: #56607f;
+      }
+      .bcd-governance-badge--status-has-copy {
+        background: rgba(78, 127, 128, 0.14);
+        border-color: rgba(78, 127, 128, 0.26);
+        color: #3f696a;
+      }
+      .bcd-governance-badge--status-has-hero {
+        background: rgba(76, 134, 90, 0.14);
+        border-color: rgba(76, 134, 90, 0.26);
+        color: #3f6f49;
+      }
+      .bcd-governance-badge--status-complete {
+        background: rgba(45, 106, 62, 0.18);
+        border-color: rgba(45, 106, 62, 0.34);
+        color: #2d6a3e;
       }
       .bcd-field-key {
         flex: 1;
@@ -1022,6 +1177,60 @@
         padding-top: 12px;
         border-top: 1px dashed var(--line);
       }
+      .bcd-storage-panel {
+        margin: 10px 0 14px;
+        padding: 12px 14px;
+        border: 1px solid rgba(121, 149, 119, 0.35);
+        border-radius: 14px;
+        background: rgba(245, 242, 232, 0.9);
+      }
+      .bcd-storage-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: #3f5a37;
+        margin-bottom: 6px;
+      }
+      .bcd-storage-lead {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .bcd-storage-list {
+        display: grid;
+        gap: 6px;
+      }
+      .bcd-storage-row {
+        font-size: 12px;
+        color: var(--ink);
+        line-height: 1.6;
+        word-break: break-all;
+      }
+      .bcd-storage-row code {
+        font-size: 11px;
+      }
+      .bcd-filter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 8px 0 0;
+      }
+      .bcd-filter-chip {
+        border: 1px solid rgba(121, 149, 119, 0.28);
+        background: rgba(245, 242, 232, 0.95);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .bcd-filter-chip--active {
+        background: rgba(45, 106, 62, 0.12);
+        border-color: rgba(45, 106, 62, 0.4);
+        color: #2d6a3e;
+      }
     </style>
   </head>
   <body class="admin-shell-page" data-admin-current="/bible-character-designer.html">
@@ -1029,8 +1238,7 @@
       <div class="bcd-doc">
         <h1>圣经人物设计器</h1>
         <p class="bcd-lead">
-          编辑插画用<strong>角色外观档案</strong>（中文名为键，与章节 theme 里的人名一致时才会自动套用）。左侧<strong>备选人物库</strong>按经卷列出，每行显示是否已建档、透明主图是否已生成；点击姓名打开编辑（未建档则先加入）。<strong>GPT 智能生成</strong>与各栏 GPT <strong>只自动填入</strong>气质、各时期英文与外貌描述等，<strong>不会自动出图</strong>（英文外观仅写人物与衣着体态，勿写花园/天空等背景；叙事地点写在<strong>场景短标签（英文）</strong>）；并列预览区可点<strong>GPT 智能生成</strong>（只填字）与<strong>一键生成</strong>（每期单独 1024×1536 透明全身，几期则几次图片 AI），或分栏「生成画像」。<strong>智能生成默认只判 1 套时期</strong>：壮年/成年标准参考脸与体态，作为全书场景的人脸锚点。若确需 2～3 期，请在卡片「GPT 备注」写明如<strong>两期、三期、多期</strong>等，AI 才会返回多套英文描述；再手动把「时期数量」调到 2 或 3 后出图。并列区会<strong>横排展示</strong>各期全身像；页顶主图按<strong>中期 / 成年中位</strong>规则取自其中一期。数据保存在服务器
-          <code>admin_data/character_illustration_profiles.json</code>。<strong>出图后仅更新当前预览，不会自动保存</strong>；请点「保存全部」写入档案。
+          编辑插画用<strong>角色外观档案</strong>（中文名为键，与章节 theme 里的人名一致时才会自动套用）。左侧<strong>备选人物库</strong>按经卷列出，每行显示是否已建档、透明主图是否已生成；点击姓名打开编辑（未建档则先加入）。<strong>GPT 智能生成</strong>与各栏 GPT <strong>只自动填入</strong>气质、各时期英文与外貌描述等，<strong>不会自动出图</strong>（英文外观仅写人物与衣着体态，勿写花园/天空等背景；叙事地点写在<strong>场景短标签（英文）</strong>）；并列预览区可点<strong>GPT 智能生成</strong>（只填字）与<strong>一键生成</strong>（每期单独 1024×1536 透明全身，几期则几次图片 AI），或分栏「生成画像」。<strong>智能生成默认只判 1 套时期</strong>：壮年/成年标准参考脸与体态，作为全书场景的人脸锚点。若确需 2～3 期，请在卡片「GPT 备注」写明如<strong>两期、三期、多期</strong>等，AI 才会返回多套英文描述；再手动把「时期数量」调到 2 或 3 后出图。并列区会<strong>横排展示</strong>各期全身像；页顶主图按<strong>中期 / 成年中位</strong>规则取自其中一期。人物数据现按<strong>独立运行数据</strong>保存；当前实际目录见下方“当前人物数据目录”。<strong>出图后仅更新当前预览，不会自动保存</strong>；请点「保存全部」写入档案。
           <strong>请用 Node 启动站点后访问</strong>
           <code>/bible-character-designer.html</code>（默认 <code>http://localhost:3000/…</code>），否则接口 <code>/api/admin/bible-character-profiles</code> 会 404；静态站需在 head 配置 <code>askbible-api-base</code> 指向 API。
         </p>
@@ -1071,7 +1279,33 @@
               />
               <span id="bcdCount" class="bcd-count"></span>
             </div>
+            <div class="bcd-filter-chips" id="bcdFilterChips">
+              <button type="button" class="bcd-filter-chip" data-filter-mode="all">全部</button>
+              <button type="button" class="bcd-filter-chip" data-filter-mode="incomplete">未完成</button>
+              <button type="button" class="bcd-filter-chip" data-filter-mode="title_split">称号拆分</button>
+              <button type="button" class="bcd-filter-chip" data-filter-mode="shared">共享人物</button>
+            </div>
             <p id="bcdStatus" class="bcd-status" role="status"></p>
+            <div id="bcdStoragePanel" class="bcd-storage-panel">
+              <div class="bcd-storage-title">当前人物数据目录</div>
+              <p class="bcd-storage-lead">
+                这里显示服务器当前实际使用的人物运行数据与生成图目录，便于确认现在是不是独立目录模式。
+              </p>
+              <div id="bcdStorageList" class="bcd-storage-list">
+                <div class="bcd-hero-empty">载入中…</div>
+              </div>
+            </div>
+            <details id="bcdIdentityRulesPanel" class="bcd-rules-panel">
+              <summary>易混人物规则</summary>
+              <div class="bcd-rules-body">
+                <p class="bcd-rules-lead">
+                  这里列出“同名共用”和“同称号拆分”的特殊规则，便于检查法老、希律这类人物不会混档。
+                </p>
+                <div id="bcdIdentityRulesList" class="bcd-rules-list">
+                  <div class="bcd-hero-empty">载入中…</div>
+                </div>
+              </div>
+            </details>
             <div id="bcdEditorEmpty" class="bcd-editor-empty" hidden>
               暂无人物条目。请从左侧<strong>备选人物库</strong>点选姓名加入，或点「新增人物」（亦会出现在左侧「其他人物」）。
             </div>
@@ -1400,16 +1634,20 @@
 
         const authEl = document.getElementById("bcdAuth");
         const statusEl = document.getElementById("bcdStatus");
+        const storageListEl = document.getElementById("bcdStorageList");
         const listEl = document.getElementById("bcdList");
         const heroGalleryBodyEl = document.getElementById("bcdHeroGalleryBody");
         const heroGalleryEl = document.getElementById("bcdHeroGallery");
         const presetInnerEl = document.getElementById("bcdPresetInner");
+        const identityRulesListEl = document.getElementById("bcdIdentityRulesList");
         const filterEl = document.getElementById("bcdFilter");
+        const filterChipsEl = document.getElementById("bcdFilterChips");
         const countEl = document.getElementById("bcdCount");
         const editorEmptyEl = document.getElementById("bcdEditorEmpty");
 
         let profiles = { characters: {} };
         let filterText = "";
+        let governanceFilterMode = "all";
         let invalidRefAudit = { invalidRefCount: 0, invalidRefs: [], repaired: [], touchedCharacters: 0 };
         /** 右侧当前编辑的人物键；新建未填名为 "__new__" */
         let selectedBcdKey = null;
@@ -1606,6 +1844,124 @@
           initPresetPanel();
         }
 
+        function renderIdentityRules(rules) {
+          if (!identityRulesListEl) return;
+          var rows = Array.isArray(rules) ? rules : [];
+          if (!rows.length) {
+            identityRulesListEl.innerHTML = '<div class="bcd-hero-empty">暂无特殊规则</div>';
+            return;
+          }
+          identityRulesListEl.innerHTML = rows
+            .map(function (rule) {
+              var chapterText = "";
+              if (rule.chapterFrom != null && rule.chapterTo != null) {
+                chapterText =
+                  Number(rule.chapterFrom) === Number(rule.chapterTo)
+                    ? "章 " + String(rule.chapterFrom)
+                    : "章 " + String(rule.chapterFrom) + "-" + String(rule.chapterTo);
+              }
+              return (
+                '<div class="bcd-rules-item">' +
+                '<div class="bcd-rules-item-head">' +
+                '<span class="bcd-rules-item-title">' +
+                escapePresetHtml(String(rule.displayNameZh || "")) +
+                "</span>" +
+                '<span class="bcd-rules-item-code">' +
+                escapePresetHtml(String(rule.bookId || "")) +
+                (chapterText ? " · " + escapePresetHtml(chapterText) : "") +
+                " -> " +
+                escapePresetHtml(String(rule.profileKey || "")) +
+                "</span>" +
+                "</div>" +
+                '<p class="bcd-rules-item-note">' +
+                escapePresetHtml(String(rule.note || "已按特殊身份规则拆分")) +
+                "</p>" +
+                "</div>"
+              );
+            })
+            .join("");
+        }
+
+        async function loadIdentityRules() {
+          var res = await fetch(apiUrl("/api/admin/bible-character-identity-rules"), {
+            headers: { Authorization: "Bearer " + getToken() },
+            cache: "no-store",
+          });
+          var raw = await res.text();
+          var data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) {
+            throw new Error(data.error || "读取人物身份规则失败 HTTP " + res.status);
+          }
+          renderIdentityRules(data.rules || []);
+        }
+
+        function renderStorageStatus(data) {
+          if (!storageListEl) return;
+          if (!data || typeof data !== "object") {
+            storageListEl.innerHTML = '<div class="bcd-hero-empty">暂无目录信息</div>';
+            return;
+          }
+          var rows = [];
+          rows.push(
+            '<div class="bcd-storage-row"><strong>人物档案存储：</strong>' +
+              escapePresetHtml(String(data.profileStore || "json").toUpperCase()) +
+              (data.syncIncluded === false ? "；不参与远端同步" : "") +
+              "</div>"
+          );
+          if (data.characterDataDir) {
+            rows.push(
+              '<div class="bcd-storage-row"><strong>人物运行数据目录：</strong><code>' +
+                escapePresetHtml(String(data.characterDataDir || "")) +
+                "</code></div>"
+            );
+          }
+          if (data.profilesFile) {
+            rows.push(
+              '<div class="bcd-storage-row"><strong>人物档案文件：</strong><code>' +
+                escapePresetHtml(String(data.profilesFile || "")) +
+                "</code></div>"
+            );
+          }
+          if (data.profilesDb) {
+            rows.push(
+              '<div class="bcd-storage-row"><strong>人物档案数据库：</strong><code>' +
+                escapePresetHtml(String(data.profilesDb || "")) +
+                "</code></div>"
+            );
+          }
+          if (data.generatedAssetsDir) {
+            rows.push(
+              '<div class="bcd-storage-row"><strong>生成图片目录：</strong><code>' +
+                escapePresetHtml(String(data.generatedAssetsDir || "")) +
+                "</code></div>"
+            );
+          }
+          storageListEl.innerHTML = rows.join("");
+        }
+
+        async function loadStorageStatus() {
+          var res = await fetch(apiUrl("/api/admin/bible-character-storage-status"), {
+            headers: { Authorization: "Bearer " + getToken() },
+            cache: "no-store",
+          });
+          var raw = await res.text();
+          var data = {};
+          try {
+            data = raw.trim() ? JSON.parse(raw) : {};
+          } catch (_) {
+            data = {};
+          }
+          if (!res.ok) {
+            throw new Error(data.error || "读取人物存储状态失败 HTTP " + res.status);
+          }
+          renderStorageStatus(data);
+        }
+
         function buildPresetPanelHtml() {
           var parts = [];
           var b;
@@ -1632,7 +1988,7 @@
                   escapePresetHtml(book.bookId) +
                   '"><span class="bcd-preset-ord">' +
                   String(i + 1) +
-                  '</span><span>' +
+                  '</span><span class="bcd-preset-type-dot" aria-hidden="true"></span><span class="bcd-preset-progress-dot" aria-hidden="true"></span><span>' +
                   escapePresetHtml(presetEntry.displayNameZh) +
                   '</span><span class="bcd-preset-status bcd-preset-status--bare"></span></button></li>'
               );
@@ -1806,15 +2162,45 @@
           presetInnerEl.querySelectorAll(".bcd-preset-name[data-zh]").forEach(function (btn) {
             var zh = String(btn.getAttribute("data-zh") || "").trim();
             var span = btn.querySelector(".bcd-preset-status");
+            var dot = btn.querySelector(".bcd-preset-type-dot");
+            var progressDot = btn.querySelector(".bcd-preset-progress-dot");
             if (!span || !zh) return;
             var card = findCardByZh(zh);
             if (!card) {
               btn.classList.remove("bcd-preset-name--in-list");
               span.textContent = "未添加";
               span.className = "bcd-preset-status bcd-preset-status--bare";
+              if (dot) dot.className = "bcd-preset-type-dot";
+              if (progressDot) progressDot.className = "bcd-preset-progress-dot";
               return;
             }
             btn.classList.add("bcd-preset-name--in-list");
+            if (dot) {
+              var rawIdentityType = String(card.getAttribute("data-identity-type") || "").trim();
+              dot.className =
+                "bcd-preset-type-dot" +
+                (rawIdentityType === "shared"
+                  ? " bcd-preset-type-dot--shared"
+                  : rawIdentityType === "title_split"
+                    ? " bcd-preset-type-dot--title-split"
+                    : rawIdentityType === "single_book"
+                      ? " bcd-preset-type-dot--single-book"
+                      : "");
+            }
+            if (progressDot) {
+              var rawProfileStatus = String(card.getAttribute("data-profile-status") || "").trim();
+              progressDot.className =
+                "bcd-preset-progress-dot" +
+                (rawProfileStatus === "profiled"
+                  ? " bcd-preset-progress-dot--profiled"
+                  : rawProfileStatus === "has_copy"
+                    ? " bcd-preset-progress-dot--has-copy"
+                    : rawProfileStatus === "has_hero"
+                      ? " bcd-preset-progress-dot--has-hero"
+                      : rawProfileStatus === "complete"
+                        ? " bcd-preset-progress-dot--complete"
+                        : "");
+            }
             if (cardHasUsableHeroImage(card, zh)) {
               span.textContent = "已添加 · 主图已生成";
               span.className = "bcd-preset-status bcd-preset-status--ok";
@@ -3769,6 +4155,49 @@
           const comparisonSheetUrl = safe(en.comparisonSheetUrl || "");
           const heroImageUrl = safe(en.heroImageUrl || "");
           const heroRosterHeight = bcdNormalizeHeroRosterHeight(en.heroRosterHeight);
+          const identityType = safe(en.identityType || "");
+          const profileStatus = safe(en.profileStatus || en.profileCompletionStatus || "");
+          const primaryBookId = safe(en.primaryBookId || en.sourceBookId || "");
+          const identityTypeBadgeClass =
+            identityType === "shared"
+              ? " bcd-governance-badge--shared"
+              : identityType === "title_split"
+                ? " bcd-governance-badge--title-split"
+                : identityType === "single_book"
+                  ? " bcd-governance-badge--single-book"
+                  : "";
+          const profileStatusBadgeClass =
+            profileStatus === "unprofiled"
+              ? " bcd-governance-badge--status-unprofiled"
+              : profileStatus === "profiled"
+                ? " bcd-governance-badge--status-profiled"
+                : profileStatus === "has_copy"
+                  ? " bcd-governance-badge--status-has-copy"
+                  : profileStatus === "has_hero"
+                    ? " bcd-governance-badge--status-has-hero"
+                    : profileStatus === "complete"
+                      ? " bcd-governance-badge--status-complete"
+                      : "";
+          const identityTypeLabel = safe(
+            (function (raw) {
+              var v = String(raw || "").trim();
+              if (v === "shared") return "共享人物";
+              if (v === "title_split") return "称号拆分";
+              if (v === "single_book") return "单卷人物";
+              return v || "待定";
+            })(en.identityType)
+          );
+          const profileStatusLabel = safe(
+            (function (raw) {
+              var v = String(raw || "").trim();
+              if (v === "unprofiled") return "未建完整档";
+              if (v === "profiled") return "已建档";
+              if (v === "has_copy") return "已有文案";
+              if (v === "has_hero") return "已有主图";
+              if (v === "complete") return "已完成";
+              return v || "待定";
+            })(en.profileStatus || en.profileCompletionStatus)
+          );
           const smartGenNotes = safe(en.smartGenNotes || "");
           const promptArchiveText = safe(en.promptArchiveText || "");
           const extras = Array.isArray(en.periods) ? en.periods.slice(0, 2) : [];
@@ -3814,6 +4243,12 @@
             sourceBookId +
             '" data-book-ids="' +
             safe(bookIds.join(",")) +
+            '" data-identity-type="' +
+            identityType +
+            '" data-profile-status="' +
+            profileStatus +
+            '" data-primary-book-id="' +
+            primaryBookId +
             '" data-hero-image-url="' +
             heroImageUrl +
             '" data-hero-roster-height="' +
@@ -3831,6 +4266,21 @@
               ? ""
               : 'readonly title="已保存的人物请删后重建以改名"') +
             " />" +
+            "</div>" +
+            '<div class="bcd-governance-badges">' +
+            '<span class="bcd-governance-badge' +
+            identityTypeBadgeClass +
+            '">身份：' +
+            identityTypeLabel +
+            "</span>" +
+            '<span class="bcd-governance-badge' +
+            profileStatusBadgeClass +
+            '">完成度：' +
+            profileStatusLabel +
+            "</span>" +
+            '<span class="bcd-governance-badge">主归属卷：' +
+            (primaryBookId || sourceBookId || "待定") +
+            "</span>" +
             "</div>" +
             (isNew
               ? ""
@@ -4583,8 +5033,26 @@
               var zh = String(btn.getAttribute("data-zh") || "").trim().toLowerCase();
               var pick = String(btn.getAttribute("data-pick") || "").trim().toLowerCase();
               var label = String(btn.textContent || "").trim().toLowerCase();
-              var show =
+              var baseMatch =
                 !q || zh.indexOf(q) !== -1 || pick.indexOf(q) !== -1 || label.indexOf(q) !== -1;
+              var governanceMatch = true;
+              if (governanceFilterMode !== "all" && btn.getAttribute("data-zh")) {
+                var card = findCardByZh(String(btn.getAttribute("data-zh") || "").trim());
+                var rawIdentityType = card
+                  ? String(card.getAttribute("data-identity-type") || "").trim()
+                  : "";
+                var rawProfileStatus = card
+                  ? String(card.getAttribute("data-profile-status") || "").trim()
+                  : "";
+                if (governanceFilterMode === "incomplete") {
+                  governanceMatch = Boolean(card) && rawProfileStatus !== "complete";
+                } else if (governanceFilterMode === "title_split") {
+                  governanceMatch = rawIdentityType === "title_split";
+                } else if (governanceFilterMode === "shared") {
+                  governanceMatch = rawIdentityType === "shared";
+                }
+              }
+              var show = baseMatch && governanceMatch;
               li.style.display = show ? "" : "none";
               if (show) visibleLeft += 1;
             });
@@ -4592,7 +5060,7 @@
           var totalCards =
             getAllNamedKeysFromDom().length +
             (getNewCardEl() && !cardZhDisplayKey(getNewCardEl()) ? 1 : 0);
-          countEl.textContent = q
+          countEl.textContent = q || governanceFilterMode !== "all"
             ? "左侧匹配 " + visibleLeft + " / 档案 " + totalCards + " 人"
             : "共 " + totalCards + " 人";
           updateInvalidRefSummary();
@@ -4606,6 +5074,11 @@
             const key = cardZhDisplayKey(card);
             const displayNameZh = String(card.getAttribute("data-display-name") || key || "").trim();
             const sourceBookId = String(card.getAttribute("data-source-book-id") || "").trim().toUpperCase();
+            const primaryBookId = String(card.getAttribute("data-primary-book-id") || "")
+              .trim()
+              .toUpperCase();
+            const identityType = String(card.getAttribute("data-identity-type") || "").trim();
+            const profileStatus = String(card.getAttribute("data-profile-status") || "").trim();
             const bookIds = String(card.getAttribute("data-book-ids") || "")
               .split(",")
               .map(function (x) {
@@ -4632,7 +5105,10 @@
               characters[key] = {
                 displayNameZh: displayNameZh,
                 sourceBookId: sourceBookId,
+                primaryBookId: primaryBookId,
                 bookIds: bookIds,
+                identityType: identityType,
+                profileStatus: profileStatus,
                 englishName: String(card.querySelector(".bcd-en").value || "").trim(),
                 shortSceneTagEn: "",
                 appearanceEn: "",
@@ -4677,7 +5153,10 @@
             const row = {
               displayNameZh: displayNameZh,
               sourceBookId: sourceBookId,
+              primaryBookId: primaryBookId,
               bookIds: bookIds,
+              identityType: identityType,
+              profileStatus: profileStatus,
               englishName: String(card.querySelector(".bcd-en").value || "").trim(),
               scripturePersonalityZh: String(
                 (card.querySelector(".bcd-scripture-personality-zh") &&
@@ -4967,6 +5446,8 @@
           setStatus("加载中…", null);
           try {
             await loadPrimaryCharacterDirectory();
+            await loadStorageStatus();
+            await loadIdentityRules();
             await loadProfiles();
             setStatus("已重新载入。", "ok");
           } catch (e) {
@@ -5056,6 +5537,25 @@
           setStatus("已添加空白卡片，请填写中文名后保存。", null);
         });
 
+        if (filterChipsEl) {
+          filterChipsEl.querySelectorAll(".bcd-filter-chip").forEach(function (btn) {
+            btn.classList.toggle(
+              "bcd-filter-chip--active",
+              String(btn.getAttribute("data-filter-mode") || "all") === governanceFilterMode
+            );
+            btn.addEventListener("click", function () {
+              governanceFilterMode = String(btn.getAttribute("data-filter-mode") || "all");
+              filterChipsEl.querySelectorAll(".bcd-filter-chip").forEach(function (chip) {
+                chip.classList.toggle(
+                  "bcd-filter-chip--active",
+                  String(chip.getAttribute("data-filter-mode") || "all") === governanceFilterMode
+                );
+              });
+              applySideFilter();
+            });
+          });
+        }
+
         initPresetPanel();
 
         (async function init() {
@@ -5070,6 +5570,8 @@
           setStatus("加载中…", null);
           try {
             await loadPrimaryCharacterDirectory();
+            await loadStorageStatus();
+            await loadIdentityRules();
             await loadProfiles();
             const autoRepair = await autoRepairProfileImagesIfNeeded();
             if (autoRepair && autoRepair.repaired) {

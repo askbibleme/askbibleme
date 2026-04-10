@@ -3,21 +3,25 @@ const SPECIAL_IDENTITY_RULES = Object.freeze([
     bookId: "GEN",
     displayNameZh: "法老",
     profileKey: "法老（约瑟时代）",
+    note: "约瑟进入埃及时期的埃及王",
   }),
   Object.freeze({
     bookId: "EXO",
     displayNameZh: "法老",
     profileKey: "法老（出埃及记）",
+    note: "摩西出埃及时期的埃及王",
   }),
   Object.freeze({
     bookId: "GEN",
     displayNameZh: "亚比米勒",
     profileKey: "亚比米勒（族长时代）",
+    note: "亚伯拉罕、以撒叙事中的非利士王号",
   }),
   Object.freeze({
     bookId: "JDG",
     displayNameZh: "亚比米勒",
     profileKey: "亚比米勒（士师时代）",
+    note: "基甸之子亚比米勒",
   }),
   Object.freeze({
     bookId: "MAT",
@@ -25,6 +29,7 @@ const SPECIAL_IDENTITY_RULES = Object.freeze([
     chapterFrom: 1,
     chapterTo: 2,
     profileKey: "希律（大帝）",
+    note: "耶稣降生时期的希律大帝",
   }),
   Object.freeze({
     bookId: "LUK",
@@ -32,6 +37,7 @@ const SPECIAL_IDENTITY_RULES = Object.freeze([
     chapterFrom: 1,
     chapterTo: 2,
     profileKey: "希律（大帝）",
+    note: "施洗约翰出生背景中的希律大帝时期",
   }),
   Object.freeze({
     bookId: "MAT",
@@ -39,11 +45,13 @@ const SPECIAL_IDENTITY_RULES = Object.freeze([
     chapterFrom: 3,
     chapterTo: 28,
     profileKey: "希律（安提帕）",
+    note: "福音书中审问施洗约翰、耶稣时期多指希律安提帕",
   }),
   Object.freeze({
     bookId: "MRK",
     displayNameZh: "希律",
     profileKey: "希律（安提帕）",
+    note: "马可福音中的希律多指安提帕",
   }),
   Object.freeze({
     bookId: "LUK",
@@ -51,11 +59,13 @@ const SPECIAL_IDENTITY_RULES = Object.freeze([
     chapterFrom: 3,
     chapterTo: 23,
     profileKey: "希律（安提帕）",
+    note: "路加福音后段多指希律安提帕",
   }),
   Object.freeze({
     bookId: "ACT",
     displayNameZh: "希律",
     profileKey: "希律（亚基帕一世）",
+    note: "使徒行传早段迫害教会的希律亚基帕一世",
   }),
   Object.freeze({
     bookId: "LUK",
@@ -63,11 +73,13 @@ const SPECIAL_IDENTITY_RULES = Object.freeze([
     chapterFrom: 2,
     chapterTo: 2,
     profileKey: "凯撒（奥古斯都）",
+    note: "路加福音耶稣降生背景中的凯撒奥古斯都",
   }),
   Object.freeze({
     bookId: "ACT",
     displayNameZh: "凯撒",
     profileKey: "凯撒（罗马皇帝）",
+    note: "使徒行传中保罗上诉语境下的罗马皇帝称号",
   }),
 ]);
 
@@ -159,4 +171,17 @@ export function buildPrimaryCharacterEntriesByBook(primaryByBook) {
       }),
     ])
   );
+}
+
+export function listSpecialIdentityRules() {
+  return SPECIAL_IDENTITY_RULES.map((rule) => ({
+    bookId: String(rule.bookId || "").trim().toUpperCase(),
+    displayNameZh: String(rule.displayNameZh || "").trim(),
+    profileKey: String(rule.profileKey || "").trim(),
+    chapterFrom:
+      Number.isFinite(Number(rule.chapterFrom)) ? Number(rule.chapterFrom) : null,
+    chapterTo:
+      Number.isFinite(Number(rule.chapterTo)) ? Number(rule.chapterTo) : null,
+    note: String(rule.note || "").trim(),
+  }));
 }

@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "audit_1775780010175_ziq0e5",
+      "at": "2026-04-10T00:13:30.175Z",
+      "action": "bible_character_profiles_save",
+      "actorId": "u_1775061719604_gay9pm",
+      "actorName": "joshua",
+      "actorEmail": "502299900@qq.com",
+      "actorRole": "qianfuzhang",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "detail": {
+        "characterCount": 4,
+        "heroCount": 1
+      }
+    },
+    {
       "id": "audit_1775770760252_gucimw",
       "at": "2026-04-09T21:39:20.252Z",
       "action": "chapter_video_poster_upload",
