@@ -3283,21 +3283,11 @@ function syncMobileTopbarActionsDock() {
   const header = document.querySelector(".site-topbar");
   if (!dock || !header) return;
   const trailing = header.querySelector(".site-topbar-trailing");
-  const actions =
-    header.querySelector(".site-topbar-actions") ||
-    dock.querySelector(".site-topbar-actions");
-  const title = header.querySelector(".site-topbar-title");
   const memberHub = document.getElementById("memberHub");
-  const dockNav = document.getElementById("mobileTopbarDockNavSlot");
-  if (!actions || !title) return;
 
   const shouldDock = shouldDockTopbarActionsToBottom();
-  const dockTarget = dockNav || dock;
 
   if (shouldDock) {
-    if (actions.parentElement !== dockTarget) {
-      dockTarget.appendChild(actions);
-    }
     if (trailing && memberHub && !trailing.contains(memberHub)) {
       trailing.appendChild(memberHub);
     }
@@ -3315,14 +3305,6 @@ function syncMobileTopbarActionsDock() {
       if (memberHub.parentElement !== trailing) {
         trailing.appendChild(memberHub);
       }
-      trailing.insertBefore(actions, memberHub);
-    } else {
-      if (actions.parentElement !== header) {
-        header.appendChild(actions);
-      }
-      if (actions.previousElementSibling !== title) {
-        header.insertBefore(actions, title.nextSibling);
-      }
     }
   }
 
@@ -3330,6 +3312,9 @@ function syncMobileTopbarActionsDock() {
   document.body.classList.toggle("mobile-topbar-actions-docked", shouldDock);
   if (!shouldDock) {
     closeReaderFontSettings();
+  }
+  if (typeof window.__reapplyChromeNavDockPlacement === "function") {
+    window.__reapplyChromeNavDockPlacement();
   }
 }
 

@@ -76,9 +76,9 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=306" />
-    <script src="/theme-apply.js?v=4"></script>
-    <script src="/site-chrome.js?v=25" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=307" />
+    <script src="/theme-apply.js?v=8"></script>
+    <script src="/site-chrome.js?v=26" defer></script>
     <script src="/seo-apply.js?v=5" defer></script>
   </head>
   <body>
@@ -91,7 +91,7 @@
         </div>
         <div class="site-topbar-trailing">
           <div class="site-topbar-actions">
-            <div class="askbible-chrome-nav-slot"></div>
+            <div class="askbible-chrome-nav-slot askbible-chrome-nav-slot--top"></div>
           </div>
           <div class="member-hub" id="memberHub">
             <button
@@ -121,7 +121,11 @@
         aria-label="顶部操作"
         hidden
       >
-        <div class="mobile-topbar-actions-dock__nav" id="mobileTopbarDockNavSlot"></div>
+        <div class="mobile-topbar-actions-dock__nav" id="mobileTopbarDockNavSlot">
+          <div class="site-topbar-actions">
+            <div class="askbible-chrome-nav-slot askbible-chrome-nav-slot--dock"></div>
+          </div>
+        </div>
       </div>
 
       <div
@@ -1308,7 +1312,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="/main.js?v=68"></script>
+    <script type="module" src="/main.js?v=69"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>
       (function () {

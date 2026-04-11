@@ -3507,7 +3507,9 @@ body.reader-font-settings-open .reader-font-settings-sheet {
 
 /* 与底栏同高（见 body.mobile-topbar-actions-docked .page-shell padding-bottom），面板下缘与底栏上缘对齐无空隙 */
 body.mobile-topbar-actions-docked.reader-font-settings-open .reader-font-settings-sheet {
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(
+    76px + env(safe-area-inset-bottom, 0px) + var(--askbible-vv-layout-bottom-inset, 0px)
+  );
 }
 
 body.mobile-topbar-actions-docked.reader-font-settings-open .reader-font-settings-sheet__panel {
@@ -7911,14 +7913,19 @@ a.admin-modal-hub-link.primary-btn {
 /* 读经单栏宽度内：站点导航下挂底栏（与 main.js TOPBAR_ACTIONS_DOCK_MEDIA 一致） */
 @media (max-width: 1100px) {
   body.mobile-topbar-actions-docked .page-shell {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(
+      76px + env(safe-area-inset-bottom, 0px) + var(--askbible-vv-layout-bottom-inset, 0px)
+    );
   }
 
+  /* bottom 由 theme-apply.js 写入 --askbible-vv-layout-bottom-inset，对齐可视视口底（减轻 iOS 工具栏伸缩跳动） */
   .mobile-topbar-actions-dock {
     position: fixed;
-    left: 50%;
-    bottom: 0;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    bottom: var(--askbible-vv-layout-bottom-inset, 0px);
+    margin-left: auto;
+    margin-right: auto;
     z-index: 440;
     display: block;
     width: min(100vw, var(--page-shell-max-width));
@@ -7929,6 +7936,11 @@ a.admin-modal-hub-link.primary-btn {
       max(12px, env(safe-area-inset-left, 0px));
     background: var(--topbar-bg, #4a443f);
     box-sizing: border-box;
+    isolation: isolate;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 
   .mobile-topbar-actions-dock::before {

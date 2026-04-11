@@ -661,6 +661,54 @@
     }
   }
 
+  /** 与 main.js TOPBAR_ACTIONS_DOCK_MEDIA / shouldDockTopbarActionsToBottom 一致 */
+  var CHROME_NAV_DOCK_MEDIA = "(max-width: 1100px)";
+
+  function readerPageWantsDockNav() {
+    try {
+      var main = document.querySelector("main.book-layout");
+      if (!main || main.classList.contains("notebook-layout")) return false;
+      return window.matchMedia(CHROME_NAV_DOCK_MEDIA).matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * 读经窄屏：导航只写入底栏槽位；顶栏槽位留空（与 LOGO 分离，避免先渲染在顶栏再被 main 整块挪到底部造成闪烁）。
+   * 无底栏槽的页面（如介绍页）始终只写顶栏槽。
+   */
+  function applyChromeNavToSlots(cfg) {
+    var navHtml = renderNavHtml(cfg);
+    var dockMode = readerPageWantsDockNav();
+    var dockWrap = document.getElementById("mobileTopbarDockNavSlot");
+    var dockSlot =
+      dockWrap && dockWrap.querySelector
+        ? dockWrap.querySelector(".askbible-chrome-nav-slot--dock")
+        : null;
+    var headers = document.querySelectorAll("header.site-topbar");
+    var filledDock = false;
+    for (var i = 0; i < headers.length; i++) {
+      var header = headers[i];
+      var topSlot =
+        header.querySelector(".askbible-chrome-nav-slot--top") ||
+        header.querySelector(".askbible-chrome-nav-slot:not(.askbible-chrome-nav-slot--dock)");
+      if (!topSlot) continue;
+      if (dockMode && dockSlot) {
+        topSlot.innerHTML = "";
+        if (!filledDock) {
+          dockSlot.innerHTML = navHtml;
+          filledDock = true;
+        }
+      } else {
+        topSlot.innerHTML = navHtml;
+      }
+    }
+    if (dockSlot && (!dockMode || !filledDock)) {
+      dockSlot.innerHTML = "";
+    }
+  }
+
   function applyTopbars(cfg) {
     var headers = document.querySelectorAll("header.site-topbar");
     var omitDismissChrome = isSiteChromeAdminPage();
@@ -680,14 +728,11 @@
         header.classList.remove("site-topbar--sticky");
       }
       var brandSlot = header.querySelector(".askbible-chrome-brand-slot");
-      var navSlot = header.querySelector(".askbible-chrome-nav-slot");
       if (brandSlot) {
         brandSlot.innerHTML = renderBrandHtml(cfg, renderOpts);
       }
-      if (navSlot) {
-        navSlot.innerHTML = renderNavHtml(cfg);
-      }
     }
+    applyChromeNavToSlots(cfg);
     if (!omitDismissChrome) {
       applySublineDismissFromStorage(cfg);
     }
@@ -703,13 +748,20 @@
     }
   }
 
+  var __lastAskBibleSiteChromeCfg = null;
+
   function applyAll(cfg) {
     if (!cfg || typeof cfg !== "object") return;
+    __lastAskBibleSiteChromeCfg = cfg;
     applyTopbars(cfg);
     applyFooter(cfg);
   }
 
   window.__applyAskBibleSiteChrome = applyAll;
+  /** main.js 在 resize / 切换底栏显隐后调用，把导航 HTML 挪回顶栏或底栏槽 */
+  window.__reapplyChromeNavDockPlacement = function () {
+    if (__lastAskBibleSiteChromeCfg) applyTopbars(__lastAskBibleSiteChromeCfg);
+  };
 
   function getSharePageUrl() {
     try {
