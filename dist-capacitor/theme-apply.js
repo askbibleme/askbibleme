@@ -272,26 +272,64 @@
 
 /**
  * 底栏 position:fixed 锚在布局视口底；iOS Safari / Android Chrome 等地址栏显隐时与可视底错位。
- * 用 visualViewport 与 innerHeight 的差值作 bottom / padding 补偿；滚动用 rAF 节流（安卓常随滚动收栏）。
+ * 用 visualViewport 与 innerHeight 的差值作 bottom / padding 补偿；滚动用 rAF 节流。
+ * Android：不监听 window scroll 更新 inset（拉到尽头时橡皮筋会狂触发 scroll，底栏易跳）；仅靠 VV + resize。
  * 微信 / FB / LINE / UC / 三星 / WebView 等再叠加 load、focus 补算（与上一段 UA 列表一致）。
  */
 (function () {
   var vvInsetRaf = 0;
-  function syncVisualViewportBottomInset() {
+  var isAndroidVvInset = false;
+  try {
+    isAndroidVvInset = /Android/i.test(navigator.userAgent || "");
+  } catch (eAnd) {}
+  /** 橡皮筋滚动时 gap 会瞬时飙高，钳制后再平滑；安卓略严，减轻拉到尽头时的跳动 */
+  var VV_INSET_RAW_MAX = isAndroidVvInset ? 88 : 110;
+  var vvInsetSmoothedPx = 0;
+
+  function computeRawBottomInsetPx() {
+    var vv = window.visualViewport;
+    if (!vv) return 0;
+    var gap = window.innerHeight - vv.offsetTop - vv.height;
+    if (gap < 0 || !isFinite(gap)) gap = 0;
+    return Math.min(gap, VV_INSET_RAW_MAX);
+  }
+
+  function applyVisualViewportBottomInset(snap) {
     try {
       var vv = window.visualViewport;
       if (!vv) {
         document.documentElement.style.setProperty("--askbible-vv-layout-bottom-inset", "0px");
+        vvInsetSmoothedPx = 0;
         return;
       }
-      var gap = window.innerHeight - vv.offsetTop - vv.height;
-      if (gap < 0 || !isFinite(gap)) gap = 0;
+      var raw = computeRawBottomInsetPx();
+      if (snap) {
+        vvInsetSmoothedPx = raw;
+      } else {
+        var a = isAndroidVvInset ? 0.2 : 0.36;
+        vvInsetSmoothedPx = vvInsetSmoothedPx + (raw - vvInsetSmoothedPx) * a;
+        if (Math.abs(vvInsetSmoothedPx - raw) < (isAndroidVvInset ? 0.85 : 0.7)) {
+          vvInsetSmoothedPx = raw;
+        }
+        if (Math.abs(vvInsetSmoothedPx) < (isAndroidVvInset ? 0.45 : 0.3)) {
+          vvInsetSmoothedPx = 0;
+        }
+      }
       document.documentElement.style.setProperty(
         "--askbible-vv-layout-bottom-inset",
-        Math.round(gap) + "px"
+        Math.round(vvInsetSmoothedPx) + "px"
       );
     } catch (e) {}
   }
+
+  function syncVisualViewportBottomInset() {
+    applyVisualViewportBottomInset(false);
+  }
+
+  function snapVisualViewportBottomInset() {
+    applyVisualViewportBottomInset(true);
+  }
+
   function scheduleSyncVisualViewportBottomInset() {
     if (vvInsetRaf) return;
     vvInsetRaf = requestAnimationFrame(function () {
@@ -305,25 +343,27 @@
     } catch (e2) {}
     return;
   }
-  syncVisualViewportBottomInset();
-  window.visualViewport.addEventListener("resize", syncVisualViewportBottomInset, {
+  snapVisualViewportBottomInset();
+  window.visualViewport.addEventListener("resize", scheduleSyncVisualViewportBottomInset, {
     passive: true,
   });
   window.visualViewport.addEventListener("scroll", scheduleSyncVisualViewportBottomInset, {
     passive: true,
   });
-  window.addEventListener("resize", syncVisualViewportBottomInset, { passive: true });
-  window.addEventListener("scroll", scheduleSyncVisualViewportBottomInset, { passive: true });
+  window.addEventListener("resize", snapVisualViewportBottomInset, { passive: true });
+  if (!isAndroidVvInset) {
+    window.addEventListener("scroll", scheduleSyncVisualViewportBottomInset, { passive: true });
+  }
   window.addEventListener("orientationchange", function () {
-    setTimeout(syncVisualViewportBottomInset, 0);
-    setTimeout(syncVisualViewportBottomInset, 120);
-    setTimeout(syncVisualViewportBottomInset, 350);
+    setTimeout(snapVisualViewportBottomInset, 0);
+    setTimeout(snapVisualViewportBottomInset, 120);
+    setTimeout(snapVisualViewportBottomInset, 350);
   });
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden) setTimeout(syncVisualViewportBottomInset, 50);
+    if (!document.hidden) setTimeout(snapVisualViewportBottomInset, 50);
   });
   window.addEventListener("pageshow", function (ev) {
-    if (ev && ev.persisted) setTimeout(syncVisualViewportBottomInset, 0);
+    if (ev && ev.persisted) setTimeout(snapVisualViewportBottomInset, 0);
   });
 
   function uaGlueForVvInset() {
@@ -336,10 +376,10 @@
   }
   if (uaGlueForVvInset()) {
     function samWvVvBump() {
-      syncVisualViewportBottomInset();
-      setTimeout(syncVisualViewportBottomInset, 0);
-      setTimeout(syncVisualViewportBottomInset, 90);
-      setTimeout(syncVisualViewportBottomInset, 260);
+      snapVisualViewportBottomInset();
+      setTimeout(snapVisualViewportBottomInset, 0);
+      setTimeout(snapVisualViewportBottomInset, 90);
+      setTimeout(snapVisualViewportBottomInset, 260);
     }
     window.addEventListener("load", samWvVvBump, { once: true });
     document.addEventListener("focusin", samWvVvBump, true);
