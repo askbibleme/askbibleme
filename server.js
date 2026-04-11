@@ -1369,6 +1369,7 @@ function isSafeSiteChromeLogoUrl(url) {
   return false;
 }
 
+/** 须与 site-chrome.js 内 BY_ID 键一致；缺漏时保存/读取会把 icon 规范成空串，前台与后台预览都无 SVG */
 const SITE_CHROME_NAV_ICON_IDS = new Set([
   "user",
   "home",
@@ -1389,15 +1390,45 @@ const SITE_CHROME_NAV_ICON_IDS = new Set([
   "star",
   "play",
   "share",
+  "page_prev",
+  "page_next",
+  "stars_five",
+  "bell",
+  "image",
+  "menu",
+  "close",
+  "check",
+  "help",
+  "lock",
+  "bookmark",
+  "list",
+  "refresh",
+  "edit",
+  "download",
+  "upload",
+  "globe",
+  "filter",
+  "chevron_up",
+  "chevron_down",
+  "arrow_back",
+  "arrow_forward",
 ]);
 
-/** 与 site-chrome.js 内 askBibleChromeNavIconHtml 别名一致，避免旧数据或误填 id 导致 icon 被清空、仅图标被压成 false */
+/** 与 site-chrome.js 内 ICON_ALIASES 一致 */
 const SITE_CHROME_NAV_ICON_ALIASES = {
   document: "doc",
   file: "doc",
   page: "doc",
   house: "home",
   person: "user",
+  prev: "page_prev",
+  previous: "page_prev",
+  next: "page_next",
+  chevron_left: "page_prev",
+  chevron_right: "page_next",
+  five_stars: "stars_five",
+  rating: "stars_five",
+  stars: "stars_five",
 };
 
 function normalizeSiteChromeNavIcon(raw) {

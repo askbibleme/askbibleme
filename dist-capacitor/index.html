@@ -76,9 +76,9 @@
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/icons/icon-maskable.svg" />
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=221" />
+    <link rel="stylesheet" href="/styles.css?v=299" />
     <script src="/theme-apply.js?v=4"></script>
-    <script src="/site-chrome.js?v=20" defer></script>
+    <script src="/site-chrome.js?v=25" defer></script>
     <script src="/seo-apply.js?v=5" defer></script>
   </head>
   <body>
@@ -89,17 +89,15 @@
           <!-- 仅供「账户菜单 → 管理后台」程序化触发，勿删 id -->
           <button type="button" id="openAdminBtn" hidden aria-hidden="true" tabindex="-1"></button>
         </div>
-        <div class="site-topbar-actions">
-          <div class="askbible-chrome-nav-slot"></div>
-          <!-- 仅作下拉锚点：可见入口为顶栏「会员」链接（/#openMemberHub），勿删 id -->
-          <div class="member-hub member-hub--anchor-only" id="memberHub">
+        <div class="site-topbar-trailing">
+          <div class="site-topbar-actions">
+            <div class="askbible-chrome-nav-slot"></div>
+          </div>
+          <div class="member-hub" id="memberHub">
             <button
               type="button"
               id="memberHubTrigger"
               class="member-hub-trigger member-hub-trigger--guest-label"
-              hidden
-              aria-hidden="true"
-              tabindex="-1"
               aria-expanded="false"
               aria-controls="memberHubPanel"
               aria-haspopup="true"
@@ -117,168 +115,141 @@
         </div>
       </header>
 
+      <div
+        id="mobileTopbarActionsDock"
+        class="mobile-topbar-actions-dock"
+        aria-label="顶部操作"
+        hidden
+      >
+        <div class="mobile-topbar-actions-dock__nav" id="mobileTopbarDockNavSlot"></div>
+      </div>
+
+      <div
+        id="mobileReaderToolbarDock"
+        class="mobile-reader-toolbar-dock"
+        aria-label="选择栏"
+        hidden
+      ></div>
+
       <main class="book-layout">
         <div class="book-spread">
           <section class="book-page left-page">
-            <button
-              type="button"
+            <nav
               class="book-page-index-tab"
               id="bookPageIndexTab"
-              aria-label="章节与经节"
+              aria-label="书卷索引"
               aria-haspopup="dialog"
               aria-controls="chapterVersePickPanel"
               aria-expanded="false"
-            >
-              <span class="book-page-index-tab__glyph" id="bookIndexTabAbbr" aria-hidden="true"></span>
-            </button>
-            <div class="page-toolbar">
-              <div class="reading-toolbar">
-                <div class="reading-toolbar-row">
-                  <button
-                    type="button"
-                    id="bookChapterTrigger"
-                    class="toolbar-trigger toolbar-trigger-wide"
-                    aria-haspopup="dialog"
-                    aria-controls="bookChapterPanel"
-                    aria-expanded="false"
-                  >
-                    <span class="toolbar-trigger-lead">
-                      <span class="toolbar-trigger-icon" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect x="5" y="3.5" width="14" height="17" rx="1.6" stroke="currentColor" stroke-width="1.85" />
-                          <path d="M12 3.5v17" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" />
-                        </svg>
+            ></nav>
+            <div class="book-page-header-shell" aria-label="页面顶部">
+              <div id="pageToolbarHome" class="page-toolbar-home">
+              <div id="pageToolbar" class="page-toolbar">
+                <div class="reading-toolbar">
+                  <div class="reading-toolbar-row">
+                    <button
+                      type="button"
+                      id="bookChapterTrigger"
+                      class="toolbar-trigger"
+                      aria-haspopup="dialog"
+                      aria-controls="bookChapterPanel"
+                      aria-expanded="false"
+                    >
+                      <span class="toolbar-trigger-lead">
+                        <span class="toolbar-trigger-icon" aria-hidden="true">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="5" y="3.5" width="14" height="17" rx="1.6" stroke="currentColor" stroke-width="1.85" />
+                            <path d="M12 3.5v17" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" />
+                          </svg>
+                        </span>
+                        <span id="bookChapterTriggerText" class="toolbar-trigger-label">书卷</span>
                       </span>
-                      <span id="bookChapterTriggerText" class="toolbar-trigger-label">书卷</span>
-                    </span>
-                  </button>
+                    </button>
 
-                  <button
-                    type="button"
-                    id="primaryVersionTrigger"
-                    class="toolbar-trigger"
-                    aria-haspopup="dialog"
-                    aria-controls="primaryVersionPanel"
-                    aria-expanded="false"
-                  >
-                    <span class="toolbar-trigger-lead">
-                      <span class="toolbar-trigger-icon" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect x="4.5" y="6" width="12" height="13" rx="1.3" stroke="currentColor" stroke-width="1.65" />
-                          <rect x="7.5" y="3.5" width="12" height="13" rx="1.3" stroke="currentColor" stroke-width="1.65" />
-                        </svg>
+                    <button
+                      type="button"
+                      id="verseSearchOpenBtn"
+                      class="toolbar-trigger toolbar-trigger-search"
+                      aria-haspopup="dialog"
+                      aria-controls="verseSearchOverlay"
+                    >
+                      <span class="toolbar-trigger-lead">
+                        <span class="toolbar-trigger-icon" aria-hidden="true">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="11" cy="11" r="6.25" stroke="currentColor" stroke-width="1.85" />
+                            <path d="M16.2 16.2 21 21" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" />
+                          </svg>
+                        </span>
+                        <span id="verseSearchTriggerText" class="toolbar-trigger-label">搜索</span>
                       </span>
-                      <span id="primaryVersionTriggerText" class="toolbar-trigger-label">版本+</span>
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    id="verseSearchOpenBtn"
-                    class="toolbar-trigger toolbar-trigger-search"
-                    aria-haspopup="dialog"
-                    aria-controls="verseSearchOverlay"
-                  >
-                    <span class="toolbar-trigger-lead">
-                      <span class="toolbar-trigger-icon" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="11" cy="11" r="6.25" stroke="currentColor" stroke-width="1.85" />
-                          <path d="M16.2 16.2 21 21" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" />
-                        </svg>
-                      </span>
-                      <span id="verseSearchTriggerText" class="toolbar-trigger-label">搜索</span>
-                    </span>
-                  </button>
-
-                  <div id="displayModeSwitch" class="display-mode-switch" aria-label="显示模式">
-                    <button type="button" id="scriptureToggleBtn" class="display-mode-btn">经文</button>
-                    <button type="button" id="allDisplayToggleBtn" class="display-mode-btn">全显</button>
-                    <button type="button" id="questionToggleBtn" class="display-mode-btn">问题</button>
+                    </button>
                   </div>
                 </div>
+
+                <!-- 兼容现有 JS：隐藏保留 -->
+                <div style="display: none">
+                  <select id="uiLang" aria-label="界面语言"></select>
+                  <select id="bookId" aria-label="卷书"></select>
+                  <select id="chapter" aria-label="章数"></select>
+                  <select id="contentVersion" aria-label="查经版本"></select>
+                  <select id="contentLang" aria-label="内容语言"></select>
+                  <select id="scriptureVersion" aria-label="主经文版本"></select>
+                  <div id="secondaryScriptureVersions"></div>
+                </div>
+              </div>
               </div>
 
-              <!-- 兼容现有 JS：隐藏保留 -->
-              <div style="display: none">
-                <select id="uiLang" aria-label="界面语言"></select>
-                <select id="bookId" aria-label="卷书"></select>
-                <select id="chapter" aria-label="章数"></select>
-                <select id="contentVersion" aria-label="查经版本"></select>
-                <select id="contentLang" aria-label="内容语言"></select>
-                <select id="scriptureVersion" aria-label="主经文版本"></select>
-                <div id="secondaryScriptureVersions"></div>
-              </div>
+              <div class="title-nav-row">
+                <div class="title-nav-side">
+                  <button
+                    type="button"
+                    class="title-nav-btn title-nav-btn-left"
+                    id="prevChapterBtnTop"
+                    aria-label="上一章"
+                  >
+                    &lt;
+                  </button>
+                  <button type="button" class="title-nav-mini-btn" id="fontDecreaseBtn">
+                    -
+                  </button>
+                </div>
 
-            </div>
+                <div class="title-nav-fav-center" aria-label="收藏本章">
+                  <button
+                    type="button"
+                    id="sideFavoritesListBtn"
+                    class="book-side-extend-list-btn title-nav-fav-btn"
+                    aria-pressed="false"
+                  >
+                    <span class="book-side-fav-stars" aria-hidden="true">
+                      <span class="book-side-fav-star">★</span>
+                    </span>
+                  </button>
+                </div>
 
-            <div class="title-nav-row">
-              <div class="title-nav-side">
-                <button
-                  type="button"
-                  class="title-nav-btn title-nav-btn-left"
-                  id="prevChapterBtnTop"
-                  aria-label="上一章"
-                >
-                  &lt;
-                </button>
-                <button type="button" class="title-nav-mini-btn" id="fontDecreaseBtn">
-                  -
-                </button>
-              </div>
-
-              <div class="title-nav-fav-center" aria-label="收藏本章">
-                <button
-                  type="button"
-                  id="sideFavoritesListBtn"
-                  class="book-side-extend-list-btn title-nav-fav-btn"
-                  aria-pressed="false"
-                >
-                  <span class="book-side-fav-stars" aria-hidden="true">
-                    <span class="book-side-fav-star">★</span>
-                  </span>
-                </button>
-              </div>
-
-              <div class="title-nav-side title-nav-side-right">
-                <button type="button" class="title-nav-mini-btn" id="fontIncreaseBtn">
-                  +
-                </button>
-                <button
-                  type="button"
-                  class="title-nav-btn title-nav-btn-right"
-                  id="nextChapterBtnTop"
-                  aria-label="下一章"
-                >
-                  &gt;
-                </button>
-              </div>
-            </div>
-
-            <div class="page-ribbon-title-row">
-              <div class="book-side-extend-tags" aria-label="收藏">
-                <a
-                  id="sideUserTag"
-                  class="book-side-extend-tag book-side-extend-tag--ribbon-guest"
-                  href="#"
-                  role="button"
-                  aria-haspopup="dialog"
-                  aria-controls="favoritesPanel"
-                  aria-expanded="false"
-                  aria-label="打开收藏列表"
-                ></a>
-                <div
-                  id="sideRibbonOnlineLine"
-                  class="book-side-ribbon-online-line"
-                  aria-live="polite"
-                  aria-label="累计在线，未登录"
-                >
-                  0
+                <div class="title-nav-side title-nav-side-right">
+                  <button type="button" class="title-nav-mini-btn" id="fontIncreaseBtn">
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    class="title-nav-btn title-nav-btn-right"
+                    id="nextChapterBtnTop"
+                    aria-label="下一章"
+                  >
+                    &gt;
+                  </button>
                 </div>
               </div>
 
-              <div class="page-title-block page-title-block-stacked">
-                <div id="pageChapterNumber" class="page-chapter-number">1</div>
-                <div id="pageBookTitle" class="page-book-title">创世记</div>
+            </div>
+
+            <div class="book-page-ribbon-shell" aria-label="页面丝带">
+              <div class="page-ribbon-title-row">
+                <div class="page-title-block page-title-block-stacked">
+                  <div id="pageChapterNumber" class="page-chapter-number">1</div>
+                  <div id="pageBookTitle" class="page-book-title">创世记</div>
+                </div>
               </div>
             </div>
 
@@ -291,19 +262,21 @@
               hidden
             ></div>
 
-            <!-- 本章视频：在章节插图（若有）下方；卷首页时在「介绍」卡片上方 -->
-            <div
-              id="chapterVideosSlot"
-              class="chapter-videos-slot"
-              aria-live="polite"
-              aria-label="本章视频"
-            ></div>
+            <div class="chapter-text-stack chapter-reading-body">
+              <!-- 本章视频：在章节插图（若有）下方；卷首页时在「介绍」卡片上方 -->
+              <div
+                id="chapterVideosSlot"
+                class="chapter-videos-slot"
+                aria-live="polite"
+                aria-label="本章视频"
+              ></div>
 
-            <div class="repeated-words-wrap">
-              <div id="repeatedWordsLine" class="repeated-words-line">—</div>
+              <div class="repeated-words-wrap">
+                <div id="repeatedWordsLine" class="repeated-words-line">—</div>
+              </div>
+
+              <div id="leftBlocks" class="blocks-stack"></div>
             </div>
-
-            <div id="leftBlocks" class="blocks-stack"></div>
           </section>
 
           <section class="book-page right-page">
@@ -358,6 +331,8 @@
             </div>
 
             <div class="chapter-feedback-wrap">
+              <div id="chapterApprovedTitle" class="chapter-feedback-approved-title">社区贡献</div>
+              <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
               <div class="chapter-feedback-title">参与贡献</div>
               <textarea
                 id="chapterQuestionInput"
@@ -370,8 +345,6 @@
                 </button>
                 <div id="chapterQuestionStatus" class="chapter-feedback-status"></div>
               </div>
-              <div id="chapterApprovedTitle" class="chapter-feedback-approved-title">社区贡献</div>
-              <div id="chapterApprovedQuestions" class="chapter-approved-list"></div>
             </div>
 
             <div id="chapterEndNextGuide" class="chapter-end-next-guide" hidden>
@@ -387,9 +360,6 @@
               <button type="button" class="nav-btn" id="prevChapterBtnBottom">
                 上一章
               </button>
-              <div id="chapterNavTitleBottom" class="chapter-nav-title">
-                创世记1章
-              </div>
               <button type="button" class="nav-btn" id="nextChapterBtnBottom">
                 下一章
               </button>
@@ -400,7 +370,7 @@
       <footer class="site-footer askbible-chrome-footer-slot" hidden></footer>
     </div>
 
-    <!-- 账户菜单：壳与内层分区同「选版本」primaryVersionPanel -->
+    <!-- 账户菜单：壳与内层分区；「版本+」打开底栏阅读设置滑层 -->
     <div
       id="memberHubPanel"
       class="verse-search-overlay member-hub-overlay"
@@ -440,6 +410,47 @@
               <p class="member-hub-guest-hint">
                 登录后可提交问题、收藏与社区互动。
               </p>
+            </div>
+            <div class="chapter-grid-wrap">
+              <div class="chapter-grid-title">阅读设置</div>
+              <nav
+                class="version-grid member-hub-link-grid member-hub-link-grid--user"
+                aria-label="阅读设置"
+              >
+                <button
+                  type="button"
+                  class="member-hub-menu-item"
+                  data-member-action="book-chapter"
+                  id="memberHubGuestBookChapterBtn"
+                  aria-haspopup="dialog"
+                  aria-controls="bookChapterPanel"
+                  aria-expanded="false"
+                >
+                  书卷
+                </button>
+                <button
+                  type="button"
+                  class="member-hub-menu-item"
+                  data-member-action="bible-version"
+                  id="memberHubGuestBibleVersionBtn"
+                  aria-haspopup="dialog"
+                  aria-controls="readerFontSettingsSheet"
+                  aria-expanded="false"
+                >
+                  版本+
+                </button>
+                <button
+                  type="button"
+                  class="member-hub-menu-item"
+                  data-member-action="verse-search"
+                  id="memberHubGuestVerseSearchBtn"
+                  aria-haspopup="dialog"
+                  aria-controls="verseSearchOverlay"
+                  aria-expanded="false"
+                >
+                  搜索
+                </button>
+              </nav>
             </div>
             <div class="chapter-grid-wrap">
               <div class="chapter-grid-title">进入账户</div>
@@ -681,64 +692,7 @@
       </div>
     </div>
 
-    <!-- 选版本：全屏遮罩 + 卡片，布局与「搜经文」一致 -->
-    <div
-      id="primaryVersionPanel"
-      class="verse-search-overlay primary-version-overlay"
-      hidden
-      role="presentation"
-    >
-      <button
-        type="button"
-        class="verse-search-backdrop"
-        tabindex="-1"
-        aria-label="关闭版本"
-        data-close-panel="primaryVersionPanel"
-      ></button>
-      <div
-        class="verse-search-card primary-version-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="primaryVersionPanelTitle"
-      >
-        <div class="toolbar-panel-inner toolbar-panel-simple">
-          <div class="toolbar-panel-head">
-            <div class="toolbar-panel-title" id="primaryVersionPanelTitle">版本+</div>
-            <button
-              type="button"
-              class="toolbar-panel-close"
-              data-close-panel="primaryVersionPanel"
-            >
-              关闭
-            </button>
-          </div>
-          <div class="chapter-grid-wrap">
-            <div id="primaryVersionSectionTitle" class="chapter-grid-title">主版本（单选）</div>
-            <select
-              id="toolbarPrimaryVersionSelect"
-              class="custom-textarea single-input toolbar-primary-version-select"
-              aria-label="主经文版本"
-            ></select>
-          </div>
-          <div class="chapter-grid-wrap">
-            <div id="compareVersionSectionTitle" class="chapter-grid-title">对照版本（可多选）</div>
-            <div id="compareVersionList" class="version-grid version-grid-multi">
-              <!-- JS 渲染 -->
-            </div>
-          </div>
-          <div class="chapter-grid-wrap">
-            <div id="contentVersionSectionTitle" class="chapter-grid-title">问题类型</div>
-            <select
-              id="toolbarContentVersionSelect"
-              class="custom-textarea single-input toolbar-primary-version-select"
-              aria-label="问题类型"
-            ></select>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 经节快选：壳与选版本一致（全屏遮罩 + primary-version-card） -->
+    <!-- 章节快选：壳与选版本一致（全屏遮罩 + primary-version-card） -->
     <div
       id="chapterVersePickPanel"
       class="verse-search-overlay primary-version-overlay"
@@ -749,7 +703,7 @@
         type="button"
         class="verse-search-backdrop"
         tabindex="-1"
-        aria-label="关闭经节选择"
+        aria-label="关闭章节选择"
         data-close-panel="chapterVersePickPanel"
       ></button>
       <div
@@ -760,7 +714,7 @@
       >
         <div class="toolbar-panel-inner toolbar-panel-simple">
           <div class="toolbar-panel-head">
-            <div class="toolbar-panel-title" id="chapterVersePickPanelTitle">章节与经节</div>
+            <div class="toolbar-panel-title" id="chapterVersePickPanelTitle">章节</div>
             <button
               type="button"
               class="toolbar-panel-close"
@@ -769,22 +723,13 @@
               关闭
             </button>
           </div>
-          <div class="chapter-verse-pick-stack" role="group" aria-label="章节与经节">
+          <div class="chapter-verse-pick-stack" role="group" aria-label="章节">
             <div class="chapter-grid-wrap">
               <div id="idxPickChaptersTitle" class="chapter-grid-title">章节</div>
               <div
                 id="idxPickChapterGrid"
                 class="chapter-grid book-chapter-chapter-grid"
                 aria-label="章节"
-              ></div>
-            </div>
-            <div class="chapter-grid-wrap">
-              <div id="idxPickVerseSectionTitle" class="chapter-grid-title">经节</div>
-              <div
-                id="idxPickVerseGrid"
-                class="version-grid chapter-verse-pick-grid"
-                role="listbox"
-                aria-label="经节"
               ></div>
             </div>
           </div>
@@ -1272,9 +1217,98 @@
       </div>
     </div>
 
+    <button
+      type="button"
+      id="readerFontSettingsBackdrop"
+      class="reader-font-settings-backdrop"
+      tabindex="-1"
+      aria-label="关闭字体设置"
+      aria-hidden="true"
+    ></button>
+
+    <div
+      id="readerFontSettingsSheet"
+      class="reader-font-settings-sheet"
+      role="dialog"
+      aria-modal="false"
+      aria-label="阅读显示与字体"
+      aria-hidden="true"
+    >
+      <div class="reader-font-settings-sheet__panel">
+        <p class="reader-font-settings-sheet__section-title" id="readerSheetDisplayModeSectionTitle">
+          显示模式
+        </p>
+        <div
+          id="readerSheetDisplayModeSwitch"
+          class="display-mode-switch reader-font-settings-sheet__display-mode"
+          role="group"
+          aria-label="显示模式"
+        >
+          <button type="button" id="readerSheetScriptureToggleBtn" class="display-mode-btn">
+            经文
+          </button>
+          <button type="button" id="readerSheetAllDisplayToggleBtn" class="display-mode-btn">
+            全部
+          </button>
+          <button type="button" id="readerSheetQuestionToggleBtn" class="display-mode-btn">
+            问题
+          </button>
+        </div>
+        <p
+          class="reader-font-settings-sheet__section-title reader-font-settings-sheet__section-title--version"
+          id="readerSheetBibleVersionSectionTitle"
+        >
+          版本+
+        </p>
+        <div class="reader-font-settings-sheet__version-row">
+          <div class="chapter-grid-wrap reader-font-settings-sheet__chapter-wrap">
+            <select
+              id="toolbarPrimaryVersionSelect"
+              class="custom-textarea single-input toolbar-primary-version-select"
+              aria-label="主经文版本"
+            ></select>
+          </div>
+          <div class="chapter-grid-wrap reader-font-settings-sheet__chapter-wrap">
+            <select
+              id="toolbarCompareVersionSelect"
+              class="custom-textarea single-input toolbar-primary-version-select"
+              aria-label="对照经文版本"
+            >
+              <option value="" selected>无</option>
+            </select>
+          </div>
+          <div class="chapter-grid-wrap reader-font-settings-sheet__chapter-wrap">
+            <select
+              id="toolbarContentVersionSelect"
+              class="custom-textarea single-input toolbar-primary-version-select"
+              aria-label="问题类型"
+            ></select>
+          </div>
+        </div>
+        <div class="reader-font-settings-sheet__font-row" role="group" aria-label="字体大小">
+          <button
+            type="button"
+            class="reader-font-settings-sheet__font-btn"
+            id="readerSheetFontDecreaseBtn"
+            aria-label="缩小字体"
+          >
+            A−
+          </button>
+          <button
+            type="button"
+            class="reader-font-settings-sheet__font-btn"
+            id="readerSheetFontIncreaseBtn"
+            aria-label="放大字体"
+          >
+            A+
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js" crossorigin="anonymous"></script>
-    <script type="module" src="/main.js?v=28"></script>
+    <script type="module" src="/main.js?v=65"></script>
     <!-- 仅本机且 npm run dev（DEV_LIVE_RELOAD=1）时加载，避免 npm start 请求 35729 失败 -->
     <script>
       (function () {

@@ -1,6 +1,6 @@
 {
   "name": "bible-guide-final",
-  "version": "13.0.1",
+  "version": "13.0.7",
   "type": "module",
   "scripts": {
     "start": "node server.js",

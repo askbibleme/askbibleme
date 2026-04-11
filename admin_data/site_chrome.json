@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-07T12:55:21.716Z",
+  "updatedAt": "2026-04-11T12:20:34.882Z",
   "topbar": {
     "logoUrl": "/assets/brand/askbible-wordmark.svg",
     "logoHeight": 36,
@@ -31,17 +31,17 @@
         "iconOnly": true
       },
       {
-        "href": "/#openSharePage",
-        "label": "分享",
-        "ariaLabel": "分享当前页面",
-        "icon": "share",
+        "href": "/#openFavorites",
+        "label": "收藏",
+        "ariaLabel": "",
+        "icon": "heart",
         "iconOnly": true
       },
       {
-        "href": "/why.html",
-        "label": "理念",
+        "href": "/#openReaderFontSettings",
+        "label": "设置",
         "ariaLabel": "",
-        "icon": "doc",
+        "icon": "settings",
         "iconOnly": true
       },
       {
@@ -49,6 +49,20 @@
         "label": "用户",
         "ariaLabel": "",
         "icon": "user",
+        "iconOnly": true
+      },
+      {
+        "href": "/#openSharePage",
+        "label": "分享",
+        "ariaLabel": "分享当前页面",
+        "icon": "share",
+        "iconOnly": true
+      },
+      {
+        "href": "/#goNextChapter",
+        "label": "下一页",
+        "ariaLabel": "",
+        "icon": "play",
         "iconOnly": true
       }
     ]

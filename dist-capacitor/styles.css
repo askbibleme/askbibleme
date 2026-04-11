@@ -153,8 +153,24 @@ body {
   margin-top: -5px;
 }
 
+.page-shell > .site-topbar:has(+ .book-layout) .site-topbar-trailing,
 .page-shell > .site-topbar:has(+ .book-layout) .site-topbar-actions {
   margin-right: 0;
+}
+
+.site-topbar-trailing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
+  justify-content: flex-end;
+  margin-top: 5px;
+}
+
+.site-topbar-trailing .site-topbar-actions {
+  margin-top: 0;
 }
 
 /* 会员面板在 header 内、main 书卡在 DOM 后；抬高顶栏叠层，避免下拉被书卡盖住 */
@@ -321,7 +337,7 @@ body:has(
 .site-topbar-actions {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
   margin-top: 5px;
@@ -401,6 +417,24 @@ body:has(
   width: 22px;
   height: 22px;
   transform: translateY(5px);
+}
+
+/* 大屏 / 双栏读经（≥1101，与 main.js TOPBAR_ACTIONS_DOCK_MEDIA 相反：顶栏未下挂）：chrome 导航图标 50×50；≤1100 底栏样式不变 */
+@media (min-width: 1101px) {
+  body:not(.mobile-topbar-actions-docked) .site-topbar .askbible-chrome-nav .askbible-chrome-nav-pill-icon {
+    width: 50px;
+    height: 50px;
+    max-width: 50px;
+    max-height: 50px;
+    transform: translateY(0);
+  }
+
+  body:not(.mobile-topbar-actions-docked)
+    .site-topbar
+    .askbible-chrome-nav-pill--icon-only
+    .askbible-chrome-nav-pill-icon {
+    transform: translateY(0);
+  }
 }
 
 .askbible-chrome-nav-pill--icon-only {
@@ -611,6 +645,36 @@ body:has(
   }
 }
 
+/* 底栏图标链接行：与顶栏同款 pill，配色贴合页脚文案 */
+.site-footer .askbible-chrome-footer-nav {
+  justify-content: center;
+  width: 100%;
+  margin: 10px 0 0;
+  box-sizing: border-box;
+  gap: 5px;
+}
+
+.site-footer .askbible-chrome-footer-nav .askbible-chrome-nav-pill {
+  flex: 0 0 auto;
+  color: var(--muted-soft);
+}
+
+.site-footer .askbible-chrome-footer-nav .askbible-chrome-nav-pill-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.site-footer .askbible-chrome-footer-nav .askbible-chrome-nav-pill:hover {
+  color: var(--text-color, #2c241c);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.site-footer .askbible-chrome-footer-nav .askbible-chrome-nav-pill:focus-visible {
+  outline: 2px solid var(--brand-bible, #c9a227);
+  outline-offset: 2px;
+}
+
 .vision-global-topbar {
   margin-bottom: 10px;
 }
@@ -620,6 +684,16 @@ body:has(
   position: relative;
   flex-shrink: 0;
   overflow: visible;
+}
+
+.site-topbar .member-hub {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 读经主界面：不显示顶栏右上角会员入口（面板仍可用 /#openMemberHub、导航「用户」等） */
+.page-shell:has(main.book-layout) .site-topbar .member-hub {
+  display: none !important;
 }
 
 #memberHubGuest[hidden],
@@ -652,6 +726,53 @@ body:has(
   cursor: pointer;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset, 0 2px 8px rgba(80, 50, 20, 0.12);
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.site-topbar .member-hub-trigger {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(216, 201, 178, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3e8d7;
+  box-shadow: none;
+  gap: 8px;
+}
+
+.site-topbar .member-hub-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff7eb;
+}
+
+.site-topbar .member-hub-trigger[aria-expanded="true"] {
+  border-color: rgba(255, 184, 46, 0.6);
+  box-shadow: 0 0 0 2px rgba(255, 184, 46, 0.18);
+}
+
+.site-topbar .member-hub-trigger.member-hub-trigger--member-label .member-hub-trigger-stars-wrap {
+  order: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.site-topbar .member-hub-trigger.member-hub-trigger--member-label .member-hub-label {
+  order: 1;
+  max-width: 11em;
+}
+
+.site-topbar .member-hub-trigger.member-hub-trigger--member-label .member-hub-trigger-glyph {
+  display: none !important;
+}
+
+.site-topbar .member-hub-trigger-stars-wrap .star-level--svgs {
+  gap: 2px;
+}
+
+.site-topbar .member-hub-trigger-stars-wrap .star-level--svgs .star-level-svg {
+  width: 13px;
+  height: 13px;
+  display: block;
 }
 
 .member-hub-trigger:hover {
@@ -944,7 +1065,7 @@ body:has(
   display: none !important;
 }
 
-/* 账户菜单：壳与内层分区同「选版本」#primaryVersionPanel（toolbar-panel-inner + chapter-grid-wrap） */
+/* 账户菜单：全屏卡壳；版本选项在底栏阅读设置滑层内 */
 #memberHubPanel.member-hub-overlay {
   align-items: center;
   overflow-y: auto;
@@ -1779,7 +1900,14 @@ body:has(
   min-height: 0;
 }
 
-.book-layout.book-layout--landing .repeated-words-wrap {
+/* 卷首页 / 概论页：隐藏页头里的卷名与介绍副标题 */
+.book-layout.book-layout--landing .page-title-block,
+.book-layout.book-layout--landing .page-title-block-stacked {
+  display: none;
+}
+
+/* 卷首页：不展示书卷 / 版本 / 搜索条（可从账户菜单 → 阅读设置进入） */
+.book-layout.book-layout--landing .reading-toolbar {
   display: none;
 }
 
@@ -1827,11 +1955,18 @@ body:has(
   overflow: visible;
 }
 
-/* 读经正文：双栏左页 / 单栏首栏左侧多留 50px；页首工具栏/翻章/丝带行不参与该留白（见下条 bleed） */
+/* 读经正文：与右页同一左右内边距（34px）；页首工具栏/翻章/丝带行仍用下条 bleed 拉满栏宽 */
 .book-layout:not(.notebook-layout):not(.promo-book-layout) .book-page.left-page {
-  --book-left-reading-gutter-extra: 50px;
+  --book-left-reading-gutter-extra: 0px;
   padding-left: calc(var(--book-page-pad-left-base) + var(--book-left-reading-gutter-extra));
   --book-pad-left: calc(var(--book-page-pad-left-base) + var(--book-left-reading-gutter-extra));
+}
+
+/* 大屏双栏（≥1101，.book-spread 两列）：仅左页内容距左缘 65px；≤1100 单栏仍为 34px */
+@media (min-width: 1101px) {
+  .book-layout:not(.notebook-layout):not(.promo-book-layout) .book-page.left-page {
+    --book-page-pad-left-base: 65px;
+  }
 }
 
 /* 页首不参与左侧阅读加宽：抵消 --book-left-reading-gutter-extra，丝带定位仍按 --book-page-pad-left-base */
@@ -1844,75 +1979,215 @@ body:has(
   box-sizing: border-box;
 }
 
+.book-page-header-shell {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% + var(--book-left-reading-gutter-extra));
+  margin-left: calc(0px - var(--book-left-reading-gutter-extra));
+  box-sizing: border-box;
+  position: relative;
+  z-index: 5;
+}
+
+.book-page-header-shell > .page-toolbar,
+.book-page-header-shell > .title-nav-row,
+.book-page-header-shell > .page-ribbon-title-row {
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.book-page-header-shell > .title-nav-row {
+  margin-top: -10px !important;
+}
+
+/* 书卷/搜索条已隐藏时，避免 #pageToolbar 空壳仍占一栏高度导致大块留白 */
+.book-page-header-shell .page-toolbar-home,
+.book-page-header-shell .page-toolbar {
+  display: contents;
+}
+
+.book-page-ribbon-shell {
+  position: relative;
+  left: calc(0px - var(--book-page-pad-left-base) - var(--book-left-reading-gutter-extra));
+  z-index: 40;
+  width: calc(100% + var(--book-page-pad-left-base) + var(--book-left-reading-gutter-extra));
+  box-sizing: border-box;
+}
+
+.book-page-ribbon-shell > .page-ribbon-title-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 0 12px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 calc(12px + var(--ribbon-fold-tri-size, 8px)) 0;
+}
+
+.book-page-ribbon-shell > .page-ribbon-title-row > .page-title-block {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.book-page-ribbon-shell > .page-ribbon-title-row > .book-side-extend-tags {
+  --ribbon-outdent: 18px;
+  --ribbon-fold-tri-size: 8px;
+  --ribbon-tag-height: 40px;
+  position: relative;
+  left: 0;
+  top: auto;
+  z-index: 31;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  margin-left: calc(0px - var(--book-page-pad-left-base) - var(--ribbon-outdent) - var(--book-left-reading-gutter-extra));
+  flex-shrink: 0;
+  align-self: flex-start;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 0;
+}
+
 /* 纸质圣经式左缘切口标签（仅中窄屏单栏；宽双栏不占用） */
 .book-page-index-tab {
   display: none;
 }
 
-@media (max-width: 1100px) {
+@media (min-width: 1401px) {
   .book-layout:not(.notebook-layout):not(.promo-book-layout) .book-page.left-page .book-page-index-tab {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
     position: absolute;
     z-index: 4;
-    /* 左缘与书页 padding 起点对齐；左侧直角贴齐，避免弧角与纸色夹出白缝 */
+    /* 与左页正文 padding 无关：贴左页内缘（相对左页 padding box 左缘 = 0） */
     left: 0;
-    top: clamp(168px, 30vh, 260px);
-    width: auto;
-    min-width: 44px;
-    height: auto;
-    min-height: 0;
-    padding: 10px 6px 10px 4px;
+    top: var(--book-page-index-top, calc(clamp(128px, 18vh, 172px) + 130px));
+    height: var(--book-page-index-height, auto);
+    bottom: auto;
+    width: 52px;
+    padding: 2px 4px 2px 0;
     box-sizing: border-box;
-    border: none;
-    outline: none;
-    cursor: pointer;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(74, 68, 63, 0.42) transparent;
+    gap: 4px;
     -webkit-tap-highlight-color: transparent;
-    /* 仅右侧圆角；底同顶栏深色，字色同 Logo 黄 --brand-bible */
-    border-radius: 0 18px 18px 0;
-    background: var(--topbar-bg, #4a443f);
-    color: var(--brand-bible);
-    font-family: "Heiti SC", "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
-    font-size: calc(34px * var(--font-scale));
-    font-weight: 700;
-    letter-spacing: 0;
-    line-height: 1;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
-    text-shadow: none;
-    box-shadow: none;
   }
+}
 
-  .book-layout:not(.notebook-layout):not(.promo-book-layout)
-    .book-page.left-page
-    .book-page-index-tab:hover {
-    background: #58524a;
-    box-shadow: none;
-  }
+.book-layout:not(.notebook-layout):not(.promo-book-layout)
+  .book-page.left-page
+  .book-page-index-tab:hover {
+  background: transparent;
+  box-shadow: none;
+}
 
-  .book-layout:not(.notebook-layout):not(.promo-book-layout)
-    .book-page.left-page
-    .book-page-index-tab.active {
-    background: #58524a;
-    box-shadow: none;
-  }
+.book-layout:not(.notebook-layout):not(.promo-book-layout)
+  .book-page.left-page
+  .book-page-index-tab.active {
+  background: transparent;
+  box-shadow: none;
+}
 
-  .book-layout:not(.notebook-layout):not(.promo-book-layout)
-    .book-page.left-page
-    .book-page-index-tab:focus-visible {
-    background: #58524a;
-    box-shadow: none;
-    outline: 2px solid var(--brand-bible);
-    outline-offset: 2px;
-  }
+.book-layout:not(.notebook-layout):not(.promo-book-layout)
+  .book-page.left-page
+  .book-page-index-tab:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  outline: 2px solid var(--brand-bible);
+  outline-offset: 2px;
+}
 
-  .book-page-index-tab__glyph {
-    display: block;
-    line-height: 1;
-    overflow: hidden;
-    max-height: 1.2em;
-  }
+.book-page-index-tab__item {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 20px;
+  padding: 4px 3px;
+  border: none;
+  border-radius: 0 14px 14px 0;
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+  color: #6f6558;
+  font-family: "Heiti SC", "STHeiti", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: calc(16px * var(--font-scale));
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.book-page-index-tab__item:hover {
+  background: linear-gradient(180deg, rgba(242, 236, 226, 0.96), rgba(234, 226, 212, 0.98));
+  color: #6b6154;
+}
+
+.book-page-index-tab__item:focus-visible {
+  outline: 2px solid var(--brand-bible);
+  outline-offset: 1px;
+  background: linear-gradient(180deg, rgba(242, 236, 226, 0.96), rgba(234, 226, 212, 0.98));
+}
+
+.book-page-index-tab__item.active {
+  background: linear-gradient(180deg, rgba(230, 221, 208, 0.98), rgba(222, 211, 196, 0.98));
+  color: #5f564b;
+  transform: translateX(2px);
+}
+
+.book-page-index-tab__item--pentateuch {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--history {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--poetry {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--major_prophets {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--minor_prophets {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--gospels {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--acts {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--paul {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--general {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
+}
+
+.book-page-index-tab__item--revelation {
+  background: linear-gradient(180deg, rgba(247, 242, 234, 0.92), rgba(239, 232, 220, 0.96));
 }
 
 .book-side-extend-tags {
@@ -1923,6 +2198,13 @@ body:has(
 }
 
 /* 丝带 + 书卷名同一行，垂直与丝带对齐 */
+.book-page.left-page > .page-ribbon-title-row {
+  position: relative;
+  left: calc(0px - var(--book-page-pad-left-base) - var(--book-left-reading-gutter-extra));
+  width: calc(100% + var(--book-page-pad-left-base) + var(--book-left-reading-gutter-extra));
+  z-index: 30;
+}
+
 .book-page.left-page > .page-ribbon-title-row {
   display: flex;
   flex-direction: row;
@@ -1944,17 +2226,17 @@ body:has(
 
 /* 丝带：左缘按页内边距基准（不含阅读加宽），与 bleed 后的页首行对齐 */
 .book-page.left-page > .page-ribbon-title-row > .book-side-extend-tags {
-  --ribbon-outdent: 12px;
+  --ribbon-outdent: 18px;
   --ribbon-fold-tri-size: 8px;
   --ribbon-tag-height: 40px;
   position: relative;
   left: 0;
   top: auto;
-  z-index: 6;
+  z-index: 31;
   width: auto;
   max-width: 100%;
   margin: 0;
-  margin-left: calc(0px - var(--book-page-pad-left-base) - var(--ribbon-outdent));
+  margin-left: calc(0px - var(--book-page-pad-left-base) - var(--ribbon-outdent) - var(--book-left-reading-gutter-extra));
   flex-shrink: 0;
   align-self: flex-start;
   justify-content: flex-start;
@@ -2077,7 +2359,8 @@ body:has(
   appearance: none;
   -webkit-appearance: none;
   border: 0;
-  min-width: 136px;
+  width: 230px;
+  min-width: 230px;
   height: var(--ribbon-tag-height, 40px);
   padding: 0 18px 0 30px;
   color: #fff9ef;
@@ -2114,7 +2397,8 @@ body:has(
 /* 未登录：丝带显示「收藏夹」等（与收藏面板标题同源 i18n） */
 .book-side-extend-tag.book-side-extend-tag--ribbon-guest {
   box-sizing: border-box;
-  min-width: 118px;
+  width: 230px;
+  min-width: 230px;
   justify-content: center;
   padding: 0 16px 0 26px;
 }
@@ -2128,7 +2412,8 @@ body:has(
 
 /* 已登录：「昵称的圣经」+ 等级星 */
 .book-side-extend-tag.book-side-extend-tag--ribbon-user {
-  min-width: 188px;
+  width: 230px;
+  min-width: 230px;
 }
 
 .book-side-extend-tag .ribbon-user-stack {
@@ -3155,6 +3440,190 @@ body:has(
   overflow: visible;
 }
 
+.page-toolbar-home {
+  display: block;
+}
+
+.mobile-topbar-actions-dock[hidden],
+.mobile-reader-toolbar-dock[hidden] {
+  display: none !important;
+}
+
+.mobile-topbar-actions-dock,
+.mobile-reader-toolbar-dock {
+  display: none;
+}
+
+/* 翻章行「设置」：字体面板遮罩（低于站点全屏层 460，高于正文） */
+.reader-font-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 435;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(15, 12, 10, 0.38);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    visibility 0.22s ease;
+}
+
+body.reader-font-settings-open .reader-font-settings-backdrop {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.reader-font-settings-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 436;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 14px env(safe-area-inset-bottom, 0px);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
+
+body.reader-font-settings-open .reader-font-settings-sheet {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* 与底栏同高（见 body.mobile-topbar-actions-docked .page-shell padding-bottom），面板下缘与底栏上缘对齐无空隙 */
+body.mobile-topbar-actions-docked.reader-font-settings-open .reader-font-settings-sheet {
+  padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+}
+
+body.mobile-topbar-actions-docked.reader-font-settings-open .reader-font-settings-sheet__panel {
+  padding-bottom: 10px;
+}
+
+@media (max-width: 700px) {
+  body.mobile-reader-toolbar-docked.reader-font-settings-open .reader-font-settings-sheet {
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.reader-font-settings-sheet__panel {
+  width: min(100%, 400px);
+  max-height: min(78vh, 640px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 14px 18px 18px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--paper);
+  background-image: var(--modal-half-book-paper-image);
+  background-size: var(--modal-half-book-paper-size);
+  background-position: var(--modal-half-book-paper-position);
+  background-repeat: no-repeat;
+  border: 1px solid var(--panel-line);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgba(15, 12, 10, 0.18);
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.reader-font-settings-sheet__section-title {
+  margin: 0;
+  padding: 0 2px;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-align: center;
+}
+
+.reader-font-settings-sheet__section-title--version {
+  margin-top: 4px;
+}
+
+/* 主版本 + 对照 + 默认：同一行三列，列与列之间留左右空隙 */
+.reader-font-settings-sheet__version-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 12px;
+  row-gap: 0;
+  align-items: stretch;
+  width: 100%;
+}
+
+.reader-font-settings-sheet__chapter-wrap {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.reader-font-settings-sheet__display-mode {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 40px;
+  height: auto;
+  padding: var(--ui-seg-track-pad-y, 4px) var(--ui-seg-track-pad-x, 6px);
+}
+
+.reader-font-settings-sheet__display-mode .display-mode-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 8px;
+  font-size: calc(13px * var(--font-scale));
+}
+
+.reader-font-settings-sheet__font-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+body.reader-font-settings-open .reader-font-settings-sheet__panel {
+  transform: translateY(0);
+}
+
+.reader-font-settings-sheet__font-btn {
+  min-width: 64px;
+  min-height: 44px;
+  padding: 0 14px;
+  margin: 0;
+  font: inherit;
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 650;
+  letter-spacing: normal;
+  color: var(--muted);
+  background: rgba(255, 253, 248, 0.95);
+  border: 1px solid rgba(190, 170, 140, 0.5);
+  border-radius: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(139, 111, 71, 0.15);
+}
+
+.reader-font-settings-sheet__font-btn:active {
+  background: rgba(245, 238, 226, 0.98);
+}
+
 .reading-toolbar {
   display: flex;
   flex-direction: column;
@@ -3163,9 +3632,18 @@ body:has(
   padding-right: 18px;
 }
 
+/* 页头内书卷/搜索条不展示：顶栏/底栏与 #openBookChapter、#openVerseSearch 仍可打开面板；DOM 保留供 JS */
+.book-page-header-shell .reading-toolbar {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
 .reading-toolbar-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, auto);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   align-items: center;
 }
@@ -3184,23 +3662,35 @@ body:has(
   min-width: 0 !important;
 }
 
-/* 书卷 / 选版本 / 搜经文：三格等分内左对齐（与搜经文同一行结构） */
+/* 书卷 / 搜索：仅图标；文案保留供读屏（顶栏/底栏/会员菜单另有入口） */
 .reading-toolbar-row > #bookChapterTrigger,
-.reading-toolbar-row > #primaryVersionTrigger,
 .reading-toolbar-row > #verseSearchOpenBtn {
-  justify-content: flex-start;
+  position: relative;
+  justify-content: center !important;
   padding-inline: 10px;
   font-size: calc(13px * var(--font-scale));
 }
 
 .reading-toolbar-row > #bookChapterTrigger .toolbar-trigger-lead,
-.reading-toolbar-row > #primaryVersionTrigger .toolbar-trigger-lead,
 .reading-toolbar-row > #verseSearchOpenBtn .toolbar-trigger-lead {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
-  justify-content: flex-start;
-  gap: 6px;
-  width: 100%;
+  justify-content: center;
+  gap: 0;
+  width: auto;
+}
+
+.reading-toolbar-row > #bookChapterTrigger .toolbar-trigger-label,
+.reading-toolbar-row > #verseSearchOpenBtn .toolbar-trigger-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .toolbar-trigger,
@@ -3224,6 +3714,11 @@ button.toolbar-trigger,
   gap: 10px;
   white-space: nowrap;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* [hidden] 须压过上行 display:inline-flex，否则仍会占位/露出 */
+.reading-toolbar button[hidden] {
+  display: none !important;
 }
 
 .toolbar-trigger:hover,
@@ -3900,6 +4395,8 @@ button.toolbar-trigger:hover,
   font-size: calc(100px * var(--font-scale));
   line-height: 0.92;
   font-weight: 800;
+  font-family: "SimHei", "Heiti SC", "STHeiti", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
   letter-spacing: -2px;
   color: var(--muted);
 }
@@ -3955,7 +4452,20 @@ button.toolbar-trigger:hover,
 
 .repeated-words-wrap {
   text-align: center;
-  margin-bottom: 30px;
+  margin: 0 0 14px;
+}
+
+.chapter-repeated-words-inline {
+  text-align: center;
+  margin: 0 0 14px;
+}
+
+.book-layout:not(.book-layout--landing) .chapter-reading-body > .repeated-words-wrap {
+  display: none;
+}
+
+.book-layout--landing .repeated-words-wrap {
+  display: block;
 }
 
 .repeated-words-line {
@@ -3994,14 +4504,41 @@ button.toolbar-trigger:hover,
   max-width: 100%;
 }
 
+.chapter-reading-body {
+  display: block;
+}
+
+/* 正文主区域：宽度为视口 90%（不超过栏宽），水平居中 */
+.book-layout:not(.notebook-layout):not(.promo-book-layout):not(.book-layout--landing)
+  .chapter-reading-body,
+.book-layout:not(.notebook-layout):not(.promo-book-layout):not(.book-layout--landing)
+  .book-page.right-page > #chapterVideosSlotRight:not(:empty),
+.book-layout:not(.notebook-layout):not(.promo-book-layout):not(.book-layout--landing)
+  .book-page.right-page > #rightBlocks,
+.book-layout:not(.notebook-layout):not(.promo-book-layout):not(.book-layout--landing)
+  .book-page.right-page > #chapterEndPersonnelSection {
+  width: min(90vw, 100%);
+  max-width: min(90vw, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+.book-layout:not(.notebook-layout):not(.promo-book-layout):not(.book-layout--landing)
+  .book-page.left-page
+  > .chapter-illustration-slot:not([hidden]) {
+  width: min(90vw, 100%);
+  max-width: min(90vw, 100%);
+  margin: 0 auto 14px;
+  box-sizing: border-box;
+}
+
 .chapter-illustration-slot[hidden] {
   display: none !important;
 }
 
 .chapter-illustration-slot:not([hidden]) {
-  margin: 0 auto 14px;
-  width: 100%;
-  max-width: 100%;
+  margin: 0 0 14px;
   text-align: center;
   border: none;
   box-shadow: none;
@@ -4213,6 +4750,48 @@ button.toolbar-trigger:hover,
   margin-top: 10px;
 }
 
+/* 右页正文：与左栏统一左对齐 */
+.book-page.right-page #rightBlocks,
+.book-page.right-page #chapterEndPersonnelSection {
+  text-align: left;
+}
+
+.book-page.right-page #rightBlocks .flow-card,
+.book-page.right-page #rightBlocks .result-box,
+.book-page.right-page #rightBlocks .plain-list,
+.book-page.right-page #rightBlocks .plain-list li,
+.book-page.right-page #rightBlocks .flow-verse,
+.book-page.right-page #rightBlocks .flow-verse-sub,
+.book-page.right-page #rightBlocks .flow-verse-rtl,
+.book-page.right-page #rightBlocks .scripture-inline-book-title,
+.book-page.right-page #chapterEndPersonnelSection .chapter-end-notes-table,
+.book-page.right-page #chapterEndPersonnelSection .chapter-end-notes-table-caption,
+.book-page.right-page #chapterEndPersonnelSection .chapter-end-notes-table-cell {
+  text-align: left;
+}
+
+.book-page.left-page #leftBlocks,
+.book-page.left-page #leftBlocks .flow-verse,
+.book-page.left-page #leftBlocks .flow-verse-sub,
+.book-page.left-page #leftBlocks .plain-list li,
+.book-page.left-page #leftBlocks .result-box,
+.book-page.left-page #leftBlocks .chapter-approved-item {
+  text-align: left;
+  text-justify: auto;
+  text-align-last: auto;
+}
+
+.book-page.right-page #rightBlocks,
+.book-page.right-page #rightBlocks .flow-verse,
+.book-page.right-page #rightBlocks .flow-verse-sub,
+.book-page.right-page #rightBlocks .plain-list li,
+.book-page.right-page #rightBlocks .result-box,
+.book-page.right-page #rightBlocks .chapter-approved-item {
+  text-align: left;
+  text-justify: auto;
+  text-align-last: auto;
+}
+
 .chapter-feedback-wrap {
   margin-top: 16px;
   padding: 14px;
@@ -4227,7 +4806,7 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-feedback-title {
-  font-size: calc(22px * var(--font-scale));
+  font-size: calc(24px * var(--font-scale));
   color: var(--accent);
   font-weight: 800;
   margin-bottom: 8px;
@@ -4238,26 +4817,25 @@ button.toolbar-trigger:hover,
   min-height: 88px;
   border: none;
   border-radius: 12px;
-  background: var(--paper);
+  background: rgba(200, 155, 60, 0.09);
   color: var(--ink);
   font-size: calc(17px * var(--font-scale));
   line-height: 1.55;
   padding: 10px 12px;
   resize: vertical;
-  box-shadow: inset 0 1px 2px rgba(76, 62, 42, 0.04);
+  box-shadow: none;
 }
 
 .chapter-feedback-input::placeholder {
-  font-size: calc(22px * var(--font-scale));
+  font-size: calc(24px * var(--font-scale));
   color: rgba(127, 116, 104, 0.58);
   font-weight: 700;
 }
 
 .chapter-feedback-input:focus {
   outline: none;
-  background: #fffefb;
-  box-shadow: inset 0 1px 2px rgba(76, 62, 42, 0.06),
-    0 0 0 3px var(--accent-soft);
+  background: rgba(200, 155, 60, 0.12);
+  box-shadow: none;
 }
 
 .chapter-feedback-actions {
@@ -4271,10 +4849,10 @@ button.toolbar-trigger:hover,
 /* 与顶栏 Logo「Bible」同色：扁平实底，无金属渐变 */
 .chapter-feedback-btn {
   height: 40px;
-  border: 1px solid rgba(200, 130, 25, 0.68);
+  border: none;
   border-radius: 12px;
-  background: var(--brand-bible);
-  color: var(--ink);
+  background: rgba(200, 155, 60, 0.09);
+  color: var(--accent);
   font-size: calc(16px * var(--font-scale));
   font-weight: 800;
   padding: 0 18px;
@@ -4289,17 +4867,17 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-feedback-btn:hover {
-  filter: brightness(1.05);
-  border-color: rgba(160, 100, 18, 0.88);
+  filter: brightness(1.03);
+  background: rgba(200, 155, 60, 0.13);
 }
 
 .chapter-feedback-btn:active {
   transform: translateY(1px);
-  filter: brightness(0.97);
+  filter: brightness(0.98);
 }
 
 .chapter-feedback-btn:focus-visible {
-  outline: 2px solid rgba(200, 155, 60, 0.55);
+  outline: 2px solid rgba(200, 155, 60, 0.18);
   outline-offset: 2px;
 }
 
@@ -4323,7 +4901,7 @@ button.toolbar-trigger:hover,
 .chapter-feedback-approved-title {
   margin-top: 12px;
   margin-bottom: 8px;
-  font-size: calc(20px * var(--font-scale));
+  font-size: calc(22px * var(--font-scale));
   color: var(--accent);
   font-weight: 700;
 }
@@ -4485,10 +5063,22 @@ button.toolbar-trigger:hover,
 
 /* 名字 / 寿命 / 时代 / 人物标签 各占一行（块级行盒） */
 .chapter-character-roster-field {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
   width: 100%;
   box-sizing: border-box;
   text-align: center;
+}
+
+.chapter-character-roster-label {
+  display: none;
+  font-size: calc(8px * var(--font-scale));
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: rgba(92, 83, 72, 0.52);
 }
 
 .chapter-character-roster-name {
@@ -4500,7 +5090,10 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-character-roster-line {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
   width: 100%;
   font-size: calc(11px * var(--font-scale));
   font-weight: 650;
@@ -4512,6 +5105,11 @@ button.toolbar-trigger:hover,
 .chapter-character-roster-line--empty {
   font-weight: 600;
   color: rgba(92, 83, 72, 0.38);
+}
+
+.chapter-character-roster-value {
+  display: block;
+  width: 100%;
 }
 
 .chapter-character-roster-life {
@@ -4618,12 +5216,16 @@ button.toolbar-trigger:hover,
 
   .chapter-character-roster-caption {
     margin-top: 4px;
-    gap: 3px;
+    gap: 1px;
     max-width: min(260px, 92vw);
   }
 
   .chapter-character-roster-name {
     font-size: calc(13px * var(--font-scale));
+  }
+
+  .chapter-character-roster-label {
+    font-size: calc(7px * var(--font-scale));
   }
 
   .chapter-character-roster-line {
@@ -4766,8 +5368,8 @@ button.toolbar-trigger:hover,
 .chapter-approved-item {
   border-top: none;
   padding-top: 8px;
-  color: var(--ink);
-  font-size: calc(15px * var(--font-scale));
+  color: var(--accent);
+  font-size: calc(17px * var(--font-scale));
   line-height: 1.6;
 }
 
@@ -4812,8 +5414,8 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-approved-meta {
-  color: var(--muted);
-  font-size: calc(13px * var(--font-scale));
+  color: rgba(143, 101, 24, 0.82);
+  font-size: calc(15px * var(--font-scale));
 }
 
 .chapter-approved-stars {
@@ -4900,13 +5502,13 @@ button.toolbar-trigger:hover,
 }
 
 .chapter-approved-reply {
-  font-size: calc(14px * var(--font-scale));
+  font-size: calc(16px * var(--font-scale));
   line-height: 1.5;
-  color: var(--ink);
+  color: var(--accent);
 }
 
 .chapter-approved-reply-author {
-  color: var(--muted-soft);
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -5302,20 +5904,13 @@ body.question-only-mode .plain-list li {
 }
 
 .chapter-nav {
-  display: grid;
-  grid-template-columns: 96px 1fr 96px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
   align-items: center;
   gap: 10px;
   margin-top: auto;
   padding-top: 24px;
-}
-
-.chapter-nav-title {
-  text-align: center;
-  font-size: calc(15px * var(--font-scale));
-  line-height: 1.5;
-  color: var(--muted);
-  font-weight: 700;
 }
 
 .nav-btn {
@@ -5506,7 +6101,6 @@ body.question-only-mode .plain-list li {
 }
 
 body.verse-search-open,
-body.primary-version-open,
 body.book-chapter-open,
 body.member-hub-open,
 body.member-profile-open,
@@ -5514,20 +6108,17 @@ body.chapter-verse-pick-open {
   overflow: hidden;
 }
 
-/* 选版本 / 经节快选：与搜经文同壳（全屏遮罩 + min(100%,520px) 卡片）；卡片在屏幕垂直居中 */
-#primaryVersionPanel.primary-version-overlay,
+/* 经节快选：与搜经文同壳（全屏遮罩 + min(100%,520px) 卡片）；卡片在屏幕垂直居中 */
 #chapterVersePickPanel.primary-version-overlay {
   align-items: center;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-#primaryVersionPanel .primary-version-card,
 #chapterVersePickPanel .primary-version-card {
   overflow: hidden;
 }
 
-#primaryVersionPanel .toolbar-panel-inner,
 #chapterVersePickPanel .toolbar-panel-inner {
   max-height: none !important;
   height: auto !important;
@@ -5542,12 +6133,10 @@ body.chapter-verse-pick-open {
   backdrop-filter: none !important;
 }
 
-#primaryVersionPanel .toolbar-panel-inner::before,
 #chapterVersePickPanel .toolbar-panel-inner::before {
   display: none !important;
 }
 
-#primaryVersionPanel .toolbar-panel-simple,
 #chapterVersePickPanel .toolbar-panel-simple {
   padding: 10px 12px 14px !important;
 }
@@ -5607,10 +6196,10 @@ body.chapter-verse-pick-open {
   flex: 1 1 auto;
 }
 
-/* 选书卷：书脊 | 旧约 | 新约 | 章节 四栏（窄屏见下：仅书脊+章节） */
+/* 选书卷：旧约 | 新约 | 章节 三栏（左侧合并列已移除） */
 #bookChapterPanel .book-chapter-triple {
   display: grid;
-  grid-template-columns: minmax(68px, 100px) minmax(0, 1.85fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 3px 6px;
   align-items: stretch;
   min-height: 0;
@@ -5636,29 +6225,23 @@ body.chapter-verse-pick-open {
   -webkit-overflow-scrolling: touch;
 }
 
-/* 书脊列：宽屏第 1 列；≤480px 仍为左列（与章节双栏） */
-#bookChapterPanel .book-chapter-col--all-books {
-  display: flex !important;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  grid-column: 1;
-  grid-row: 1;
-}
-
 #bookChapterPanel .book-chapter-col--ot {
-  grid-column: 2;
+  grid-column: 1;
   min-width: 0;
 }
 
 #bookChapterPanel .book-chapter-col--nt {
-  grid-column: 3;
+  grid-column: 2;
   min-width: 0;
 }
 
 #bookChapterPanel .book-chapter-col--chapters {
-  grid-column: 4;
+  grid-column: 3;
   min-width: 0;
+}
+
+#bookChapterPanel .book-chapter-col--all-books {
+  display: none !important;
 }
 
 /* 书卷列表：每段为「分类行」—— 宽屏分类占满宽，其下网格排书；最窄合并列见下 480px */
@@ -5753,7 +6336,7 @@ body.chapter-verse-pick-open {
   width: 5px;
   flex-shrink: 0;
   align-self: stretch;
-  background: #252220;
+  background: rgba(72, 66, 61, 0.82);
   border-radius: 4px 0 0 4px;
 }
 
@@ -5769,8 +6352,8 @@ body.chapter-verse-pick-open {
 #bookChapterPanel .book-spine-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 3px 3px 4px 1px;
+  gap: 8px;
+  padding: 5px 4px 6px 2px;
   box-sizing: border-box;
 }
 
@@ -5784,27 +6367,28 @@ body.chapter-verse-pick-open {
   cursor: pointer;
   text-align: center;
   font-family: inherit;
-  font-size: calc(12px * var(--font-scale));
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: 0.02em;
-  color: #f5c84c;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-  padding: 3px 7px 3px 4px;
-  min-height: 22px;
+  font-size: calc(11px * var(--font-scale));
+  font-weight: 500;
+  line-height: 1.28;
+  letter-spacing: 0.01em;
+  color: rgba(154, 146, 138, 0.7);
+  text-shadow: none;
+  padding: 4px 8px 4px 5px;
+  min-height: 24px;
   border-radius: 0 999px 999px 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
   position: relative;
   z-index: 1;
   transition:
     color 0.12s ease,
     filter 0.12s ease,
-    box-shadow 0.12s ease;
+    box-shadow 0.12s ease,
+    background 0.12s ease;
 }
 
 #bookChapterPanel .book-spine-tab:hover {
-  color: #ffe078;
-  filter: brightness(1.06);
+  color: rgba(136, 128, 120, 0.86);
+  filter: brightness(1.01);
 }
 
 #bookChapterPanel .book-spine-tab:focus-visible {
@@ -5813,55 +6397,55 @@ body.chapter-verse-pick-open {
 }
 
 #bookChapterPanel .book-spine-tab.active {
-  color: #fff6cf;
+  color: rgba(88, 82, 76, 0.92);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 0 0 1px rgba(245, 200, 76, 0.45);
-  filter: brightness(1.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 0 1px rgba(171, 158, 139, 0.22);
+  filter: brightness(1.01);
 }
 
 /* 分组底色：同列内略作区分（摩西五经 / 历史书 / …） */
 #bookChapterPanel .book-spine-tab--intro {
-  background: #353230;
+  background: rgba(250, 247, 242, 0.98);
 }
 #bookChapterPanel .book-spine-tab--overview_ot {
-  background: #383432;
+  background: rgba(248, 245, 239, 0.98);
 }
 #bookChapterPanel .book-spine-tab--pentateuch {
-  background: #3f3a36;
+  background: rgba(246, 242, 235, 0.98);
 }
 #bookChapterPanel .book-spine-tab--history {
-  background: #34383c;
+  background: rgba(247, 244, 238, 0.98);
 }
 #bookChapterPanel .book-spine-tab--poetry {
-  background: #3a3640;
+  background: rgba(248, 245, 240, 0.98);
 }
 #bookChapterPanel .book-spine-tab--major_prophets {
-  background: #363a34;
+  background: rgba(248, 244, 239, 0.98);
 }
 #bookChapterPanel .book-spine-tab--minor_prophets {
-  background: #3d3936;
+  background: rgba(248, 245, 239, 0.98);
 }
 #bookChapterPanel .book-spine-tab--overview_nt {
-  background: #323438;
+  background: rgba(249, 246, 241, 0.98);
 }
 #bookChapterPanel .book-spine-tab--gospels {
-  background: #403b36;
+  background: rgba(247, 244, 238, 0.98);
 }
 #bookChapterPanel .book-spine-tab--acts {
-  background: #34363e;
+  background: rgba(248, 245, 240, 0.98);
 }
 #bookChapterPanel .book-spine-tab--paul {
-  background: #3a3c36;
+  background: rgba(248, 245, 240, 0.98);
 }
 #bookChapterPanel .book-spine-tab--general {
-  background: #363438;
+  background: rgba(248, 245, 241, 0.98);
 }
 #bookChapterPanel .book-spine-tab--revelation {
-  background: #3e3634;
+  background: rgba(248, 244, 239, 0.98);
 }
 #bookChapterPanel .book-spine-tab--other {
-  background: #383634;
+  background: rgba(248, 245, 240, 0.98);
 }
 
 /* 宽屏书脊略放大，与左列宽度匹配 */
@@ -5871,13 +6455,13 @@ body.chapter-verse-pick-open {
   }
 
   #bookChapterPanel .book-spine-list {
-    padding: 4px 4px 6px 2px;
-    gap: 3px;
+    padding: 6px 4px 8px 2px;
+    gap: 16px;
   }
 
   #bookChapterPanel .book-spine-tab {
     font-size: calc(13px * var(--font-scale));
-    min-height: 24px;
+    min-height: 25px;
     padding: 4px 9px 4px 5px;
   }
 }
@@ -5960,7 +6544,7 @@ body.chapter-verse-pick-open {
   font-weight: 800;
 }
 
-/* 最窄屏双栏：左列旧约+新约（上下）+ 右列章节（>480 与最大屏同为三列 OT|NT|章） */
+/* 最窄屏双栏：左书脊 + 右章节（>480 为四列 书脊|OT|NT|章） */
 @media (max-width: 480px) {
   #bookChapterPanel .book-chapter-card {
     gap: 0 !important;
@@ -5993,6 +6577,13 @@ body.chapter-verse-pick-open {
     gap: 0 !important;
   }
 
+  #bookChapterPanel .book-grid--ot .book-bible-section-books,
+  #bookChapterPanel .book-grid--nt .book-bible-section-books,
+  #bookChapterPanel .book-grid--all-mobile .book-bible-section-books {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+  }
+
   #bookChapterPanel .chapter-grid {
     gap: 0 !important;
   }
@@ -6001,53 +6592,17 @@ body.chapter-verse-pick-open {
     display: none !important;
   }
 
-  /* 左列书卷：与宽屏旧约相同——分组标题通栏，下一行书卷与标题同宽（如摩西五经下创·出·利·民·申一行五格） */
-  #bookChapterPanel .book-grid--all-mobile .book-bible-section-row {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 0 !important;
-  }
-
-  #bookChapterPanel .book-grid--all-mobile .book-bible-section-title {
-    width: 100% !important;
-    max-width: none !important;
-    flex: none !important;
-    font-size: calc(13px * var(--font-scale)) !important;
-    padding: 0 4px !important;
-    margin: 0 !important;
-    min-height: 0 !important;
-    line-height: 1.1 !important;
-    color: var(--muted-soft) !important;
-  }
-
-  #bookChapterPanel .book-grid--all-mobile .book-bible-section-books {
-    display: grid !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-    width: 100% !important;
-    gap: 0 !important;
-  }
-
-  #bookChapterPanel .book-grid--all-mobile .book-bible-section-row--noheading .book-bible-section-books {
-    width: 100% !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
   #bookChapterPanel .book-chapter-triple {
     display: grid !important;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
-    gap: 0 !important;
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr) minmax(0, 0.9fr);
+    gap: 0 4px !important;
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
     align-items: stretch;
   }
 
-  #bookChapterPanel .book-chapter-col--ot,
-  #bookChapterPanel .book-chapter-col--nt {
-    display: none !important;
-  }
-
-  #bookChapterPanel .book-chapter-col--all-books {
+  #bookChapterPanel .book-chapter-col--ot {
     display: flex !important;
     grid-column: 1 !important;
     min-height: 0;
@@ -6058,9 +6613,20 @@ body.chapter-verse-pick-open {
     z-index: 5;
   }
 
-  #bookChapterPanel .book-chapter-col--chapters {
+  #bookChapterPanel .book-chapter-col--nt {
     display: flex !important;
     grid-column: 2 !important;
+    min-height: 0;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0 !important;
+    position: relative;
+    z-index: 4;
+  }
+
+  #bookChapterPanel .book-chapter-col--chapters {
+    display: flex !important;
+    grid-column: 3 !important;
     min-height: 0;
     min-width: 0;
     flex-direction: column;
@@ -6069,13 +6635,8 @@ body.chapter-verse-pick-open {
     z-index: 1;
   }
 
-  /* 右栏保留「章节」标题；左栏用内部分组标题 */
-  #bookChapterPanel .book-chapter-col .book-chapter-section-title {
-    display: none !important;
-  }
-
   #bookChapterPanel .book-chapter-col--chapters > .book-chapter-section-title {
-    display: flex !important;
+    margin-left: -1px !important;
   }
 
   #bookChapterPanel .book-chapter-chapter-grid {
@@ -6090,7 +6651,7 @@ body.chapter-verse-pick-open {
     margin: 0 !important;
     line-height: 1.25 !important;
     font-size: calc(15px * var(--font-scale)) !important;
-    font-weight: 800 !important;
+    font-weight: 600 !important;
     letter-spacing: 0.02em !important;
     min-height: 32px !important;
     display: flex !important;
@@ -6100,6 +6661,8 @@ body.chapter-verse-pick-open {
     width: 100% !important;
     flex-shrink: 0 !important;
     border-radius: 4px !important;
+    color: rgba(127, 116, 104, 0.9) !important;
+    background: rgba(233, 225, 214, 0.78) !important;
   }
 
   /* 正典单字简称略放大（+2px）；通栏附加页保持浅色 */
@@ -6108,7 +6671,7 @@ body.chapter-verse-pick-open {
   #bookChapterPanel .book-grid--all-mobile
     .book-item:not(.book-item--directory-fullrow) {
     font-size: calc(17px * var(--font-scale)) !important;
-    font-weight: 800 !important;
+    font-weight: 500 !important;
     letter-spacing: 0.02em;
     line-height: 1 !important;
     min-height: 32px !important;
@@ -6120,7 +6683,7 @@ body.chapter-verse-pick-open {
   #bookChapterPanel .book-grid--nt .book-item.book-item--directory-fullrow,
   #bookChapterPanel .book-grid--all-mobile .book-item.book-item--directory-fullrow {
     font-size: calc(15px * var(--font-scale)) !important;
-    font-weight: 800 !important;
+    font-weight: 500 !important;
     letter-spacing: 0.02em;
     line-height: 1.15 !important;
     min-height: 0 !important;
@@ -6154,22 +6717,22 @@ body.chapter-verse-pick-open {
 
 /* 摩西五经等分类下的正典书卷（简称/全名格）：黑字加粗 */
 #bookChapterPanel .book-bible-section-books .book-item:not(.book-item--directory-fullrow) {
-  color: var(--ink) !important;
-  font-weight: 800 !important;
+  color: rgba(90, 82, 75, 0.92) !important;
+  font-weight: 500 !important;
 }
 
 #bookChapterPanel
   .book-bible-section-books
   .book-item:not(.book-item--directory-fullrow).active {
-  color: var(--ink) !important;
-  font-weight: 800 !important;
+  color: rgba(66, 60, 54, 0.96) !important;
+  font-weight: 500 !important;
 }
 
 /* 大屏（三栏）：正典书卷名较默认 +2px、加粗（最窄屏简称另见 max-width:480） */
 @media (min-width: 481px) {
   #bookChapterPanel .book-bible-section-books .book-item:not(.book-item--directory-fullrow) {
     font-size: calc(16px * var(--font-scale)) !important;
-    font-weight: 800 !important;
+    font-weight: 500 !important;
   }
 }
 
@@ -6190,7 +6753,7 @@ body.chapter-verse-pick-open {
 
 #bookChapterPanel .chapter-item:not(.chapter-item--intro) {
   font-size: calc(16px * var(--font-scale)) !important;
-  font-weight: 800 !important;
+  font-weight: 500 !important;
 }
 
 #bookChapterPanel .book-item:hover,
@@ -6981,9 +7544,9 @@ a.admin-modal-hub-link.primary-btn {
     background-clip: padding-box;
   }
 
-  /* 丝带向左负 margin 探出书芯：全圆角 inset 会裁掉探出与折角三角，向左扩裁剪参考框 */
+  /* 丝带左右探出书芯：左右对称扩裁剪参考框，避免仅左侧外扩导致主卡左右边距观感不一致 */
   .book-layout:not(.notebook-layout):not(.promo-book-layout) .book-spread {
-    clip-path: inset(0 0 0 -16px round 26px);
+    clip-path: inset(0 -16px 0 -16px round 26px);
   }
 
   .book-layout {
@@ -6999,9 +7562,10 @@ a.admin-modal-hub-link.primary-btn {
     overflow: hidden;
   }
 
-  /* 读经卡左缘贴 --bg：浅色 1px 外框在深色底上会像「白缝」；丝带负 margin 能盖住，索引条不能 */
+  /* 读经卡左右缘贴 --bg：浅色 1px 外框在深色底上会像「白缝」 */
   .book-layout:not(.notebook-layout):not(.promo-book-layout) {
     border-left-color: var(--bg);
+    border-right-color: var(--bg);
   }
 
   .book-layout::before,
@@ -7082,7 +7646,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .askbible-chrome-nav {
-    /* 中屏（701–1100）：较大屏再左移 15px（共 35px）；≤700 由小屏规则覆盖 */
+    /* 中屏（701–1100）：较大屏再左移 15px（共 35px）；站点导航下挂底栏时由 JS 移出顶栏 */
     transform: translateX(-35px);
     gap: 0;
     /* 禁止 pill 竖排换行盖住 Logo：单行 + 横向滑动 */
@@ -7207,7 +7771,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .askbible-chrome-nav {
-    /* 中屏读经同行：菜单左移 15px（≤700 见小屏规则恢复 none） */
+    /* 中屏读经同行：菜单左移 15px（下挂底栏时该节点不在顶栏） */
     transform: translateX(-15px);
     max-width: 100%;
     min-width: 0;
@@ -7272,7 +7836,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .reading-toolbar-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.4fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .book-grid {
@@ -7284,7 +7848,169 @@ a.admin-modal-hub-link.primary-btn {
   }
 }
 
+/* 读经单栏宽度内：站点导航下挂底栏（与 main.js TOPBAR_ACTIONS_DOCK_MEDIA 一致） */
+@media (max-width: 1100px) {
+  body.mobile-topbar-actions-docked .page-shell {
+    padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-topbar-actions-dock {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    z-index: 440;
+    display: block;
+    width: min(100vw, var(--page-shell-max-width));
+    max-width: var(--page-shell-max-width);
+    padding:
+      8px max(12px, env(safe-area-inset-right, 0px))
+      calc(8px + env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
+    background: var(--topbar-bg, #4a443f);
+    box-sizing: border-box;
+  }
+
+  .mobile-topbar-actions-dock::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),
+      var(--topbar-bg, #4a443f);
+    pointer-events: none;
+  }
+
+  .mobile-topbar-actions-dock__nav {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .mobile-topbar-actions-dock .mobile-topbar-actions-dock__nav > .site-topbar-actions,
+  .mobile-topbar-actions-dock > .site-topbar-actions {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    justify-content: center;
+    margin-top: 0;
+    gap: 5px;
+    flex-wrap: nowrap;
+  }
+
+  .mobile-topbar-actions-dock .askbible-chrome-nav {
+    width: 100%;
+    justify-content: center;
+    gap: 5px;
+    margin-left: 0;
+    transform: none;
+    flex-wrap: nowrap;
+  }
+
+  /* 底栏：图标块按内容宽排列，块与块间距 5px；不限制 pill / 图标宽度 */
+  .mobile-topbar-actions-dock .askbible-chrome-nav .askbible-chrome-nav-pill {
+    flex: 0 0 auto;
+    min-height: 48px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .mobile-topbar-actions-dock .askbible-chrome-nav .askbible-chrome-nav-pill-icon {
+    width: 44px;
+    height: 44px;
+    max-width: none;
+    max-height: none;
+    flex-shrink: 0;
+    transform: none;
+  }
+
+  .mobile-topbar-actions-dock
+    .askbible-chrome-nav
+    .askbible-chrome-nav-pill:has(.askbible-chrome-nav-pill-icon)
+    .askbible-chrome-nav-pill-icon {
+    transform: none;
+  }
+
+  body.mobile-topbar-actions-docked .site-topbar .member-hub-trigger {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding-left: 0;
+    padding-right: 10px;
+    min-height: 36px;
+  }
+
+  body.mobile-topbar-actions-docked .site-topbar .member-hub-trigger:hover,
+  body.mobile-topbar-actions-docked .site-topbar .member-hub-trigger:active {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #fff7eb;
+  }
+
+  body.mobile-topbar-actions-docked .site-topbar .member-hub-trigger[aria-expanded="true"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: 2px solid rgba(255, 184, 46, 0.5);
+    outline-offset: 2px;
+  }
+}
+
 @media (max-width: 700px) {
+  body.mobile-reader-toolbar-docked .page-shell {
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-reader-toolbar-dock {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    z-index: 430;
+    display: block;
+    width: min(100vw, var(--page-shell-max-width));
+    max-width: var(--page-shell-max-width);
+    padding:
+      8px max(12px, env(safe-area-inset-right, 0px))
+      calc(8px + env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
+    background: var(--topbar-bg, #4a443f);
+    box-sizing: border-box;
+  }
+
+  .mobile-reader-toolbar-dock::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),
+      var(--topbar-bg, #4a443f);
+    pointer-events: none;
+  }
+
+  .mobile-reader-toolbar-dock > .page-toolbar {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    border-radius: 18px;
+    background: rgba(255, 252, 246, 0.96);
+    box-shadow:
+      0 10px 24px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    padding: 10px 10px 8px;
+  }
+
+  .mobile-reader-toolbar-dock .reading-toolbar {
+    margin-bottom: 0 !important;
+  }
+
+  .mobile-reader-toolbar-dock .toolbar-panel {
+    margin-top: 8px;
+  }
+
   .page-shell {
     padding: 12px 12px 16px;
   }
@@ -7297,8 +8023,10 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .site-topbar {
-    align-items: flex-start;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
     margin-bottom: 10px;
   }
 
@@ -7313,7 +8041,11 @@ a.admin-modal-hub-link.primary-btn {
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
     margin-left: 5px;
-    margin-top: -5px;
+    margin-top: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: visible;
+    width: auto;
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
@@ -7321,9 +8053,35 @@ a.admin-modal-hub-link.primary-btn {
     overflow: visible;
   }
 
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-trailing {
+    width: auto;
+    overflow: visible;
+  }
+
   .site-topbar-title h1 {
     font-size: calc(27px * var(--font-scale));
     line-height: 1.08;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+    .askbible-chrome-brand-inner {
+    display: block;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+    .askbible-chrome-brand-text,
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+    .askbible-chrome-brand-text.askbible-chrome-brand-text--inline,
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+    .askbible-chrome-brand-head-row {
+    display: block;
+  }
+
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+    .askbible-chrome-brand-subline-row,
+  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+    .brand-subtitle {
+    display: none !important;
   }
 
   .brand-subtitle {
@@ -7340,7 +8098,7 @@ a.admin-modal-hub-link.primary-btn {
 
   .site-topbar-actions {
     gap: 0;
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
     margin-top: 0;
   }
@@ -7358,7 +8116,10 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
   }
 
   .askbible-chrome-nav .askbible-chrome-nav-pill {
@@ -7430,6 +8191,7 @@ a.admin-modal-hub-link.primary-btn {
 
   .book-layout:not(.notebook-layout):not(.promo-book-layout) {
     border-left-color: var(--bg);
+    border-right-color: var(--bg);
   }
 
   .book-spread {
@@ -7446,18 +8208,13 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .book-layout:not(.notebook-layout):not(.promo-book-layout) .book-spread {
-    clip-path: inset(0 0 0 -16px round 18px);
+    clip-path: inset(0 -16px 0 -16px round 18px);
   }
 
   .book-page {
     padding: 18px 16px 22px;
     --book-page-pad-left-base: 16px;
     --book-pad-left: var(--book-page-pad-left-base);
-  }
-
-  .book-layout:not(.notebook-layout):not(.promo-book-layout) .book-page.left-page {
-    padding-left: calc(var(--book-page-pad-left-base) + var(--book-left-reading-gutter-extra));
-    --book-pad-left: calc(var(--book-page-pad-left-base) + var(--book-left-reading-gutter-extra));
   }
 
   /* 与书页左右 padding 对齐：去掉桌面为第四列预留的单侧 padding，避免小屏「左窄右宽」 */
@@ -7476,16 +8233,15 @@ a.admin-modal-hub-link.primary-btn {
 
   .reading-toolbar-row {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px !important;
     padding-right: 0;
     padding-left: 0;
     position: relative;
   }
 
-  /* 小屏：书卷 / 版本 / 搜索 三键严格三等分、内容居中 */
+  /* 小屏：书卷 / 搜索 两键等分、内容居中 */
   .reading-toolbar-row > #bookChapterTrigger,
-  .reading-toolbar-row > #primaryVersionTrigger,
   .reading-toolbar-row > #verseSearchOpenBtn {
     grid-column: auto;
     width: 100%;
@@ -7496,11 +8252,10 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .reading-toolbar-row > #bookChapterTrigger .toolbar-trigger-lead,
-  .reading-toolbar-row > #primaryVersionTrigger .toolbar-trigger-lead,
   .reading-toolbar-row > #verseSearchOpenBtn .toolbar-trigger-lead {
     justify-content: center !important;
-    flex: 1 1 auto;
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
   }
 
   .reading-toolbar .toolbar-trigger-wide {
@@ -7508,7 +8263,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   /*
-   * 小屏整体两行：第 1 行书卷/版本/搜索三等分；第 2 行显示模式单独一行，且
+   * 小屏整体两行：第 1 行书卷/搜索两等分；第 2 行显示模式单独一行，且
    * 经文 / 全显 / 问题 也在同一行内各占 1/3（不要 2+1）。
    */
   .reading-toolbar-row #displayModeSwitch {
@@ -7611,13 +8366,7 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .chapter-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-  }
-
-  .chapter-nav-title {
-    grid-column: 1 / -1;
-    order: -1;
   }
 
   .modal-mask {
@@ -7651,6 +8400,11 @@ a.admin-modal-hub-link.primary-btn {
     --ui-seg-track-pad-x: 2px;
   }
 
+  .mobile-topbar-actions-dock {
+    padding-left: max(6px, env(safe-area-inset-left, 0px));
+    padding-right: max(6px, env(safe-area-inset-right, 0px));
+  }
+
   .page-shell {
     padding: 9px 2px 12px;
   }
@@ -7669,12 +8423,16 @@ a.admin-modal-hub-link.primary-btn {
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
     margin-left: 5px;
-    margin-top: -5px;
+    margin-top: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: visible;
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
     width: auto;
     overflow: visible;
+    margin-top: 0;
   }
 
   .site-topbar-actions {
@@ -7682,7 +8440,10 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
-    gap: 3px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
   }
 
   .askbible-chrome-nav {
@@ -7710,9 +8471,25 @@ a.admin-modal-hub-link.primary-btn {
     --book-pad-left: var(--book-page-pad-left-base);
   }
 
-  .book-layout:not(.notebook-layout):not(.promo-book-layout) .book-page.left-page {
-    padding-left: calc(var(--book-page-pad-left-base) + var(--book-left-reading-gutter-extra));
-    --book-pad-left: calc(var(--book-page-pad-left-base) + var(--book-left-reading-gutter-extra));
+  .book-page-header-shell {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .book-page-ribbon-shell > .page-ribbon-title-row > .book-side-extend-tags {
+    --ribbon-outdent: 12px;
+  }
+
+  .book-side-extend-tag {
+    padding: 0 16px 0 34px;
+  }
+
+  .book-side-extend-tag.book-side-extend-tag--ribbon-guest {
+    padding: 0 14px 0 30px;
+  }
+
+  .book-side-extend-tag .ribbon-guest-label {
+    font-size: calc(14px * var(--font-scale));
   }
 
   /* 最小屏：翻章行再缩一档 */
@@ -8041,7 +8818,7 @@ button.toolbar-trigger,
   padding-top: 12px !important;
 }
 
-#primaryVersionPanel .chapter-grid-wrap,
+.reader-font-settings-sheet .chapter-grid-wrap,
 #chapterVersePickPanel .chapter-grid-wrap {
   border-top: none !important;
   margin-top: 12px;
@@ -8050,17 +8827,30 @@ button.toolbar-trigger,
   background: transparent !important;
 }
 
-#primaryVersionPanel .chapter-grid-wrap:first-of-type,
+.reader-font-settings-sheet .chapter-grid-wrap:first-of-type,
 #chapterVersePickPanel .chapter-grid-wrap:first-of-type {
   margin-top: 6px;
 }
 
-#primaryVersionPanel .chapter-grid-wrap + .chapter-grid-wrap,
+.reader-font-settings-sheet .chapter-grid-wrap + .chapter-grid-wrap,
 #chapterVersePickPanel .chapter-grid-wrap + .chapter-grid-wrap {
   margin-top: 14px;
 }
 
-#primaryVersionPanel .chapter-grid-title,
+.reader-font-settings-sheet__version-row > .chapter-grid-wrap {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.reader-font-settings-sheet__version-row > .chapter-grid-wrap + .chapter-grid-wrap {
+  margin-top: 0 !important;
+}
+
+.reader-font-settings-sheet__version-row > .chapter-grid-wrap:first-of-type {
+  margin-top: 0 !important;
+}
+
+.reader-font-settings-sheet .chapter-grid-title,
 #chapterVersePickPanel .chapter-grid-title {
   font-size: calc(18px * var(--font-scale));
   font-weight: 900;
@@ -8129,23 +8919,24 @@ button.toolbar-trigger,
   text-align: center;
   padding: 5px 6px;
   font-size: calc(15px * var(--font-scale));
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.02em;
   border-radius: 4px;
-  color: #8f6518;
-  background: rgba(200, 155, 60, 0.22);
+  color: rgba(127, 116, 104, 0.88);
+  background: rgba(233, 225, 214, 0.72);
 }
 
 #chapterVersePickPanel
   .chapter-verse-pick-stack
   .book-testament-block:nth-child(2)
   .book-testament-block-label {
-  color: #523208;
-  background: rgba(198, 158, 92, 0.48);
+  color: rgba(114, 96, 78, 0.88);
+  background: rgba(227, 217, 202, 0.76);
 }
 
 #chapterVersePickPanel .chapter-verse-pick-stack .book-bible-section-title {
-  color: var(--muted-soft);
+  color: rgba(137, 126, 115, 0.92);
+  font-weight: 600;
 }
 
 #chapterVersePickPanel .chapter-verse-pick-stack .book-grid--all-mobile .book-bible-section-row {
@@ -8185,14 +8976,14 @@ button.toolbar-trigger,
   justify-content: center !important;
   min-height: 28px !important;
   padding: 2px 4px !important;
+  font-weight: 600 !important;
 }
 
 #chapterVersePickPanel
   .chapter-verse-pick-stack
   .book-bible-section-books
   .book-item:not(.book-item--directory-fullrow) {
-  color: var(--ink) !important;
-  font-weight: 800 !important;
+  color: rgba(66, 60, 55, 0.88) !important;
 }
 
 #chapterVersePickPanel .chapter-verse-pick-stack .book-item--directory-fullrow {
@@ -8206,13 +8997,13 @@ button.toolbar-trigger,
 
 /* 章节按钮 ≈ .version-item + .chapter-verse-pick-btn（经节） */
 #chapterVersePickPanel .chapter-verse-pick-stack .chapter-item {
-  border: 1px solid rgba(190, 170, 140, 0.4) !important;
+  border: 1px solid rgba(190, 170, 140, 0.24) !important;
   outline: none !important;
   box-shadow: none !important;
   box-sizing: border-box !important;
   border-radius: 10px !important;
-  background: rgba(255, 253, 248, 0.66) !important;
-  color: var(--muted) !important;
+  background: rgba(255, 253, 248, 0.78) !important;
+  color: rgba(127, 116, 104, 0.9) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -8220,7 +9011,7 @@ button.toolbar-trigger,
   min-height: 32px !important;
   padding: 2px 4px !important;
   font-size: calc(16px * var(--font-scale)) !important;
-  font-weight: 800 !important;
+  font-weight: 600 !important;
   cursor: pointer !important;
   transition: all 0.15s ease !important;
 }
@@ -8239,7 +9030,7 @@ button.toolbar-trigger,
 
 #chapterVersePickPanel .chapter-verse-pick-stack .chapter-item:hover {
   background: #fffdf8 !important;
-  border-color: rgba(150, 130, 100, 0.7) !important;
+  border-color: rgba(150, 130, 100, 0.42) !important;
 }
 
 #chapterVersePickPanel .chapter-verse-pick-stack .book-item.active {
@@ -8250,11 +9041,6 @@ button.toolbar-trigger,
 #chapterVersePickPanel .chapter-verse-pick-stack .chapter-item.active {
   background: rgba(139, 111, 71, 0.18) !important;
   border-color: rgba(139, 111, 71, 0.35) !important;
-}
-
-#primaryVersionPanel #compareVersionSectionTitle {
-  border-left: none;
-  padding-left: 0;
 }
 
 .toolbar-primary-version-select {
@@ -8564,7 +9350,7 @@ button.toolbar-trigger,
   overflow-y: auto !important;
 }
 
-/* ===== 宽屏：书卷 / 版本 / 搜经文 三等分，显示模式不拉伸（>480 与最大屏一致） ===== */
+/* ===== 宽屏：书卷 / 搜经文 两等分，显示模式不拉伸（>480 与最大屏一致） ===== */
 @media (min-width: 481px) {
   .reading-toolbar-row {
     display: flex !important;
@@ -8574,7 +9360,6 @@ button.toolbar-trigger,
   }
 
   .reading-toolbar-row > #bookChapterTrigger,
-  .reading-toolbar-row > #primaryVersionTrigger,
   .reading-toolbar-row > #verseSearchOpenBtn {
     flex: 1 1 0 !important;
     min-width: 0 !important;
@@ -8587,7 +9372,6 @@ button.toolbar-trigger,
     width: auto;
     min-width: 0;
   }
-
 }
 
 /* 极小屏工具栏多行（与书卷最窄双栏断点一致：≤480） */
@@ -8660,6 +9444,17 @@ button.toolbar-trigger,
 
 .download-lead--tight {
   margin-bottom: 0.35rem;
+}
+
+@media (min-width: 481px) and (max-width: 700px) {
+  .book-page-ribbon-shell {
+    left: 0;
+    width: 100%;
+  }
+
+  .reading-toolbar-row {
+    gap: 8px !important;
+  }
 }
 
 .download-version {

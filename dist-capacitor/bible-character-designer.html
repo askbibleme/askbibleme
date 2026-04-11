@@ -8,7 +8,7 @@
     <!-- <meta name="askbible-api-base" content="http://127.0.0.1:3000" /> -->
     <title>圣经人物设计器 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/styles.css?v=111" />
     <link rel="stylesheet" href="/admin-shell.css?v=12" />
     <script src="/theme-apply.js?v=2"></script>
     <style>
@@ -56,6 +56,31 @@
         margin-top: 10px;
         padding-top: 10px;
         border-top: 1px solid var(--line);
+      }
+      .bcd-preset-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 8px 0 12px;
+        padding: 10px 10px 11px;
+        border: 1px solid rgba(140, 130, 118, 0.16);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.42);
+      }
+      .bcd-preset-controls label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .bcd-preset-book-filter {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        font: inherit;
+        font-size: 13px;
       }
       .bcd-preset-book:first-of-type {
         margin-top: 0;
@@ -365,6 +390,13 @@
         gap: 8px;
         margin-top: -2px;
       }
+      .bcd-book-meta-row {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        margin-top: 4px;
+      }
       .bcd-governance-badge {
         display: inline-flex;
         align-items: center;
@@ -437,6 +469,21 @@
         border: 1px solid var(--line);
         font: inherit;
         font-size: 14px;
+      }
+      .bcd-field-block--compact {
+        flex: 1 1 180px;
+        min-width: 160px;
+      }
+      .bcd-field-block--compact select,
+      .bcd-field-block--compact input[type="number"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+        background: var(--paper);
       }
       .bcd-field-key input:disabled {
         opacity: 0.85;
@@ -1052,6 +1099,61 @@
         gap: 0;
         box-sizing: border-box;
       }
+      .bcd-hero-caption {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 1px;
+        padding: 5px 4px 2px;
+        box-sizing: border-box;
+        text-align: center;
+      }
+      .bcd-hero-name-jump {
+        display: block;
+        width: auto;
+        max-width: 100%;
+        align-self: center;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--ink);
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        line-height: 1.15;
+      }
+      .bcd-hero-name-jump:hover {
+        color: #6b4e0a;
+      }
+      .bcd-hero-meta-line {
+        display: block;
+        width: 100%;
+        min-height: 1em;
+        font-size: 11px;
+        line-height: 1.22;
+        color: rgba(84, 77, 69, 0.76);
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        word-break: break-word;
+      }
+      .bcd-hero-meta-line--life {
+        color: #4a5a6e;
+      }
+      .bcd-hero-meta-line--era {
+        color: #6b5b48;
+      }
+      .bcd-hero-meta-line--tags {
+        color: #5a5248;
+      }
+      .bcd-hero-meta-line--empty {
+        color: rgba(84, 77, 69, 0.34);
+      }
       .bcd-hero-tile-canvas {
         flex: 1 1 0;
         align-self: stretch;
@@ -1134,30 +1236,6 @@
         color: rgba(50, 50, 50, 0.55);
         text-align: center;
         padding: 8px 4px;
-      }
-      .bcd-hero-name-jump {
-        display: block;
-        width: auto;
-        max-width: 100%;
-        align-self: center;
-        margin: 0;
-        padding: 2px 0;
-        border: none;
-        border-radius: 8px;
-        background: transparent;
-        font: inherit;
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--ink);
-        cursor: pointer;
-        text-align: center;
-        text-decoration: underline;
-        text-decoration-color: rgba(200, 155, 60, 0.45);
-        text-underline-offset: 3px;
-      }
-      .bcd-hero-name-jump:hover {
-        color: #6b4e0a;
-        text-decoration-color: rgba(200, 155, 60, 0.85);
       }
       .bcd-hero-empty {
         display: flex;
@@ -1652,6 +1730,7 @@
         /** 右侧当前编辑的人物键；新建未填名为 "__new__" */
         let selectedBcdKey = null;
         let bcdPresetPanelBound = false;
+        let selectedPresetBookId = "ALL";
 
         function setStatus(msg, kind) {
           statusEl.textContent = msg || "";
@@ -1719,7 +1798,117 @@
         }
 
         function sortKeys(obj) {
-          return Object.keys(obj || {}).sort(compareBcdKeysForHistoricalOrder);
+          return Object.keys(obj || {}).sort(function (a, b) {
+            return compareBcdCharacterRows(a, obj[a], b, obj[b]);
+          });
+        }
+
+        function readBcdCardBookMeta(card) {
+          var sourceBookId = String(card.getAttribute("data-source-book-id") || "").trim().toUpperCase();
+          var primaryBookId = String(
+            (card.querySelector(".bcd-primary-book-id") &&
+              card.querySelector(".bcd-primary-book-id").value) ||
+              card.getAttribute("data-primary-book-id") ||
+              sourceBookId ||
+              inferBcdCharacterBookId(cardZhDisplayKey(card)) ||
+              ""
+          )
+            .trim()
+            .toUpperCase();
+          var sortOrder = Number(
+            (card.querySelector(".bcd-sort-order") && card.querySelector(".bcd-sort-order").value) ||
+              card.getAttribute("data-sort-order") ||
+              999
+          );
+          if (!Number.isFinite(sortOrder) || sortOrder <= 0) sortOrder = 999;
+          return {
+            sourceBookId: sourceBookId,
+            primaryBookId: primaryBookId,
+            sortOrder: sortOrder,
+          };
+        }
+
+        function syncBcdCardBookMeta(card) {
+          if (!card) return;
+          var meta = readBcdCardBookMeta(card);
+          var merged = [];
+          var seen = Object.create(null);
+          var existing = String(card.getAttribute("data-book-ids") || "")
+            .split(",")
+            .map(function (x) {
+              return String(x || "").trim().toUpperCase();
+            })
+            .filter(Boolean);
+          [meta.sourceBookId, meta.primaryBookId].concat(existing).forEach(function (bid) {
+            if (!bid || seen[bid]) return;
+            seen[bid] = true;
+            merged.push(bid);
+          });
+          card.setAttribute("data-source-book-id", meta.sourceBookId);
+          card.setAttribute("data-primary-book-id", meta.primaryBookId);
+          card.setAttribute("data-sort-order", String(meta.sortOrder));
+          if (merged.length) {
+            card.setAttribute("data-book-ids", merged.join(","));
+          }
+        }
+
+        function sortListCardsInDom() {
+          if (!listEl) return;
+          var cards = Array.prototype.slice.call(listEl.querySelectorAll(".bcd-card"));
+          if (cards.length < 2) return;
+          cards.sort(function (a, b) {
+            var keyA = cardZhDisplayKey(a);
+            var keyB = cardZhDisplayKey(b);
+            return compareBcdCharacterRows(keyA, readBcdCardSnapshot(a, keyA), keyB, readBcdCardSnapshot(b, keyB));
+          });
+          cards.forEach(function (card) {
+            listEl.appendChild(card);
+          });
+          renderHeroGallery();
+        }
+
+        function readBcdCardSnapshot(card, key) {
+          key = String(key || cardZhDisplayKey(card) || "").trim();
+          var meta = readBcdCardBookMeta(card);
+          return {
+            sourceBookId: meta.sourceBookId,
+            primaryBookId: meta.primaryBookId,
+            sortOrder: meta.sortOrder,
+          };
+        }
+
+        function getNextBcdSortOrderForBook(bookId) {
+          var target = String(bookId || "").trim().toUpperCase();
+          if (!target) return 1;
+          var max = 0;
+          var seen = false;
+          var chars = profiles && profiles.characters ? profiles.characters : {};
+          Object.keys(chars).forEach(function (key) {
+            var row = chars[key] || {};
+            if (getBcdPrimaryBookIdForEntry(key, row) !== target) return;
+            var n = Number(row.sortOrder);
+            if (!Number.isFinite(n) || n <= 0) return;
+            if (!seen || n > max) {
+              max = n;
+              seen = true;
+            }
+          });
+          if (listEl) {
+            listEl.querySelectorAll(".bcd-card").forEach(function (card) {
+              if (!card) return;
+              var meta = readBcdCardBookMeta(card);
+              if (meta.primaryBookId !== target) return;
+              if (card.classList.contains("bcd-card--new") && !cardZhDisplayKey(card)) return;
+              if (cardZhDisplayKey(card) && chars[cardZhDisplayKey(card)]) return;
+              var n = Number(meta.sortOrder);
+              if (!Number.isFinite(n) || n <= 0) return;
+              if (!seen || n > max) {
+                max = n;
+                seen = true;
+              }
+            });
+          }
+          return seen ? max + 1 : 1;
         }
 
         function escapePresetHtml(s) {
@@ -1727,6 +1916,131 @@
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/"/g, "&quot;");
+        }
+
+        function getBcdKnownBookIds() {
+          var seen = Object.create(null);
+          var out = [];
+          function add(bookId) {
+            var bid = String(bookId || "").trim().toUpperCase();
+            if (!bid || seen[bid]) return;
+            seen[bid] = true;
+            out.push(bid);
+          }
+          CHARACTER_PRESET_BY_BOOK.forEach(function (book) {
+            add(book && book.bookId);
+          });
+          Object.keys(BCD_BOOK_LABEL_BY_ID || {}).forEach(add);
+          return out;
+        }
+
+        function getBcdBookLabel(bookId) {
+          var bid = String(bookId || "").trim().toUpperCase();
+          return String(BCD_BOOK_LABEL_BY_ID[bid] || bid || "未设置").trim();
+        }
+
+        function buildBcdBookOptionsHtml(selectedBookId, includeAllOption) {
+          var wanted = String(selectedBookId || "").trim().toUpperCase();
+          var parts = [];
+          if (includeAllOption) {
+            parts.push(
+              '<option value="ALL"' + (wanted === "ALL" ? ' selected' : "") + '>全部经卷</option>'
+            );
+          } else {
+            parts.push(
+              '<option value=""' + (!wanted ? ' selected' : "") + ">未设置</option>"
+            );
+          }
+          var ids = getBcdKnownBookIds();
+          if (wanted && ids.indexOf(wanted) === -1) {
+            parts.push(
+              '<option value="' +
+                escapePresetHtml(wanted) +
+                '" selected>' +
+                escapePresetHtml(getBcdBookLabel(wanted) + " (" + wanted + ")") +
+                "</option>"
+            );
+          }
+          var i;
+          for (i = 0; i < ids.length; i++) {
+            var bid = ids[i];
+            parts.push(
+              '<option value="' +
+                escapePresetHtml(bid) +
+                '"' +
+                (wanted === bid ? ' selected' : "") +
+                ">" +
+                escapePresetHtml(getBcdBookLabel(bid) + " (" + bid + ")") +
+                "</option>"
+            );
+          }
+          return parts.join("");
+        }
+
+        function getBcdBookOrderRankMap() {
+          var map = Object.create(null);
+          var ids = getBcdKnownBookIds();
+          for (var i = 0; i < ids.length; i++) {
+            map[ids[i]] = i;
+          }
+          return map;
+        }
+
+        function compareBcdBookIds(a, b) {
+          var ra = getBcdBookOrderRankMap();
+          var ida = String(a || "").trim().toUpperCase();
+          var idb = String(b || "").trim().toUpperCase();
+          var ha = Object.prototype.hasOwnProperty.call(ra, ida);
+          var hb = Object.prototype.hasOwnProperty.call(ra, idb);
+          if (ha && hb) return ra[ida] - ra[idb];
+          if (ha && !hb) return -1;
+          if (!ha && hb) return 1;
+          return String(ida).localeCompare(String(idb), "zh-CN");
+        }
+
+        function getBcdPrimaryBookIdForEntry(key, row) {
+          var obj = row && typeof row === "object" ? row : {};
+          var primary = String(obj.primaryBookId || obj.sourceBookId || "").trim().toUpperCase();
+          if (primary) return primary;
+          return String(inferBcdCharacterBookId(key) || "").trim().toUpperCase();
+        }
+
+        function getBcdSortOrderForEntry(row) {
+          var n = Number(row && row.sortOrder);
+          return Number.isFinite(n) ? n : 999;
+        }
+
+        function compareBcdCharacterRows(aKey, aRow, bKey, bRow) {
+          var bookA = getBcdPrimaryBookIdForEntry(aKey, aRow);
+          var bookB = getBcdPrimaryBookIdForEntry(bKey, bRow);
+          var cmpBook = compareBcdBookIds(bookA, bookB);
+          if (cmpBook) return cmpBook;
+          var orderA = getBcdSortOrderForEntry(aRow);
+          var orderB = getBcdSortOrderForEntry(bRow);
+          if (orderA !== orderB) return orderA - orderB;
+          return compareBcdKeysForHistoricalOrder(aKey, bKey);
+        }
+
+        function buildBcdCardBookMetaHtml(selectedBookId, sortOrderValue) {
+          var bookId = String(selectedBookId || "").trim().toUpperCase();
+          var order = Number(sortOrderValue);
+          if (!Number.isFinite(order) || order <= 0) order = 999;
+          return (
+            '<div class="bcd-book-meta-row">' +
+            '<div class="bcd-field-block bcd-field-block--compact">' +
+            "<label>主归属卷</label>" +
+            '<select class="bcd-primary-book-id" aria-label="主归属卷">' +
+            buildBcdBookOptionsHtml(bookId, false) +
+            "</select>" +
+            "</div>" +
+            '<div class="bcd-field-block bcd-field-block--compact">' +
+            "<label>卷内排序</label>" +
+            '<input type="number" class="bcd-sort-order" min="1" step="1" value="' +
+            String(order) +
+            '" aria-label="卷内排序" />' +
+            "</div>" +
+            "</div>"
+          );
         }
 
         function buildPrimaryBookMap(primaryByBook) {
@@ -1964,10 +2278,22 @@
 
         function buildPresetPanelHtml() {
           var parts = [];
+          parts.push(
+            '<div class="bcd-preset-controls">' +
+              '<label for="bcdPresetBookFilter">按书卷筛选</label>' +
+              '<select id="bcdPresetBookFilter" class="bcd-preset-book-filter">' +
+              buildBcdBookOptionsHtml(selectedPresetBookId || "ALL", true) +
+              "</select>" +
+              "</div>"
+          );
           var b;
           for (b = 0; b < CHARACTER_PRESET_BY_BOOK.length; b++) {
             var book = CHARACTER_PRESET_BY_BOOK[b];
-            parts.push('<section class="bcd-preset-book">');
+            parts.push(
+              '<section class="bcd-preset-book" data-book-id="' +
+                escapePresetHtml(String(book.bookId || "").trim().toUpperCase()) +
+                '">'
+            );
             parts.push(
               '<div class="bcd-preset-book-title">' +
                 escapePresetHtml(book.bookNameZh) +
@@ -1996,7 +2322,7 @@
             parts.push("</ol></section>");
           }
           parts.push(
-            '<section class="bcd-preset-book bcd-preset-book--extra" id="bcdPresetExtraBook" hidden>' +
+            '<section class="bcd-preset-book bcd-preset-book--extra" id="bcdPresetExtraBook" data-book-id="__extra__" hidden>' +
               '<div class="bcd-preset-book-title">其他人物</div>' +
               '<ol class="bcd-preset-list" id="bcdPresetExtraList"></ol>' +
               "</section>"
@@ -2245,13 +2571,15 @@
             return String(BCD_EXTRA_CHARACTER_BOOK_BY_ZH[key] || "").trim();
           }
 
-        function renderExtraRowHtml(zh) {
+          function renderExtraRowHtml(zh) {
             var identity = resolveBcdCharacterIdentity(inferBookIdForExtraZh(zh), zh);
             return (
               '<li><button type="button" class="bcd-preset-name bcd-preset-name--extra" data-zh="' +
               escapePresetHtml(identity.profileKey) +
               '" data-label="' +
               escapePresetHtml(identity.displayNameZh) +
+              '" data-book-id="' +
+              escapePresetHtml(String(inferBookIdForExtraZh(zh) || "").trim().toUpperCase()) +
               '"><span class="bcd-preset-ord">·</span><span>' +
               escapePresetHtml(identity.displayNameZh) +
               '</span><span class="bcd-preset-status"></span></button></li>'
@@ -2281,8 +2609,13 @@
             rows.sort(function (a, b) {
               return String(a).localeCompare(String(b), "zh-CN");
             });
+            if (selectedPresetBookId && selectedPresetBookId !== "ALL") {
+              if (bookId !== selectedPresetBookId) return;
+            }
             parts.push(
-              '<li style="list-style:none;margin:10px 0 4px;padding:0 2px 0 0;font-size:12px;font-weight:800;color:var(--muted);">' +
+              '<li data-book-id="' +
+                escapePresetHtml(bookId) +
+                '" style="list-style:none;margin:10px 0 4px;padding:0 2px 0 0;font-size:12px;font-weight:800;color:var(--muted);">' +
                 escapePresetHtml(
                   bookId === "__extra__"
                     ? "其他人物"
@@ -2438,17 +2771,26 @@
             return;
           }
           var wrap = document.createElement("div");
-          var sourceBookId = String(preferredBookId || inferBcdCharacterBookId(k) || "").trim();
+          var sourceBookId = String(
+            preferredBookId || (selectedPresetBookId !== "ALL" ? selectedPresetBookId : "") || inferBcdCharacterBookId(k) || ""
+          )
+            .trim()
+            .toUpperCase();
           var identity = resolveBcdCharacterIdentity(sourceBookId, displayNameZh || k);
+          var defaultSortOrder = getNextBcdSortOrderForBook(sourceBookId);
           wrap.innerHTML = cardTemplate(k, {
             displayNameZh: String(displayNameZh || identity.displayNameZh || k).trim(),
             sourceBookId: sourceBookId,
+            primaryBookId: sourceBookId,
+            sortOrder: defaultSortOrder,
             bookIds: sourceBookId ? [sourceBookId] : [],
           }, { isNew: true });
           var card = wrap.firstElementChild;
           listEl.insertBefore(card, listEl.firstChild);
           bindCardEvents(card);
+          sortListCardsInDom();
           setSelectedBcdKey(k);
+          syncPresetSelectionClasses();
           applySideFilter();
           renderPresetExtraSection();
           applyEditorSingleView();
@@ -2466,9 +2808,27 @@
           return findCardByZh(zh);
         }
 
+        function syncPresetBookFilterSelection() {
+          if (!presetInnerEl) return;
+          var sel = presetInnerEl.querySelector("#bcdPresetBookFilter");
+          if (!sel) return;
+          var wanted = String(selectedPresetBookId || "ALL").trim().toUpperCase() || "ALL";
+          var ok = false;
+          for (var i = 0; i < sel.options.length; i++) {
+            if (String(sel.options[i].value || "").toUpperCase() === wanted) {
+              ok = true;
+              break;
+            }
+          }
+          if (!ok) wanted = "ALL";
+          selectedPresetBookId = wanted;
+          sel.value = wanted;
+        }
+
         function initPresetPanel() {
           if (!presetInnerEl) return;
           presetInnerEl.innerHTML = buildPresetPanelHtml();
+          syncPresetBookFilterSelection();
           if (!bcdPresetPanelBound) {
             presetInnerEl.addEventListener("click", function (e) {
               var newB =
@@ -2502,6 +2862,15 @@
                 return;
               }
               addPresetCard(zh, label || zh, bookId || inferBcdCharacterBookId(zh));
+            });
+            presetInnerEl.addEventListener("change", function (e) {
+              var target = e.target;
+              if (!target || !target.closest) return;
+              var filterSel = target.closest("#bcdPresetBookFilter");
+              if (!filterSel || !presetInnerEl.contains(filterSel)) return;
+              selectedPresetBookId = String(filterSel.value || "ALL").trim().toUpperCase() || "ALL";
+              renderPresetExtraSection();
+              applySideFilter();
             });
             bcdPresetPanelBound = true;
           }
@@ -2923,6 +3292,9 @@
               "imageUrl",
               "smartGenNotes",
               "promptArchiveText",
+              "primaryBookId",
+              "sortOrder",
+              "bookIds",
             ];
             var fi;
             for (fi = 0; fi < fields.length; fi++) {
@@ -3656,18 +4028,23 @@
             var card = cards[idx];
             var key = cardZhDisplayKey(card);
             if (!key) continue;
-            rows.push({ card: card, key: key });
+            rows.push({ card: card, key: key, meta: readBcdCardSnapshot(card, key) });
           }
           rows.sort(function (x, y) {
-            return compareBcdKeysForHistoricalOrder(x.key, y.key);
+            return compareBcdCharacterRows(x.key, x.meta, y.key, y.meta);
           });
           var parts = [];
           for (idx = 0; idx < rows.length; idx++) {
+            var card = rows[idx].card;
             var key = rows[idx].key;
-            var url = String(rows[idx].card.getAttribute("data-hero-image-url") || "").trim();
-            var rhTile = bcdNormalizeHeroRosterHeight(
-              rows[idx].card.getAttribute("data-hero-roster-height")
-            );
+            var url = String(card.getAttribute("data-hero-image-url") || "").trim();
+            var rhTile = bcdNormalizeHeroRosterHeight(card.getAttribute("data-hero-roster-height"));
+            var name = String(card.querySelector(".bcd-key")?.value || key || "").trim();
+            var life = String(card.querySelector(".bcd-lifespan-zh")?.value || "").trim();
+            var era = String(card.querySelector(".bcd-era-label-zh")?.value || "").trim();
+            var tags = String(card.querySelector(".bcd-identity-tags-zh")?.value || "").trim();
+            var role = String(card.querySelector(".bcd-character-role-zh")?.value || "").trim();
+            var tagsValue = tags || role || "";
             var forAttr = escapePresetHtml(key);
             var tileCls =
               "bcd-hero-tile";
@@ -3692,11 +4069,28 @@
                 '<div class="bcd-hero-tile-canvas">' +
                 cellInner +
                 "</div>" +
+                '<div class="bcd-hero-caption">' +
                 '<button type="button" class="bcd-hero-name-jump" data-hero-for="' +
                 forAttr +
                 '">' +
-                escapePresetHtml(key) +
+                escapePresetHtml(name || key) +
                 "</button>" +
+                '<span class="bcd-hero-meta-line bcd-hero-meta-line--life' +
+                (life ? "" : " bcd-hero-meta-line--empty") +
+                '">' +
+                escapePresetHtml(life || "—") +
+                "</span>" +
+                '<span class="bcd-hero-meta-line bcd-hero-meta-line--era' +
+                (era ? "" : " bcd-hero-meta-line--empty") +
+                '">' +
+                escapePresetHtml(era || "—") +
+                "</span>" +
+                '<span class="bcd-hero-meta-line bcd-hero-meta-line--tags' +
+                (tagsValue ? "" : " bcd-hero-meta-line--empty") +
+                '">' +
+                escapePresetHtml(tagsValue || "—") +
+                "</span>" +
+                "</div>" +
                 "</div>"
             );
           }
@@ -4162,6 +4556,7 @@
           const identityType = safe(en.identityType || "");
           const profileStatus = safe(en.profileStatus || en.profileCompletionStatus || "");
           const primaryBookId = safe(en.primaryBookId || en.sourceBookId || "");
+          const sortOrder = Number(en.sortOrder);
           const identityTypeBadgeClass =
             identityType === "shared"
               ? " bcd-governance-badge--shared"
@@ -4253,6 +4648,8 @@
             profileStatus +
             '" data-primary-book-id="' +
             primaryBookId +
+            '" data-sort-order="' +
+            (Number.isFinite(sortOrder) && sortOrder > 0 ? String(sortOrder) : "999") +
             '" data-hero-image-url="' +
             heroImageUrl +
             '" data-hero-roster-height="' +
@@ -4286,6 +4683,7 @@
             (primaryBookId || sourceBookId || "待定") +
             "</span>" +
             "</div>" +
+            buildBcdCardBookMetaHtml(primaryBookId || sourceBookId || "", sortOrder) +
             (isNew
               ? ""
               : '<button type="button" class="bcd-card-regen-hero" title="按中期规则，从已有各期透明全身像同步页顶主图（不调用图片 AI）">同步主图（中期）</button>') +
@@ -4981,6 +5379,31 @@
               renderHeroGallery();
             });
           }
+          const primaryBookSel = card.querySelector(".bcd-primary-book-id");
+          if (primaryBookSel) {
+            primaryBookSel.addEventListener("change", function () {
+              syncBcdCardBookMeta(card);
+              sortListCardsInDom();
+              renderPresetExtraSection();
+              applySideFilter();
+            });
+          }
+          const sortOrderIn = card.querySelector(".bcd-sort-order");
+          if (sortOrderIn) {
+            var syncOrder = function () {
+              var raw = parseInt(String(sortOrderIn.value || ""), 10);
+              if (!Number.isFinite(raw) || raw <= 0) {
+                sortOrderIn.value = "999";
+              } else {
+                sortOrderIn.value = String(raw);
+              }
+              syncBcdCardBookMeta(card);
+              sortListCardsInDom();
+              applySideFilter();
+            };
+            sortOrderIn.addEventListener("change", syncOrder);
+            sortOrderIn.addEventListener("blur", syncOrder);
+          }
           const autoPipelineBtn = card.querySelector(".bcd-btn-auto-pipeline");
           const fullBtn = card.querySelector(".bcd-btn-gpt-full");
           const cmpBtn = card.querySelector(".bcd-btn-comparison");
@@ -5101,6 +5524,7 @@
               var zh = String(btn.getAttribute("data-zh") || "").trim().toLowerCase();
               var pick = String(btn.getAttribute("data-pick") || "").trim().toLowerCase();
               var label = String(btn.textContent || "").trim().toLowerCase();
+              var bookId = String(btn.getAttribute("data-book-id") || "").trim().toUpperCase();
               var baseMatch =
                 !q || zh.indexOf(q) !== -1 || pick.indexOf(q) !== -1 || label.indexOf(q) !== -1;
               var governanceMatch = true;
@@ -5120,15 +5544,43 @@
                   governanceMatch = rawIdentityType === "shared";
                 }
               }
-              var show = baseMatch && governanceMatch;
+              var bookMatch =
+                selectedPresetBookId === "ALL" ||
+                !selectedPresetBookId ||
+                btn.classList.contains("bcd-preset-name--newrow") ||
+                bookId === selectedPresetBookId;
+              var show = baseMatch && governanceMatch && bookMatch;
               li.style.display = show ? "" : "none";
-              if (show) visibleLeft += 1;
+              if (show) {
+                visibleLeft += 1;
+              }
+            });
+            presetInnerEl.querySelectorAll(".bcd-preset-book").forEach(function (section) {
+              var sectionBookId = String(section.getAttribute("data-book-id") || "").trim().toUpperCase();
+              if (sectionBookId === "__extra__") {
+                var extraVisible = false;
+                section.querySelectorAll(".bcd-preset-list > li").forEach(function (li) {
+                  if (li.style.display !== "none") extraVisible = true;
+                });
+                section.hidden = !extraVisible;
+                return;
+              }
+              var sectionVisible = false;
+              section.querySelectorAll(".bcd-preset-list > li").forEach(function (li) {
+                if (li.style.display !== "none") sectionVisible = true;
+              });
+              if (selectedPresetBookId !== "ALL" && sectionBookId && sectionBookId !== selectedPresetBookId) {
+                section.hidden = true;
+              } else {
+                section.hidden = !sectionVisible;
+              }
             });
           }
           var totalCards =
             getAllNamedKeysFromDom().length +
             (getNewCardEl() && !cardZhDisplayKey(getNewCardEl()) ? 1 : 0);
-          countEl.textContent = q || governanceFilterMode !== "all"
+          countEl.textContent =
+            q || governanceFilterMode !== "all" || (selectedPresetBookId && selectedPresetBookId !== "ALL")
             ? "左侧匹配 " + visibleLeft + " / 档案 " + totalCards + " 人"
             : "共 " + totalCards + " 人";
           updateInvalidRefSummary();
@@ -5142,9 +5594,26 @@
             const key = cardZhDisplayKey(card);
             const displayNameZh = String(card.getAttribute("data-display-name") || key || "").trim();
             const sourceBookId = String(card.getAttribute("data-source-book-id") || "").trim().toUpperCase();
-            const primaryBookId = String(card.getAttribute("data-primary-book-id") || "")
+            const primaryBookId = String(
+              (card.querySelector(".bcd-primary-book-id") &&
+                card.querySelector(".bcd-primary-book-id").value) ||
+                card.getAttribute("data-primary-book-id") ||
+                sourceBookId ||
+                ""
+            )
               .trim()
               .toUpperCase();
+            const sortOrder = Math.max(
+              1,
+              parseInt(
+                String(
+                  (card.querySelector(".bcd-sort-order") && card.querySelector(".bcd-sort-order").value) ||
+                    card.getAttribute("data-sort-order") ||
+                    "999"
+                ),
+                10
+              ) || 999
+            );
             const identityType = String(card.getAttribute("data-identity-type") || "").trim();
             const profileStatus = String(card.getAttribute("data-profile-status") || "").trim();
             const bookIds = String(card.getAttribute("data-book-ids") || "")
@@ -5153,6 +5622,12 @@
                 return String(x || "").trim().toUpperCase();
               })
               .filter(Boolean);
+            if (primaryBookId && bookIds.indexOf(primaryBookId) === -1) {
+              bookIds.unshift(primaryBookId);
+            }
+            if (sourceBookId && bookIds.indexOf(sourceBookId) === -1) {
+              bookIds.unshift(sourceBookId);
+            }
             if (!key) continue;
             if (characters[key]) {
               throw new Error("中文名重复：「" + key + "」出现多次，请只保留一条。");
@@ -5174,6 +5649,7 @@
                 displayNameZh: displayNameZh,
                 sourceBookId: sourceBookId,
                 primaryBookId: primaryBookId,
+                sortOrder: sortOrder,
                 bookIds: bookIds,
                 identityType: identityType,
                 profileStatus: profileStatus,
@@ -5242,6 +5718,7 @@
               displayNameZh: displayNameZh,
               sourceBookId: sourceBookId,
               primaryBookId: primaryBookId,
+              sortOrder: sortOrder,
               bookIds: bookIds,
               identityType: identityType,
               profileStatus: profileStatus,
@@ -5373,11 +5850,21 @@
 
         function addEmptyCard() {
           const wrap = document.createElement("div");
+          var defaultBookId = selectedPresetBookId !== "ALL" ? selectedPresetBookId : "";
           wrap.innerHTML = cardTemplate("", {}, { isNew: true });
           const card = wrap.firstElementChild;
+          if (card && defaultBookId) {
+            var psel = card.querySelector(".bcd-primary-book-id");
+            if (psel) psel.value = defaultBookId;
+            var sIn = card.querySelector(".bcd-sort-order");
+            if (sIn) sIn.value = String(getNextBcdSortOrderForBook(defaultBookId));
+            syncBcdCardBookMeta(card);
+          }
           listEl.insertBefore(card, listEl.firstChild);
           bindCardEvents(card);
+          sortListCardsInDom();
           setSelectedBcdKey("__new__");
+          syncPresetSelectionClasses();
           renderPresetExtraSection();
           applyEditorSingleView();
           applySideFilter();

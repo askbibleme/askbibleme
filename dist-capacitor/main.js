@@ -1,6 +1,9 @@
 import * as OpenCC from "/node_modules/opencc-js/dist/esm/cn2t.js";
 
 const FRONT_STATE_KEY = "bible_front_state_v4";
+/** 无本地读经记录（首次访问 / 无痕 / 已清除存储）时的默认入口：约翰福音第 1 章 */
+const DEFAULT_ENTRY_BOOK_ID = "JHN";
+const DEFAULT_ENTRY_CHAPTER = 1;
 const FONT_SCALE_KEY = "bible_font_scale_v1";
 const VIEWPORT_SCROLL_KEY = "bible_viewport_scroll_v1";
 const FAVORITES_KEY = "bible_verse_favorites_v1";
@@ -15,7 +18,7 @@ const USER_AUTH_TOKEN_KEY = "bible_user_auth_token_v1";
 const COLOR_THEME_STORAGE_KEY = "bible_color_theme_id_v1";
 const QA_INTERACTIONS_KEY = "bible_qa_interactions_v1";
 const VERSE_SEARCH_PREFS_KEY = "bible_verse_search_prefs_v1";
-const CLIENT_FRESHNESS_VERSION = "v53";
+const CLIENT_FRESHNESS_VERSION = "v55";
 let verseSearchDebounceTimer = null;
 let verseSearchSeq = 0;
 /** Safari/iOS 将「↩」绘成彩色系统符号；用 currentColor SVG 与 ♥/✎ 同色 */
@@ -98,7 +101,6 @@ const BOOK_NAME_EN_BY_ID = {
 function clearEphemeralClientState() {
   try {
     [
-      FRONT_STATE_KEY,
       FONT_SCALE_KEY,
       VIEWPORT_SCROLL_KEY,
       COLOR_THEME_STORAGE_KEY,
@@ -123,6 +125,8 @@ const state = {
   bookIntroMarkdown: null,
   /** 卷首页附属视频：来自已发布 0.json 的 chapterVideos */
   bookLandingChapterVideos: [],
+  /** 卷首页重复词：优先用首页自身数据，否则回退到第 1 章 */
+  bookLandingRepeatedWords: [],
   /** 卷首页多视频时，当前选中的条目下标（配合 landing pick UI） */
   bookLandingVideoPickIndex: 0,
   /** 卷首页插画：来自已发布 0.json 的 chapterIllustration */
@@ -151,6 +155,10 @@ let studyContentLoadGeneration = 0;
 
 /** 收藏夹弹层：pages | verses | questions */
 let favoritesPanelActiveTab = "pages";
+
+/** 左侧索引打开「章节与经节」时的目标书卷 */
+let chapterVersePickTargetBookId = "";
+let chapterVersePickTargetChapter = 0;
 
 /** 页面收藏：补全第一小段标题时避免同一 key 并发重复请求 */
 const chapterFavoriteSegmentEnrichLocks = new Set();
@@ -1262,10 +1270,36 @@ function backfillGlobalFavoritesFromLocal() {
 }
 
 function loadFrontState() {
-  const parsed =
+  const sessionParsed =
     typeof sessionStorage !== "undefined"
       ? safeJsonParse(sessionStorage.getItem(FRONT_STATE_KEY), null)
       : null;
+  const localParsed =
+    typeof localStorage !== "undefined"
+      ? safeJsonParse(localStorage.getItem(FRONT_STATE_KEY), null)
+      : null;
+  const parsed = sessionParsed || localParsed;
+  const fontScale = loadFontScale();
+
+  /* 无 session/local 记录：新用户默认约翰福音第 1 章 */
+  if (parsed == null) {
+    return {
+      uiLang: "zh",
+      contentVersion: "default",
+      contentLang: "zh",
+      primaryScriptureVersionId: "cuvs_zh",
+      secondaryScriptureVersionIds: [],
+      testament: "新约",
+      bookId: DEFAULT_ENTRY_BOOK_ID,
+      chapter: DEFAULT_ENTRY_CHAPTER,
+      hideScripture: false,
+      showQuestions: true,
+      showScripture: true,
+      fontScale,
+    };
+  }
+
+  /* 有记录：恢复上次阅读书卷与章节（同页刷新亦来自 storage） */
   return {
     uiLang: parsed?.uiLang || "zh",
     contentVersion: parsed?.contentVersion || "default",
@@ -1273,36 +1307,35 @@ function loadFrontState() {
     primaryScriptureVersionId: parsed?.primaryScriptureVersionId || "cuvs_zh",
     secondaryScriptureVersionIds: [],
     testament: parsed?.testament || "旧约",
-    /* 同一页面刷新时保留当前章；新开页面仍默认首页 */
     bookId: parsed?.bookId || "_BIBLE_INTRO",
-    chapter:
-      parsed == null ? 0 : Number(parsed.chapter != null ? parsed.chapter : 0),
+    chapter: Number(parsed.chapter != null ? parsed.chapter : 0),
     hideScripture: false,
     showQuestions: true,
     showScripture: true,
-    fontScale: loadFontScale(),
+    fontScale,
   };
 }
 
 function saveFrontState() {
+  const payload = {
+    uiLang: state.frontState.uiLang,
+    contentVersion: state.frontState.contentVersion,
+    contentLang: state.frontState.contentLang,
+    primaryScriptureVersionId: state.frontState.primaryScriptureVersionId,
+    testament: state.frontState.testament,
+    bookId: state.frontState.bookId,
+    chapter: state.frontState.chapter,
+  };
   try {
     sessionStorage.setItem(
       FRONT_STATE_KEY,
-      JSON.stringify({
-        uiLang: state.frontState.uiLang,
-        contentVersion: state.frontState.contentVersion,
-        contentLang: state.frontState.contentLang,
-        primaryScriptureVersionId: state.frontState.primaryScriptureVersionId,
-        testament: state.frontState.testament,
-        bookId: state.frontState.bookId,
-        chapter: state.frontState.chapter,
-      })
+      JSON.stringify(payload)
     );
   } catch {
     /* ignore */
   }
   try {
-    localStorage.removeItem(FRONT_STATE_KEY);
+    localStorage.setItem(FRONT_STATE_KEY, JSON.stringify(payload));
   } catch {
     /* ignore */
   }
@@ -1660,6 +1693,25 @@ function collectBookSpineNavEntries() {
   return out;
 }
 
+function getBookAbbreviationForIndexTab(book) {
+  if (!book) return "";
+  const pl = getPrimaryScriptureLang();
+  if (pl === "zh") {
+    return String(book.bookCnAbbr || book.bookCn || book.bookId || "").trim();
+  }
+  if (pl === "es") {
+    return String(
+      book.bookEsAbbr || book.bookEnAbbr || book.bookCnAbbr || book.bookId || ""
+    ).trim();
+  }
+  if (pl === "he") {
+    return String(book.bookEnAbbr || book.bookId || "").trim();
+  }
+  return String(
+    book.bookEnAbbr || book.bookCnAbbr || book.bookId || ""
+  ).trim();
+}
+
 function buildBookSpineNavHtml(entries, bookLabelFn, bookFullNameFn, currentBookId, navAriaLabel) {
   const aria = escapeHtml(navAriaLabel || "书卷");
   const buttons = entries
@@ -1816,23 +1868,27 @@ function getBookLabelForPrimaryScripture() {
 
 /** 左缘切口标签：与 src/books.js / bootstrap bookCnAbbr 等一致 */
 function getCurrentBookAbbreviationForIndexTab() {
-  const book = getCurrentBookMeta();
-  if (!book) return "";
-  const pl = getPrimaryScriptureLang();
-  if (pl === "zh") {
-    return String(book.bookCnAbbr || book.bookCn || book.bookId || "").trim();
-  }
-  if (pl === "es") {
-    return String(
-      book.bookEsAbbr || book.bookEnAbbr || book.bookCnAbbr || book.bookId || ""
-    ).trim();
-  }
-  if (pl === "he") {
-    return String(book.bookEnAbbr || book.bookId || "").trim();
-  }
-  return String(
-    book.bookEnAbbr || book.bookCnAbbr || book.bookId || ""
-  ).trim();
+  return getBookAbbreviationForIndexTab(getCurrentBookMeta());
+}
+
+function collectBookPageIndexEntries() {
+  return collectBookSpineNavEntries().filter(
+    ({ book }) => !BOOK_IDS_EXCLUDED_FROM_CANON_NUMBER.has(book.bookId)
+  );
+}
+
+function buildBookPageIndexTabsHtml(entries, currentBookId) {
+  return entries
+    .map(({ book, group }) => {
+      const active = book.bookId === currentBookId ? " active" : "";
+      const label = escapeHtml(getBookAbbreviationForIndexTab(book) || book.bookId);
+      const full = escapeHtml(getLocalizedBookLabelById(book.bookId));
+      const g = String(group || "other").replace(/[^a-z0-9_]/g, "") || "other";
+      return `<button type="button" class="book-page-index-tab__item book-page-index-tab__item--${g}${active}" data-book-page-index-id="${escapeHtml(
+        book.bookId
+      )}" title="${full}" aria-label="${full}">${label}</button>`;
+    })
+    .join("");
 }
 
 function getPrimaryScriptureLang() {
@@ -1952,6 +2008,7 @@ function getLocalizedCopy() {
       bookChapter: "Select book",
       searchScripture: "Search",
       display: "Display",
+      displayModeSection: "Display mode",
       type: "Type",
       bibleVersion: "Select version",
       close: "Close",
@@ -1966,7 +2023,8 @@ function getLocalizedCopy() {
       export: "Export",
       print: "Print",
       primaryVersionSingle: "Primary (single)",
-      compareVersionMulti: "Compare (multi)",
+      compareVersionMulti: "Compare version",
+      compareVersionNone: "None",
       noCompareVersion: "No compare versions available",
       allDisplay: "Show All",
       onlyScripture: "Scripture Only",
@@ -2017,6 +2075,7 @@ function getLocalizedCopy() {
       bookChapter: "Elegir libro",
       searchScripture: "Buscar",
       display: "Mostrar",
+      displayModeSection: "Modo de vista",
       type: "Tipo",
       bibleVersion: "Elegir version",
       close: "Cerrar",
@@ -2031,7 +2090,8 @@ function getLocalizedCopy() {
       export: "Exportar",
       print: "Imprimir",
       primaryVersionSingle: "Principal (una)",
-      compareVersionMulti: "Comparar (multi)",
+      compareVersionMulti: "Version de comparacion",
+      compareVersionNone: "Ninguna",
       noCompareVersion: "No hay versiones de comparacion disponibles",
       allDisplay: "Mostrar todo",
       onlyScripture: "Solo escritura",
@@ -2081,6 +2141,7 @@ function getLocalizedCopy() {
       bookChapter: "בחירת ספר",
       searchScripture: "חיפוש",
       display: "תצוגה",
+      displayModeSection: "מצב תצוגה",
       type: "סוג",
       bibleVersion: "בחירת גרסה",
       close: "סגור",
@@ -2095,7 +2156,8 @@ function getLocalizedCopy() {
       export: "ייצוא",
       print: "הדפסה",
       primaryVersionSingle: "ראשית (בחירה אחת)",
-      compareVersionMulti: "השוואה (רב-בחירה)",
+      compareVersionMulti: "גרסת השוואה",
+      compareVersionNone: "ללא",
       noCompareVersion: "אין גרסאות להשוואה",
       allDisplay: "הצג הכול",
       onlyScripture: "כתובים בלבד",
@@ -2144,6 +2206,7 @@ function getLocalizedCopy() {
     bookChapter: "书卷",
     searchScripture: "搜索",
     display: "显示",
+    displayModeSection: "显示模式",
     type: "类型",
     bibleVersion: "版本+",
     close: "关闭",
@@ -2158,7 +2221,8 @@ function getLocalizedCopy() {
     export: "导出",
     print: "打印",
     primaryVersionSingle: "主版本（单选）",
-    compareVersionMulti: "对照版本（可多选）",
+    compareVersionMulti: "对照版本",
+    compareVersionNone: "无",
     noCompareVersion: "没有可选对照版本",
     allDisplay: "全部显示",
     onlyScripture: "只限经文",
@@ -2210,10 +2274,9 @@ function applyReaderI18n() {
 
   setText("#bookChapterPanel .toolbar-panel-title", copy.bookChapter);
   setText("#qaViewPanel .toolbar-panel-title", copy.displayContent);
-  setText("#primaryVersionPanel .toolbar-panel-title", copy.bibleVersion);
-  setText("#chapterVersePickPanelTitle", copy.chapterVersePickNavTitle);
+  setText("#readerSheetBibleVersionSectionTitle", copy.bibleVersion);
+  setText("#chapterVersePickPanelTitle", copy.chapters);
   setText("#idxPickChaptersTitle", copy.chapters);
-  setText("#idxPickVerseSectionTitle", copy.chapterVersePickTitle);
   setText("#verseSearchTitle", copy.searchScripture);
   document
     .querySelectorAll(
@@ -2237,9 +2300,6 @@ function applyReaderI18n() {
       el.textContent = copy.chapters;
     });
   setText("#qaViewPanel .chapter-grid-title", copy.quickActions);
-  setText("#contentVersionSectionTitle", copy.triggerVersion || "问题类型");
-  setText("#primaryVersionSectionTitle", copy.primaryVersionSingle);
-  setText("#compareVersionSectionTitle", copy.compareVersionMulti);
   setText("#exportPrettyPdfBtn", copy.export);
   setText("#favoritesPanelTitle", copy.favoritesTitle);
   setText("#favoritesTabPages", copy.favoritesSectionPageTitle || "");
@@ -2249,7 +2309,7 @@ function applyReaderI18n() {
 
   document
     .querySelectorAll(
-      "#bookChapterPanel .toolbar-panel-close, #qaViewPanel .toolbar-panel-close, #primaryVersionPanel .toolbar-panel-close, #chapterVersePickPanel .toolbar-panel-close, #favoritesPanel .toolbar-panel-close"
+      "#bookChapterPanel .toolbar-panel-close, #qaViewPanel .toolbar-panel-close, #chapterVersePickPanel .toolbar-panel-close, #favoritesPanel .toolbar-panel-close"
     )
     .forEach((btn) => {
       btn.textContent = copy.close;
@@ -2451,7 +2511,9 @@ function tryConsumeVersePermalinkQueryParams() {
     state.frontState.primaryScriptureVersionId = versionId;
     state.frontState.secondaryScriptureVersionIds = (
       state.frontState.secondaryScriptureVersionIds || []
-    ).filter((id) => id !== versionId);
+    )
+      .filter((id) => id !== versionId)
+      .slice(0, 1);
     syncContentLangWithPrimaryVersion();
     saveFrontState();
 
@@ -2919,7 +2981,9 @@ function renderFavoritesPanel() {
         }
         state.frontState.secondaryScriptureVersionIds = (
           state.frontState.secondaryScriptureVersionIds || []
-        ).filter((id) => id !== chItem.versionId);
+        )
+          .filter((id) => id !== chItem.versionId)
+          .slice(0, 1);
         syncContentLangWithPrimaryVersion();
         saveFrontState();
         renderAllSelectors();
@@ -2938,7 +3002,9 @@ function renderFavoritesPanel() {
       state.frontState.primaryScriptureVersionId = item.versionId;
       state.frontState.secondaryScriptureVersionIds = (
         state.frontState.secondaryScriptureVersionIds || []
-      ).filter((id) => id !== item.versionId);
+      )
+        .filter((id) => id !== item.versionId)
+        .slice(0, 1);
       syncContentLangWithPrimaryVersion();
       saveFrontState();
       renderAllSelectors();
@@ -3039,6 +3105,217 @@ function syncContentLangWithPrimaryVersion() {
   }
 }
 
+/** 读经页顶栏站点导航移入底栏：与单栏书页断点一致（≤1100px），中屏与手机一致 */
+const TOPBAR_ACTIONS_DOCK_MEDIA = "(max-width: 1100px)";
+
+function shouldDockReaderToolbarToBottom() {
+  return false;
+}
+
+function syncMobileReaderToolbarDock() {
+  const dock = document.getElementById("mobileReaderToolbarDock");
+  const home = document.getElementById("pageToolbarHome");
+  const toolbar = document.getElementById("pageToolbar");
+  if (!dock || !home || !toolbar) return;
+
+  const shouldDock = shouldDockReaderToolbarToBottom();
+  const targetParent = shouldDock ? dock : home;
+  if (toolbar.parentElement !== targetParent) {
+    targetParent.appendChild(toolbar);
+  }
+
+  dock.hidden = !shouldDock;
+  document.body.classList.toggle("mobile-reader-toolbar-docked", shouldDock);
+  requestAnimationFrame(() => {
+    syncVisibleToolbarSheetTops();
+  });
+}
+
+function shouldDockTopbarActionsToBottom() {
+  try {
+    const main = document.querySelector("main.book-layout");
+    return (
+      !!main &&
+      !main.classList.contains("notebook-layout") &&
+      window.matchMedia(TOPBAR_ACTIONS_DOCK_MEDIA).matches
+    );
+  } catch {
+    return false;
+  }
+}
+
+function setReaderFontSettingsOpen(wantOpen, opts = {}) {
+  const backdrop = document.getElementById("readerFontSettingsBackdrop");
+  const sheet = document.getElementById("readerFontSettingsSheet");
+  const open = !!wantOpen;
+  document.body.classList.toggle("reader-font-settings-open", open);
+  if (sheet) sheet.setAttribute("aria-hidden", open ? "false" : "true");
+  if (backdrop) backdrop.setAttribute("aria-hidden", open ? "false" : "true");
+  if (!open) {
+    markToolbarTriggerActive("primaryVersionPanel", false);
+  } else if (opts.highlightVersionTrigger) {
+    markToolbarTriggerActive("primaryVersionPanel", true);
+  } else {
+    markToolbarTriggerActive("primaryVersionPanel", false);
+  }
+}
+
+function closeReaderFontSettings() {
+  setReaderFontSettingsOpen(false);
+}
+
+function toggleReaderFontSettings() {
+  const next = !document.body.classList.contains("reader-font-settings-open");
+  setReaderFontSettingsOpen(next, { highlightVersionTrigger: false });
+}
+
+/** 「版本+」与会员菜单入口：与设置滑层同一面板，打开时高亮版本相关触发器 */
+function toggleReaderFontSettingsFromVersionTrigger() {
+  closeAllToolbarPanels();
+  closeVerseSearchOverlay();
+  const next = !document.body.classList.contains("reader-font-settings-open");
+  setReaderFontSettingsOpen(next, { highlightVersionTrigger: next });
+}
+
+window.toggleReaderFontSettings = toggleReaderFontSettings;
+
+/** 顶栏/底栏导航与普通链接一致：配置 href 为 `/#openReaderFontSettings`、图标 settings；后台「显示」可隐藏 */
+function initReaderFontSettingsNavLink() {
+  if (document.documentElement.dataset.readerFontSettingsNavBound === "1") {
+    return;
+  }
+  document.documentElement.dataset.readerFontSettingsNavBound = "1";
+
+  function tryConsumeReaderFontSettingsDeepLink() {
+    try {
+      const u = new URL(window.location.href);
+      if (u.hash !== "#openReaderFontSettings") return;
+      u.hash = "";
+      history.replaceState({}, "", u.pathname + (u.search || ""));
+      queueMicrotask(() => toggleReaderFontSettings());
+    } catch {
+      /* ignore */
+    }
+  }
+  tryConsumeReaderFontSettingsDeepLink();
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash !== "#openReaderFontSettings") return;
+    try {
+      history.replaceState(
+        {},
+        "",
+        window.location.pathname + (window.location.search || "")
+      );
+    } catch {
+      /* ignore */
+    }
+    queueMicrotask(() => toggleReaderFontSettings());
+  });
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest?.("a[href]");
+      if (!a || !a.closest?.(".askbible-chrome-nav")) return;
+      let abs;
+      try {
+        abs = new URL(a.getAttribute("href") || "", window.location.href);
+      } catch {
+        return;
+      }
+      if (abs.hash !== "#openReaderFontSettings") return;
+      if (
+        abs.pathname !== window.location.pathname ||
+        abs.search !== window.location.search
+      ) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      toggleReaderFontSettings();
+    },
+    true
+  );
+}
+
+function initReaderFontSettingsSheet() {
+  const backdrop = document.getElementById("readerFontSettingsBackdrop");
+  const sheet = document.getElementById("readerFontSettingsSheet");
+  const dec = document.getElementById("readerSheetFontDecreaseBtn");
+  const inc = document.getElementById("readerSheetFontIncreaseBtn");
+  if (!backdrop) return;
+  if (document.documentElement.dataset.readerFontSettingsInit === "1") return;
+  document.documentElement.dataset.readerFontSettingsInit = "1";
+
+  sheet?.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+
+  backdrop.addEventListener("click", () => {
+    closeReaderFontSettings();
+  });
+
+  dec?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    bumpFontScale(-1);
+  });
+  inc?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    bumpFontScale(1);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (document.body.classList.contains("reader-font-settings-open")) {
+      closeReaderFontSettings();
+    }
+  });
+
+  initReaderFontSettingsNavLink();
+}
+
+function syncMobileTopbarActionsDock() {
+  const dock = document.getElementById("mobileTopbarActionsDock");
+  const header = document.querySelector(".site-topbar");
+  if (!dock || !header) return;
+  const trailing = header.querySelector(".site-topbar-trailing");
+  const actions =
+    header.querySelector(".site-topbar-actions") ||
+    dock.querySelector(".site-topbar-actions");
+  const title = header.querySelector(".site-topbar-title");
+  const memberHub = document.getElementById("memberHub");
+  const dockNav = document.getElementById("mobileTopbarDockNavSlot");
+  if (!actions || !title) return;
+
+  const shouldDock = shouldDockTopbarActionsToBottom();
+  const dockTarget = dockNav || dock;
+
+  if (shouldDock) {
+    if (actions.parentElement !== dockTarget) {
+      dockTarget.appendChild(actions);
+    }
+  } else if (trailing && memberHub && trailing.contains(memberHub)) {
+    trailing.insertBefore(actions, memberHub);
+  } else {
+    if (actions.parentElement !== header) {
+      header.appendChild(actions);
+    }
+    if (actions.previousElementSibling !== title) {
+      header.insertBefore(actions, title.nextSibling);
+    }
+  }
+
+  dock.hidden = !shouldDock;
+  document.body.classList.toggle("mobile-topbar-actions-docked", shouldDock);
+  if (!shouldDock) {
+    closeReaderFontSettings();
+  }
+}
+
 async function init() {
   try {
     syncFavoriteKeySet();
@@ -3047,6 +3324,7 @@ async function init() {
     backfillGlobalFavoritesFromLocal();
     applyFontScale();
     initFontTools();
+    initReaderFontSettingsSheet();
     initExportButtons();
     initFavorites();
     await loadBootstrap();
@@ -3054,13 +3332,17 @@ async function init() {
     ensureScriptureCompareUI();
     initSelectors();
     initToolbarPanels();
+    syncMobileTopbarActionsDock();
+    syncMobileReaderToolbarDock();
     initBookChapterNavDeepLink();
+    initFavoritesNavDeepLink();
     initShareNavDeepLink();
     bindChapterVideosLayoutResize();
     ensureBookLandingVideoAccordionDelegate();
     initFavoritesPanelTabs();
     initVerseSearchOverlay();
     initChapterNav();
+    initAdjacentChapterNavDeepLink();
     initInlineDisplayToggles();
     initChapterQuestionCollector();
     initApprovedQuestionReply();
@@ -3663,8 +3945,8 @@ function renderMemberHub() {
   member.hidden = !authed;
   if (hubLabel) {
     if (authed) {
-      /* 书签上显示「昵称的圣经」+ 等级星（与账户资料中的称呼一致） */
-      hubLabel.textContent = `${name}的圣经`;
+      /* 顶栏右侧直接显示「等级星 + 用户名」 */
+      hubLabel.textContent = sensible || name;
       hubLabel.classList.remove("member-hub-label--sr");
     } else {
       hubLabel.textContent = "免费注册";
@@ -3679,7 +3961,7 @@ function renderMemberHub() {
     hubTrigger.setAttribute(
       "aria-label",
       authed
-        ? `${name}的圣经${levelAria}，打开账户菜单`
+        ? `${sensible || name}${levelAria}，打开账户菜单`
         : "免费注册，打开登录"
     );
     const tipLevel = lvNum > 0 ? ` · 等级 L${Math.min(12, lvNum)}` : "";
@@ -3720,6 +4002,7 @@ function renderMemberHub() {
       triggerStarsWrap.innerHTML = "";
     }
   }
+  renderToolbarTriggers();
 }
 
 function updateChapterQuestionSubmitButtonLabel() {
@@ -3842,6 +4125,7 @@ function initMemberHub() {
     if (getAuthToken() && state.currentUser) {
       void fetchCurrentUser();
     }
+    closeReaderFontSettings();
     closeAllToolbarPanels();
     memberProfileCloseFn();
     renderMemberHub();
@@ -3858,23 +4142,11 @@ function initMemberHub() {
   memberHubCloseFn = close;
 
   window.openMemberHub = () => {
-    const name = String(state.currentUser?.name || "").trim();
-    if (!name) {
-      close();
-      window.openAuthModal?.("login");
-      return;
-    }
     open();
   };
 
   trigger.addEventListener("click", (event) => {
     event.stopPropagation();
-    const name = String(state.currentUser?.name || "").trim();
-    if (!name) {
-      close();
-      window.openAuthModal?.("login");
-      return;
-    }
     toggle();
   });
 
@@ -3928,6 +4200,21 @@ function initMemberHub() {
     if (action === "admin") {
       close();
       window.location.href = "/admin-hub.html";
+    }
+    if (action === "bible-version") {
+      close();
+      toggleReaderFontSettingsFromVersionTrigger();
+      return;
+    }
+    if (action === "book-chapter") {
+      close();
+      toggleToolbarPanel("bookChapterPanel");
+      return;
+    }
+    if (action === "verse-search") {
+      close();
+      openVerseSearchOverlay();
+      return;
     }
   });
 
@@ -4030,6 +4317,7 @@ function initMemberProfilePanel() {
       window.openAuthModal?.("login");
       return;
     }
+    closeReaderFontSettings();
     closeAllToolbarPanels();
     closeVerseSearchOverlay();
     fillFromUser();
@@ -4189,35 +4477,43 @@ function initChapterQuestionCollector() {
   });
 }
 
-function initInlineDisplayToggles() {
-  const allDisplayToggleBtn = document.getElementById("allDisplayToggleBtn");
-  const scriptureToggleBtn = document.getElementById("scriptureToggleBtn");
-  const questionToggleBtn = document.getElementById("questionToggleBtn");
-  if (!allDisplayToggleBtn || !scriptureToggleBtn || !questionToggleBtn) return;
-
-  allDisplayToggleBtn.addEventListener("click", () => {
+function applyReaderDisplayModeChoice(mode) {
+  if (mode === "all") {
     state.frontState.showScripture = true;
     state.frontState.showQuestions = true;
-    saveFrontState();
-    renderToolbarTriggers();
-    renderStudyContent();
-  });
-
-  scriptureToggleBtn.addEventListener("click", () => {
+  } else if (mode === "scripture") {
     state.frontState.showScripture = true;
     state.frontState.showQuestions = false;
-    saveFrontState();
-    renderToolbarTriggers();
-    renderStudyContent();
-  });
-
-  questionToggleBtn.addEventListener("click", () => {
+  } else if (mode === "question") {
     state.frontState.showScripture = false;
     state.frontState.showQuestions = true;
-    saveFrontState();
-    renderToolbarTriggers();
-    renderStudyContent();
-  });
+  } else {
+    return;
+  }
+  saveFrontState();
+  renderToolbarTriggers();
+  renderStudyContent();
+}
+
+function bindDisplayModeToggle(btn, mode) {
+  if (!btn) return;
+  btn.addEventListener("click", () => applyReaderDisplayModeChoice(mode));
+}
+
+/** 经文 / 全部 / 问题：原在会员面板，现仅在底栏「设置」滑层内 */
+function initInlineDisplayToggles() {
+  bindDisplayModeToggle(
+    document.getElementById("readerSheetAllDisplayToggleBtn"),
+    "all"
+  );
+  bindDisplayModeToggle(
+    document.getElementById("readerSheetScriptureToggleBtn"),
+    "scripture"
+  );
+  bindDisplayModeToggle(
+    document.getElementById("readerSheetQuestionToggleBtn"),
+    "question"
+  );
 }
 
 function focusPendingFavoriteIfAny() {
@@ -4345,7 +4641,7 @@ function normalizeFrontStateByBootstrap() {
 
   state.frontState.secondaryScriptureVersionIds = Array.from(
     new Set(validSecondary)
-  );
+  ).slice(0, 1);
 
   const validBook = books.find((b) => b.bookId === state.frontState.bookId);
   if (!validBook) {
@@ -4355,7 +4651,10 @@ function normalizeFrontStateByBootstrap() {
       state.frontState.chapter = 0;
       state.frontState.testament = intro.testamentName;
     } else {
-      state.frontState.bookId = "GEN";
+      state.frontState.bookId = DEFAULT_ENTRY_BOOK_ID;
+      state.frontState.chapter = DEFAULT_ENTRY_CHAPTER;
+      const jhn = books.find((b) => b.bookId === DEFAULT_ENTRY_BOOK_ID);
+      if (jhn) state.frontState.testament = jhn.testamentName;
     }
   }
 
@@ -4483,7 +4782,9 @@ function initSelectors() {
       const nextPrimary = e.target.value;
       const secondary = (
         state.frontState.secondaryScriptureVersionIds || []
-      ).filter((id) => id !== nextPrimary);
+      )
+        .filter((id) => id !== nextPrimary)
+        .slice(0, 1);
 
       state.frontState.primaryScriptureVersionId = nextPrimary;
       state.frontState.secondaryScriptureVersionIds = secondary;
@@ -4512,7 +4813,6 @@ function initSelectors() {
 function initToolbarPanels() {
   const triggerMap = [
     { triggerId: "bookChapterTrigger", panelId: "bookChapterPanel" },
-    { triggerId: "primaryVersionTrigger", panelId: "primaryVersionPanel" },
     { triggerId: "favoritesTrigger", panelId: "favoritesPanel" },
     { triggerId: "sideUserTag", panelId: "favoritesPanel" },
   ];
@@ -4537,8 +4837,16 @@ function initToolbarPanels() {
   if (bookPageIndexTab && bookPageIndexTab.dataset.bound !== "1") {
     bookPageIndexTab.dataset.bound = "1";
     bookPageIndexTab.addEventListener("click", (event) => {
+      const btn = event.target.closest?.("[data-book-page-index-id]");
+      if (!btn) return;
       event.preventDefault();
       event.stopPropagation();
+      chapterVersePickTargetBookId = String(
+        btn.getAttribute("data-book-page-index-id") || ""
+      ).trim();
+      const pickedBook = getBookMetaById(chapterVersePickTargetBookId);
+      chapterVersePickTargetChapter =
+        pickedBook && Number(pickedBook.chapters || 0) > 0 ? 1 : 0;
       toggleToolbarPanel("chapterVersePickPanel");
     });
   }
@@ -4563,6 +4871,9 @@ function initToolbarPanels() {
   });
 
   window.addEventListener("resize", syncVisibleToolbarSheetTops);
+  window.addEventListener("resize", syncBookPageIndexTabPlacement);
+  window.addEventListener("resize", syncMobileTopbarActionsDock);
+  window.addEventListener("resize", syncMobileReaderToolbarDock);
   document.addEventListener("keydown", toolbarSheetsEscHandler);
 }
 
@@ -4665,6 +4976,142 @@ function initBookChapterNavDeepLink() {
   );
 }
 
+/** 顶栏/底栏：`/#goNextChapter`、`/#goPrevChapter` 与书页内「下一章」「上一章」相同（需已在读经页） */
+function initAdjacentChapterNavDeepLink() {
+  const HASH_NEXT = "#goNextChapter";
+  const HASH_PREV = "#goPrevChapter";
+
+  function tryConsumeAdjacentChapterDeepLink() {
+    try {
+      const u = new URL(window.location.href);
+      const h = u.hash;
+      if (h !== HASH_NEXT && h !== HASH_PREV) return;
+      const dir = h === HASH_NEXT ? 1 : -1;
+      u.hash = "";
+      history.replaceState({}, "", u.pathname + (u.search || ""));
+      queueMicrotask(() => void goAdjacentChapter(dir));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  tryConsumeAdjacentChapterDeepLink();
+  window.addEventListener("hashchange", () => {
+    const h = window.location.hash;
+    if (h !== HASH_NEXT && h !== HASH_PREV) return;
+    try {
+      history.replaceState(
+        {},
+        "",
+        window.location.pathname + (window.location.search || "")
+      );
+    } catch {
+      /* ignore */
+    }
+    const dir = h === HASH_NEXT ? 1 : -1;
+    queueMicrotask(() => void goAdjacentChapter(dir));
+  });
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest?.("a[href]");
+      if (!a || !a.closest?.(".askbible-chrome-nav")) return;
+      let abs;
+      try {
+        abs = new URL(a.getAttribute("href") || "", window.location.href);
+      } catch {
+        return;
+      }
+      const h = abs.hash;
+      if (h !== HASH_NEXT && h !== HASH_PREV) return;
+      if (
+        abs.pathname !== window.location.pathname ||
+        abs.search !== window.location.search
+      ) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      void goAdjacentChapter(h === HASH_NEXT ? 1 : -1);
+    },
+    true
+  );
+}
+
+/** 顶栏导航：`/#openFavorites` 打开收藏弹层（与丝带 / 工具栏「收藏」一致） */
+function initFavoritesNavDeepLink() {
+  const panel = document.getElementById("favoritesPanel");
+  if (!panel) return;
+
+  window.openFavoritesPanel = () => {
+    toggleToolbarPanel("favoritesPanel");
+  };
+
+  function tryConsumeFavoritesDeepLink() {
+    try {
+      const u = new URL(window.location.href);
+      if (u.hash !== "#openFavorites") return;
+      u.hash = "";
+      history.replaceState({}, "", u.pathname + (u.search || ""));
+      queueMicrotask(() => {
+        if (typeof window.openFavoritesPanel === "function") {
+          window.openFavoritesPanel();
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+  tryConsumeFavoritesDeepLink();
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash !== "#openFavorites") return;
+    try {
+      history.replaceState(
+        {},
+        "",
+        window.location.pathname + (window.location.search || "")
+      );
+    } catch {
+      /* ignore */
+    }
+    queueMicrotask(() => {
+      if (typeof window.openFavoritesPanel === "function") {
+        window.openFavoritesPanel();
+      }
+    });
+  });
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest?.("a[href]");
+      if (!a || !a.closest?.(".askbible-chrome-nav")) return;
+      let abs;
+      try {
+        abs = new URL(a.getAttribute("href") || "", window.location.href);
+      } catch {
+        return;
+      }
+      if (abs.hash !== "#openFavorites") return;
+      if (
+        abs.pathname !== window.location.pathname ||
+        abs.search !== window.location.search
+      ) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      toggleToolbarPanel("favoritesPanel");
+    },
+    true
+  );
+}
+
 /** 书卷 / 选版本 全屏卡片：Esc 关闭（搜经文打开时不抢） */
 function toolbarSheetsEscHandler(e) {
   if (e.key !== "Escape") return;
@@ -4680,12 +5127,6 @@ function toolbarSheetsEscHandler(e) {
   if (mh && !mh.hasAttribute("hidden")) {
     e.preventDefault();
     memberHubCloseFn();
-    return;
-  }
-  const pv = document.getElementById("primaryVersionPanel");
-  if (pv && !pv.hasAttribute("hidden")) {
-    e.preventDefault();
-    closeToolbarPanel("primaryVersionPanel");
     return;
   }
   const bc = document.getElementById("bookChapterPanel");
@@ -4713,18 +5154,12 @@ function toggleToolbarPanel(panelId) {
 
   const willOpen = panel.hasAttribute("hidden");
   closeAllToolbarPanels();
+  closeReaderFontSettings();
 
   if (willOpen) {
     closeVerseSearchOverlay();
     panel.removeAttribute("hidden");
     markToolbarTriggerActive(panelId, true);
-    if (panelId === "primaryVersionPanel") {
-      document.body.classList.add("primary-version-open");
-      syncToolbarSheetCardTop(panel);
-      window.requestAnimationFrame(() => {
-        syncToolbarSheetCardTop(panel);
-      });
-    }
     if (panelId === "chapterVersePickPanel") {
       document.body.classList.add("chapter-verse-pick-open");
       renderChapterVersePickPanel();
@@ -4757,19 +5192,19 @@ function closeToolbarPanel(panelId) {
     memberHubCloseFn();
     return;
   }
+  if (panelId === "primaryVersionPanel") {
+    setReaderFontSettingsOpen(false);
+    return;
+  }
   const panel = document.getElementById(panelId);
   if (!panel) return;
   if (
-    panelId === "primaryVersionPanel" ||
     panelId === "bookChapterPanel" ||
     panelId === "favoritesPanel" ||
     panelId === "chapterVersePickPanel"
   ) {
     const card = panel.querySelector(".verse-search-card");
     if (card) card.style.marginTop = "";
-    if (panelId === "primaryVersionPanel") {
-      document.body.classList.remove("primary-version-open");
-    }
     if (panelId === "bookChapterPanel") {
       document.body.classList.remove("book-chapter-open");
     }
@@ -4788,7 +5223,6 @@ function closeToolbarPanel(panelId) {
 function closeAllToolbarPanels() {
   [
     "bookChapterPanel",
-    "primaryVersionPanel",
     "chapterVersePickPanel",
     "favoritesPanel",
   ].forEach((panelId) => {
@@ -4923,7 +5357,9 @@ async function jumpToVerseFromSearch(versionId, bookId, chapter, verse) {
   state.frontState.primaryScriptureVersionId = versionId;
   state.frontState.secondaryScriptureVersionIds = (
     state.frontState.secondaryScriptureVersionIds || []
-  ).filter((id) => id !== versionId);
+  )
+    .filter((id) => id !== versionId)
+    .slice(0, 1);
   syncContentLangWithPrimaryVersion();
   saveFrontState();
   renderAllSelectors();
@@ -4977,21 +5413,46 @@ function scrollToVerseInCurrentPage(verse) {
   tryFlash();
 }
 
-function fillVersePickGrid(verseGridId) {
+async function fillVersePickGrid(verseGridId, bookIdOverride = "", chapterOverride = null) {
   const grid = document.getElementById(verseGridId);
   if (!grid) return;
   const copy = getLocalizedCopy();
-  const chapter = Number(state.frontState.chapter || 0);
+  const chapter =
+    chapterOverride === null
+      ? Number(state.frontState.chapter || 0)
+      : Number(chapterOverride || 0);
+  const bookId = String(bookIdOverride || state.frontState.bookId || "").trim();
   const versionId = state.frontState.primaryScriptureVersionId;
-  if (chapter < 1 || !versionId) {
+  if (chapter < 1 || !versionId || !bookId) {
     grid.innerHTML = `<p class="verse-search-status chapter-verse-pick-empty">${escapeHtml(
       copy.chapterVersePickSelectChapterHint || ""
     )}</p>`;
     return;
   }
+  let rows = Array.isArray(state.scriptureRows) ? state.scriptureRows : [];
+  if (!rows.length || !rows.every((row) => String(row?.bookId || "").trim() === bookId)) {
+    try {
+      const params = new URLSearchParams({
+        bookId,
+        chapter: String(chapter),
+        versions: versionId,
+      });
+      const res = await fetch(`/api/scripture?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        rows = [];
+      } else {
+        rows = Array.isArray(data.rows) ? data.rows : [];
+      }
+    } catch (_) {
+      rows = [];
+    }
+  }
   const nums = [];
   const seen = new Set();
-  for (const row of state.scriptureRows || []) {
+  for (const row of rows) {
     const v = Number(row?.verse || 0);
     const text = String(row?.texts?.[versionId] || "").trim();
     if (v >= 1 && text && !seen.has(v)) {
@@ -5036,19 +5497,27 @@ const BOOK_CHAPTER_DIRECTORY_GRID_OPTS = {
   pickVerseMode: false,
 };
 
-/** 左缘索引条：当前书卷下仅章 + 经节（换书仍用顶栏「书卷」） */
+/** 左缘索引条：当前书卷下仅章（换书仍用顶栏「书卷」） */
 const INDEX_BOOK_VERSE_PICK_GRID_OPTS = {
   otGridId: null,
   ntGridId: null,
   chapterGridId: "idxPickChapterGrid",
   closePanelId: "chapterVersePickPanel",
   allMobileGridId: null,
-  verseGridId: "idxPickVerseGrid",
-  pickVerseMode: true,
+  verseGridId: null,
+  pickVerseMode: false,
+  bookIdOverride: "",
+  chapterOverride: 0,
+  includeIntroOption: false,
 };
 
 function renderChapterVersePickPanel() {
-  renderBookChapterGrids(INDEX_BOOK_VERSE_PICK_GRID_OPTS);
+  renderBookChapterGrids({
+    ...INDEX_BOOK_VERSE_PICK_GRID_OPTS,
+    bookIdOverride: chapterVersePickTargetBookId || state.frontState.bookId,
+    chapterOverride:
+      chapterVersePickTargetChapter > 0 ? chapterVersePickTargetChapter : 1,
+  });
 }
 
 function closeVerseSearchOverlay() {
@@ -5079,10 +5548,6 @@ function syncVisibleToolbarSheetTops() {
   if (verse && !verse.hasAttribute("hidden")) {
     syncToolbarSheetCardTop(verse);
   }
-  const pv = document.getElementById("primaryVersionPanel");
-  if (pv && !pv.hasAttribute("hidden")) {
-    syncToolbarSheetCardTop(pv);
-  }
   const bc = document.getElementById("bookChapterPanel");
   if (bc && !bc.hasAttribute("hidden")) {
     syncToolbarSheetCardTop(bc);
@@ -5104,6 +5569,7 @@ function openVerseSearchOverlay() {
   const resultsEl = document.getElementById("verseSearchResults");
   if (!overlay) return;
   closeAllToolbarPanels();
+  closeReaderFontSettings();
   syncVerseSearchScopeButtons();
   if (resultsEl) {
     const q = String(input?.value || "").trim();
@@ -5230,8 +5696,11 @@ function initVerseSearchOverlay() {
 
 function markToolbarTriggerActive(panelId, active) {
   const mapping = {
-    bookChapterPanel: ["bookChapterTrigger"],
-    primaryVersionPanel: ["primaryVersionTrigger"],
+    bookChapterPanel: [
+      "bookChapterTrigger",
+      "memberHubGuestBookChapterBtn",
+    ],
+    primaryVersionPanel: ["memberHubGuestBibleVersionBtn"],
     favoritesPanel: ["favoritesTrigger", "sideUserTag"],
     chapterVersePickPanel: ["bookPageIndexTab"],
   };
@@ -5353,12 +5822,12 @@ function renderSecondaryScriptureVersionChecks() {
   const options = getEnabledScriptureVersions().filter(
     (x) => x.id !== primaryId
   );
-  const selected = new Set(state.frontState.secondaryScriptureVersionIds || []);
+  const onlySecondary = (state.frontState.secondaryScriptureVersionIds || [])[0];
 
   container.innerHTML = options.length
     ? options
         .map((item) => {
-          const checked = selected.has(item.id) ? "checked" : "";
+          const checked = item.id === onlySecondary ? "checked" : "";
           return `
             <label>
               <input type="checkbox" value="${escapeHtml(
@@ -5377,13 +5846,16 @@ function renderSecondaryScriptureVersionChecks() {
 
   container.querySelectorAll("[data-secondary-scripture]").forEach((input) => {
     input.addEventListener("change", async () => {
-      const allChecked = Array.from(
-        container.querySelectorAll("[data-secondary-scripture]:checked")
-      ).map((x) => x.value);
-
-      state.frontState.secondaryScriptureVersionIds = allChecked.filter(
-        (id) => id !== state.frontState.primaryScriptureVersionId
-      );
+      if (input.checked) {
+        const id = String(input.value || "").trim();
+        container.querySelectorAll("[data-secondary-scripture]").forEach((el) => {
+          if (el !== input) el.checked = false;
+        });
+        state.frontState.secondaryScriptureVersionIds =
+          id && id !== state.frontState.primaryScriptureVersionId ? [id] : [];
+      } else {
+        state.frontState.secondaryScriptureVersionIds = [];
+      }
       saveFrontState();
       renderAllSelectors();
       await refreshCurrentPage();
@@ -5570,13 +6042,16 @@ function renderToolbarTriggers() {
     "bookChapterTriggerText"
   );
   const qaViewTriggerText = document.getElementById("qaViewTriggerText");
-  const primaryVersionTriggerText = document.getElementById(
-    "primaryVersionTriggerText"
-  );
   const favoritesTriggerText = document.getElementById("favoritesTriggerText");
-  const allDisplayToggleBtn = document.getElementById("allDisplayToggleBtn");
-  const scriptureToggleBtn = document.getElementById("scriptureToggleBtn");
-  const questionToggleBtn = document.getElementById("questionToggleBtn");
+  const allDisplayToggleBtn = document.getElementById(
+    "readerSheetAllDisplayToggleBtn"
+  );
+  const scriptureToggleBtn = document.getElementById(
+    "readerSheetScriptureToggleBtn"
+  );
+  const questionToggleBtn = document.getElementById(
+    "readerSheetQuestionToggleBtn"
+  );
 
   const bookLabel = getBookLabelForPrimaryScripture();
   const copy = getLocalizedCopy();
@@ -5593,8 +6068,30 @@ function renderToolbarTriggers() {
     qaViewTriggerText.textContent = copy.display;
   }
 
-  if (primaryVersionTriggerText) {
-    primaryVersionTriggerText.textContent = copy.triggerTranslation || "版本+";
+  const bibleVerMenuLabel = copy.triggerTranslation || copy.bibleVersion || "版本+";
+  const bookMenuLabel = copy.triggerBook || "书卷";
+  const searchMenuLabel = copy.searchScripture || "搜索";
+  const guestBvBtn = document.getElementById("memberHubGuestBibleVersionBtn");
+  if (guestBvBtn) guestBvBtn.textContent = bibleVerMenuLabel;
+  const guestBookBtn = document.getElementById("memberHubGuestBookChapterBtn");
+  if (guestBookBtn) guestBookBtn.textContent = bookMenuLabel;
+  const guestSearchBtn = document.getElementById("memberHubGuestVerseSearchBtn");
+  if (guestSearchBtn) guestSearchBtn.textContent = searchMenuLabel;
+  const dmSectionTitle = document.getElementById(
+    "readerSheetDisplayModeSectionTitle"
+  );
+  if (dmSectionTitle) {
+    dmSectionTitle.textContent =
+      copy.displayModeSection || copy.display || "显示模式";
+  }
+  const displayModeSwitchEl = document.getElementById(
+    "readerSheetDisplayModeSwitch"
+  );
+  if (displayModeSwitchEl) {
+    displayModeSwitchEl.setAttribute(
+      "aria-label",
+      copy.displayModeSection || copy.display || "显示模式"
+    );
   }
   if (favoritesTriggerText) {
     favoritesTriggerText.textContent = copy.favorites;
@@ -5703,6 +6200,9 @@ function renderBookChapterGrids(opts) {
     allMobileGridId = "bookGridAllMobile",
     verseGridId = null,
     pickVerseMode = false,
+    bookIdOverride = "",
+    chapterOverride = null,
+    includeIntroOption = true,
   } = opts;
 
   const otGrid = otGridId ? document.getElementById(otGridId) : null;
@@ -5780,13 +6280,14 @@ function renderBookChapterGrids(opts) {
         const nextBookId = btn.getAttribute("data-book-grid-id");
         if (!nextBookId) return;
 
+        const picked = flattenBooks().find((b) => b.bookId === nextBookId);
         state.frontState.testament = resolveTestamentName(nextBookId);
         state.frontState.bookId = nextBookId;
-        state.frontState.chapter = 0;
+        state.frontState.chapter =
+          picked && Number(picked.chapters || 0) > 0 ? 1 : 0;
         saveFrontState();
         renderAllSelectors();
 
-        const picked = flattenBooks().find((b) => b.bookId === nextBookId);
         if (isOverviewOnlyBookMeta(picked)) {
           closeToolbarPanel(gridOpts.closePanelId);
         }
@@ -5844,7 +6345,7 @@ function renderBookChapterGrids(opts) {
     const spineEntries = collectBookSpineNavEntries();
     allMobile.innerHTML = buildBookSpineNavHtml(
       spineEntries,
-      spineBookLabel,
+      bookLabel,
       bookGridFullName,
       state.frontState.bookId,
       copyBc.triggerBook || "书卷"
@@ -5852,21 +6353,34 @@ function renderBookChapterGrids(opts) {
     bindBookGridClickHandlers(allMobile, testamentNameForBookId, opts);
   }
 
-  const currentBook = getCurrentBookMeta();
+  const selectedBookId = String(bookIdOverride || state.frontState.bookId || "").trim();
+  const selectedChapter =
+    chapterOverride === null
+      ? Number(state.frontState.chapter || 0)
+      : Number(chapterOverride || 0);
+  const currentBook =
+    getBookMetaById(selectedBookId) ||
+    getCurrentBookMeta();
   const ccGrid = Number(currentBook?.chapters);
   const chapterCount =
     Number.isFinite(ccGrid) && ccGrid >= 0 ? ccGrid : 1;
   const copy = getLocalizedCopy();
   const introShort = copy.bookIntroShort || "介绍";
-  const introActive = Number(state.frontState.chapter) === 0 ? "active" : "";
-  const introBtn = `<button type="button" class="chapter-item chapter-item--intro ${introActive}" data-chapter-grid-no="0">${escapeHtml(
-    introShort
-  )}</button>`;
+  const introActive = selectedChapter === 0 ? "active" : "";
+  const introBtn = includeIntroOption
+    ? `<button type="button" class="chapter-item chapter-item--intro ${introActive}" data-chapter-grid-no="0">${escapeHtml(
+        introShort
+      )}</button>`
+    : "";
+  const chapterSelectionDefault =
+    includeIntroOption || chapterCount <= 0
+      ? selectedChapter
+      : Math.max(1, selectedChapter);
 
   const chapterBtns = Array.from({ length: chapterCount }, (_, i) => {
     const chapterNo = i + 1;
     const active =
-      chapterNo === Number(state.frontState.chapter) ? "active" : "";
+      chapterNo === chapterSelectionDefault ? "active" : "";
     return `<button type="button" class="chapter-item ${active}" data-chapter-grid-no="${chapterNo}">${chapterNo}</button>`;
   }).join("");
 
@@ -5876,8 +6390,14 @@ function renderBookChapterGrids(opts) {
     btn.addEventListener("click", async () => {
       const raw = btn.getAttribute("data-chapter-grid-no");
       const nextChapter = raw === "0" ? 0 : Number(raw || 1);
+      const targetBook = getBookMetaById(selectedBookId);
 
       if (pickVerseMode && verseGridId) {
+        if (targetBook) {
+          state.frontState.testament = targetBook.testamentName;
+          state.frontState.bookId = targetBook.bookId;
+        }
+        chapterVersePickTargetChapter = nextChapter;
         state.frontState.chapter = nextChapter;
         saveFrontState();
         renderAllSelectors();
@@ -5887,10 +6407,15 @@ function renderBookChapterGrids(opts) {
           return;
         }
         await refreshCurrentPage();
-        renderBookChapterGrids(opts);
+        renderChapterVersePickPanel();
         return;
       }
 
+      chapterVersePickTargetChapter = nextChapter;
+      if (targetBook) {
+        state.frontState.testament = targetBook.testamentName;
+        state.frontState.bookId = targetBook.bookId;
+      }
       state.frontState.chapter = nextChapter;
       saveFrontState();
       renderAllSelectors();
@@ -5900,7 +6425,7 @@ function renderBookChapterGrids(opts) {
   });
 
   if (pickVerseMode && verseGridId) {
-    fillVersePickGrid(verseGridId);
+    void fillVersePickGrid(verseGridId, selectedBookId, selectedChapter);
   }
 
   syncBookChapterCompactLayoutAfterRender();
@@ -5934,18 +6459,11 @@ function renderPrimaryVersionPanel() {
         state.frontState.contentVersion = nextId;
         saveFrontState();
         renderAllSelectors();
-        closeToolbarPanel("primaryVersionPanel");
         await loadStudyContent();
         renderStudyContent();
       });
     }
   }
-
-  const copy = getLocalizedCopy();
-  const primaryTitleEl = document.getElementById("primaryVersionSectionTitle");
-  const compareTitleEl = document.getElementById("compareVersionSectionTitle");
-  if (primaryTitleEl) primaryTitleEl.textContent = copy.primaryVersionSingle;
-  if (compareTitleEl) compareTitleEl.textContent = copy.compareVersionMulti;
 
   const primarySelect = document.getElementById("toolbarPrimaryVersionSelect");
   if (primarySelect) {
@@ -5975,7 +6493,9 @@ function renderPrimaryVersionPanel() {
         state.frontState.primaryScriptureVersionId = nextId;
         state.frontState.secondaryScriptureVersionIds = (
           state.frontState.secondaryScriptureVersionIds || []
-        ).filter((id) => id !== nextId);
+        )
+          .filter((id) => id !== nextId)
+          .slice(0, 1);
 
         syncContentLangWithPrimaryVersion();
         saveFrontState();
@@ -5987,56 +6507,83 @@ function renderPrimaryVersionPanel() {
 }
 
 function renderCompareVersionPanel(closePanelOnToggle = true) {
-  const list = document.getElementById("compareVersionList");
-  if (!list) return;
+  const sel = document.getElementById("toolbarCompareVersionSelect");
+  if (!sel) return;
 
   const primaryId = state.frontState.primaryScriptureVersionId;
-  const selected = new Set(state.frontState.secondaryScriptureVersionIds || []);
+  let secs = state.frontState.secondaryScriptureVersionIds || [];
+  if (secs.length > 1) {
+    secs = secs
+      .filter((id) => id && id !== primaryId)
+      .slice(0, 1);
+    state.frontState.secondaryScriptureVersionIds = secs;
+    saveFrontState();
+  }
+  const currentSecondary = secs[0] || "";
+
   const options = getEnabledScriptureVersions().filter(
     (item) => item.id !== primaryId
   );
 
-  list.innerHTML = options.length
-    ? options
-        .map((item) => {
-          const checked = selected.has(item.id);
-          const langTag = item.lang ? ` [${item.lang}]` : "";
-          const active = checked ? "active" : "";
-          const checkText = checked ? "✓" : "";
-          return `<button type="button" class="version-item version-item-checkable ${active}" data-compare-version-id="${escapeHtml(
-            item.id
-          )}">
-              <span>${escapeHtml(item.label + langTag)}</span>
-              <span class="version-item-check">${escapeHtml(checkText)}</span>
-            </button>`;
-        })
-        .join("")
-    : `<div class="empty-state">${escapeHtml(getLocalizedCopy().noCompareVersion)}</div>`;
+  const copy = getLocalizedCopy();
+  const noneLabel = copy.compareVersionNone || "—";
 
-  list.querySelectorAll("[data-compare-version-id]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const versionId = btn.getAttribute("data-compare-version-id");
-      if (!versionId) return;
+  if (!options.length) {
+    sel.innerHTML = `<option value="" selected>${escapeHtml(
+      noneLabel
+    )}</option><option value="" disabled>${escapeHtml(
+      copy.noCompareVersion
+    )}</option>`;
+    sel.disabled = true;
+    if ((state.frontState.secondaryScriptureVersionIds || []).length) {
+      state.frontState.secondaryScriptureVersionIds = [];
+      saveFrontState();
+    }
+    return;
+  }
 
-      const next = new Set(state.frontState.secondaryScriptureVersionIds || []);
-      if (next.has(versionId)) {
-        next.delete(versionId);
-      } else {
-        next.add(versionId);
-      }
+  sel.disabled = false;
+  const noneSelected =
+    !currentSecondary ||
+    !options.some((x) => x.id === currentSecondary);
+  sel.innerHTML =
+    `<option value=""${noneSelected ? " selected" : ""}>${escapeHtml(
+      noneLabel
+    )}</option>` +
+    options
+      .map((item) => {
+        const langTag = item.lang ? ` [${item.lang}]` : "";
+        const isSel = item.id === currentSecondary;
+        return `<option value="${escapeHtml(item.id)}"${
+          isSel ? " selected" : ""
+        }>${escapeHtml(item.label + langTag)}</option>`;
+      })
+      .join("");
 
-      state.frontState.secondaryScriptureVersionIds = Array.from(next).filter(
-        (id) => id !== state.frontState.primaryScriptureVersionId
-      );
+  if (currentSecondary && options.some((x) => x.id === currentSecondary)) {
+    sel.value = currentSecondary;
+  } else {
+    sel.value = "";
+    if (currentSecondary) {
+      state.frontState.secondaryScriptureVersionIds = [];
+      saveFrontState();
+    }
+  }
 
+  if (!sel.dataset.toolbarCompareBound) {
+    sel.dataset.toolbarCompareBound = "1";
+    sel.addEventListener("change", async () => {
+      const v = String(sel.value || "").trim();
+      state.frontState.secondaryScriptureVersionIds =
+        v && v !== state.frontState.primaryScriptureVersionId ? [v] : [];
       saveFrontState();
       renderAllSelectors();
       if (closePanelOnToggle) {
-        closeToolbarPanel("primaryVersionPanel");
+        closeReaderFontSettings();
       }
       await refreshCurrentPage();
     });
-  });
+  }
 }
 
 async function refreshCurrentPage() {
@@ -6048,6 +6595,8 @@ async function refreshCurrentPage() {
   updatePageTitle();
   updateBookLayoutLandingClass();
   renderToolbarTriggers();
+  syncMobileTopbarActionsDock();
+  syncMobileReaderToolbarDock();
 }
 
 async function loadApprovedChapterQuestions() {
@@ -6110,6 +6659,7 @@ async function loadStudyContent() {
   } catch (_) {}
   state.bookIntroMarkdown = null;
   state.bookLandingChapterVideos = [];
+  state.bookLandingRepeatedWords = [];
   state.bookLandingVideoPickIndex = 0;
   state.bookLandingChapterIllustration = null;
   if (isBookLandingChapter()) {
@@ -6147,6 +6697,19 @@ async function loadStudyContent() {
         state.bookLandingChapterVideos = data0.chapterVideos;
         state.bookLandingVideoPickIndex = 0;
       }
+      if (Array.isArray(data0.repeatedWords) && data0.repeatedWords.length) {
+        state.bookLandingRepeatedWords = data0.repeatedWords;
+      }
+    }
+    if (!state.bookLandingRepeatedWords.length) {
+      try {
+        state.bookLandingRepeatedWords = await readRepeatedWordsFromPublishedChapter({
+          version: state.frontState.contentVersion,
+          lang: state.frontState.contentLang,
+          bookId: state.frontState.bookId,
+          chapter: 1,
+        });
+      } catch (_) {}
     }
     return;
   }
@@ -6204,6 +6767,23 @@ async function loadStudyContent() {
   }
 
   state.studyContent = data;
+  if (
+    !Array.isArray(state.studyContent.repeatedWords) ||
+    !state.studyContent.repeatedWords.length
+  ) {
+    const repeatedWords = await readRepeatedWordsFromPublishedChapter({
+      version: state.frontState.contentVersion,
+      lang: state.frontState.contentLang,
+      bookId: state.frontState.bookId,
+      chapter: state.frontState.chapter,
+    });
+    if (repeatedWords.length) {
+      state.studyContent = {
+        ...state.studyContent,
+        repeatedWords,
+      };
+    }
+  }
   void loadBookCharacterTimeline(params, loadGen);
   const shouldEnrichFigures =
     data &&
@@ -6220,7 +6800,6 @@ async function loadStudyContent() {
 function updatePageTitle() {
   const chapterNumberEl = document.getElementById("pageChapterNumber");
   const bookTitleEl = document.getElementById("pageBookTitle");
-  const bottomTitleEl = document.getElementById("chapterNavTitleBottom");
   const bookChapterTriggerText = document.getElementById(
     "bookChapterTriggerText"
   );
@@ -6241,12 +6820,6 @@ function updatePageTitle() {
 
   if (chapterNumberEl) chapterNumberEl.textContent = chapterNumberText;
   if (bookTitleEl) bookTitleEl.textContent = bookTitleText;
-  if (bottomTitleEl) {
-    bottomTitleEl.textContent = formatBookChapterLabel(
-      scriptureBookLabel,
-      state.frontState.chapter
-    );
-  }
   if (bookChapterTriggerText) {
     bookChapterTriggerText.textContent = getLocalizedCopy().triggerBook;
   }
@@ -6255,20 +6828,45 @@ function updatePageTitle() {
   if (prevTopBtn) prevTopBtn.setAttribute("aria-label", copy.prevChapter);
   if (nextTopBtn) nextTopBtn.setAttribute("aria-label", copy.nextChapter);
 
-  const indexAbbrEl = document.getElementById("bookIndexTabAbbr");
+  const indexEntries = collectBookPageIndexEntries();
   const indexTabBtn = document.getElementById("bookPageIndexTab");
   const abbrFull = getCurrentBookAbbreviationForIndexTab();
-  const abbrOne =
-    abbrFull && [...String(abbrFull)].length
-      ? [...String(abbrFull)][0]
-      : "";
-  if (indexAbbrEl) indexAbbrEl.textContent = abbrOne || "—";
   if (indexTabBtn) {
+    indexTabBtn.innerHTML = buildBookPageIndexTabsHtml(
+      indexEntries,
+      state.frontState.bookId
+    );
     indexTabBtn.setAttribute(
       "aria-label",
-      `${copy.chapterVersePickNavTitle || copy.chapterVersePickTitle || copy.triggerBook || "章节与经节"} · ${abbrFull || getBookLabelForPrimaryScripture()}`
+      `${copy.chapters || copy.triggerBook || "章节"} · ${abbrFull || getBookLabelForPrimaryScripture()}`
     );
   }
+  syncBookPageIndexTabPlacement();
+}
+
+function syncBookPageIndexTabPlacement() {
+  const indexTabBtn = document.getElementById("bookPageIndexTab");
+  if (!indexTabBtn) return;
+  const showIndex = !isBookLandingChapter() && state.frontState.showScripture !== false;
+  indexTabBtn.hidden = !showIndex;
+  if (!showIndex) {
+    indexTabBtn.style.removeProperty("--book-page-index-top");
+    indexTabBtn.style.removeProperty("--book-page-index-height");
+    return;
+  }
+  const page = indexTabBtn.closest(".book-page.left-page");
+  const bodyEl = page?.querySelector(".chapter-reading-body");
+  if (!page || !bodyEl) {
+    indexTabBtn.style.removeProperty("--book-page-index-top");
+    indexTabBtn.style.removeProperty("--book-page-index-height");
+    return;
+  }
+  const pageRect = page.getBoundingClientRect();
+  const bodyRect = bodyEl.getBoundingClientRect();
+  const top = Math.max(0, Math.round(bodyRect.top - pageRect.top));
+  const height = Math.max(0, Math.round(bodyRect.bottom - bodyRect.top));
+  indexTabBtn.style.setProperty("--book-page-index-top", `${top}px`);
+  indexTabBtn.style.setProperty("--book-page-index-height", `${height}px`);
 }
 
 async function enrichChapterCharacterFiguresIfNeeded(params, loadGen) {
@@ -6419,6 +7017,15 @@ function syncChapterIllustrationSlot() {
     '" alt="" decoding="sync" fetchpriority="high" loading="eager" /><span class="chapter-illustration-watermark" aria-hidden="true"></span></figure>';
   const imgEl = slot.querySelector(".chapter-illustration-img");
   bindChapterIllustrationImageFallback(imgEl);
+  if (imgEl) {
+    imgEl.addEventListener(
+      "load",
+      () => {
+        requestAnimationFrame(syncBookPageIndexTabPlacement);
+      },
+      { once: true }
+    );
+  }
 }
 
 function chapterRosterIdentityTagsInnerHtml(identityTags) {
@@ -6537,15 +7144,15 @@ function syncChapterCharacterRoster() {
     const line4Raw = tagsPlain || hasStructTags || roleZh;
     const dash = "—";
     const lifeLine = lifeRaw
-      ? `<span class="chapter-character-roster-line chapter-character-roster-life">${escapeHtml(
+      ? `<span class="chapter-character-roster-line chapter-character-roster-life"><span class="chapter-character-roster-value">${escapeHtml(
           lifeRaw
-        )}</span>`
-      : `<span class="chapter-character-roster-line chapter-character-roster-life chapter-character-roster-line--empty">${dash}</span>`;
+        )}</span></span>`
+      : `<span class="chapter-character-roster-line chapter-character-roster-life chapter-character-roster-line--empty"><span class="chapter-character-roster-value">${dash}</span></span>`;
     const eraLine = eraRaw
-      ? `<span class="chapter-character-roster-line chapter-character-roster-era">${escapeHtml(
+      ? `<span class="chapter-character-roster-line chapter-character-roster-era"><span class="chapter-character-roster-value">${escapeHtml(
           eraRaw
-        )}</span>`
-      : `<span class="chapter-character-roster-line chapter-character-roster-era chapter-character-roster-line--empty">${dash}</span>`;
+        )}</span></span>`
+      : `<span class="chapter-character-roster-line chapter-character-roster-era chapter-character-roster-line--empty"><span class="chapter-character-roster-value">${dash}</span></span>`;
     let tagsClass =
       "chapter-character-roster-line chapter-character-roster-tags";
     if (line4Raw && !tagsPlain && !hasStructTags && roleZh) {
@@ -6555,8 +7162,10 @@ function syncChapterCharacterRoster() {
           : " chapter-character-roster-tags--role";
     }
     const tagsLine = line4Raw
-      ? `<span class="${tagsClass}">${tagsInner || escapeHtml(roleZh)}</span>`
-      : `<span class="chapter-character-roster-line chapter-character-roster-tags chapter-character-roster-line--empty">${dash}</span>`;
+      ? `<span class="${tagsClass}"><span class="chapter-character-roster-value">${tagsInner || escapeHtml(
+          roleZh
+        )}</span></span>`
+      : `<span class="chapter-character-roster-line chapter-character-roster-tags chapter-character-roster-line--empty"><span class="chapter-character-roster-value">${dash}</span></span>`;
     const caption = `<figcaption class="chapter-character-roster-caption"><div class="chapter-character-roster-field chapter-character-roster-field--name"><span class="chapter-character-roster-name">${name}</span></div><div class="chapter-character-roster-field chapter-character-roster-field--life">${lifeLine}</div><div class="chapter-character-roster-field chapter-character-roster-field--era">${eraLine}</div><div class="chapter-character-roster-field chapter-character-roster-field--tags">${tagsLine}</div></figcaption>`;
     cards.push(
       `<figure class="chapter-character-roster-item${
@@ -6592,7 +7201,11 @@ function renderStudyContent() {
   const approvedEl = document.getElementById("chapterApprovedQuestions");
 
   if (isBookLandingChapter()) {
-    if (repeatedWordsEl) repeatedWordsEl.textContent = "—";
+    if (repeatedWordsEl) {
+      repeatedWordsEl.innerHTML = renderRepeatedWords(
+        state.bookLandingRepeatedWords || []
+      );
+    }
     mountChapterVideoSlots(state.bookLandingChapterVideos);
     /* 卷首页介绍卡片暂隐藏（仍拉取 book_intro 以备日后恢复） */
     if (leftBlocksEl) leftBlocksEl.innerHTML = "";
@@ -6627,6 +7240,9 @@ function renderStudyContent() {
     clearChapterVideoSlots();
     if (leftBlocksEl) {
       const lead = renderScriptureLeadBookTitleHtml();
+      const repeatedWordsHtml = state.studyContent?.repeatedWords?.length
+        ? renderRepeatedWordsInlineHtml(state.studyContent.repeatedWords)
+        : "";
       const scriptureLeftHtml = showScripture
         ? `${lead}<article class="flow-card flow-card-scripture-fallback">${renderVerseRangeBlock(
             fallbackStart,
@@ -6638,7 +7254,10 @@ function renderStudyContent() {
             getLocalizedCopy().noContent
           )}</div></div>`
         : "";
-      leftBlocksEl.innerHTML = `${scriptureLeftHtml}${questionEmptyHtml}`;
+      leftBlocksEl.innerHTML = `${lead}${repeatedWordsHtml}${scriptureLeftHtml.replace(
+        lead,
+        ""
+      )}${questionEmptyHtml}`;
     }
     if (rightBlocksEl) {
       const hasRight = showScripture && splitAt < fallbackEnd;
@@ -6672,10 +7291,12 @@ function renderStudyContent() {
   const rendered = (state.studyContent.segments || []).map(renderSegmentCard);
   const splitIndex = Math.ceil(rendered.length / 2);
   const scriptureLead = renderScriptureLeadBookTitleHtml();
-
+  const repeatedWordsHtml = renderRepeatedWordsInlineHtml(
+    state.studyContent.repeatedWords || []
+  );
   if (leftBlocksEl)
     leftBlocksEl.innerHTML =
-      scriptureLead + rendered.slice(0, splitIndex).join("");
+      scriptureLead + repeatedWordsHtml + rendered.slice(0, splitIndex).join("");
   if (rightBlocksEl)
     rightBlocksEl.innerHTML = rendered.slice(splitIndex).join("");
 
@@ -6691,6 +7312,7 @@ function renderStudyContent() {
   } finally {
     syncChapterIllustrationSlot();
     syncChapterCharacterRoster();
+    syncBookPageIndexTabPlacement();
   }
 }
 
@@ -6836,6 +7458,41 @@ function renderRepeatedWords(items) {
       return `<span class="repeated-word-item">${word}</span>`;
     })
     .join("");
+}
+
+function renderRepeatedWordsInlineHtml(items) {
+  return `<div class="chapter-repeated-words-inline"><div class="repeated-words-line">${renderRepeatedWords(
+    items || []
+  )}</div></div>`;
+}
+
+async function readRepeatedWordsFromPublishedChapter({
+  version,
+  lang,
+  bookId,
+  chapter,
+}) {
+  try {
+    const v = String(version || "").trim();
+    const l = String(lang || "").trim();
+    const b = String(bookId || "").trim();
+    const c = String(Math.max(0, Number(chapter) || 0));
+    if (!v || !l || !b || !c) return [];
+    const url = resolveStudyApiPath(
+      `/content_published/${encodeURIComponent(v)}/${encodeURIComponent(l)}/${encodeURIComponent(b)}/${encodeURIComponent(c)}.json`
+    );
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => null);
+    const repeatedWords = Array.isArray(data?.repeatedWords)
+      ? data.repeatedWords
+      : [];
+    return repeatedWords.filter(
+      (item) => item && String(item.word || "").trim()
+    );
+  } catch {
+    return [];
+  }
 }
 
 /** 普通读经章：书卷名放在经文流首段小标题上方居中（顶栏 #pageBookTitle 隐藏） */

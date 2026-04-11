@@ -7,7 +7,7 @@
     <meta name="askbible-api-base" content="" />
     <title>主页版面结构分拆 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/styles.css?v=111" />
     <link rel="stylesheet" href="/admin-shell.css?v=12" />
     <script src="/theme-apply.js?v=2"></script>
     <style>
@@ -333,8 +333,8 @@
             <tbody>
               <tr>
                 <td>阅读工具条</td>
-                <td><code>.page-toolbar</code>、<code>#bookChapterTrigger</code>、<code>#primaryVersionTrigger</code>、<code>#verseSearchOpenBtn</code>、<code>#displayModeSwitch</code></td>
-                <td>书卷 / 版本+ / 搜索 / 经文·全显·问题</td>
+                <td><code>.page-toolbar</code>、<code>#bookChapterTrigger</code>、<code>#verseSearchOpenBtn</code>、<code>#displayModeSwitch</code></td>
+                <td>书卷与搜索触发器在 DOM 中隐藏，由顶栏/底栏与 <code>/#openBookChapter</code>、<code>/#openVerseSearch</code> 打开；经文·全显·问题等见其它区块（阅读设置见 <code>/#openReaderFontSettings</code>）</td>
               </tr>
               <tr>
                 <td>隐藏表单（兼容 JS）</td>
@@ -442,7 +442,7 @@
               </tr>
               <tr>
                 <td>底部章节导航</td>
-                <td><code>.chapter-nav.bottom-nav</code>、<code>#prevChapterBtnBottom</code>、<code>#nextChapterBtnBottom</code>、<code>#chapterNavTitleBottom</code></td>
+                <td><code>.chapter-nav.bottom-nav</code>、<code>#prevChapterBtnBottom</code>、<code>#nextChapterBtnBottom</code>（中间章节标题已移除）</td>
                 <td>移动端友好的底栏翻章</td>
               </tr>
             </tbody>

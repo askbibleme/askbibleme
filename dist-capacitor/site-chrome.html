@@ -7,11 +7,11 @@
     <meta name="askbible-api-base" content="" />
     <title>顶栏与底栏 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/styles.css?v=111" />
     <link rel="stylesheet" href="/admin-shell.css?v=12" />
     <script src="/theme-apply.js?v=2"></script>
     <!-- 不用 defer：保证内联脚本执行前已注册 ASKBIBLE_CHROME_NAV_ICON_OPTIONS（顶栏图标下拉） -->
-    <script src="/site-chrome.js?v=19"></script>
+    <script src="/site-chrome.js?v=27"></script>
     <style>
       .sc-page {
         max-width: 920px;
@@ -165,7 +165,7 @@
       }
       .sc-nav-row {
         display: grid;
-        grid-template-columns: auto auto 1fr 1fr minmax(200px, 1fr) minmax(88px, 100px) auto;
+        grid-template-columns: minmax(56px, 72px) auto auto 1fr 1fr minmax(200px, 1fr) minmax(88px, 100px) auto;
         gap: 10px;
         align-items: start;
         padding: 10px 0;
@@ -272,6 +272,31 @@
       .sc-nav-cell--icon-only .sc-nav-cell-label {
         margin-bottom: 2px;
       }
+      .sc-nav-cell--visible-toggle {
+        align-items: center;
+        text-align: center;
+      }
+      .sc-nav-cell--visible-toggle .sc-nav-visible-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+        margin-top: 2px;
+      }
+      .sc-nav-cell--visible-toggle .sc-nav-visible {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+      .sc-nav-cell--visible-toggle .sc-nav-visible-wrap .sc-nav-cell-label {
+        color: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+      }
       @media (max-width: 900px) {
         .sc-nav-row {
           grid-template-columns: 1fr;
@@ -332,10 +357,9 @@
           <code>/assets/brand/askbible-wordmark.svg</code>（无需上传、勿复制外链）；若要侧栏与顶栏都用深色字标，可把下方地址直接改为
           <code>/assets/brand/askbible-wordmark-ink.svg</code>。亦可改为其他本站路径或 https 地址。
         </p>
-        <p class="sc-hint" id="scAdminPageRev" data-sc-page-rev="2026-04-04" style="margin: -6px 0 14px; font-size: 12px">
-          本页修订 <code>2026-04-04</code>：导航「图标」为<strong>下拉菜单</strong>+左侧预览（不再是一整片图标按钮）。若你仍看到旧界面，多半是
-          <strong>Service Worker 缓存了旧 HTML</strong>：请在本站页面 → 开发者工具 → Application → Service Workers 点
-          <strong>Unregister</strong>，或「清空站点数据」后强制刷新；本地请确保用 <code>node server.js</code> 打开当前仓库而非旧目录。
+        <p class="sc-hint" id="scAdminPageRev" data-sc-page-rev="2026-04-11" style="margin: -6px 0 14px; font-size: 12px">
+          本页修订 <code>2026-04-11</code>：「显示」与复选框同属可点标签；请点<strong>复选框或「显示」文字</strong>切换（只点格子外空白不会改状态）。若界面异常请先
+          <strong>Unregister Service Worker</strong> 并硬刷新。本地请用 <code>node server.js</code> 打开当前仓库。
         </p>
         <p id="scAuth" class="sc-auth" hidden></p>
 
@@ -428,6 +452,10 @@
         </div>
         <div class="sc-field">
           <span class="sc-nav-cell-label" style="display: block; margin-bottom: 8px">顶栏导航链接</span>
+          <p class="sc-muted-hint" style="margin: 0 0 10px; font-size: 13px; color: var(--muted)">
+            「设置」：新增一行，链接填 <code>/#openReaderFontSettings</code>，图标选「设置」，勾选「仅图标」；最左「显示」可隐藏。若希望出现在页面最底部，请用下方「底栏图标链接」同样配置并打开「显示全站底栏」。「下一章 / 上一章」与书页内箭头一致：链接填
+            <code>/#goNextChapter</code>、<code>/#goPrevChapter</code>（须在读经页且存在下一章/上一章时才会跳转）。
+          </p>
           <div id="scNavList" class="sc-nav-list" aria-label="顶栏导航链接列表"></div>
           <div class="sc-nav-toolbar">
             <button type="button" id="scNavAddBtn" class="secondary-btn">添加链接</button>
@@ -444,7 +472,7 @@
         <section class="sc-block" aria-labelledby="scFooterHeading">
           <h2 id="scFooterHeading" class="sc-block-title">底栏设置</h2>
           <p class="sc-block-lead">
-            可选全站底部说明文字，纯文本、按行分段，不支持 HTML。分为<strong>左 / 中 / 右</strong>三栏展示；仅填中间一栏时接近原先「整段居中」效果。旧配置里只有一段文案的，会自动出现在中间栏。
+            可选全站底部<strong>说明文字</strong>（纯文本、按行分段，不支持 HTML）与<strong>图标链接行</strong>。文字分为<strong>左 / 中 / 右</strong>三栏；图标链接与顶栏同款圆角标签，显示在文字下方、整行居中。仅填中间一栏文字时接近原先「整段居中」效果。
           </p>
         <div class="sc-field">
           <label><input type="checkbox" id="scFooterOn" /> 显示全站底栏</label>
@@ -462,6 +490,17 @@
             <label for="scFooterRight">右侧（右对齐）</label>
             <textarea id="scFooterRight" rows="4" placeholder="每行一段"></textarea>
           </div>
+        </div>
+        <div class="sc-field">
+          <span class="sc-nav-cell-label" style="display: block; margin-bottom: 8px">底栏图标链接</span>
+          <p class="sc-muted-hint" style="margin: 0 0 10px; font-size: 13px; color: var(--muted)">
+            与顶栏导航相同：选图标、可勾选「仅图标」；链接支持 <code>/</code>、<code>https://</code> 与 <code>/#openReaderFontSettings</code> 等同页动作。不要往文字栏里粘贴 HTML，图标按钮请在这里配置。
+          </p>
+          <div id="scFooterNavList" class="sc-nav-list" aria-label="底栏图标链接列表"></div>
+          <div class="sc-nav-toolbar">
+            <button type="button" id="scFooterNavAddBtn" class="secondary-btn">添加底栏链接</button>
+          </div>
+          <p class="sc-hint">最多 16 条，与顶栏合计独立计数。取消「显示」可隐藏单项。</p>
         </div>
         </section>
         <div class="sc-actions">
@@ -483,6 +522,8 @@
       ];
       /** 与 server.js SITE_CHROME_MAX_NAV 一致 */
       const SITE_CHROME_NAV_MAX = 16;
+      const SC_NAV_LIST_ID = "scNavList";
+      const SC_FOOTER_NAV_LIST_ID = "scFooterNavList";
 
       function getToken() {
         return String(localStorage.getItem(USER_AUTH_TOKEN_KEY) || "");
@@ -671,11 +712,40 @@
         }
       }
 
-      function appendNavRow(link) {
-        const list = document.getElementById("scNavList");
+      function appendNavRow(link, listId) {
+        const lid = listId || SC_NAV_LIST_ID;
+        const isFooter = lid === SC_FOOTER_NAV_LIST_ID;
+        const list = document.getElementById(lid);
+        if (!list) return;
         const row = document.createElement("div");
         row.className = "sc-nav-row";
         row.setAttribute("data-sc-nav-row", "");
+
+        const cellVisible = document.createElement("div");
+        cellVisible.className = "sc-nav-cell sc-nav-cell--visible-toggle";
+        const labVis = document.createElement("label");
+        labVis.className = "sc-nav-visible-wrap";
+        const cbVis = document.createElement("input");
+        cbVis.type = "checkbox";
+        cbVis.className = "sc-nav-visible";
+        cbVis.setAttribute(
+          "aria-label",
+          isFooter ? "在站点底栏显示此项" : "在站点顶栏显示此项"
+        );
+        cbVis.checked = link?.visible !== false;
+        const sVis = document.createElement("span");
+        sVis.className = "sc-nav-cell-label";
+        sVis.textContent = "显示";
+        const hidVis = document.createElement("input");
+        hidVis.type = "hidden";
+        hidVis.className = "sc-nav-visible-value";
+        hidVis.value = cbVis.checked ? "1" : "0";
+        cbVis.addEventListener("change", function () {
+          hidVis.value = cbVis.checked ? "1" : "0";
+        });
+        /* 文案须在 label 内：否则用户点「显示」二字不会切换复选框，保存一直为勾选 */
+        labVis.append(cbVis, sVis);
+        cellVisible.append(labVis, hidVis);
 
         const meta = document.createElement("div");
         meta.className = "sc-nav-row-meta";
@@ -765,7 +835,7 @@
         cellIconOnly.className = "sc-nav-cell sc-nav-cell--icon-only";
         const slo = document.createElement("span");
         slo.className = "sc-nav-cell-label";
-        slo.textContent = "顶栏";
+        slo.textContent = isFooter ? "底栏" : "顶栏";
         const lab = document.createElement("label");
         lab.className = "sc-nav-icon-only-wrap";
         const cb = document.createElement("input");
@@ -792,26 +862,29 @@
         rm.className = "secondary-btn sc-nav-remove";
         rm.textContent = "删除";
 
-        row.append(meta, cellLabel, cellHref, cellIcon, cellIconOnly, rm);
+        row.append(cellVisible, meta, cellLabel, cellHref, cellIcon, cellIconOnly, rm);
         list.appendChild(row);
         updateScNavRowIconSelection(row, want);
       }
 
-      function renderNavRows(links) {
-        const list = document.getElementById("scNavList");
+      function renderNavRows(links, listId) {
+        const lid = listId || SC_NAV_LIST_ID;
+        const list = document.getElementById(lid);
+        if (!list) return;
         list.replaceChildren();
         const arr = Array.isArray(links) ? links : [];
         if (!arr.length) {
-          appendNavRow({ href: "", label: "", icon: "", iconOnly: false });
+          appendNavRow({ href: "", label: "", icon: "", iconOnly: false }, lid);
           return;
         }
         arr.forEach(function (x) {
-          appendNavRow(x && typeof x === "object" ? x : {});
+          appendNavRow(x && typeof x === "object" ? x : {}, lid);
         });
       }
 
-      function collectNavLinksFromDom() {
-        const rows = document.querySelectorAll("#scNavList [data-sc-nav-row]");
+      function collectNavLinksFromList(listId) {
+        const lid = listId || SC_NAV_LIST_ID;
+        const rows = document.querySelectorAll("#" + lid + " [data-sc-nav-row]");
         const out = [];
         rows.forEach(function (row) {
           const il = row.querySelector(".sc-nav-label");
@@ -819,6 +892,8 @@
           const hid = row.querySelector(".sc-nav-icon-value");
           const cb = row.querySelector(".sc-nav-icon-only");
           const hidOnly = row.querySelector(".sc-nav-icon-only-value");
+          const cbVis = row.querySelector(".sc-nav-visible");
+          const hidVis = row.querySelector(".sc-nav-visible-value");
           const label = (il && il.value.trim()) || "";
           const href = (ih && ih.value.trim()) || "";
           const icon = normalizeScNavIconId(hid && hid.value);
@@ -827,9 +902,21 @@
             if (hidOnly) iconOnly = hidOnly.value === "1";
             else iconOnly = !!(cb && cb.checked);
           }
-          if (label || href) out.push({ href, label, icon, iconOnly });
+          /** 以复选框为准：避免仅 hidden 与界面不同步时把「不显示」存成 true */
+          let visible = true;
+          if (cbVis) {
+            visible = !!cbVis.checked;
+            if (hidVis) hidVis.value = visible ? "1" : "0";
+          } else if (hidVis) {
+            visible = hidVis.value === "1";
+          }
+          if (label || href) out.push({ href, label, icon, iconOnly, visible });
         });
         return out;
+      }
+
+      function collectNavLinksFromDom() {
+        return collectNavLinksFromList(SC_NAV_LIST_ID);
       }
 
       function readScBool(v) {
@@ -866,7 +953,8 @@
         setChecked("scBrandSubtitleShow", t.brandSubtitleShow !== false);
         setChecked("scBrandSubtitleInline", t.brandSubtitleInline === true);
         setChecked("scBrandSubtitleDismissible", t.brandSubtitleDismissible === true);
-        renderNavRows(t.navLinks || []);
+        renderNavRows(t.navLinks || [], SC_NAV_LIST_ID);
+        renderNavRows(f.navLinks || [], SC_FOOTER_NAV_LIST_ID);
         setChecked("scFooterOn", f.enabled === true);
         setVal("scFooterLeft", f.left || "");
         setVal(
@@ -887,8 +975,12 @@
 
       function collectPayload() {
         const navLinks = collectNavLinksFromDom();
+        const footerNavLinks = collectNavLinksFromList(SC_FOOTER_NAV_LIST_ID);
         if (navLinks.length > SITE_CHROME_NAV_MAX) {
           throw new Error("顶栏导航最多 " + SITE_CHROME_NAV_MAX + " 条，请删除多余项。");
+        }
+        if (footerNavLinks.length > SITE_CHROME_NAV_MAX) {
+          throw new Error("底栏图标链接最多 " + SITE_CHROME_NAV_MAX + " 条，请删除多余项。");
         }
         const $ = (id) => document.getElementById(id);
         const tv = (id) => ($(id) ? String($(id).value).trim() : "");
@@ -900,6 +992,9 @@
         };
         const topbarSticky = tc("scTopbarSticky", false);
         return {
+          /** 与 topbar.navLinks 相同；服务端优先读此根级字段，避免嵌套 navLinks 在传输中被剥掉 */
+          topbarNavLinks: navLinks,
+          footerNavLinks: footerNavLinks,
           topbarSticky,
           topbar: {
             logoUrl: tv("scLogoUrl"),
@@ -923,116 +1018,30 @@
             left: $("scFooterLeft") ? $("scFooterLeft").value : "",
             center: $("scFooterCenter") ? $("scFooterCenter").value : "",
             right: $("scFooterRight") ? $("scFooterRight").value : "",
+            navLinks: footerNavLinks,
           },
         };
       }
 
-      document.getElementById("scShowSplit").addEventListener("change", toggleSplit);
+      let scSaveBusy = false;
+      let scSavePending = null;
 
-      document.getElementById("scNavAddBtn").addEventListener("click", function () {
-        const n = document.querySelectorAll("#scNavList [data-sc-nav-row]").length;
-        if (n >= SITE_CHROME_NAV_MAX) {
-          setStatus("顶栏导航最多 " + SITE_CHROME_NAV_MAX + " 条。", true);
-          return;
-        }
-        appendNavRow({ href: "", label: "", icon: "", iconOnly: false });
-      });
-
-      function getScNavDragAfter(container, y) {
-        const rows = [...container.querySelectorAll("[data-sc-nav-row]:not(.sc-nav-row--dragging)")];
-        let best = { offset: Number.NEGATIVE_INFINITY, element: null };
-        rows.forEach(function (child) {
-          const box = child.getBoundingClientRect();
-          const offset = y - box.top - box.height / 2;
-          if (offset < 0 && offset > best.offset) {
-            best = { offset, element: child };
-          }
-        });
-        return best.element;
+      function mergeScSavePending(prev, fromAuto) {
+        if (!prev) return { fromAuto: !!fromAuto };
+        return { fromAuto: !!(prev.fromAuto && fromAuto) };
       }
 
-      function moveScNavRow(row, delta) {
-        const list = document.getElementById("scNavList");
-        if (!list || !row) return;
-        if (delta < 0 && row.previousElementSibling) {
-          list.insertBefore(row, row.previousElementSibling);
-        } else if (delta > 0 && row.nextElementSibling) {
-          list.insertBefore(row.nextElementSibling, row);
-        }
-      }
-
-      (function initScNavListInteractions() {
-        const list = document.getElementById("scNavList");
-        if (!list || list.dataset.scNavBound === "1") return;
-        list.dataset.scNavBound = "1";
-        let dragRow = null;
-        list.addEventListener("dragstart", function (e) {
-          const h = e.target.closest(".sc-nav-drag-handle");
-          if (!h) return;
-          dragRow = h.closest("[data-sc-nav-row]");
-          if (!dragRow) return;
-          dragRow.classList.add("sc-nav-row--dragging");
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", "sc-nav");
-        });
-        list.addEventListener("dragend", function () {
-          if (dragRow) dragRow.classList.remove("sc-nav-row--dragging");
-          dragRow = null;
-        });
-        list.addEventListener("dragover", function (e) {
-          if (!dragRow) return;
-          e.preventDefault();
-          const after = getScNavDragAfter(list, e.clientY);
-          if (after == null) list.appendChild(dragRow);
-          else list.insertBefore(dragRow, after);
-        });
-        list.addEventListener("change", function (e) {
-          const t = e.target;
-          if (!t || !t.classList || !t.classList.contains("sc-nav-icon-select")) return;
-          const row = t.closest("[data-sc-nav-row]");
-          if (row) updateScNavRowIconSelection(row, t.value || "");
-        });
-        list.addEventListener("click", function (e) {
-          const up = e.target.closest(".sc-nav-move-up");
-          const down = e.target.closest(".sc-nav-move-down");
-          if (up || down) {
-            const row = (up || down).closest("[data-sc-nav-row]");
-            if (row) moveScNavRow(row, up ? -1 : 1);
-            return;
-          }
-          const btn = e.target.closest(".sc-nav-remove");
-          if (!btn) return;
-          const row = btn.closest("[data-sc-nav-row]");
-          if (row) row.remove();
-          if (!document.querySelector("#scNavList [data-sc-nav-row]")) {
-            appendNavRow({ href: "", label: "", icon: "", iconOnly: false });
-          }
-        });
-      })();
-
-      document.getElementById("scReloadBtn").addEventListener("click", async function () {
+      async function saveSiteChromeAndApply(opts) {
+        const fromAuto = !!(opts && opts.fromAuto);
         if (!getToken()) {
           setStatus("请先登录。", true);
           return;
         }
-        setStatus("加载中…", false);
-        try {
-          const data = await fetchSiteChromeAdminJson({
-            headers: { Authorization: "Bearer " + getToken() },
-          });
-          applyForm(data);
-          setStatus("已加载。更新于 " + (data.updatedAt || "—"), false);
-          window.dispatchEvent(new Event("askbible-site-chrome-reload"));
-        } catch (e) {
-          setStatus(String(e.message || e), true);
-        }
-      });
-
-      document.getElementById("scSaveBtn").addEventListener("click", async function () {
-        if (!getToken()) {
-          setStatus("请先登录。", true);
+        if (scSaveBusy) {
+          scSavePending = mergeScSavePending(scSavePending, fromAuto);
           return;
         }
+        scSaveBusy = true;
         setStatus("保存中…", false);
         try {
           const body = collectPayload();
@@ -1054,10 +1063,175 @@
           if (typeof window.__applyAskBibleSiteChrome === "function") {
             window.__applyAskBibleSiteChrome(applied);
           }
-          setStatus("已保存。其他已打开页面刷新后即可同步。", false);
+          setStatus(
+            fromAuto ? "已自动保存。" : "已保存。其他已打开页面刷新后即可同步。",
+            false
+          );
+        } catch (e) {
+          setStatus(String(e.message || e), true);
+        } finally {
+          scSaveBusy = false;
+          if (scSavePending) {
+            const next = scSavePending;
+            scSavePending = null;
+            void saveSiteChromeAndApply(next);
+          }
+        }
+      }
+
+      /**
+       * 在 document 上委托：避免仅绑在 appendNavRow 上的监听器在个别环境下未触发保存；
+       * 同步 hidden 后用 queueMicrotask 再 collectPayload，保证已读到复选框最终状态。
+       */
+      function wireScNavCheckboxAutoSave() {
+        function syncAndScheduleSave(ev) {
+          const t = ev.target;
+          if (!t || !t.classList) return;
+          const inTop = t.closest("#" + SC_NAV_LIST_ID);
+          const inFoot = t.closest("#" + SC_FOOTER_NAV_LIST_ID);
+          if (!inTop && !inFoot) return;
+          const row = t.closest("[data-sc-nav-row]");
+          if (!row) return;
+          if (t.classList.contains("sc-nav-visible")) {
+            const hid = row.querySelector(".sc-nav-visible-value");
+            if (hid) hid.value = t.checked ? "1" : "0";
+            queueMicrotask(function () {
+              void saveSiteChromeAndApply({ fromAuto: true });
+            });
+            return;
+          }
+          if (t.classList.contains("sc-nav-icon-only") && !t.disabled) {
+            const hidO = row.querySelector(".sc-nav-icon-only-value");
+            if (hidO) hidO.value = t.checked ? "1" : "0";
+            queueMicrotask(function () {
+              void saveSiteChromeAndApply({ fromAuto: true });
+            });
+          }
+        }
+        document.addEventListener("change", syncAndScheduleSave, true);
+      }
+      wireScNavCheckboxAutoSave();
+
+      document.getElementById("scShowSplit").addEventListener("change", toggleSplit);
+
+      document.getElementById("scNavAddBtn").addEventListener("click", function () {
+        const n = document.querySelectorAll("#scNavList [data-sc-nav-row]").length;
+        if (n >= SITE_CHROME_NAV_MAX) {
+          setStatus("顶栏导航最多 " + SITE_CHROME_NAV_MAX + " 条。", true);
+          return;
+        }
+        appendNavRow({ href: "", label: "", icon: "", iconOnly: false }, SC_NAV_LIST_ID);
+      });
+
+      document.getElementById("scFooterNavAddBtn").addEventListener("click", function () {
+        const n = document.querySelectorAll("#" + SC_FOOTER_NAV_LIST_ID + " [data-sc-nav-row]").length;
+        if (n >= SITE_CHROME_NAV_MAX) {
+          setStatus("底栏图标链接最多 " + SITE_CHROME_NAV_MAX + " 条。", true);
+          return;
+        }
+        appendNavRow({ href: "", label: "", icon: "", iconOnly: false }, SC_FOOTER_NAV_LIST_ID);
+      });
+
+      function getScNavDragAfter(container, y) {
+        const rows = [...container.querySelectorAll("[data-sc-nav-row]:not(.sc-nav-row--dragging)")];
+        let best = { offset: Number.NEGATIVE_INFINITY, element: null };
+        rows.forEach(function (child) {
+          const box = child.getBoundingClientRect();
+          const offset = y - box.top - box.height / 2;
+          if (offset < 0 && offset > best.offset) {
+            best = { offset, element: child };
+          }
+        });
+        return best.element;
+      }
+
+      function moveScNavRow(row, delta) {
+        const list = row && row.parentNode;
+        if (!list || !row) return;
+        if (delta < 0 && row.previousElementSibling) {
+          list.insertBefore(row, row.previousElementSibling);
+        } else if (delta > 0 && row.nextElementSibling) {
+          list.insertBefore(row.nextElementSibling, row);
+        }
+      }
+
+      function initScNavListInteractions(listId, dragToken) {
+        const list = document.getElementById(listId);
+        if (!list || list.dataset.scNavBound === "1") return;
+        list.dataset.scNavBound = "1";
+        let dragRow = null;
+        list.addEventListener("dragstart", function (e) {
+          const h = e.target.closest(".sc-nav-drag-handle");
+          if (!h) return;
+          dragRow = h.closest("[data-sc-nav-row]");
+          if (!dragRow || dragRow.parentNode !== list) return;
+          dragRow.classList.add("sc-nav-row--dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", dragToken);
+        });
+        list.addEventListener("dragend", function () {
+          const done = dragRow;
+          if (dragRow) dragRow.classList.remove("sc-nav-row--dragging");
+          dragRow = null;
+          if (done) void saveSiteChromeAndApply({ fromAuto: true });
+        });
+        list.addEventListener("dragover", function (e) {
+          if (!dragRow || dragRow.parentNode !== list) return;
+          e.preventDefault();
+          const after = getScNavDragAfter(list, e.clientY);
+          if (after == null) list.appendChild(dragRow);
+          else list.insertBefore(dragRow, after);
+        });
+        list.addEventListener("change", function (e) {
+          const t = e.target;
+          if (!t || !t.classList || !t.classList.contains("sc-nav-icon-select")) return;
+          const row = t.closest("[data-sc-nav-row]");
+          if (row) updateScNavRowIconSelection(row, t.value || "");
+          void saveSiteChromeAndApply({ fromAuto: true });
+        });
+        list.addEventListener("click", function (e) {
+          const up = e.target.closest(".sc-nav-move-up");
+          const down = e.target.closest(".sc-nav-move-down");
+          if (up || down) {
+            const row = (up || down).closest("[data-sc-nav-row]");
+            if (row) moveScNavRow(row, up ? -1 : 1);
+            void saveSiteChromeAndApply({ fromAuto: true });
+            return;
+          }
+          const btn = e.target.closest(".sc-nav-remove");
+          if (!btn) return;
+          const row = btn.closest("[data-sc-nav-row]");
+          if (row) row.remove();
+          if (!list.querySelector("[data-sc-nav-row]")) {
+            appendNavRow({ href: "", label: "", icon: "", iconOnly: false }, listId);
+          }
+          void saveSiteChromeAndApply({ fromAuto: true });
+        });
+      }
+
+      initScNavListInteractions(SC_NAV_LIST_ID, "sc-nav");
+      initScNavListInteractions(SC_FOOTER_NAV_LIST_ID, "sc-footer-nav");
+
+      document.getElementById("scReloadBtn").addEventListener("click", async function () {
+        if (!getToken()) {
+          setStatus("请先登录。", true);
+          return;
+        }
+        setStatus("加载中…", false);
+        try {
+          const data = await fetchSiteChromeAdminJson({
+            headers: { Authorization: "Bearer " + getToken() },
+          });
+          applyForm(data);
+          setStatus("已加载。更新于 " + (data.updatedAt || "—"), false);
+          window.dispatchEvent(new Event("askbible-site-chrome-reload"));
         } catch (e) {
           setStatus(String(e.message || e), true);
         }
+      });
+
+      document.getElementById("scSaveBtn").addEventListener("click", function () {
+        void saveSiteChromeAndApply({ fromAuto: false });
       });
 
       (async function init() {
@@ -1066,7 +1240,8 @@
           auth.hidden = false;
           auth.textContent = "请先在读经页登录管理员帐号。";
           setStatus("未登录，无法加载或保存配置。", true);
-          renderNavRows([]);
+          renderNavRows([], SC_NAV_LIST_ID);
+          renderNavRows([], SC_FOOTER_NAV_LIST_ID);
           return;
         }
         auth.hidden = true;

@@ -69,28 +69,120 @@
     share: svg(
       '<path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>'
     ),
+    page_prev: svg(
+      '<path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>'
+    ),
+    page_next: svg(
+      '<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>'
+    ),
+    stars_five: svg(
+      '<path transform="translate(2.4,12) scale(0.155) translate(-12,-12)" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>' +
+        '<path transform="translate(7.2,12) scale(0.155) translate(-12,-12)" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>' +
+        '<path transform="translate(12,12) scale(0.155) translate(-12,-12)" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>' +
+        '<path transform="translate(16.8,12) scale(0.155) translate(-12,-12)" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>' +
+        '<path transform="translate(21.6,12) scale(0.155) translate(-12,-12)" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>'
+    ),
+    bell: svg(
+      '<path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>'
+    ),
+    image: svg(
+      '<path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>'
+    ),
+    menu: svg(
+      '<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>'
+    ),
+    close: svg(
+      '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>'
+    ),
+    check: svg(
+      '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>'
+    ),
+    help: svg(
+      '<path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/>'
+    ),
+    lock: svg(
+      '<path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>'
+    ),
+    bookmark: svg(
+      '<path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/>'
+    ),
+    list: svg(
+      '<path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>'
+    ),
+    refresh: svg(
+      '<path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>'
+    ),
+    edit: svg(
+      '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>'
+    ),
+    download: svg(
+      '<path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>'
+    ),
+    upload: svg(
+      '<path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>'
+    ),
+    globe: svg(
+      '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>'
+    ),
+    filter: svg(
+      '<path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>'
+    ),
+    chevron_up: svg(
+      '<path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/>'
+    ),
+    chevron_down: svg(
+      '<path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/>'
+    ),
+    arrow_back: svg(
+      '<path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>'
+    ),
+    arrow_forward: svg(
+      '<path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>'
+    ),
   };
   var OPTIONS = [
     { id: "", labelZh: "无" },
+    { id: "page_prev", labelZh: "上一页（左尖角）" },
+    { id: "page_next", labelZh: "下一页（右尖角）" },
+    { id: "arrow_back", labelZh: "返回箭头" },
+    { id: "arrow_forward", labelZh: "前进箭头" },
+    { id: "stars_five", labelZh: "五星（一排）" },
+    { id: "star", labelZh: "单颗星" },
     { id: "user", labelZh: "人物" },
     { id: "home", labelZh: "房屋" },
     { id: "book", labelZh: "书本" },
     { id: "book_open", labelZh: "展开的书" },
+    { id: "bookmark", labelZh: "书签" },
+    { id: "doc", labelZh: "文档" },
     { id: "info", labelZh: "信息" },
+    { id: "help", labelZh: "帮助" },
     { id: "settings", labelZh: "设置" },
     { id: "search", labelZh: "搜索" },
-    { id: "minus", labelZh: "减号" },
-    { id: "plus", labelZh: "加号" },
-    { id: "heart", labelZh: "心形" },
+    { id: "bell", labelZh: "铃铛通知" },
     { id: "mail", labelZh: "邮件" },
+    { id: "phone", labelZh: "电话" },
     { id: "link", labelZh: "链接" },
     { id: "map", labelZh: "地图钉" },
     { id: "calendar", labelZh: "日历" },
-    { id: "phone", labelZh: "电话" },
-    { id: "doc", labelZh: "文档" },
-    { id: "star", labelZh: "星标" },
+    { id: "globe", labelZh: "地球" },
+    { id: "image", labelZh: "图片" },
     { id: "play", labelZh: "播放" },
     { id: "share", labelZh: "分享" },
+    { id: "heart", labelZh: "心形" },
+    { id: "minus", labelZh: "减号" },
+    { id: "plus", labelZh: "加号" },
+    { id: "menu", labelZh: "三横菜单" },
+    { id: "close", labelZh: "关闭" },
+    { id: "check", labelZh: "对勾" },
+    { id: "list", labelZh: "列表" },
+    { id: "filter", labelZh: "筛选" },
+    { id: "refresh", labelZh: "刷新" },
+    { id: "edit", labelZh: "编辑" },
+    { id: "download", labelZh: "下载" },
+    { id: "upload", labelZh: "上传" },
+    { id: "lock", labelZh: "锁" },
+    { id: "chevron_up", labelZh: "上尖角" },
+    { id: "chevron_down", labelZh: "下尖角" },
   ];
   var ICON_ALIASES = {
     document: "doc",
@@ -98,6 +190,14 @@
     page: "doc",
     house: "home",
     person: "user",
+    prev: "page_prev",
+    previous: "page_prev",
+    next: "page_next",
+    chevron_left: "page_prev",
+    chevron_right: "page_next",
+    five_stars: "stars_five",
+    rating: "stars_five",
+    stars: "stars_five",
   };
   function askBibleChromeNavIconHtml(id) {
     var k = String(id || "")
@@ -428,10 +528,21 @@
     return s === "true" || s === "1" || s === "yes" || s === "on";
   }
 
-  function renderNavHtml(cfg) {
-    var links = (cfg.topbar && cfg.topbar.navLinks) || [];
-    if (!links.length) return "";
-    var inner = links
+  function navLinkIsVisible(item) {
+    if (!item || typeof item !== "object") return true;
+    if (item.visible === false || item.visible === 0) return false;
+    var s = String(item.visible ?? "")
+      .trim()
+      .toLowerCase();
+    if (s === "false" || s === "0" || s === "no" || s === "off") return false;
+    return true;
+  }
+
+  function buildAskBibleChromeNavPillsInnerHtml(links) {
+    var list = links || [];
+    if (!list.length) return "";
+    return list
+      .filter(navLinkIsVisible)
       .map(function (item) {
         var icon =
           typeof window !== "undefined" && typeof window.askBibleChromeNavIconHtml === "function"
@@ -468,6 +579,11 @@
         );
       })
       .join("");
+  }
+
+  function renderNavHtml(cfg) {
+    var inner = buildAskBibleChromeNavPillsInnerHtml((cfg.topbar && cfg.topbar.navLinks) || []);
+    if (!inner) return "";
     return (
       '<nav class="askbible-chrome-nav" role="navigation" aria-label="站点导航">' +
       inner +
@@ -486,7 +602,15 @@
     if (!left && !center && !right && legacy) {
       center = legacy;
     }
-    if (!foot.enabled || (!left && !center && !right)) {
+    var navInner = buildAskBibleChromeNavPillsInnerHtml(foot.navLinks || []);
+    var navBlock = navInner
+      ? '<nav class="askbible-chrome-nav askbible-chrome-footer-nav" role="navigation" aria-label="底栏链接">' +
+        navInner +
+        "</nav>"
+      : "";
+    var hasCols = !!(left || center || right);
+    var hasNav = navInner.length > 0;
+    if (!foot.enabled || (!hasCols && !hasNav)) {
       el.innerHTML = "";
       el.setAttribute("hidden", "");
       return;
@@ -512,12 +636,15 @@
         "</div>"
       );
     }
-    el.innerHTML =
-      '<div class="site-footer-inner">' +
-      colHtml("left", left) +
-      colHtml("center", center) +
-      colHtml("right", right) +
-      "</div>";
+    var colsBlock =
+      hasCols
+        ? '<div class="site-footer-inner">' +
+          colHtml("left", left) +
+          colHtml("center", center) +
+          colHtml("right", right) +
+          "</div>"
+        : "";
+    el.innerHTML = colsBlock + navBlock;
   }
 
   function applySublineDismissFromStorage(cfg) {
@@ -663,6 +790,7 @@
    * 在短距离 touchstart→touchend 上直接触发分享，并 preventDefault 避免重复合成 click。
    */
   function initSharePageTouchWorkaround() {
+    if (!document.body) return;
     if (document.body.dataset.shareTouchWorkaround === "1") return;
     document.body.dataset.shareTouchWorkaround = "1";
     var startX = 0;
@@ -758,7 +886,27 @@
     initSharePageTouchWorkaround();
   }
 
-  initSharePageNavAction();
+  /**
+   * site-chrome.html 在 <head> 同步加载本脚本时 document.body 尚不存在；
+   * 若此处立刻执行 initSharePageNavAction，touch 兜底会读 body.dataset 抛错，整段脚本中断，
+   * 内联后台表单脚本虽仍会跑，但控制台报错易掩盖真正问题；其它页亦应等 body 就绪再绑分享。
+   */
+  var __askbibleShareNavBound = false;
+  function scheduleInitSharePageNavAction() {
+    function go() {
+      if (!document.body || __askbibleShareNavBound) return;
+      __askbibleShareNavBound = true;
+      initSharePageNavAction();
+    }
+    if (document.body) {
+      go();
+    } else if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", go, { once: true });
+    } else {
+      go();
+    }
+  }
+  scheduleInitSharePageNavAction();
 
   async function run() {
     try {

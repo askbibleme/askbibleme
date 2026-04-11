@@ -8,7 +8,7 @@
     <!-- <meta name="askbible-api-base" content="http://127.0.0.1:3000" /> -->
     <title>圣经人物设计器 · AskBible.me</title>
     <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=110" />
+    <link rel="stylesheet" href="/styles.css?v=111" />
     <link rel="stylesheet" href="/admin-shell.css?v=12" />
     <script src="/theme-apply.js?v=2"></script>
     <style>
@@ -1099,6 +1099,61 @@
         gap: 0;
         box-sizing: border-box;
       }
+      .bcd-hero-caption {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 1px;
+        padding: 5px 4px 2px;
+        box-sizing: border-box;
+        text-align: center;
+      }
+      .bcd-hero-name-jump {
+        display: block;
+        width: auto;
+        max-width: 100%;
+        align-self: center;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--ink);
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        line-height: 1.15;
+      }
+      .bcd-hero-name-jump:hover {
+        color: #6b4e0a;
+      }
+      .bcd-hero-meta-line {
+        display: block;
+        width: 100%;
+        min-height: 1em;
+        font-size: 11px;
+        line-height: 1.22;
+        color: rgba(84, 77, 69, 0.76);
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        word-break: break-word;
+      }
+      .bcd-hero-meta-line--life {
+        color: #4a5a6e;
+      }
+      .bcd-hero-meta-line--era {
+        color: #6b5b48;
+      }
+      .bcd-hero-meta-line--tags {
+        color: #5a5248;
+      }
+      .bcd-hero-meta-line--empty {
+        color: rgba(84, 77, 69, 0.34);
+      }
       .bcd-hero-tile-canvas {
         flex: 1 1 0;
         align-self: stretch;
@@ -1181,30 +1236,6 @@
         color: rgba(50, 50, 50, 0.55);
         text-align: center;
         padding: 8px 4px;
-      }
-      .bcd-hero-name-jump {
-        display: block;
-        width: auto;
-        max-width: 100%;
-        align-self: center;
-        margin: 0;
-        padding: 2px 0;
-        border: none;
-        border-radius: 8px;
-        background: transparent;
-        font: inherit;
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--ink);
-        cursor: pointer;
-        text-align: center;
-        text-decoration: underline;
-        text-decoration-color: rgba(200, 155, 60, 0.45);
-        text-underline-offset: 3px;
-      }
-      .bcd-hero-name-jump:hover {
-        color: #6b4e0a;
-        text-decoration-color: rgba(200, 155, 60, 0.85);
       }
       .bcd-hero-empty {
         display: flex;
@@ -4004,11 +4035,16 @@
           });
           var parts = [];
           for (idx = 0; idx < rows.length; idx++) {
+            var card = rows[idx].card;
             var key = rows[idx].key;
-            var url = String(rows[idx].card.getAttribute("data-hero-image-url") || "").trim();
-            var rhTile = bcdNormalizeHeroRosterHeight(
-              rows[idx].card.getAttribute("data-hero-roster-height")
-            );
+            var url = String(card.getAttribute("data-hero-image-url") || "").trim();
+            var rhTile = bcdNormalizeHeroRosterHeight(card.getAttribute("data-hero-roster-height"));
+            var name = String(card.querySelector(".bcd-key")?.value || key || "").trim();
+            var life = String(card.querySelector(".bcd-lifespan-zh")?.value || "").trim();
+            var era = String(card.querySelector(".bcd-era-label-zh")?.value || "").trim();
+            var tags = String(card.querySelector(".bcd-identity-tags-zh")?.value || "").trim();
+            var role = String(card.querySelector(".bcd-character-role-zh")?.value || "").trim();
+            var tagsValue = tags || role || "";
             var forAttr = escapePresetHtml(key);
             var tileCls =
               "bcd-hero-tile";
@@ -4033,11 +4069,28 @@
                 '<div class="bcd-hero-tile-canvas">' +
                 cellInner +
                 "</div>" +
+                '<div class="bcd-hero-caption">' +
                 '<button type="button" class="bcd-hero-name-jump" data-hero-for="' +
                 forAttr +
                 '">' +
-                escapePresetHtml(key) +
+                escapePresetHtml(name || key) +
                 "</button>" +
+                '<span class="bcd-hero-meta-line bcd-hero-meta-line--life' +
+                (life ? "" : " bcd-hero-meta-line--empty") +
+                '">' +
+                escapePresetHtml(life || "—") +
+                "</span>" +
+                '<span class="bcd-hero-meta-line bcd-hero-meta-line--era' +
+                (era ? "" : " bcd-hero-meta-line--empty") +
+                '">' +
+                escapePresetHtml(era || "—") +
+                "</span>" +
+                '<span class="bcd-hero-meta-line bcd-hero-meta-line--tags' +
+                (tagsValue ? "" : " bcd-hero-meta-line--empty") +
+                '">' +
+                escapePresetHtml(tagsValue || "—") +
+                "</span>" +
+                "</div>" +
                 "</div>"
             );
           }

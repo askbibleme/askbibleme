@@ -2,7 +2,7 @@
  * 更新本常量即丢弃旧 Cache Storage，用户下次激活 SW 后生效。
  * 改版频繁时也可只靠下方「网络优先」资源自动拉新； bump 仍用于强制换 SW 脚本本体。
  */
-const CACHE_NAME = "askbible-static-v53";
+const CACHE_NAME = "askbible-static-v69";
 
 const STATIC_ASSETS = [
   "/manifest.webmanifest",
