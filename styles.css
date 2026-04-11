@@ -3507,7 +3507,7 @@ body.reader-font-settings-open .reader-font-settings-sheet {
 
 /* 与底栏同高（见 body.mobile-topbar-actions-docked .page-shell padding-bottom），面板下缘与底栏上缘对齐无空隙 */
 body.mobile-topbar-actions-docked.reader-font-settings-open .reader-font-settings-sheet {
-  padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
 body.mobile-topbar-actions-docked.reader-font-settings-open .reader-font-settings-sheet__panel {
@@ -7667,9 +7667,9 @@ a.admin-modal-hub-link.primary-btn {
 
   .askbible-chrome-nav .askbible-chrome-nav-pill {
     flex-shrink: 0;
-    padding: 10px 4px;
-    min-width: 36px;
-    min-height: 44px;
+    padding: 8px 3px;
+    min-width: 32px;
+    min-height: 36px;
     box-sizing: border-box;
     border-radius: 10px;
     gap: 0;
@@ -7713,7 +7713,11 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   .askbible-chrome-nav .askbible-chrome-nav-pill:has(.askbible-chrome-nav-pill-icon) .askbible-chrome-nav-pill-icon {
-    transform: translateY(8px);
+    width: 25px;
+    height: 25px;
+    max-width: 25px;
+    max-height: 25px;
+    transform: translateY(6px);
     opacity: 1;
   }
 
@@ -7907,7 +7911,7 @@ a.admin-modal-hub-link.primary-btn {
 /* 读经单栏宽度内：站点导航下挂底栏（与 main.js TOPBAR_ACTIONS_DOCK_MEDIA 一致） */
 @media (max-width: 1100px) {
   body.mobile-topbar-actions-docked .page-shell {
-    padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   }
 
   .mobile-topbar-actions-dock {
@@ -7970,19 +7974,19 @@ a.admin-modal-hub-link.primary-btn {
     flex-wrap: nowrap;
   }
 
-  /* 底栏：图标块按内容宽排列，块与块间距 5px；不限制 pill / 图标宽度 */
+  /* 底栏：小屏站点导航图标 25×25 */
   .mobile-topbar-actions-dock .askbible-chrome-nav .askbible-chrome-nav-pill {
     flex: 0 0 auto;
-    min-height: 48px;
-    padding-left: 2px;
-    padding-right: 2px;
+    min-height: 30px;
+    padding-left: 5px;
+    padding-right: 5px;
   }
 
   .mobile-topbar-actions-dock .askbible-chrome-nav .askbible-chrome-nav-pill-icon {
-    width: 44px;
-    height: 44px;
-    max-width: none;
-    max-height: none;
+    width: 25px;
+    height: 25px;
+    max-width: 25px;
+    max-height: 25px;
     flex-shrink: 0;
     transform: none;
   }

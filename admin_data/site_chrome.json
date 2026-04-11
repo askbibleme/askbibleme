@@ -14,7 +14,7 @@
     "brandSubtitleShow": false,
     "brandSubtitleDismissible": false,
     "brandSubtitleInline": false,
-    "topbarSticky": true,
+    "topbarSticky": false,
     "navLinks": [
       {
         "href": "/#openBookChapter",
