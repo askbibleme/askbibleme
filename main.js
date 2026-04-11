@@ -3298,14 +3298,31 @@ function syncMobileTopbarActionsDock() {
     if (actions.parentElement !== dockTarget) {
       dockTarget.appendChild(actions);
     }
-  } else if (trailing && memberHub && trailing.contains(memberHub)) {
-    trailing.insertBefore(actions, memberHub);
-  } else {
-    if (actions.parentElement !== header) {
-      header.appendChild(actions);
+    if (trailing && memberHub && !trailing.contains(memberHub)) {
+      trailing.appendChild(memberHub);
     }
-    if (actions.previousElementSibling !== title) {
-      header.insertBefore(actions, title.nextSibling);
+    /* 读经单栏：会员区不在顶栏展示，trailing 内仅剩隐藏节点，整块隐藏以免占 flex 位 */
+    if (trailing) {
+      trailing.hidden = true;
+      trailing.setAttribute("aria-hidden", "true");
+    }
+  } else {
+    if (trailing) {
+      trailing.hidden = false;
+      trailing.removeAttribute("aria-hidden");
+    }
+    if (trailing && memberHub) {
+      if (memberHub.parentElement !== trailing) {
+        trailing.appendChild(memberHub);
+      }
+      trailing.insertBefore(actions, memberHub);
+    } else {
+      if (actions.parentElement !== header) {
+        header.appendChild(actions);
+      }
+      if (actions.previousElementSibling !== title) {
+        header.insertBefore(actions, title.nextSibling);
+      }
     }
   }
 

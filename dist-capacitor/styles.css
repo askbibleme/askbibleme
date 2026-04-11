@@ -136,25 +136,25 @@ body {
 }
 
 /* 读经页 / 宣传页等：顶栏与下方书卡衔接；右侧（导航 pill + 会员书签）整体左移 30px */
-.page-shell > .site-topbar:has(+ .book-layout) {
+.page-shell:has(> main.book-layout) > .site-topbar {
   margin-bottom: 0;
 }
 
 /* 有顶栏副标题时：与下方纸张（书卡）之间增加 5px 竖直间距 */
-.page-shell
-  > .site-topbar:has(+ .book-layout):has(
+.page-shell:has(> main.book-layout)
+  > .site-topbar:has(
     .askbible-chrome-brand-subline-row:not([hidden])
   ) {
   padding-bottom: 5px;
   box-sizing: border-box;
 }
 
-.page-shell > .site-topbar:has(+ .book-layout) .site-topbar-title {
+.page-shell:has(> main.book-layout) > .site-topbar .site-topbar-title {
   margin-top: -5px;
 }
 
-.page-shell > .site-topbar:has(+ .book-layout) .site-topbar-trailing,
-.page-shell > .site-topbar:has(+ .book-layout) .site-topbar-actions {
+.page-shell:has(> main.book-layout) > .site-topbar .site-topbar-trailing,
+.page-shell:has(> main.book-layout) > .site-topbar .site-topbar-actions {
   margin-right: 0;
 }
 
@@ -174,7 +174,7 @@ body {
 }
 
 /* 会员面板在 header 内、main 书卡在 DOM 后；抬高顶栏叠层，避免下拉被书卡盖住 */
-.page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
+.page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar {
   position: relative;
   z-index: 250;
 }
@@ -266,7 +266,7 @@ body:has(
 }
 
 @media (min-width: 1101px) {
-  .page-shell > .site-topbar:has(+ .book-layout) {
+  .page-shell:has(> main.book-layout) > .site-topbar {
     align-items: flex-end;
   }
 
@@ -419,13 +419,13 @@ body:has(
   transform: translateY(5px);
 }
 
-/* 大屏 / 双栏读经（≥1101，与 main.js TOPBAR_ACTIONS_DOCK_MEDIA 相反：顶栏未下挂）：chrome 导航图标 50×50；≤1100 底栏样式不变 */
+/* 大屏 / 双栏读经（≥1101，与 main.js TOPBAR_ACTIONS_DOCK_MEDIA 相反：顶栏未下挂）：chrome 导航图标 30×30；≤1100 底栏样式不变 */
 @media (min-width: 1101px) {
   body:not(.mobile-topbar-actions-docked) .site-topbar .askbible-chrome-nav .askbible-chrome-nav-pill-icon {
-    width: 50px;
-    height: 50px;
-    max-width: 50px;
-    max-height: 50px;
+    width: 30px;
+    height: 30px;
+    max-width: 30px;
+    max-height: 30px;
     transform: translateY(0);
   }
 
@@ -691,8 +691,8 @@ body:has(
   align-items: center;
 }
 
-/* 读经主界面：不显示顶栏右上角会员入口（面板仍可用 /#openMemberHub、导航「用户」等） */
-.page-shell:has(main.book-layout) .site-topbar .member-hub {
+/* 读经书页：顶栏不显示会员区（面板仍可用 /#openMemberHub、程序调用 openMemberHub 等） */
+.page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .member-hub {
   display: none !important;
 }
 
@@ -7717,24 +7717,57 @@ a.admin-modal-hub-link.primary-btn {
     opacity: 1;
   }
 
-  /* 读经单栏：顶栏与双页大屏一致 — Logo 与菜单同一行、底对齐（笔记本页仍用纵向顶栏） */
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
-    flex-direction: row;
+  /* 读经单栏：Logo 水平居中；右侧为导航 + 会员（1fr | auto | 1fr 保证中间列视口居中） */
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: flex-end;
-    justify-content: space-between;
-    gap: 12px;
+    align-content: end;
+    gap: 8px 12px;
     min-width: 0;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
-    margin-left: 7px;
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-title {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+    margin-left: 0;
     margin-top: -5px;
-    flex: 1 1 0;
+    flex: unset;
     min-width: 0;
+    max-width: 100%;
     overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title h1 {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-trailing {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    align-self: flex-end;
+    flex: unset;
+    margin-top: 0;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .askbible-chrome-brand-inner {
+    justify-content: center;
+  }
+
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .askbible-chrome-brand-text {
+    align-items: center;
+  }
+
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar
+    .askbible-chrome-brand-text--inline
+    .askbible-chrome-brand-head-row {
+    justify-content: center;
+  }
+
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-title h1 {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -7742,16 +7775,16 @@ a.admin-modal-hub-link.primary-btn {
     color: var(--brand-bible);
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title h1 .brand-ask,
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title h1 .brand-me {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-title h1 .brand-ask,
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-title h1 .brand-me {
     color: #f6efe4;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title h1 .brand-bible {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-title h1 .brand-bible {
     color: var(--brand-bible);
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title .brand-subtitle {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-title .brand-subtitle {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -7761,7 +7794,7 @@ a.admin-modal-hub-link.primary-btn {
     margin-top: 0;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-actions {
     width: auto;
     flex: 0 1 auto;
     min-width: 0;
@@ -7770,11 +7803,34 @@ a.admin-modal-hub-link.primary-btn {
     overflow: visible;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .askbible-chrome-nav {
-    /* 中屏读经同行：菜单左移 15px（下挂底栏时该节点不在顶栏） */
-    transform: translateX(-15px);
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .askbible-chrome-nav {
+    /* Logo 已居中，导航贴右格即可（下挂底栏时该节点不在顶栏） */
+    transform: none;
     max-width: 100%;
     min-width: 0;
+  }
+
+  /* 底栏仅站点导航；顶栏仅 LOGO 居中（会员区隐藏，见全局 .site-topbar .member-hub；下挂时 trailing 由 JS 设 hidden） */
+  body.mobile-topbar-actions-docked
+    .page-shell:has(> main.book-layout:not(.notebook-layout))
+    > .site-topbar {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 0;
+    min-width: 0;
+  }
+
+  body.mobile-topbar-actions-docked
+    .page-shell:has(> main.book-layout:not(.notebook-layout))
+    > .site-topbar
+    .site-topbar-title {
+    grid-column: unset;
+    grid-row: unset;
+    justify-self: unset;
+    flex: 0 1 auto;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .page-chapter-number {
@@ -7886,13 +7942,18 @@ a.admin-modal-hub-link.primary-btn {
     z-index: 1;
     width: 100%;
     display: flex;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
   }
 
   .mobile-topbar-actions-dock .mobile-topbar-actions-dock__nav > .site-topbar-actions,
   .mobile-topbar-actions-dock > .site-topbar-actions {
     position: relative;
     z-index: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     width: 100%;
     justify-content: center;
     margin-top: 0;
@@ -7933,30 +7994,6 @@ a.admin-modal-hub-link.primary-btn {
     transform: none;
   }
 
-  body.mobile-topbar-actions-docked .site-topbar .member-hub-trigger {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding-left: 0;
-    padding-right: 10px;
-    min-height: 36px;
-  }
-
-  body.mobile-topbar-actions-docked .site-topbar .member-hub-trigger:hover,
-  body.mobile-topbar-actions-docked .site-topbar .member-hub-trigger:active {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    color: #fff7eb;
-  }
-
-  body.mobile-topbar-actions-docked .site-topbar .member-hub-trigger[aria-expanded="true"] {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    outline: 2px solid rgba(255, 184, 46, 0.5);
-    outline-offset: 2px;
-  }
 }
 
 @media (max-width: 700px) {
@@ -8030,7 +8067,7 @@ a.admin-modal-hub-link.primary-btn {
     margin-bottom: 10px;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout) {
+  .page-shell:has(> main.book-layout) > .site-topbar {
     margin-bottom: 0;
   }
 
@@ -8039,7 +8076,7 @@ a.admin-modal-hub-link.primary-btn {
     margin-top: 2px;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-title {
     margin-left: 5px;
     margin-top: 0;
     flex: 1 1 auto;
@@ -8048,12 +8085,12 @@ a.admin-modal-hub-link.primary-btn {
     width: auto;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-actions {
     width: auto;
     overflow: visible;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-trailing {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-trailing {
     width: auto;
     overflow: visible;
   }
@@ -8063,23 +8100,23 @@ a.admin-modal-hub-link.primary-btn {
     line-height: 1.08;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar
     .askbible-chrome-brand-inner {
     display: block;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar
     .askbible-chrome-brand-text,
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar
     .askbible-chrome-brand-text.askbible-chrome-brand-text--inline,
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar
     .askbible-chrome-brand-head-row {
     display: block;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar
     .askbible-chrome-brand-subline-row,
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout))
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar
     .brand-subtitle {
     display: none !important;
   }
@@ -8111,11 +8148,11 @@ a.admin-modal-hub-link.primary-btn {
   }
 
   /* 小屏读经同行：不用横向 translate，避免挤占 LOGO */
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .askbible-chrome-nav {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .askbible-chrome-nav {
     transform: none;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar {
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
@@ -8421,7 +8458,7 @@ a.admin-modal-hub-link.primary-btn {
     margin-top: 0;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-title {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-title {
     margin-left: 5px;
     margin-top: 0;
     flex: 1 1 auto;
@@ -8429,7 +8466,7 @@ a.admin-modal-hub-link.primary-btn {
     overflow: visible;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) .site-topbar-actions {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar .site-topbar-actions {
     width: auto;
     overflow: visible;
     margin-top: 0;
@@ -8439,7 +8476,7 @@ a.admin-modal-hub-link.primary-btn {
     gap: 0;
   }
 
-  .page-shell > .site-topbar:has(+ .book-layout:not(.notebook-layout)) {
+  .page-shell:has(> main.book-layout:not(.notebook-layout)) > .site-topbar {
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
